@@ -58,7 +58,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
             <CopyButton text={props.subject} label="Copy subject" /><CopyButton text={props.email} label="Copy email" />
             {props.to ? <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a> : null}
           </div>
-          <p className="small muted" style={{ marginTop: 8 }}>Attach your tailored CV yourself. Job Switcher never sends applications for you.</p>
+          <p className="small muted" style={{ marginTop: 8 }}>When you send it yourself, attach your tailored CV. Job Switcher never sends anything without your press.</p>
         </> : null}
         {t === "check" ? <ul className="why-list">{props.checklist.map((c) => <li key={c}><span className="mk ok">✓</span><span>{c}</span></li>)}</ul> : null}
       </div>
@@ -68,9 +68,9 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
 
-export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean }) {
+export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"main" | "later" | "notyet">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
+  const [mode, setMode] = useState<"main" | "later" | "notyet" | "send">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
@@ -90,6 +90,15 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
     if (j.notice) setNotice(j.notice);
     router.refresh();
   }
+  async function send() {
+    setBusy("Sending your application from " + p.gmail); setErr("");
+    const r = await fetch(`/api/applications/${p.jobId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }) });
+    const j = await r.json().catch(() => ({}));
+    setBusy("");
+    if (!r.ok) { setErr(j.error || "Could not send the application."); setMode("main"); return; }
+    setNotice(`Sent to ${j.to} from ${j.from}. You can see it in your Gmail Sent folder.`);
+    router.refresh();
+  }
   async function saveReminder(d: string) {
     setErr("");
     if (p.deadline && d > p.deadline) { setErr(`This is after the deadline of ${fmtDate(p.deadline)}. Choose an earlier date.`); return; }
@@ -100,8 +109,24 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
     router.refresh();
   }
 
-  if (busy) return <><p><Spinner /> {busy}</p><p className="small muted" style={{ marginTop: 8 }}>Tailoring your CV and writing a cover letter from your verified profile.</p></>;
-  if (p.status && DONE.includes(p.status)) return <><h3>{STATUS_LABEL[p.status]}</h3><p className="small muted">Added to your applications on {fmtDate((p.appliedAt || p.today).slice(0, 10))}.</p><Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/applications">View applications</Link></>;
+  if (busy) return <><p><Spinner /> {busy}</p>{busy.startsWith("Preparing") ? <p className="small muted" style={{ marginTop: 8 }}>Tailoring your CV and writing a cover letter from your verified profile.</p> : null}</>;
+  const gmailNote = p.gmailStatus === "connected" ? "Gmail connected. You can now apply in one tap." : p.gmailStatus === "failed" ? "Gmail could not be connected. Try again." : p.gmailStatus === "cancelled" ? "Gmail was not connected." : "";
+  if (mode === "send") return (
+    <>
+      <h3>Send this application?</h3>
+      <ul className="small" style={{ paddingLeft: 18, margin: "8px 0 0" }}>
+        <li>To: <b>{p.applyTarget}</b></li>
+        <li>From: <b>{p.gmail}</b></li>
+        <li>Attached: your tailored CV and cover letter</li>
+      </ul>
+      <p className="small muted" style={{ marginTop: 8 }}>Check the Tailored CV, Cover letter and Email tabs first. The email is sent only when you press Send.</p>
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn btn-primary btn-sm" onClick={send}>Send application</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => setMode("main")}>Cancel</button>
+      </div>
+    </>
+  );
+  if (p.status && DONE.includes(p.status)) return <><h3>{STATUS_LABEL[p.status]}</h3><p className="small muted">Added to your applications on {fmtDate((p.appliedAt || p.today).slice(0, 10))}.</p>{notice ? <p className="note" style={{ marginTop: 8 }}>{notice}</p> : null}<Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/applications">View applications</Link></>;
   if (mode === "notyet") return (
     <>
       <h3>No problem. When should we remind you?</h3>
@@ -142,6 +167,16 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
     <>
       {remind}
       <h3>Your application is ready</h3>
+      {gmailNote ? <p className="note" style={{ marginTop: 8 }}>{gmailNote}</p> : null}
+      {em && p.gmailReady ? (
+        <div className="stack" style={{ marginTop: 10, gap: 8 }}>
+          {p.gmail
+            ? <button className="btn btn-primary" onClick={() => { setErr(""); setMode("send"); }}>Apply now from {p.gmail}</button>
+            : <a className="btn btn-primary" href={`/api/gmail/connect?next=${encodeURIComponent(`/jobs/${p.jobId}`)}`}>Connect Gmail to apply in one tap</a>}
+          <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, Job Switcher sends each application from your Gmail when you press Apply. We can only send, never read your email."}</p>
+          <p className="small muted" style={{ marginTop: 4 }}>Or send it yourself:</p>
+        </div>
+      ) : null}
       <ol className="small" style={{ paddingLeft: 18, margin: "8px 0 0" }}>
         {em ? <><li>Copy the email and send it to <b>{p.applyTarget}</b> from your own email</li><li>Attach your tailored CV</li><li>Come back and confirm</li></>
           : <><li>Open the application page</li><li>Upload your tailored CV</li><li>Paste the cover letter and answers</li><li>Submit, then confirm here</li></>}

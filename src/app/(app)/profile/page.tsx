@@ -6,7 +6,9 @@ import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
 import { backToStepAction, setReminderPrefAction } from "@/app/actions";
-import { CountryPanel, SkillAdder, FactReview, DangerZone } from "./client";
+import { CountryPanel, SkillAdder, FactReview, DangerZone, GmailPanel } from "./client";
+import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Profile" };
 const SETUP_STEPS = ["address", "alerts", "forward", "filter", "test"];
@@ -19,8 +21,10 @@ function describeFact(kind: string, d: Record<string, unknown>): string {
   return String(d.name ?? "");
 }
 
-export default async function Profile() {
+export default async function Profile({ searchParams }: { searchParams: Promise<{ gmail?: string }> }) {
   const { st, db } = await requireAppState("/profile");
+  const gmailStatus = (await searchParams).gmail ?? null;
+  const gmail = gmailConfigured() ? await gmailAccount(createAdminClient(), st.userId) : null;
   const P = st.P, country = st.country, r = rule(country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
   const photo = await photoUrl(db, st.profile.photo_path);
@@ -65,6 +69,7 @@ export default async function Profile() {
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>
             <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{SETUP_STEPS.length})</Link>
           </div>
+          {gmailConfigured() ? <GmailPanel email={gmail} status={gmailStatus} /> : null}
           <div className="card panel"><h3>Reminder emails</h3>
             <p className="small muted">{st.profile.email_reminders ? "We email you on the reminder dates you set." : "Reminder emails are off; reminders still show in your inbox."}</p>
             <form action={setReminderPrefAction.bind(null, !st.profile.email_reminders)}><button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}>{st.profile.email_reminders ? "Turn off reminder emails" : "Turn on reminder emails"}</button></form>
