@@ -1,6 +1,9 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
-import { proPlan } from "@/lib/server/billing";
+import { proPlan, proPriceFor } from "@/lib/server/billing";
+import { formatPrice, PAYABLE_CURRENCIES } from "@/lib/billing/pricing";
+import { cname } from "@/lib/countries";
+import Link from "next/link";
 import { billingConfig, formatTaka } from "@/lib/billing/manual";
 import { fmtDate } from "@/lib/dates";
 import { CheckoutButton, ManualPaymentForm } from "./client";
@@ -20,13 +23,16 @@ const STATUS: Record<string, string> = { pending: "Waiting for review", approved
 export default async function Upgrade({ searchParams }: { searchParams: Promise<{ payment?: string }> }) {
   const sp = await searchParams;
   const { supabase, user } = await requireUser("/upgrade");
-  const [plan, label, subRes, payRes] = await Promise.all([
+  const [plan, label, subRes, payRes, profRes] = await Promise.all([
     proPlan(supabase),
     trialLabel(supabase, user.id),
     supabase.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", user.id).maybeSingle(),
     supabase.from("payments").select("id, method, amount_minor, trx_id, status, period_end, review_note, created_at").eq("user_id", user.id).neq("status", "initiated").order("created_at", { ascending: false }).limit(10),
+    supabase.from("profiles").select("home_country").eq("id", user.id).maybeSingle(),
   ]);
-  const cfg = billingConfig();
+  const local = await proPriceFor(supabase, profRes.data?.home_country);
+  const payable = PAYABLE_CURRENCIES.includes(local.currency);
+  const cfg = payable ? billingConfig() : { manual: null, checkout: false };
   const sub = subRes.data;
   const payments = payRes.data || [];
   const price = formatTaka(plan.priceMinor);
@@ -37,13 +43,14 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
       <SiteHeader inApp={false} signedIn trialLabel={label} />
       <main><div className="wrap ob">
         <h1 style={{ fontSize: 30 }}>Job Switcher Pro</h1>
-        <p className="muted" style={{ marginTop: 6 }}>{price} for 30 days. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</p>
+        <p className="muted" style={{ marginTop: 6 }}>{payable ? price : formatPrice(local.minor, local.currency)} for 30 days. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</p>
         {banner ? <p className="note" style={{ marginTop: 14, borderColor: banner[0] === "ok" ? "var(--accent)" : "var(--warn)" }}>{banner[1]}</p> : null}
         <div className="card panel" style={{ marginTop: 18 }}>
           <h3>Your plan</h3>
           <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds 30 days after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts 30 days of Pro today.</> : <>You are on the free plan. Paying starts 30 days of Pro.</>}</p>
         </div>
-        {!cfg.manual && !cfg.checkout ? <p className="note" style={{ marginTop: 18 }}>Payments are not open yet. Your trial features keep working until the trial ends.</p> : null}
+        {!payable ? <p className="note" style={{ marginTop: 18 }}>Online payment for people living in {local.country === "XX" ? "your country" : cname(local.country)} is coming soon. bKash works only in Bangladesh. If you live in Bangladesh, change <b>I live in</b> on your <Link href="/profile">profile</Link>.</p> : null}
+        {payable && !cfg.manual && !cfg.checkout ? <p className="note" style={{ marginTop: 18 }}>Payments are not open yet. Your trial features keep working until the trial ends.</p> : null}
         {cfg.checkout ? (
           <div className="card panel stack" style={{ marginTop: 14 }}>
             <h3 style={{ margin: 0 }}>Pay with bKash</h3>

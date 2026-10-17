@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addSkillAction, reviewFactAction, setCountryAction, setNeedsVisaAction } from "@/app/actions";
+import { addSkillAction, reviewFactAction, setCountryAction, setHomeCountryAction, setNeedsVisaAction } from "@/app/actions";
 
 export function CountryPanel({ current, needsVisa, homeCountry, countries }: { current: string; needsVisa: boolean; homeCountry: string; countries: { code: string; name: string }[] }) {
   const router = useRouter();
@@ -11,6 +11,11 @@ export function CountryPanel({ current, needsVisa, homeCountry, countries }: { c
     <div className="card panel"><h3>Target country</h3>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
         <select id="countrysel" value={current} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${countries.find((x) => x.code === c)?.name}. CV format, currency and matches updated.`); router.refresh(); }); }}>
+          {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+        </select>
+      </label>
+      <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
+        <select id="homesel" value={homeCountry} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs and your Pro price follow the country you live in."); router.refresh(); }); }}>
           {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
       </label>

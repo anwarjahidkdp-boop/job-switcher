@@ -4,6 +4,8 @@ import { Ring, BandPill } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
 import type { Band } from "@/lib/types";
+import { headers } from "next/headers";
+import { countryFromHeader, formatPrice, proPrice } from "@/lib/billing/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ export default async function Landing() {
     signedIn = !!data.user;
   }
   const start = signedIn ? "/onboarding" : "/login?next=/onboarding";
+  const local = proPrice(countryFromHeader((await headers()).get("cf-ipcountry")));
   return (
     <>
       <SiteHeader inApp={false} signedIn={signedIn} />
@@ -65,7 +68,7 @@ export default async function Landing() {
           </div>
           <div className="card price">
             <p className="eyebrow">Job Switcher Pro</p>
-            <p className="amt num">৳199<span className="small muted" style={{ fontFamily: "var(--body)", fontWeight: 400 }}> / month</span></p>
+            <p className="amt num">{formatPrice(local.minor, local.currency)}<span className="small muted" style={{ fontFamily: "var(--body)", fontWeight: 400 }}> / month</span></p>
             <p className="muted">Starts with a 7-day full trial. Daily matching, application preparation, reminders and career insights.</p>
             <div className="row" style={{ marginTop: 16 }}><Link className="btn btn-primary" href={start}>Start free trial</Link></div>
           </div>
