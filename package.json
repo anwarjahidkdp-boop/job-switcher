@@ -11,11 +11,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "ingest": "tsx scripts/ingest/run.ts",
-    "reminders": "tsx scripts/reminders/run.ts"
+    "reminders": "tsx scripts/reminders/run.ts",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-build": "opennextjs-cloudflare build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "@google/genai": "^2.30.0",
+    "@opentelemetry/api": "^1.9.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "mammoth": "^1.13.0",
@@ -28,6 +32,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.12",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -37,6 +42,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.1"
   }
 }

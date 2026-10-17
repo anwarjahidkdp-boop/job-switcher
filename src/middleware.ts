@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED = ["/onboarding", "/inbox", "/jobs", "/queue", "/applications", "/insights", "/profile", "/setup"];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next({ request });
   let response = NextResponse.next({ request });

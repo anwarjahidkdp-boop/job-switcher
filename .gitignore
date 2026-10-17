@@ -11,3 +11,4 @@ next-env.d.ts
 .wrangler/
 workers/**/node_modules/
 coverage/
+.open-next/
