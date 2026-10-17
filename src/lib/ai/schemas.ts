@@ -76,6 +76,12 @@ const JobFields = {
 export const PastedJobSchema = z.object(JobFields);
 export const AlertJobsSchema = z.object({ jobs: z.array(z.object({ ...JobFields, url: z.string().nullable() })) });
 
+/** Fills only the gaps the deterministic alert parser left (one call per email). */
+export const AlertFillSchema = z.object({
+  jobs: z.array(z.object({ index: z.number(), title: z.string().nullable(), company: z.string().nullable(), location: z.string().nullable(), deadline: z.string().nullable() })),
+});
+export type AlertFillOut = z.infer<typeof AlertFillSchema>;
+
 export type ExtractionOut = z.infer<typeof ExtractionSchema>;
 export type MasterCvOut = z.infer<typeof MasterCvSchema>;
 export type PackOut = z.infer<typeof PackSchema>;

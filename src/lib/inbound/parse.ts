@@ -7,6 +7,8 @@ export interface ParsedEmail {
   subject: string;
   messageId: string | null;
   text: string;
+  /** HTML body (capped), for the deterministic alert parser. */
+  html: string;
   links: string[];
   authResults: string | null;
 }
@@ -24,6 +26,7 @@ export async function parseRawEmail(raw: string | Uint8Array | ArrayBuffer): Pro
     subject: email.subject || "",
     messageId: email.messageId || header("message-id"),
     text: text.slice(0, 60000),
+    html: html.slice(0, 400000),
     links: links.slice(0, 200),
     authResults: header("authentication-results"),
   };

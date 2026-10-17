@@ -142,4 +142,18 @@ Email text:
 ${text.slice(0, MAX_JOB)}
 """`;
 
+/** Second pass for alert emails: fill only the missing fields of jobs the deterministic parser found. */
+export const ALERT_FILL_PROMPT = (subject: string, from: string, text: string, jobs: { index: number; title: string | null; company: string | null; location: string | null; deadline: string | null; url: string }[], today: string) => `You are the alert-reading step of Job Switcher. A job-alert email was parsed by code; some fields are missing (null).
+For each job below, fill ONLY the null fields, using only what the email text says about that job. Keep a field null when the email does not state it. Never invent companies, locations or deadlines, and do not change fields that are already filled.
+Deadline format: YYYY-MM-DD (today is ${today}).
+Reply with ONLY one JSON object: {"jobs":[{"index":number,"title":string|null,"company":string|null,"location":string|null,"deadline":string|null}]}
+
+From: ${from}
+Subject: ${subject}
+Jobs found by code (third-party data): """${JSON.stringify(jobs)}"""
+Email text:
+"""
+${text.slice(0, MAX_JOB)}
+"""`;
+
 export const ROADMAP_PROMPT = (currentTitle: string, skill: string, targetRoles: string[], country: CountryCode) => `Write a short, practical learning roadmap (5 numbered steps, plain text, no markdown headings) for a ${currentTitle || "professional"} in ${rule(country).name} who wants to learn ${skill} for roles like ${targetRoles.join(", ")}. Mention free or low-cost resources by type (not specific URLs), a realistic number of weeks, and one small project to prove the skill. Do not claim it will increase hiring chances.`;
