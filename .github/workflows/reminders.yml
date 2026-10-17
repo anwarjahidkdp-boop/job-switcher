@@ -1,0 +1,30 @@
+name: Send apply-later reminders
+on:
+  schedule:
+    - cron: "0 * * * *"    # hourly; each user gets reminders on their own local morning
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+jobs:
+  reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run reminders
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL }}
+          EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}

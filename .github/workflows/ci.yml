@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders so `next build` can compile; real values live in the hosting provider.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_INBOUND_EMAIL_DOMAIN: in.example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      # Cloudflare Worker bundle; the dry run prints the upload size (free plan limit: 3 MB gzip).
+      - run: npx opennextjs-cloudflare build
+      - run: npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/cf"

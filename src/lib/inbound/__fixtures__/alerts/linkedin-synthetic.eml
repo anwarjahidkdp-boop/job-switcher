@@ -1,0 +1,19 @@
+From: LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>
+To: rahim-3f9a1c@jobs.example.com
+Subject: "finance manager": Crescent Trading LLC - Finance Manager and more
+Message-ID: <synthetic-linkedin-0001@example.invalid>
+X-Fixture: SYNTHETIC - written for Job Switcher tests; not a real LinkedIn email.
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
+
+<!-- SYNTHETIC FIXTURE -->
+<table>
+<tr><td><a href="https://www.linkedin.com/comm/jobs/view/4012345678/?trackingId=abc%3D%3D&amp;refId=xyz&amp;midToken=AQ"><img alt="Crescent Trading LLC" src="https://media.licdn.com/x.png"></a></td>
+<td><a href="https://www.linkedin.com/comm/jobs/view/4012345678/?trackingId=abc%3D%3D&amp;refId=xyz">Finance Manager</a>
+<p>Crescent Trading LLC · Dubai, United Arab Emirates</p>
+<p>Actively recruiting</p></td></tr>
+<tr><td></td><td><a href="https://www.linkedin.com/comm/jobs/view/4012399999/?trackingId=def">Financial Controller</a>
+<p>Al Noor Hospitality Group · Abu Dhabi, United Arab Emirates (On-site)</p>
+<p>Be an early applicant</p></td></tr>
+<tr><td></td><td><a href="https://www.linkedin.com/comm/jobs/search/?keywords=finance%20manager">See all jobs</a></td></tr>
+</table>

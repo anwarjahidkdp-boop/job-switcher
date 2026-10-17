@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "job-switcher",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  // Keep variables and secrets set in the Cloudflare dashboard (bKash number, ADMIN_EMAILS, ...) across deploys.
+  "keep_vars": true,
+  // Public, non-secret runtime settings. Personal values (bKash number, admin email) are set in the dashboard.
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://hplxsueitluutdbkbupi.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwbHhzdWVpdGx1dXRkYmtidXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyMjc3NjcsImV4cCI6MjEwNzgwMzc2N30.71pxoXFWYU9UN0_0LQvTfQ53aIw8xII7PBJ-L3s-MwQ",
+    "PAYMENT_METHODS": "manual",
+    "BKASH_MANUAL_ACCOUNT_TYPE": "personal"
+  }
+  // Workers Paid only: raise the per-request CPU limit (default 30000 ms on Paid; Free is fixed at 10 ms).
+  // "limits": { "cpu_ms": 30000 },
+}

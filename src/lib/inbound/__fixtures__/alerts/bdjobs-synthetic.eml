@@ -1,0 +1,60 @@
+From: Bdjobs.com <jobalert@bdjobs.com>
+To: rahim-3f9a1c@jobs.example.com
+Subject: 4 new jobs matching "Accounts" - Bdjobs Job Alert
+Message-ID: <synthetic-bdjobs-0001@example.invalid>
+Date: Sat, 17 Oct 2026 06:00:00 +0600
+X-Fixture: SYNTHETIC - written for Job Switcher tests; not a real Bdjobs email. Layout is a guess.
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1"
+
+--b1
+Content-Type: text/plain; charset=UTF-8
+
+Your job alert: 4 new jobs. View them on Bdjobs.com.
+
+--b1
+Content-Type: text/html; charset=UTF-8
+
+<!-- SYNTHETIC FIXTURE: invented companies and IDs, written by hand for tests -->
+<html><body>
+<table width="600">
+<tr><td><h2>Dear Rahim, here are new jobs for your alert "Accounts"</h2></td></tr>
+<tr><td>
+  <table class="job">
+    <tr><td><a href="https://click.bdjobs.com/track?uid=77&amp;url=https%3A%2F%2Fjobs.bdjobs.com%2Fjobdetails.asp%3Fid%3D1298765%26ln%3D1%26fcatId%3D1"><img src="https://bdjobs.com/logo/1.png" alt=""></a></td>
+        <td><a href="https://click.bdjobs.com/track?uid=77&amp;url=https%3A%2F%2Fjobs.bdjobs.com%2Fjobdetails.asp%3Fid%3D1298765%26ln%3D1%26fcatId%3D1"><b>Senior Executive, Accounts &amp; Finance</b></a><br>
+        Meghna Agro Foods Ltd.<br>
+        Location: Dhaka (Tejgaon)<br>
+        Experience: 3 to 5 years<br>
+        Deadline: 20 Nov 2026</td></tr>
+  </table>
+</td></tr>
+<tr><td>
+  <table class="job">
+    <tr><td><a href="https://jobs.bdjobs.com/jobdetails.asp?id=1299001&amp;ln=1"><b>Assistant Manager - VAT &amp; Tax</b></a><br>
+        <span>Company: Padma Ceramics PLC</span><br>
+        <span>Chattogram</span><br>
+        <span>Deadline: 05/11/2026</span><br>
+        <a href="https://jobs.bdjobs.com/jobdetails.asp?id=1299001&amp;ln=1">View Details</a></td></tr>
+  </table>
+</td></tr>
+<tr><td>
+  <table class="job">
+    <tr><td><a href="https://bdjobs.com/jobs/details/1299555"><b>Accounts Officer</b></a><br>
+        Rupsha Shipping Lines<br>
+        Khulna<br>
+        Application Deadline: Nov 28, 2026</td></tr>
+  </table>
+</td></tr>
+<tr><td>
+  <table class="job">
+    <tr><td><a href="https://jobs.bdjobs.com/jobdetails.asp?id=1298765&amp;ln=1&amp;from=dup"><b>Senior Executive, Accounts &amp; Finance</b></a><br>
+        Meghna Agro Foods Ltd.<br>Dhaka</td></tr>
+  </table>
+</td></tr>
+<tr><td><a href="https://bdjobs.com/jobsearch.asp?fcatId=1">See all Accounting/Finance jobs</a> |
+<a href="https://mybdjobs.bdjobs.com/alert/unsubscribe.asp?id=77">Unsubscribe</a></td></tr>
+</table>
+</body></html>
+
+--b1--

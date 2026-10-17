@@ -1,0 +1,30 @@
+name: Ingest public job listings
+on:
+  schedule:
+    - cron: "30 0 * * *"   # 06:30 Asia/Dhaka daily
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (fetch and print, write nothing)"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ingest -- ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

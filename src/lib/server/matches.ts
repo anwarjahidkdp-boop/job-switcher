@@ -1,0 +1,17 @@
+// Persist deterministic match results (for notifications / analytics). Pages compute scores live from the same code.
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadState } from "./state";
+
+export async function refreshMatches(db: SupabaseClient, userId: string): Promise<number> {
+  const st = await loadState(db, userId);
+  if (!st || !st.P) return 0;
+  const rows = st.scored.map(({ job, m }) => ({
+    user_id: userId, job_id: job.id, score: m.score, band: m.band, relevant: m.relevant, capped: m.capped,
+    reason: m.reason, matched: m.matched, gaps: m.gaps, computed_at: new Date().toISOString(),
+  }));
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await db.from("matches").upsert(rows.slice(i, i + 500), { onConflict: "user_id,job_id" });
+    if (error) throw error;
+  }
+  return rows.length;
+}
