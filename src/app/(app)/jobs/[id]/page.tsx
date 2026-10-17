@@ -12,6 +12,8 @@ import { CvToolbar } from "@/components/CvToolbar";
 import { ActionsPanel, GapList, PackTabs } from "./client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
+import { aiConfigured } from "@/lib/ai";
+import { InterviewPanel } from "./InterviewPanel";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -57,6 +59,10 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             </div>
             {job.url ? <p className="small" style={{ marginTop: 14 }}><a href={job.url} target="_blank" rel="noopener noreferrer nofollow">View the original post ↗</a></p> : null}
           </div>
+          {a && ["applied", "interview", "offer"].includes(a.status) ? (
+            <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
+              prep={a.interview_prep ?? null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
+          ) : null}
           {a?.pack ? (
             <div className="card panel">
               <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: 19 }}>Your application pack</h2><span className="small muted">{a.pack_ai ? "Prepared with Claude from your verified profile" : "Template version"}</span></div>

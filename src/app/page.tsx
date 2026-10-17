@@ -21,6 +21,8 @@ const ICONS: Record<string, React.ReactNode> = {
   hand: <><path d="M12 3v10M8 7l4-4 4 4" /><path d="M5 14v5h14v-5" /></>,
   shield: <><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /></>,
   cup: <><path d="M4 9h12v5a5 5 0 01-5 5H9a5 5 0 01-5-5z" /><path d="M16 10h2a2 2 0 010 4h-2M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3" /></>,
+  chat: <><path d="M4 5h16v11H9l-5 4z" /><path d="M8 9h8M8 12h5" /></>,
+  calendar: <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></>,
   globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></>,
 };
 function Icon({ name }: { name: string }) {
@@ -41,8 +43,13 @@ const TAILOR: [string, string, string][] = [
   ["Accounts Manager", "Factory reporting, VAT & tax", "Your reporting work"],
   ["Finance Manager", "Budgets, team leadership", "Your leadership"],
 ];
+const INTERVIEW: [string, string, string][] = [
+  ["chat", "Likely questions", "Read from the job description."],
+  ["cv", "Sample answers", "Built from your own CV."],
+  ["calendar", "Interview tracker", "Every call, date and link in one place."],
+];
 const YOU = ["Upload your CV", "Review and approve"];
-const US = ["Finds jobs daily", "Matches them to you", "Puts best matches first", "Tailors your CV", "Writes your cover letter", "Gets it ready to send", "Reminds you of deadlines"];
+const US = ["Finds jobs daily", "Matches them to you", "Puts best matches first", "Tailors your CV", "Writes your cover letter", "Gets it ready to send", "Reminds you of deadlines", "Preps you for interviews"];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
   ["Get matched", "Fresh jobs, scored against your profile."],
@@ -53,7 +60,7 @@ const TRUST: [string, string, string][] = [
   ["hand", "You stay in control", "Nothing is sent without your approval."],
   ["shield", "Private by default", "Your CV is never public. Delete it any time."],
 ];
-const PRO = ["Daily job matching", "A tailored CV for every job", "A matching cover letter for every job", "Deadline reminders", "Career insights"];
+const PRO = ["Daily job matching", "A tailored CV for every job", "A matching cover letter for every job", "Deadline reminders", "Interview prep and tracking", "Career insights"];
 
 export default async function Landing() {
   let signedIn = false;
@@ -128,6 +135,21 @@ export default async function Landing() {
               ))}
             </div>
             <p className="lp-tnote"><Icon name="shield" />Only your real experience. Nothing invented.</p>
+          </section>
+
+          <section className="lp-sec lp-tailor lp-iv">
+            <p className="lp-kicker">Got an interview call?</p>
+            <h2>Walk in prepared</h2>
+            <div className="lp-ivgrid">
+              {INTERVIEW.map(([ic, h, p]) => (
+                <div key={h} className="lp-tcard"><b><Icon name={ic} />{h}</b><p>{p}</p></div>
+              ))}
+            </div>
+            <div className="lp-ivq">
+              <span>Likely question</span>
+              <b>&ldquo;How have you handled VAT returns?&rdquo;</b>
+              <p>Sample answer from your CV, ready to practise.</p>
+            </div>
           </section>
 
           <section className="lp-sec">

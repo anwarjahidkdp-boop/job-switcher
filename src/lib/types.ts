@@ -115,6 +115,13 @@ export interface MasterCV {
   improvements?: { before: string; after: string }[];
 }
 
+export type InterviewTopic = "about_you" | "role" | "technical" | "behavioural" | "company" | "salary";
+export interface InterviewPrep {
+  questions: { topic: InterviewTopic; question: string; why: string; answer: string }[];
+  ask_them: string[];
+  checklist: string[];
+}
+
 export interface ApplicationPack {
   summary: string;
   top_bullets: string[];
