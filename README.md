@@ -1,4 +1,4 @@
-# Job Switcher
+# JobPao
 
 A personal AI career agent. It launches in Bangladesh and supports the UAE, Saudi Arabia, Malaysia, the UK, Canada, Australia, the US and "Other". It reads your CV once and builds a verified Master CV. It then scores incoming jobs with a deterministic matcher and prepares an application pack for each job you choose. The pack holds a tailored CV, a cover letter, an email and a checklist. You apply yourself; the app never applies for you.
 
@@ -168,7 +168,7 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... NEXT_PUBLIC_APP_URL=.
    3. Under Email Templates -> Magic Link, use this body. It gives users both a 6-digit code and a link that works in any browser:
 
       ```html
-      <p>Your Job Switcher code: <b>{{ .Token }}</b></p>
+      <p>Your JobPao code: <b>{{ .Token }}</b></p>
       <p>Or <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding">sign in with this link</a>.</p>
       ```
 
@@ -284,4 +284,4 @@ insert into ingestion_sources (kind, name, url, board_token, country, company) v
   ('lever',      'Acme (Lever)', null, 'acme', 'GB', 'Acme');
 ```
 
-Only add pages that are public and whose terms allow automated reading. The ingester identifies itself as `JobSwitcherBot`. It skips a page when robots.txt disallows it or cannot be read.
+Only add pages that are public and whose terms allow automated reading. The ingester identifies itself as `JobPaoBot`. It skips a page when robots.txt disallows it or cannot be read.

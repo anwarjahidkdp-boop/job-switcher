@@ -1,4 +1,4 @@
-// Cloudflare Email Worker for Job Switcher.
+// Cloudflare Email Worker for JobPao.
 // Receives forwarded job-alert emails (Gmail filter -> alias@inbound domain), optionally stores the raw
 // message in a private R2 bucket, and POSTs it, HMAC-signed, to the app. It never reads or stores passwords
 // and never replies to the sender.

@@ -45,9 +45,9 @@ export default async function Setup() {
       <div className="ob" style={{ marginTop: 8 }}>
         <p className="eyebrow">Setup guide · {done} of {SETUP_STEPS.length} done</p>
         <h1 style={{ fontSize: 28, marginTop: 6 }}>Get new jobs automatically</h1>
-        <p className="muted" style={{ marginTop: 6 }}>You turn on job alerts on the sites you already use, and Gmail forwards only those alert emails to Job Switcher. We read each alert, match it to your profile and prepare your application. We never ask for any password, and we never see your other emails.</p>
+        <p className="muted" style={{ marginTop: 6 }}>You turn on job alerts on the sites you already use, and Gmail forwards only those alert emails to JobPao. We read each alert, match it to your profile and prepare your application. We never ask for any password, and we never see your other emails.</p>
         <div className="stack" style={{ marginTop: 20 }}>
-          <Step k="address" isDone={!!steps.address} n={1} title="Copy your personal Job Switcher address">
+          <Step k="address" isDone={!!steps.address} n={1} title="Copy your personal JobPao address">
             <p className="small muted">This address only receives job alerts for you.</p>
             <div className="row" style={{ marginTop: 8, flexWrap: "nowrap" }}><code className="copybox" style={{ padding: "8px 10px", flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{addr || "Could not create your address. Reload the page."}</code>{addr ? <CopyButton text={addr} label="Copy" /> : null}</div>
           </Step>
@@ -55,18 +55,18 @@ export default async function Setup() {
             <Ol items={["Sign in to the site yourself, as you normally do.", "Open its Job Alert or Saved Search settings.", <>Choose roles like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null}, and pick daily email alerts.</>, "Make sure the alerts go to your Gmail address."]} />
           </Step>
           <Step k="forward" isDone={!!steps.forward} n={3} title="Add the forwarding address in Gmail">
-            <Ol items={[<>In Gmail on a computer, open <b>Settings (gear) → See all settings → Forwarding and POP/IMAP</b>.</>, <>Click <b>Add a forwarding address</b>, paste your Job Switcher address, then <b>Next → Proceed</b>.</>, <>Gmail sends a confirmation code to that address. It appears below; type it into Gmail and click <b>Verify</b>.</>, <>Keep <b>Disable forwarding</b> selected, so only the filter in step 4 forwards anything.</>]} />
+            <Ol items={[<>In Gmail on a computer, open <b>Settings (gear) → See all settings → Forwarding and POP/IMAP</b>.</>, <>Click <b>Add a forwarding address</b>, paste your JobPao address, then <b>Next → Proceed</b>.</>, <>Gmail sends a confirmation code to that address. It appears below; type it into Gmail and click <b>Verify</b>.</>, <>Keep <b>Disable forwarding</b> selected, so only the filter in step 4 forwards anything.</>]} />
             <CodeWatcher code={f?.gmail_verification_code || null} />
           </Step>
           <Step k="filter" isDone={!!steps.filter} n={4} title="Create a filter so only job alerts are forwarded">
-            <Ol items={[<>Open one job-alert email you received and note its <b>From</b> address.</>, <>In the Gmail search bar, click the options icon and put that address in <b>From</b>.</>, <>Click <b>Create filter</b>, tick <b>Forward it to</b>, choose your Job Switcher address, then <b>Create filter</b>.</>, "Repeat for each job site."]} />
+            <Ol items={[<>Open one job-alert email you received and note its <b>From</b> address.</>, <>In the Gmail search bar, click the options icon and put that address in <b>From</b>.</>, <>Click <b>Create filter</b>, tick <b>Forward it to</b>, choose your JobPao address, then <b>Create filter</b>.</>, "Repeat for each job site."]} />
           </Step>
           <Step k="test" isDone={!!steps.test} n={5} title="Check that the first alert arrived">
             <p className="small muted">When the next alert email comes, its jobs appear in your Opportunities with the source shown.</p>
             <div className="row" style={{ marginTop: 8 }}>{count ? <><span className="pill p-st">{count} alert email{count === 1 ? "" : "s"} received</span><Link className="btn-text small" href="/inbox">See it in Opportunities</Link></> : <span className="small muted">Waiting for your first alert email…</span>}</div>
           </Step>
         </div>
-        <p className="note" style={{ marginTop: 18 }}>To stop at any time, delete the filter in Gmail. Only emails sent to your Job Switcher address reach us.</p>
+        <p className="note" style={{ marginTop: 18 }}>To stop at any time, delete the filter in Gmail. Only emails sent to your JobPao address reach us.</p>
       </div>
     </>
   );

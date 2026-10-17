@@ -182,7 +182,7 @@ export default async function Landing() {
 
           <section className="lp-sec lp-price-wrap">
             <div className="lp-price">
-              <p className="lp-kicker">Job Switcher Pro</p>
+              <p className="lp-kicker">JobPao Pro</p>
               <div className="lp-tea">
                 <span className="lp-cup"><Icon name="cup" /></span>
                 <div><b className="num">{perDay(local)} a day</b><span>{local.currency === "BDT" ? "The price of one cup of tea. Your personal job assistant works for you all day." : "Less than a coffee. Your personal job assistant works for you all day."}</span></div>
@@ -195,7 +195,7 @@ export default async function Landing() {
           </section>
         </div>
       </main>
-      <footer className="footer"><div className="wrap">© Job Switcher · Your data is yours. Export or delete it any time.</div></footer>
+      <footer className="footer"><div className="wrap">© JobPao · Your data is yours. Export or delete it any time.</div></footer>
     </>
   );
 }

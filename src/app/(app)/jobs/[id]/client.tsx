@@ -58,7 +58,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
             <CopyButton text={props.subject} label="Copy subject" /><CopyButton text={props.email} label="Copy email" />
             {props.to ? <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a> : null}
           </div>
-          <p className="small muted" style={{ marginTop: 8 }}>When you send it yourself, attach your tailored CV. Job Switcher never sends anything without your press.</p>
+          <p className="small muted" style={{ marginTop: 8 }}>When you send it yourself, attach your tailored CV. JobPao never sends anything without your press.</p>
         </> : null}
         {t === "check" ? <ul className="why-list">{props.checklist.map((c) => <li key={c}><span className="mk ok">✓</span><span>{c}</span></li>)}</ul> : null}
       </div>
@@ -177,7 +177,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
           {p.gmail
             ? <button className="btn btn-primary" onClick={() => { setErr(""); setMode("send"); }}>Apply now from {p.gmail}</button>
             : <a className="btn btn-primary" href={`/api/gmail/connect?next=${encodeURIComponent(`/jobs/${p.jobId}`)}`}>Connect Gmail to apply in one tap</a>}
-          <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, Job Switcher sends each application from your Gmail when you press Apply. We can only send, never read your email."}</p>
+          <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, JobPao sends each application from your Gmail when you press Apply. We can only send, never read your email."}</p>
           <p className="small muted" style={{ marginTop: 4 }}>Or send it yourself:</p>
         </div>
       ) : null}

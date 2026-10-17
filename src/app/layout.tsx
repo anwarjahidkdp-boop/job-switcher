@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variabl
 const manrope = Manrope({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-manrope", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Job Switcher", template: "%s · Job Switcher" },
-  description: "Your personal AI career agent. Upload your CV once; Job Switcher improves it, finds matching jobs in Bangladesh and abroad, prepares applications and keeps you ahead of deadlines.",
+  title: { default: "JobPao", template: "%s · JobPao" },
+  description: "Your personal AI career agent. Upload your CV once; JobPao improves it, finds matching jobs in Bangladesh and abroad, prepares applications and keeps you ahead of deadlines.",
   icons: { icon: "/icon.svg" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#FFFFFF" }, { media: "(prefers-color-scheme: dark)", color: "#121B23" }] };

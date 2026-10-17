@@ -3,7 +3,7 @@ To: rahim-3f9a1c@jobs.example.com
 Subject: 4 new jobs matching "Accounts" - Bdjobs Job Alert
 Message-ID: <synthetic-bdjobs-0001@example.invalid>
 Date: Sat, 17 Oct 2026 06:00:00 +0600
-X-Fixture: SYNTHETIC - written for Job Switcher tests; not a real Bdjobs email. Layout is a guess.
+X-Fixture: SYNTHETIC - written for JobPao tests; not a real Bdjobs email. Layout is a guess.
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="b1"
 

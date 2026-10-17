@@ -25,7 +25,7 @@ const newInvoice = () => `JS${new Date().toISOString().slice(2, 10).replace(/-/g
 
 export async function proPlan(db: SupabaseClient): Promise<{ code: string; name: string; priceMinor: number }> {
   const { data } = await db.from("plans").select("code, name, price_minor").eq("code", "pro").maybeSingle();
-  return { code: "pro", name: data?.name || "Job Switcher Pro", priceMinor: Number(data?.price_minor ?? 29900) };
+  return { code: "pro", name: data?.name || "JobPao Pro", priceMinor: Number(data?.price_minor ?? 29900) };
 }
 
 /** Pro price for the country the user lives in (plan_prices, falling back to the built-in table). */
