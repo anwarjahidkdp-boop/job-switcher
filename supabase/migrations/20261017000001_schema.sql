@@ -362,7 +362,7 @@ $$;
 -- Personal forwarding alias, generated server-side so users cannot pick someone else's.
 create or replace function public.ensure_forwarding_address(p_hint text default null)
 returns public.forwarding_addresses
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare r public.forwarding_addresses; base text; candidate text; i int := 0;
 begin
   if auth.uid() is null then raise exception 'not signed in' using errcode = '42501'; end if;
