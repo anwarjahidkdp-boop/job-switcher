@@ -40,6 +40,8 @@ const TAILOR: [string, string, string[], string][] = [
   ["Assistant Manager, Accounts", "Textile · Dhaka", ["Monthly reporting for a 2,000-staff factory", "VAT & tax filing", "Textile industry experience"], "Opens with your factory reporting work."],
   ["Finance Manager", "FMCG · Dhaka", ["Budgeting and cost control", "Leading a team of 4", "Management reports"], "Opens with budgets and team leadership."],
 ];
+const YOU = ["Upload your CV once", "Review and press apply"];
+const US = ["Rebuilds your CV professionally", "Finds new matching jobs daily", "Writes a tailored CV and cover letter for each", "Prepares the application email", "Reminds you before deadlines", "Shows which skills to grow next"];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
   ["Get matched", "Fresh jobs, scored against your profile."],
@@ -70,7 +72,7 @@ export default async function Landing() {
             <div>
               <p className="lp-tag"><span className="lp-dot" />AI career agent</p>
               <h1>Let the right jobs <span>find you.</span></h1>
-              <p className="lp-lead">Upload your CV once. AI finds matching jobs and writes a separate CV and cover letter for each one.</p>
+              <p className="lp-lead">Upload your CV once. From then on, Job Switcher works for you every day until you&apos;re hired. You just review and apply.</p>
               <div className="lp-cta">
                 <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
                 <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
@@ -95,6 +97,21 @@ export default async function Landing() {
             <div><b>9-point</b><span>match score</span></div>
             <div><b>8+</b><span>countries</span></div>
           </div>
+
+          <section className="lp-sec lp-auto">
+            <p className="lp-kicker">Your career on autopilot</p>
+            <h2>You upload once. We take it from there.</h2>
+            <div className="lp-split">
+              <div className="lp-you">
+                <p className="lp-who">Your part</p>
+                <ul>{YOU.map((x) => <li key={x}><Icon name="hand" />{x}</li>)}</ul>
+              </div>
+              <div className="lp-us">
+                <p className="lp-who">Job Switcher, every day until you&apos;re hired</p>
+                <ul>{US.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
+              </div>
+            </div>
+          </section>
 
           <section className="lp-sec lp-tailor">
             <p className="lp-kicker">Our biggest advantage</p>
