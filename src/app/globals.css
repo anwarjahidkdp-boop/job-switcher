@@ -239,6 +239,11 @@ a.lp-btn-ghost{color:var(--ink)}
 .lp-trust span{font-size:13.5px;color:var(--ink-2)}
 .lp-price-wrap{display:flex;flex-direction:column;align-items:center;text-align:center}
 .lp-price{width:100%;max-width:420px;padding:28px;border-radius:18px;background:var(--card);border:1.5px solid var(--accent);box-shadow:0 16px 48px rgba(11,122,110,.15);text-align:left}
+.lp-tea{display:flex;gap:12px;align-items:center;margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--accent-soft)}
+.lp-cup{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--card);color:var(--accent)}
+.lp-cup .lp-ic{width:26px;height:26px}
+.lp-tea b{display:block;font-family:var(--display);font-size:20px;color:var(--accent)}
+.lp-tea div>span{font-size:13.5px;color:var(--ink-2)}
 .lp-amt{font-family:var(--display);font-size:42px;font-weight:800;margin-top:6px}
 .lp-amt span{font-family:var(--body);font-size:15px;font-weight:400;color:var(--ink-2)}
 .lp-price ul{list-style:none;padding:0;margin:16px 0 22px;display:flex;flex-direction:column;gap:10px}

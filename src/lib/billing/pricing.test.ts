@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countryFromHeader, formatPrice, PAYABLE_CURRENCIES, proPrice } from "./pricing";
+import { countryFromHeader, formatPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
 
 describe("country pricing", () => {
   it("charges ৳299 in Bangladesh and the Gulf at 29", () => {
@@ -22,5 +22,14 @@ describe("country pricing", () => {
   });
   it("only taka is payable today", () => {
     expect(PAYABLE_CURRENCIES).toEqual(["BDT"]);
+  });
+});
+
+describe("perDay", () => {
+  it("turns ৳299 a month into ৳10 a day", () => {
+    expect(perDay(proPrice("BD"))).toBe("৳10");
+  });
+  it("rounds other currencies up to the cent", () => {
+    expect(perDay(proPrice("US"))).toBe("$0.34");
   });
 });
