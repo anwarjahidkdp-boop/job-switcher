@@ -16,7 +16,7 @@ export const unauthorized = () => NextResponse.json({ error: "Please sign in aga
 
 export function apiError(e: unknown) {
   if (e instanceof AIError) {
-    const status = e.code === "over_cap" || e.code === "trial_expired" ? 402 : e.code === "rate_limited" ? 429 : e.code === "not_configured" ? 503 : 502;
+    const status = e.code === "over_cap" || e.code === "trial_expired" || e.code === "plan_expired" ? 402 : e.code === "rate_limited" ? 429 : e.code === "not_configured" ? 503 : 502;
     return NextResponse.json({ error: aiErrCopy(e), code: e.code }, { status });
   }
   if (e instanceof CvReadError) return NextResponse.json({ error: e.message }, { status: 400 });

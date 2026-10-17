@@ -19,13 +19,16 @@ export async function ctx(next = "/inbox") {
 }
 
 export async function trialLabel(db: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<string | null> {
-  const { data } = await db.from("subscriptions").select("plan_code, status, trial_ends_at").eq("user_id", userId).maybeSingle();
+  const { data } = await db.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", userId).maybeSingle();
   if (!data) return null;
   if (data.status === "trialing" && data.trial_ends_at) {
     const left = Math.max(0, Math.ceil((Date.parse(data.trial_ends_at) - Date.now()) / DAY));
     return left ? `Pro Trial · ${left} day${left === 1 ? "" : "s"} remaining` : "Trial ended";
   }
-  if (data.status === "active") return "Pro";
+  if (data.status === "active") {
+    if (data.current_period_end && Date.parse(data.current_period_end) < Date.now()) return "Pro ended · Renew";
+    return data.current_period_end ? `Pro · until ${new Date(data.current_period_end).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Pro";
+  }
   return "Free";
 }
 

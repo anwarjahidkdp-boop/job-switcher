@@ -30,7 +30,7 @@ export interface AIProvider {
   readImages(req: VisionRequest): Promise<{ text: string; usage: AIUsage; truncated: boolean }>;
 }
 
-export type AIErrorCode = "not_configured" | "over_cap" | "trial_expired" | "refused" | "invalid_json" | "rate_limited" | "upstream";
+export type AIErrorCode = "not_configured" | "over_cap" | "trial_expired" | "plan_expired" | "refused" | "invalid_json" | "rate_limited" | "upstream";
 
 export class AIError extends Error {
   constructor(public code: AIErrorCode, message?: string) {
@@ -44,7 +44,8 @@ export function aiErrCopy(e: unknown): string {
   const c = e instanceof AIError ? e.code : "upstream";
   if (c === "not_configured") return "AI analysis is not set up on this server yet. You can still try the sample CV.";
   if (c === "over_cap") return "You have reached this month's AI allowance. It resets on the 1st; matching and reminders keep working.";
-  if (c === "trial_expired") return "Your free trial has ended. Matching keeps working; AI preparation needs Pro.";
+  if (c === "trial_expired") return "Your free trial has ended. Matching keeps working; AI preparation needs Pro (৳199/month, Upgrade page).";
+  if (c === "plan_expired") return "Your Pro month has ended. Matching keeps working; renew on the Upgrade page to use AI preparation again.";
   if (c === "rate_limited") return "Too many requests right now. Wait a minute and try again.";
   if (c === "invalid_json") return "The analysis came back in an unexpected shape. Try again.";
   if (c === "refused") return "The AI declined this request. Try different text.";

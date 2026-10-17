@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
+import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
+import { PaymentError, startCheckout } from "@/lib/server/billing";
 
-/** Payment is deferred (bKash merchant later). Plans and prices live in the `plans` table; this endpoint is a stub. */
+/** Start a bKash Tokenized Checkout payment (merchant accounts only; disabled unless the BKASH_* env is set). */
 export async function POST() {
-  return NextResponse.json({ error: "Payments are not available yet. Your trial features keep working until the trial ends." }, { status: 501 });
+  const c = await apiCtx();
+  if (!c) return unauthorized();
+  try {
+    return NextResponse.json(await startCheckout(c));
+  } catch (e) {
+    if (e instanceof PaymentError) return NextResponse.json({ error: e.message }, { status: 400 });
+    return apiError(e);
+  }
 }

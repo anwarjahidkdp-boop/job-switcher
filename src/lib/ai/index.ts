@@ -18,19 +18,20 @@ export function getProvider(): AIProvider | null {
 }
 export const aiConfigured = () => getProvider() !== null;
 
-export interface Budget { spent: number; cap: number; plan: string; status: string; trialEndsAt: string | null }
+export interface Budget { spent: number; cap: number; plan: string; status: string; trialEndsAt: string | null; periodEnd?: string | null }
 
 export async function getBudget(admin: SupabaseClient, userId: string): Promise<Budget | null> {
   const { data, error } = await admin.rpc("ai_budget", { p_user: userId });
   if (error || !data || !data[0]) return null;
-  const r = data[0] as { spent_micro_usd: number; cap_micro_usd: number; plan_code: string; status: string; trial_ends_at: string | null };
-  return { spent: Number(r.spent_micro_usd), cap: Number(r.cap_micro_usd), plan: r.plan_code, status: r.status, trialEndsAt: r.trial_ends_at };
+  const r = data[0] as { spent_micro_usd: number; cap_micro_usd: number; plan_code: string; status: string; trial_ends_at: string | null; current_period_end?: string | null };
+  return { spent: Number(r.spent_micro_usd), cap: Number(r.cap_micro_usd), plan: r.plan_code, status: r.status, trialEndsAt: r.trial_ends_at, periodEnd: r.current_period_end ?? null };
 }
 
 export function checkBudget(b: Budget | null, now = Date.now()) {
   if (!b) throw new AIError("over_cap", "no subscription");
   if (b.status === "trialing" && b.trialEndsAt && Date.parse(b.trialEndsAt) < now) throw new AIError("trial_expired");
-  if (b.status === "expired" || b.status === "canceled") throw new AIError("trial_expired");
+  if (b.status === "active" && b.periodEnd && Date.parse(b.periodEnd) < now) throw new AIError("plan_expired");
+  if (b.status === "expired" || b.status === "canceled" || b.status === "past_due") throw new AIError(b.plan === "pro" ? "plan_expired" : "trial_expired");
   if (b.spent >= b.cap) throw new AIError("over_cap");
 }
 

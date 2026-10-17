@@ -15,7 +15,7 @@ export function SiteHeader(props: { inApp: boolean; signedIn?: boolean; countryN
             <>
               <NavLinks />
               <Link className="chip-trial" href="/profile" title="Change target country">Applying in {props.countryName}</Link>
-              {props.trialLabel ? <span className="chip-trial">{props.trialLabel}</span> : null}
+              {props.trialLabel ? <Link className="chip-trial" href="/upgrade" title="Plan and payment">{props.trialLabel}</Link> : null}
             </>
           ) : (
             <>

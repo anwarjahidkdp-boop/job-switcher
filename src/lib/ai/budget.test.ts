@@ -14,6 +14,11 @@ describe("AI monthly cap", () => {
   it("refuses after the trial ends", () => {
     try { checkBudget({ ...base, trialEndsAt: "2020-01-01T00:00:00Z" }); throw new Error("no"); } catch (e) { expect((e as AIError).code).toBe("trial_expired"); }
   });
+  it("refuses after a paid month lapses", () => {
+    const pro = { ...base, plan: "pro", status: "active", trialEndsAt: null, cap: 1000000 };
+    expect(() => checkBudget({ ...pro, periodEnd: "2099-01-01T00:00:00Z" })).not.toThrow();
+    try { checkBudget({ ...pro, periodEnd: "2020-01-01T00:00:00Z" }); throw new Error("no"); } catch (e) { expect((e as AIError).code).toBe("plan_expired"); }
+  });
   it("refuses without a subscription", () => expect(() => checkBudget(null)).toThrow(AIError));
   it("prices tokens in micro-dollars", () => {
     expect(costMicroUsd("claude-haiku-5-5", 10000, 2000)).toBe(2000); // $0.002
