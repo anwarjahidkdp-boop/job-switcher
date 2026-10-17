@@ -5,12 +5,12 @@ import { randomUUID } from "node:crypto";
 import { cc, rule, type CountryCode } from "../countries";
 import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type CareerFact } from "../facts";
 import { checkMasterCv } from "../numbers-check";
-import { EXTRACT_PROMPT, MASTER_PROMPT, SYSTEM_RULES } from "../prompts";
+import { EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
 import { ExtractionSchema, MasterCvSchema } from "../ai/schemas";
 import { aiConfigured, checkBudget, getBudget, runAI } from "../ai";
 import { AIError } from "../ai/provider";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_MASTER } from "../demo";
-import { extractCvText, MIME, MIN_CV_CHARS, CvReadError } from "../cv/extract-text";
+import { MAX_CV_TEXT, MIME, MIN_CV_CHARS, CvReadError, sniffImage, sniffKind, tidy } from "../cv/sniff";
 import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill } from "../taxonomy";
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
 import { loadFacts, loadProfile, type CvDocRow } from "./state";
@@ -47,30 +47,39 @@ function cleanExtraction(x: Extraction): Extraction {
   };
 }
 
-/** Upload (or paste, or demo) a CV, extract with AI, store grounded facts. Returns the questions to ask. */
-export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: Uint8Array }; text?: string; demo?: boolean }) {
+export type CvTextSource = "file" | "paste" | "ocr" | "demo";
+
+/**
+ * Upload (or paste, or demo) a CV, extract with AI, store grounded facts. Returns the questions to ask.
+ * PDF/DOCX text is extracted in the browser (src/lib/cv/browser-read.ts) and arrives as `text`; the original file
+ * arrives alongside it only to be stored privately. Scanned CVs arrive as text the user checked after transcription.
+ */
+export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: Uint8Array }; text?: string; demo?: boolean; source?: CvTextSource }) {
   const profile = await loadProfile(ctx.db, ctx.userId);
   if (!profile) throw new Error("profile missing");
   const country = cc(profile.target_country);
   let text = "", storagePath: string | null = null, fileName: string | null = null, mime: string | null = null, size: number | null = null;
+  let source: CvTextSource = input.demo ? "demo" : input.source === "ocr" ? "ocr" : input.file ? "file" : "paste";
   if (!input.demo) {
     // Fail fast (before storing anything) when AI is unavailable or the user is over their cap.
     if (!aiConfigured()) throw new AIError("not_configured");
     checkBudget(await getBudget(ctx.admin, ctx.userId));
   }
   if (input.demo) text = DEMO_CV_TEXT;
-  else if (input.file) {
-    const r = await extractCvText(input.file.bytes, input.file.name);
-    text = r.text;
-    if (text.length < MIN_CV_CHARS) throw new CvReadError("We could not read enough text from this file. If it is a scanned image, paste the text instead.");
-    fileName = input.file.name.slice(0, 200); mime = MIME[r.kind]; size = input.file.bytes.byteLength;
-    storagePath = `${ctx.userId}/cv/${randomUUID()}.${r.kind}`;
-    const up = await ctx.db.storage.from("cv-files").upload(storagePath, input.file.bytes, { contentType: mime, upsert: false });
-    if (up.error) throw new Error("Could not store your CV: " + up.error.message);
-  } else {
-    text = String(input.text || "").trim();
-    if (text.length < MIN_CV_CHARS) throw new CvReadError("That looks too short for a CV. Paste the full text.");
+  else {
+    text = tidy(String(input.text || "")).slice(0, MAX_CV_TEXT);
+    if (input.file) {
+      const kind = sniffKind(input.file.bytes, input.file.name);
+      // Plain text needs no parser, so the server can read it itself.
+      if (!text && kind === "txt") text = tidy(new TextDecoder("utf-8").decode(input.file.bytes)).slice(0, MAX_CV_TEXT);
+      if (text.length < MIN_CV_CHARS) throw new CvReadError("We could not read enough text from this file. Take a photo of each page instead, or paste the text.");
+      fileName = input.file.name.slice(0, 200); mime = MIME[kind]; size = input.file.bytes.byteLength;
+      storagePath = `${ctx.userId}/cv/${randomUUID()}.${kind}`;
+      const up = await ctx.db.storage.from("cv-files").upload(storagePath, input.file.bytes, { contentType: mime, upsert: false });
+      if (up.error) throw new Error("Could not store your CV: " + up.error.message);
+    } else if (text.length < MIN_CV_CHARS) throw new CvReadError("That looks too short for a CV. Paste the full text.");
   }
+  if (source === "file" && !input.file) source = "paste";
 
   let extraction: Extraction;
   if (input.demo) extraction = JSON.parse(JSON.stringify(DEMO_EXTRACT));
@@ -83,7 +92,7 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
 
   await ctx.db.from("cv_documents").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true);
   const { data: doc, error } = await ctx.db.from("cv_documents").insert({
-    user_id: ctx.userId, storage_path: storagePath, file_name: fileName, mime_type: mime, size_bytes: size, text_content: text,
+    user_id: ctx.userId, storage_path: storagePath, file_name: fileName, mime_type: mime, size_bytes: size, text_content: text, text_source: source,
     extraction, questions: questions.map(({ id, question, placeholder }) => ({ id, question, placeholder })), is_demo: !!input.demo,
     answers: input.demo ? Object.fromEntries(questions.map((q) => [q.id, q.demo || ""])) : {},
   }).select("id").single();
@@ -102,6 +111,30 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
     onboarding_step: "questions",
   }).eq("id", ctx.userId);
   return { cvDocumentId: doc.id as string, questions, found: { roles: extraction.experiences.length, degrees: extraction.education.length, skills: extraction.skills.length }, unverified: facts.filter((f) => !f.verified).length, name: extraction.name };
+}
+
+export const MAX_SCAN_PAGES = 4;
+export const MAX_PAGE_BYTES = 3 * 1024 * 1024;
+
+/**
+ * Transcribe photographed or scanned CV pages with the vision model (fast tier), metered against the user's AI budget.
+ * The page images are never written to storage: they are held in memory for this one request and discarded.
+ * The user reviews and corrects the text before it goes through ingestCv like pasted text.
+ */
+export async function transcribeCv(ctx: Ctx, pages: Uint8Array[]) {
+  if (!pages.length) throw new CvReadError("Add at least one page.");
+  if (pages.length > MAX_SCAN_PAGES) throw new CvReadError(`Send at most ${MAX_SCAN_PAGES} pages.`);
+  const images = pages.map((b) => {
+    if (b.byteLength > MAX_PAGE_BYTES) throw new CvReadError("A page image is too large. Try again; the app shrinks photos before sending.");
+    const mediaType = sniffImage(b);
+    if (!mediaType) throw new CvReadError("Pages must be JPG, PNG or WebP images.");
+    return { mediaType, data: Buffer.from(b).toString("base64") };
+  });
+  if (!aiConfigured()) throw new AIError("not_configured");
+  const res = await runAI(ctx.admin, ctx.userId, "cv_ocr", (p) => p.readImages({ tier: "fast", system: OCR_SYSTEM, prompt: OCR_PROMPT(images.length), images, maxTokens: 8000 }));
+  const text = tidy(res.text.replace(/^```[a-z]*\n?|\n?```$/g, "")).slice(0, MAX_CV_TEXT);
+  if (/^NO_CV_TEXT\b/.test(text) || text.length < 40) throw new CvReadError("We could not read a CV in these photos. Make sure each page is flat, well lit and in focus, then try again.");
+  return { text, truncated: res.truncated, pages: images.length };
 }
 
 export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {

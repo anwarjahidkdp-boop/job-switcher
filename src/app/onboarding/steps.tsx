@@ -5,6 +5,8 @@ import { Spinner } from "@/components/ui";
 import { setCountryAction } from "../actions";
 import type { PersonalDetails, Preferences } from "@/lib/types";
 
+const MAX_PAGES = 4; // keep in sync with MAX_PAGES in src/lib/cv/browser-read.ts and MAX_SCAN_PAGES on the server
+
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
@@ -49,13 +51,21 @@ export function CountryStep(props: { current: string; needsVisa: boolean; demo: 
   );
 }
 
+type Review = { text: string; truncated: boolean; file: File | null; pages: number };
+
 export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [text, setText] = useState("");
+  const [shots, setShots] = useState<{ blob: Blob; url: string }[]>([]);
+  const [review, setReview] = useState<Review | null>(null);
   const started = useRef(false);
-  async function run(label: string, f: () => Promise<Response>) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const camInput = useRef<HTMLInputElement>(null);
+  useEffect(() => () => shots.forEach((s) => URL.revokeObjectURL(s.url)), [shots]);
+
+  async function send(label: string, f: () => Promise<Response>) {
     setBusy(label); setErr("");
     try {
       const r = await f();
@@ -64,26 +74,124 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
       router.refresh();
     } catch (e) { setErr((e as Error).message); setBusy(""); }
   }
-  const demo = () => run("Loading the sample CV", () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ demo: true }) }));
+  const READING = "Reading your CV: roles, education, skills. This can take up to a minute.";
+  const demo = () => send("Loading the sample CV", () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ demo: true }) }));
   useEffect(() => { if (autoDemo && !started.current) { started.current = true; demo(); } });
+
+  /** Send page images for transcription, then show the text for the user to check. */
+  async function transcribe(pages: Blob[], file: File | null) {
+    setBusy(`Reading ${pages.length} page${pages.length === 1 ? "" : "s"} from your ${file ? "scan" : "photos"}. This can take up to a minute.`); setErr("");
+    try {
+      const fd = new FormData();
+      pages.slice(0, MAX_PAGES).forEach((p, i) => fd.append("page", p, `page-${i + 1}.jpg`));
+      const r = await fetch("/api/cv/transcribe", { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "Could not read these pages.");
+      setReview({ text: j.text, truncated: !!j.truncated, file, pages: j.pages });
+      setBusy("");
+    } catch (e) { setErr((e as Error).message); setBusy(""); }
+  }
+
+  async function onFiles(list: FileList | null) {
+    const files = [...(list || [])];
+    if (!files.length) return;
+    setErr(""); setBusy("Opening your file on this device");
+    try {
+      const { readCvFile, isImageFile, imageToJpeg } = await import("@/lib/cv/browser-read");
+      if (files.every(isImageFile)) {
+        const pages = await Promise.all(files.slice(0, MAX_PAGES).map((f) => imageToJpeg(f)));
+        if (files.length > MAX_PAGES) setErr(`Only the first ${MAX_PAGES} pages are read.`);
+        await transcribe(pages, null);
+        return;
+      }
+      const f = files[0];
+      const r = await readCvFile(f);
+      if (r.kind === "scan") {
+        if (r.totalPages > MAX_PAGES) setErr(`This PDF has ${r.totalPages} pages; only the first ${MAX_PAGES} are read.`);
+        await transcribe(r.pages, f);
+        return;
+      }
+      if (r.kind === "image") { await transcribe(r.pages, null); return; }
+      const fd = new FormData(); fd.append("file", f); fd.append("text", r.text); fd.append("source", "file");
+      await send(READING, () => fetch("/api/cv/upload", { method: "POST", body: fd }));
+    } catch (e) { setErr((e as Error).message); setBusy(""); }
+  }
+
+  async function addShot(list: FileList | null) {
+    const files = [...(list || [])];
+    if (!files.length) return;
+    setErr("");
+    try {
+      const { imageToJpeg } = await import("@/lib/cv/browser-read");
+      const room = MAX_PAGES - shots.length;
+      const blobs = await Promise.all(files.slice(0, room).map((f) => imageToJpeg(f)));
+      setShots((s) => [...s, ...blobs.map((blob) => ({ blob, url: URL.createObjectURL(blob) }))]);
+      if (files.length > room) setErr(`You can add up to ${MAX_PAGES} pages.`);
+    } catch (e) { setErr((e as Error).message); }
+    if (camInput.current) camInput.current.value = "";
+  }
+
+  if (review) {
+    return (
+      <div className="card panel stack" style={{ marginTop: 22 }}>
+        <h3 style={{ margin: 0 }}>Check the text we read from your {review.file ? "scan" : "photos"}</h3>
+        <p className="small muted">We read {review.pages} page{review.pages === 1 ? "" : "s"}. Fix anything we misread, especially names, dates and numbers. Words we could not read are marked [unclear]: correct them or delete them. We use only the text in this box.</p>
+        {review.truncated ? <p className="note" style={{ borderColor: "var(--warn)" }}>The text may be cut off at the end. Add anything missing before you continue.</p> : null}
+        <textarea aria-label="Transcribed CV text" style={{ minHeight: 360 }} value={review.text} onChange={(e) => setReview({ ...review, text: e.target.value })} />
+        {busy ? <p><Spinner /> {busy}</p> : null}
+        {err ? <p className="err">{err}</p> : null}
+        <div className="row">
+          <button className="btn btn-primary" disabled={!!busy} onClick={() => {
+            const t = review.text.replace(/\[unclear\]/gi, "").trim();
+            if (t.length < 200) { setErr("That looks too short for a CV. Add the missing text or paste it."); return; }
+            if (review.file) {
+              const fd = new FormData(); fd.append("file", review.file); fd.append("text", review.text); fd.append("source", "ocr");
+              send(READING, () => fetch("/api/cv/upload", { method: "POST", body: fd }));
+            } else send(READING, () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: review.text, source: "ocr" }) }));
+          }}>The text is correct, continue</button>
+          <button className="btn btn-text" disabled={!!busy} onClick={() => { setReview(null); setShots([]); setErr(""); }}>Start again</button>
+        </div>
+      </div>
+    );
+  }
+
+  const off = !!busy || !aiReady;
   return (
     <>
       <div className="drop" style={{ marginTop: 22 }}>
-        <p style={{ fontWeight: 600 }}>Upload your CV (PDF, DOCX or TXT)</p>
-        <p className="small muted" style={{ margin: "4px 0 14px" }}>Your file is stored privately and only you can open it. Scanned image PDFs cannot be read yet; paste the text instead.</p>
-        <input type="file" accept=".pdf,.docx,.txt" aria-label="CV file" disabled={!!busy || !aiReady} onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (!f) return;
-          const fd = new FormData(); fd.append("file", f);
-          run("Reading your CV: roles, education, skills. This can take up to a minute.", () => fetch("/api/cv/upload", { method: "POST", body: fd }));
-        }} />
+        <p style={{ fontWeight: 600 }}>Upload your CV (PDF, DOCX, TXT or a photo)</p>
+        <p className="small muted" style={{ margin: "4px 0 14px" }}>Your file is read on this device and stored privately; only you can open it. Scanned PDFs and photos are read by our AI and shown to you to check first.</p>
+        <input ref={fileInput} type="file" accept=".pdf,.docx,.txt,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple aria-label="CV file" disabled={off} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+      </div>
+      <div className="card panel stack" style={{ marginTop: 14 }}>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <div><p style={{ fontWeight: 600 }}>Take a photo of your CV</p><p className="small muted">One photo per page, up to {MAX_PAGES} pages. Lay the page flat in good light.</p></div>
+          <label className={`btn btn-ghost btn-sm ${off || shots.length >= MAX_PAGES ? "disabled" : ""}`} aria-disabled={off || shots.length >= MAX_PAGES}>
+            {shots.length ? "Add another page" : "Open camera"}
+            <input ref={camInput} type="file" accept="image/*" capture="environment" hidden disabled={off || shots.length >= MAX_PAGES} onChange={(e) => addShot(e.target.files)} />
+          </label>
+        </div>
+        {shots.length ? (
+          <>
+            <div className="row" style={{ alignItems: "flex-start" }}>
+              {shots.map((s, i) => (
+                <figure key={s.url} style={{ margin: 0, textAlign: "center" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.url} alt={`Page ${i + 1}`} style={{ width: 96, height: 128, objectFit: "cover", border: "1px solid var(--line)", borderRadius: 6 }} />
+                  <figcaption className="small">Page {i + 1} <button className="btn-text small" disabled={!!busy} onClick={() => setShots((x) => x.filter((_, j) => j !== i))}>Remove</button></figcaption>
+                </figure>
+              ))}
+            </div>
+            <div className="row"><button className="btn btn-primary btn-sm" disabled={off} onClick={() => transcribe(shots.map((s) => s.blob), null)}>Read {shots.length} page{shots.length === 1 ? "" : "s"}</button></div>
+          </>
+        ) : null}
       </div>
       <details style={{ marginTop: 14 }}>
         <summary style={{ cursor: "pointer", fontWeight: 600 }}>Or paste your CV text</summary>
         <textarea style={{ marginTop: 10 }} placeholder="Paste the full text of your CV" value={text} onChange={(e) => setText(e.target.value)} />
-        <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} disabled={!!busy || !aiReady} onClick={() => {
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} disabled={off} onClick={() => {
           if (text.trim().length < 200) { setErr("That looks too short for a CV. Paste the full text."); return; }
-          run("Reading your CV: roles, education, skills. This can take up to a minute.", () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
+          send(READING, () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
         }}>Use this text</button>
       </details>
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}

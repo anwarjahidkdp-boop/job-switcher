@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "../supabase/server";
 import { createAdminClient } from "../supabase/admin";
 import { AIError, aiErrCopy } from "../ai/provider";
-import { CvReadError } from "../cv/extract-text";
+import { CvReadError } from "../cv/sniff";
 
 export async function apiCtx() {
   const db = await createClient();

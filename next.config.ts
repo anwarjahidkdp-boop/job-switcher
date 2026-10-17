@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Server-only packages that read files or use Node APIs during CV text extraction.
-  serverExternalPackages: ["unpdf", "mammoth"],
+  turbopack: {
+    resolveAlias: {
+      // PDF/DOCX parsers load in the browser only; the server build gets a stub (keeps the Worker bundle small).
+      "cv-browser-libs": { browser: "./src/lib/cv/browser-libs.ts", default: "./src/lib/cv/browser-libs.server.ts" },
+    },
+  },
   poweredByHeader: false,
   async headers() {
     return [

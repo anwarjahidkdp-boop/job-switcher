@@ -46,7 +46,7 @@ main{padding-block:28px 64px}
 .btn-ghost{background:transparent;border-color:var(--line);color:var(--ink)}
 .btn-ghost:hover{border-color:var(--ink-3)}
 .btn-text{background:none;border:0;color:var(--accent);padding:6px 4px;font-weight:600;cursor:pointer}
-.btn[disabled]{opacity:.55;cursor:default}
+.btn[disabled],.btn.disabled{opacity:.55;cursor:default;pointer-events:none}
 .btn-sm{padding:7px 12px;font-size:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px}
 .muted{color:var(--ink-2)}

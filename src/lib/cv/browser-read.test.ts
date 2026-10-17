@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-vi.mock("server-only", () => ({}));
-import { extractCvText, sniffKind, CvReadError } from "./extract-text";
+// pdf.js (unpdf) and mammoth run in the browser in production; their text paths also run under Node, so we test them here.
+import { describe, expect, it } from "vitest";
+import { docxText, pdfText, readCvFile } from "./browser-read";
+import { sniffKind, sniffImage, CvReadError } from "./sniff";
 import { DEMO_CV_TEXT } from "../demo";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -24,29 +25,37 @@ function makePdf(lines: string[]): Uint8Array {
   return new TextEncoder().encode(out);
 }
 
-describe("CV text extraction", () => {
+const asFile = (bytes: Uint8Array, name: string, type = "") => new File([bytes as BlobPart], name, { type });
+
+describe("CV text extraction (browser module)", () => {
   it("reads text from a PDF", async () => {
     const pdf = makePdf(["MD. RAHIM UDDIN", "Senior Executive, Accounts", "Meghna Textile Mills Ltd. (Jan 2021 - Present)"]);
-    const r = await extractCvText(pdf, "cv.pdf");
-    expect(r.kind).toBe("pdf");
+    const r = await pdfText(pdf);
     expect(r.text).toContain("RAHIM UDDIN");
     expect(r.text).toContain("Meghna Textile");
+    expect(r.pdf.numPages).toBe(1);
   });
   it("reads text from a DOCX", async () => {
     const buf = readFileSync(fileURLToPath(new URL("./__fixtures__/sample.docx", import.meta.url)));
-    const r = await extractCvText(new Uint8Array(buf), "cv.docx");
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+    expect(await docxText(ab)).toContain("Nirman Holdings");
+    const r = await readCvFile(asFile(new Uint8Array(buf), "cv.docx"));
     expect(r.kind).toBe("docx");
-    expect(r.text).toContain("Nirman Holdings");
   });
   it("reads plain text", async () => {
-    const r = await extractCvText(new TextEncoder().encode(DEMO_CV_TEXT), "cv.txt");
+    const r = await readCvFile(asFile(new TextEncoder().encode(DEMO_CV_TEXT), "cv.txt", "text/plain"));
     expect(r.kind).toBe("txt");
-    expect(r.text).toContain("ACADEMIC QUALIFICATION");
+    expect("text" in r && r.text).toContain("ACADEMIC QUALIFICATION");
   });
   it("rejects files that are not PDF/DOCX/TXT by content", () => {
     expect(() => sniffKind(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 1, 2, 3]), "photo.pdf")).toThrow(CvReadError);
   });
   it("rejects a broken docx", async () => {
-    await expect(extractCvText(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]), "cv.docx")).rejects.toThrow(CvReadError);
+    await expect(readCvFile(asFile(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]), "cv.docx"))).rejects.toThrow(CvReadError);
+  });
+  it("recognises page images by content", () => {
+    expect(sniffImage(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
+    expect(sniffImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe("image/png");
+    expect(sniffImage(new TextEncoder().encode("%PDF-1.4"))).toBeNull();
   });
 });
