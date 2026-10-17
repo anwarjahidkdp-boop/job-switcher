@@ -20,7 +20,7 @@ describe("fetchSource", () => {
     const jobs = await fetchSource(src, "2026-10-17", f);
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({ title: "Senior Accountant", company: "Example Ltd.", country: "BD", externalId: "A-1", deadline: "2026-11-01" });
-    expect(seen.every((s) => s.ua?.startsWith("JobSwitcherBot"))).toBe(true);
+    expect(seen.every((s) => s.ua?.startsWith("JobPaoBot"))).toBe(true);
   });
   it("refuses pages disallowed by robots.txt", async () => {
     const { f, seen } = fakeFetch({ "https://example.com/robots.txt": [200, "User-agent: *\nDisallow: /careers"], "https://example.com/careers": [200, page] });

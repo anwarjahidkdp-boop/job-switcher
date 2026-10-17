@@ -12,7 +12,7 @@ export function emailProvider(): "resend" | "brevo" | null {
 
 export async function sendEmail(msg: OutboundEmail): Promise<{ id: string | null }> {
   const provider = emailProvider();
-  const from = process.env.EMAIL_FROM || "Job Switcher <reminders@example.com>";
+  const from = process.env.EMAIL_FROM || "JobPao <reminders@example.com>";
   if (!provider) throw new Error("No email provider configured (set RESEND_API_KEY or BREVO_API_KEY)");
   if (provider === "resend") {
     const r = await fetch("https://api.resend.com/emails", {
@@ -27,7 +27,7 @@ export async function sendEmail(msg: OutboundEmail): Promise<{ id: string | null
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { "api-key": process.env.BREVO_API_KEY!, "Content-Type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ sender: { name: (m?.[1] || "Job Switcher").trim(), email: (m?.[2] || from).trim() }, to: [{ email: msg.to }], subject: msg.subject, htmlContent: msg.html, textContent: msg.text }),
+    body: JSON.stringify({ sender: { name: (m?.[1] || "JobPao").trim(), email: (m?.[2] || from).trim() }, to: [{ email: msg.to }], subject: msg.subject, htmlContent: msg.html, textContent: msg.text }),
   });
   if (!r.ok) throw new Error(`Brevo ${r.status}: ${(await r.text()).slice(0, 200)}`);
   return { id: ((await r.json()) as { messageId?: string }).messageId ?? null };

@@ -1,4 +1,4 @@
-/* Job Switcher design tokens and components, ported from the prototype (teal tokens, Manrope/Inter, light + dark).
+/* JobPao design tokens and components, ported from the prototype (teal tokens, Manrope/Inter, light + dark).
    Tailwind v4 is available for utilities; the prototype's component classes are kept in a layer so utilities win. */
 @import "tailwindcss";
 
@@ -292,3 +292,4 @@ a.lp-btn-ghost{color:var(--ink)}
 .lp-ivq b{font-family:var(--display);font-size:16px}
 .lp-ivq p{font-size:13.5px;color:var(--ink-2)}
 @media (max-width:900px){.lp-ivgrid{grid-template-columns:minmax(0,1fr)}}
+.brand-pao{color:var(--accent)}

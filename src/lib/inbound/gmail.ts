@@ -1,4 +1,4 @@
-// Detects Gmail's "forwarding confirmation" email (sent when the user adds their Job Switcher
+// Detects Gmail's "forwarding confirmation" email (sent when the user adds their JobPao
 // address in Gmail settings) and pulls out the confirmation code so the setup guide can show it.
 export interface GmailVerification { code: string; forwardingFrom: string | null }
 

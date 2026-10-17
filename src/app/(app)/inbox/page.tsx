@@ -84,7 +84,7 @@ export default async function Inbox() {
           <div className="card panel"><h3>Career insight</h3>
             {miss ? <><p className="small"><b>{skillLabel(miss.s)}</b> appeared in {miss.n} of {rel.length} relevant jobs analysed and is {miss.h.v > 0 ? "not confirmed" : "not listed"} in your profile.</p><Link className="btn btn-text" href="/insights">See impact</Link></> : <p className="small muted">Your profile covers the most requested skills.</p>}
           </div>
-          <div className="card panel"><h3>Your Job Switcher trial so far</h3>
+          <div className="card panel"><h3>Your JobPao trial so far</h3>
             <div className="stack small" style={{ gap: 4 }}>
               {([["Jobs analysed", s.analysed], ["Relevant opportunities", s.relevant], ["Strong matches", s.strong], ["Applications prepared", s.prepared], ["Applications submitted", s.applied], ["CV improvements made", (st.master.content.improvements || []).length]] as [string, number][]).map(([l, n]) => <div key={l} className="row" style={{ justifyContent: "space-between" }}><span>{l}</span><b className="num">{n}</b></div>)}
             </div>

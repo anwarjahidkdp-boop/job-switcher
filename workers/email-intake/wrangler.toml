@@ -1,5 +1,5 @@
 # Cloudflare Email Worker: receives mail for *@<your inbound domain> via Email Routing
-# and hands it to the Job Switcher app. Deploy: `npx wrangler deploy`, then in the
+# and hands it to the JobPao app. Deploy: `npx wrangler deploy`, then in the
 # Cloudflare dashboard -> Email -> Email Routing -> Routing rules, set the catch-all
 # address action to "Send to a Worker" -> job-switcher-email-intake.
 name = "job-switcher-email-intake"

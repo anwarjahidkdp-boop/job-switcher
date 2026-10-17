@@ -83,7 +83,7 @@ export function GmailPanel({ email, status }: { email: string | null; status: st
         <p className="small muted" style={{ marginTop: 4 }}>When you press Apply on a job that takes email applications, we send it from this address with your tailored CV and cover letter. Nothing is sent without your press. We can only send, never read your email.</p>
         <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} disabled={busy} onClick={async () => { setBusy(true); await fetch("/api/gmail/disconnect", { method: "POST" }); setBusy(false); router.refresh(); }}>Disconnect Gmail</button>
       </> : <>
-        <p className="small muted">With your permission, Job Switcher sends each application from your own Gmail when you press Apply. We can only send, never read your email.</p>
+        <p className="small muted">With your permission, JobPao sends each application from your own Gmail when you press Apply. We can only send, never read your email.</p>
         <a className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/api/gmail/connect?next=/profile">Connect Gmail</a>
       </>}
     </div>

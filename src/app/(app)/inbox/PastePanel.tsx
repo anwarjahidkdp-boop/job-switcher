@@ -18,7 +18,7 @@ export function PastePanel() {
       </div>
       {open ? (
         <div style={{ padding: "4px 16px 16px" }} className="stack">
-          <p className="small muted">Found a job on Bdjobs, LinkedIn, Facebook, a newspaper or WhatsApp? Paste the full job text and the link. Job Switcher reads, matches and explains it, and you apply on that site yourself. We never ask for your password.</p>
+          <p className="small muted">Found a job on Bdjobs, LinkedIn, Facebook, a newspaper or WhatsApp? Paste the full job text and the link. JobPao reads, matches and explains it, and you apply on that site yourself. We never ask for your password.</p>
           <textarea placeholder="Paste the job description here" value={text} onChange={(e) => setText(e.target.value)} />
           <input type="url" placeholder="Job link (optional)" value={url} onChange={(e) => setUrl(e.target.value)} />
           {err ? <p className="err">{err}</p> : null}

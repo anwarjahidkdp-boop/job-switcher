@@ -9,7 +9,7 @@ export function SiteHeader(props: { inApp: boolean; signedIn?: boolean; countryN
         <div className="wrap">
           <Link className="brand" href="/">
             <Logo />
-            <span>Job Switcher</span>
+            <span>Job<span className="brand-pao">Pao</span></span>
           </Link>
           {props.inApp ? (
             <>

@@ -1,5 +1,5 @@
 // Minimal robots.txt check: honours Disallow/Allow for our user agent and "*". Longest match wins.
-export const BOT_UA = "JobSwitcherBot/0.1 (+https://github.com/; public job listings only)";
+export const BOT_UA = "JobPaoBot/0.1 (+https://github.com/; public job listings only)";
 
 export function robotsAllows(robotsTxt: string, path: string, ua = "jobswitcherbot"): boolean {
   const groups: { agents: string[]; rules: { allow: boolean; path: string }[] }[] = [];
