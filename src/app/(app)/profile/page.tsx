@@ -1,0 +1,85 @@
+import Link from "next/link";
+import { requireAppState, photoUrl } from "@/lib/server/page";
+import { COUNTRIES, cname, money, perLabel, rule } from "@/lib/countries";
+import { resolveStyle } from "@/lib/cv/render";
+import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
+import { CvPreview } from "@/components/CvPreview";
+import { CvToolbar } from "@/components/CvToolbar";
+import { backToStepAction, setReminderPrefAction } from "@/app/actions";
+import { CountryPanel, SkillAdder, FactReview, DangerZone } from "./client";
+
+export const metadata = { title: "Profile" };
+const SETUP_STEPS = ["address", "alerts", "forward", "filter", "test"];
+
+function describeFact(kind: string, d: Record<string, unknown>): string {
+  if (kind === "experience") return `${d.title} at ${d.company}`;
+  if (kind === "education") return `${d.degree}${d.field ? " in " + d.field : ""}${d.institution ? ", " + d.institution : ""}`;
+  if (kind === "certification") return `${d.name} (${d.status})`;
+  if (kind === "skill") return skillLabel(String(d.name));
+  return String(d.name ?? "");
+}
+
+export default async function Profile() {
+  const { st, db } = await requireAppState("/profile");
+  const P = st.P, country = st.country, r = rule(country);
+  const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
+  const photo = await photoUrl(db, st.profile.photo_path);
+  const setupDone = SETUP_STEPS.filter((k) => st.profile.setup_steps?.[k]).length;
+  const pending = st.facts.filter((f) => !f.verified && f.kind !== "answer" && f.id).map((f) => ({ id: f.id!, kind: f.kind, text: describeFact(f.kind, f.data) }));
+  const srcTitle = (s: string) => (s === "cv" ? "From your CV" : s === "answer" ? "From your answers" : "Added by you");
+  return (
+    <>
+      <h1 style={{ fontSize: 28 }}>Master Career Profile</h1>
+      <p className="muted" style={{ marginTop: 4 }}>Every application is built from this verified information.</p>
+      <div className="dash" style={{ marginTop: 18 }}>
+        <div>
+          <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} />
+          <CvPreview master={st.master.content} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} />
+          <div className="row" style={{ marginTop: 12 }}>
+            <a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download Master CV (Word)</a>
+            <a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">Save as PDF</a>
+          </div>
+          {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
+        </div>
+        <aside className="side">
+          <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} countries={Object.entries(COUNTRIES).map(([k, c]) => ({ code: k, name: c.name }))} />
+          <div className="card panel"><h3>Verified skills</h3>
+            <div className="skchips">{P.skills.map((s) => <span key={s.name} className={`sk ${s.src === "user" ? "u" : ""}`} title={srcTitle(s.src)}>{skillLabel(s.name)}</span>)}</div>
+            <SkillAdder />
+            <p className="small muted" style={{ marginTop: 6 }}>Teal skills were added by you. Hover a skill to see where it came from.</p>
+          </div>
+          {pending.length ? <div className="card panel"><h3>Waiting for your confirmation</h3><p className="small muted" style={{ marginBottom: 8 }}>We could not find these word-for-word in your CV, so they are not used until you confirm them.</p><FactReview facts={pending} /></div> : null}
+          <div className="card panel"><h3>Preferences</h3>
+            <div className="stack small" style={{ gap: 4 }}>
+              <div>Target roles: <b>{P.targetRoles.join(", ")}</b></div>
+              <div>Locations: <b>{P.locations.join(", ") || "Anywhere in " + cname(country)}</b></div>
+              <div>Expected salary: <b>{P.salaryMin ? money(P.salaryMin, country) + (P.salaryMax ? "–" + money(P.salaryMax, country) : "+") + perLabel(country) : "Not set"}</b></div>
+              <div>Experience: <b>{Math.floor(P.years)} years</b> · {LEVEL_NAME[LEVEL[P.seniority]]}</div>
+              <div>Notice period: <b>{P.notice ? P.notice + " days" : "Not set"}</b></div>
+            </div>
+            <Link className="btn btn-text" style={{ marginTop: 6 }} href="/onboarding?step=prefs">Edit preferences</Link>
+          </div>
+          <div className="card panel"><h3>Job sites</h3>
+            <div className="qitem"><div><b className="small">Bdjobs</b><div className="small muted">Paste a Bdjobs link or job text and we match it. To apply, open the job in your own browser, where you sign in yourself.</div></div><span className="pill p-neutral">No password</span></div>
+            <div className="qitem"><div><b className="small">LinkedIn</b><div className="small muted">Paste the job here, then apply on LinkedIn yourself.</div></div><span className="pill p-neutral">No password</span></div>
+            <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>
+            <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{SETUP_STEPS.length})</Link>
+          </div>
+          <div className="card panel"><h3>Reminder emails</h3>
+            <p className="small muted">{st.profile.email_reminders ? "We email you on the reminder dates you set." : "Reminder emails are off; reminders still show in your inbox."}</p>
+            <form action={setReminderPrefAction.bind(null, !st.profile.email_reminders)}><button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}>{st.profile.email_reminders ? "Turn off reminder emails" : "Turn on reminder emails"}</button></form>
+          </div>
+          <div className="card panel"><h3>Your data</h3>
+            <p className="small muted">Your CV and photo are stored privately; links to them expire after a minute.</p>
+            <div className="row" style={{ marginTop: 10 }}>
+              {st.cvDoc?.storage_path ? <a className="btn btn-ghost btn-sm" href="/api/cv/original">Download my original CV</a> : null}
+              <a className="btn btn-ghost btn-sm" href="/api/account/export">Export my data</a>
+              <form action={backToStepAction.bind(null, "upload")}><button className="btn btn-ghost btn-sm">Upload a new CV</button></form>
+            </div>
+            <DangerZone />
+          </div>
+        </aside>
+      </div>
+    </>
+  );
+}

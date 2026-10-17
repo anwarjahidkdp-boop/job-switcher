@@ -1,0 +1,22 @@
+# Cloudflare Email Worker: receives mail for *@<your inbound domain> via Email Routing
+# and hands it to the Job Switcher app. Deploy: `npx wrangler deploy`, then in the
+# Cloudflare dashboard -> Email -> Email Routing -> Routing rules, set the catch-all
+# address action to "Send to a Worker" -> job-switcher-email-intake.
+name = "job-switcher-email-intake"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Public URL of the deployed app (no trailing slash).
+APP_URL = "https://your-app.vercel.app"
+# Reject anything larger than this many bytes (alert emails are small).
+MAX_BYTES = "5000000"
+
+# Secret (do NOT put it here): npx wrangler secret put INBOUND_SHARED_SECRET
+# Must equal INBOUND_SHARED_SECRET in the app's environment.
+
+# Optional: keep a raw copy in R2 instead of Supabase Storage. Uncomment after
+# `npx wrangler r2 bucket create job-switcher-inbound` (bucket stays private).
+# [[r2_buckets]]
+# binding = "RAW"
+# bucket_name = "job-switcher-inbound"

@@ -1,0 +1,61 @@
+// Sends due "apply later" reminder emails. Runs from GitHub Actions (scripts/reminders/run.ts) or the
+// /api/cron/reminders endpoint. Uses the service role; never changes application status.
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { cc, rule } from "../countries";
+import { todayStr } from "../dates";
+import { sendEmail } from "../email/send";
+import { reminderEmail } from "../email/templates";
+
+const SEND_FROM_HOUR = 8;
+export function localHour(timeZone: string, now: Date): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(now));
+}
+
+export interface ReminderRunResult { checked: number; sent: number; skipped: number; failed: number }
+
+export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: string; now?: Date; limit?: number; dryRun?: boolean }): Promise<ReminderRunResult> {
+  const now = opts.now || new Date();
+  // The latest "today" anywhere on Earth; each user is then checked in their own country's time zone.
+  const maxToday = todayStr("Pacific/Kiritimati", now);
+  const { data, error } = await admin
+    .from("reminders")
+    .select("id, user_id, due_date, job_id, application_id, applications!inner(status, pack), jobs!inner(title, company, deadline)")
+    .is("sent_at", null)
+    .lte("due_date", maxToday)
+    .limit(opts.limit ?? 200);
+  if (error) throw error;
+  type Row = { id: string; user_id: string; due_date: string; job_id: string; applications: { status: string; pack: unknown }; jobs: { title: string; company: string; deadline: string | null }; profiles: { email: string | null; full_name: string | null; target_country: string; email_reminders: boolean } | null };
+  // reminders.user_id references auth.users, so profiles are fetched separately (no PostgREST embed).
+  const ids = [...new Set((data || []).map((r) => r.user_id as string))];
+  const profs = new Map<string, Row["profiles"]>();
+  if (ids.length) {
+    const { data: pr, error: pe } = await admin.from("profiles").select("id, email, full_name, target_country, email_reminders").in("id", ids);
+    if (pe) throw pe;
+    for (const x of pr || []) profs.set(x.id as string, x as unknown as NonNullable<Row["profiles"]>);
+  }
+  const res: ReminderRunResult = { checked: 0, sent: 0, skipped: 0, failed: 0 };
+  for (const r of (data || []) as unknown as Row[]) {
+    res.checked++;
+    const p = profs.get(r.user_id) || null;
+    const tz = rule(cc(p?.target_country)).timeZone;
+    const today = todayStr(tz, now);
+    // Due today or earlier in the user's time zone, and not before 08:00 local time.
+    if (r.due_date > today || (r.due_date === today && localHour(tz, now) < SEND_FROM_HOUR)) { res.skipped++; continue; }
+    if (r.applications.status !== "reminder" || !p?.email || p.email_reminders === false) {
+      await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: "skipped" }).eq("id", r.id);
+      res.skipped++;
+      continue;
+    }
+    const msg = reminderEmail({ name: p.full_name || "", jobTitle: r.jobs.title, company: r.jobs.company, deadline: r.jobs.deadline, link: `${opts.appUrl.replace(/\/$/, "")}/jobs/${r.job_id}`, packReady: !!r.applications.pack });
+    if (opts.dryRun) { res.sent++; continue; }
+    try {
+      await sendEmail({ to: p.email, ...msg });
+      await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: null }).eq("id", r.id);
+      res.sent++;
+    } catch (e) {
+      await admin.from("reminders").update({ send_error: String(e).slice(0, 300) }).eq("id", r.id);
+      res.failed++;
+    }
+  }
+  return res;
+}
