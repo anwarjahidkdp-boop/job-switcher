@@ -31,9 +31,14 @@ const FEATURES: [string, string, string][] = [
   ["cv", "AI-rebuilt CV", "A clean, recruiter-ready CV in your target country's format."],
   ["radar", "Jobs come to you", "Matching jobs collected for you every day."],
   ["match", "Match score", "See why each job fits, and what's missing."],
-  ["send", "Ready to apply", "Tailored CV, cover letter and email in one tap."],
+  ["send", "Ready to apply", "Application email and checklist for each job."],
   ["bell", "Deadline alerts", "Reminders before every closing date."],
   ["chart", "Skill insights", "Learn which skills unlock better jobs."],
+];
+// Same person, two different jobs: what the tailored CV leads with and what the cover letter argues.
+const TAILOR: [string, string, string[], string][] = [
+  ["Assistant Manager, Accounts", "Textile · Dhaka", ["Monthly reporting for a 2,000-staff factory", "VAT & tax filing", "Textile industry experience"], "Opens with your factory reporting work."],
+  ["Finance Manager", "FMCG · Dhaka", ["Budgeting and cost control", "Leading a team of 4", "Management reports"], "Opens with budgets and team leadership."],
 ];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
@@ -45,7 +50,7 @@ const TRUST: [string, string, string][] = [
   ["hand", "You stay in control", "Nothing is sent without your approval."],
   ["shield", "Private by default", "Your CV is never public. Delete it any time."],
 ];
-const PRO = ["Daily job matching", "A tailored CV for every job", "Cover letters and emails", "Deadline reminders", "Career insights"];
+const PRO = ["Daily job matching", "A tailored CV for every job", "A matching cover letter for every job", "Deadline reminders", "Career insights"];
 
 export default async function Landing() {
   let signedIn = false;
@@ -65,7 +70,7 @@ export default async function Landing() {
             <div>
               <p className="lp-tag"><span className="lp-dot" />AI career agent</p>
               <h1>Let the right jobs <span>find you.</span></h1>
-              <p className="lp-lead">Upload your CV once. AI rebuilds it, finds matching jobs and prepares every application.</p>
+              <p className="lp-lead">Upload your CV once. AI finds matching jobs and writes a separate CV and cover letter for each one.</p>
               <div className="lp-cta">
                 <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
                 <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
@@ -90,6 +95,24 @@ export default async function Landing() {
             <div><b>9-point</b><span>match score</span></div>
             <div><b>8+</b><span>countries</span></div>
           </div>
+
+          <section className="lp-sec lp-tailor">
+            <p className="lp-kicker">Our biggest advantage</p>
+            <h2>A different CV and cover letter for every job</h2>
+            <p className="lp-sub">One CV for every job gets ignored. Job Switcher reads each job&apos;s requirements and rewrites your CV and cover letter to match them, using only your real experience.</p>
+            <div className="lp-tgrid">
+              {TAILOR.map(([job, meta, pts, letter]) => (
+                <div key={job} className="lp-tcard">
+                  <div className="lp-tjob"><span className="lp-tfor">For</span><b>{job}</b><span className="lp-tmeta">{meta}</span></div>
+                  <div className="lp-tdocs">
+                    <div><p className="lp-tlabel"><Icon name="cv" />Tailored CV highlights</p><ul>{pts.map((x) => <li key={x}>{x}</li>)}</ul></div>
+                    <div><p className="lp-tlabel"><Icon name="send" />Cover letter</p><p className="lp-tletter">{letter}</p></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="lp-tnote"><Icon name="shield" />Never invents skills or experience. Everything comes from your own CV.</p>
+          </section>
 
           <section className="lp-sec">
             <p className="lp-kicker">What you get</p>

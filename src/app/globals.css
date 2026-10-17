@@ -202,6 +202,21 @@ a.lp-btn-ghost{color:var(--ink)}
 .lp-fcard p{font-size:14px;color:var(--ink-2);margin-top:4px}
 .lp-icwrap{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:11px;background:var(--accent-soft);color:var(--accent)}
 .lp-ic{width:22px;height:22px;flex:none}
+.lp-sub{font-size:16px;color:var(--ink-2);margin:-10px 0 22px;max-width:40em}
+.lp-tailor{padding:28px;border-radius:20px;background:linear-gradient(160deg,var(--accent-soft),transparent 70%),var(--card);border:1.5px solid var(--accent)}
+.lp-tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lp-tcard{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lp-tjob{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.lp-tfor{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lp-tjob b{font-family:var(--display);font-size:16px}
+.lp-tmeta{font-size:13px;color:var(--ink-2)}
+.lp-tdocs{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.lp-tlabel{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+.lp-tlabel .lp-ic{width:16px;height:16px;color:var(--accent)}
+.lp-tdocs ul{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:3px}
+.lp-tletter{font-size:14px}
+.lp-tnote{display:flex;gap:8px;align-items:center;margin-top:16px;font-size:13.5px;color:var(--ink-2)}
+.lp-tnote .lp-ic{width:18px;height:18px;color:var(--accent)}
 .lp-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .lp-steps li{display:flex;gap:14px;align-items:flex-start;padding:18px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
 .lp-n{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;background:var(--accent);color:var(--accent-ink)}
@@ -224,7 +239,7 @@ a.lp-btn-ghost{color:var(--ink)}
 @media (max-width:900px){
   .lp-hero-in{grid-template-columns:minmax(0,1fr);gap:32px;padding-block:40px 60px}
   .lp-feat{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .lp-steps,.lp-trust{grid-template-columns:minmax(0,1fr)}
+  .lp-steps,.lp-trust,.lp-tgrid{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:520px){
   .lp-hero h1{font-size:38px}
@@ -236,6 +251,7 @@ a.lp-btn-ghost{color:var(--ink)}
   .lp-fcard p{font-size:13px}
   .lp-icwrap{width:36px;height:36px}
   .lp-sec{margin-top:48px}
+  .lp-tailor{padding:20px 16px}
   .lp-stats b{font-size:19px}
 }
 @media (prefers-reduced-motion:reduce){.lp-fcard{transition:none}.lp-fcard:hover{transform:none}}
