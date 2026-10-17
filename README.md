@@ -237,7 +237,7 @@ Verify your sending domain with the provider, then set `EMAIL_PROVIDER`, the API
 
 ### 5. bKash payments (Pro ৳199 / 30 days)
 
-Both paths can be on at once; the upgrade page shows what is configured. Set `ADMIN_EMAILS` to your own sign-in email first.
+Both paths can be on at once; the upgrade page shows what is configured. Prices per country live in `plan_prices` (৳199 in Bangladesh, AED/SAR 29, RM 15, £7.99, C$12.99, A$14.99, $9.99 in the US, $4.99 elsewhere) and follow the country a user lives in (Profile → I live in); the landing page uses Cloudflare's `CF-IPCountry`. Only taka can be paid today, so bKash is offered only to people living in Bangladesh; other countries need an international card provider. Set `ADMIN_EMAILS` to your own sign-in email first.
 
 **Manual (personal or merchant number, no bKash API needed).**
 1. Set `BKASH_MANUAL_NUMBER=01XXXXXXXXX` and `BKASH_MANUAL_ACCOUNT_TYPE=personal` (the page tells users to use Send Money) or `merchant` (Payment).

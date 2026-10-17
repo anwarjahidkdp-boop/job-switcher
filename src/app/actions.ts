@@ -18,6 +18,13 @@ export async function setCountryAction(country: string, needsVisa: boolean) {
   revalidatePath("/", "layout");
 }
 
+export async function setHomeCountryAction(country: string) {
+  const c = await ctx();
+  await c.db.from("profiles").update({ home_country: cc(country) }).eq("id", c.userId);
+  await refreshMatches(c.db, c.userId).catch(() => 0);
+  revalidatePath("/", "layout");
+}
+
 export async function setNeedsVisaAction(needsVisa: boolean) {
   const c = await ctx();
   await c.db.from("profiles").update({ needs_visa: needsVisa }).eq("id", c.userId);

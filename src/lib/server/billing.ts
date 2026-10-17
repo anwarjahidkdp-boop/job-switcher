@@ -9,6 +9,7 @@ import { billingConfig, bkashAmount, extendPeriod, formatTaka, normaliseMsisdn, 
 import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
+import { PAYABLE_CURRENCIES, proPrice, type Price } from "../billing/pricing";
 
 export interface PaymentRow {
   id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout"; amount_minor: number; currency: string;
@@ -27,6 +28,20 @@ export async function proPlan(db: SupabaseClient): Promise<{ code: string; name:
   return { code: "pro", name: data?.name || "Job Switcher Pro", priceMinor: Number(data?.price_minor ?? 19900) };
 }
 
+/** Pro price for the country the user lives in (plan_prices, falling back to the built-in table). */
+export async function proPriceFor(db: SupabaseClient, country: unknown): Promise<Price> {
+  const fallback = proPrice(country);
+  const { data } = await db.from("plan_prices").select("currency, price_minor").eq("plan_code", "pro").eq("country", fallback.country).maybeSingle();
+  return data ? { country: fallback.country, currency: String(data.currency), minor: Number(data.price_minor) } : fallback;
+}
+
+/** bKash charges taka, so it is offered only to people whose price is in a payable currency (Bangladesh today). */
+async function assertBkashPrice(ctx: { admin: SupabaseClient; userId: string }) {
+  const { data } = await ctx.admin.from("profiles").select("home_country").eq("id", ctx.userId).maybeSingle();
+  const price = await proPriceFor(ctx.admin, data?.home_country);
+  if (!PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("Payment in your country is not available yet. bKash works only for people living in Bangladesh.");
+}
+
 /** Manual path: the user paid with Send Money / Payment in their bKash app and gives us the TrxID. Stored as pending. */
 export async function submitManualPayment(ctx: { admin: SupabaseClient; userId: string }, input: { trxId: string; msisdn: string }) {
   if (!billingConfig().manual) throw new PaymentError("Manual bKash payment is not available.");
@@ -36,6 +51,7 @@ export async function submitManualPayment(ctx: { admin: SupabaseClient; userId: 
   if (!msisdn) throw new PaymentError("Enter the bKash number you paid from, for example 017XXXXXXXX.");
   const { count } = await ctx.admin.from("payments").select("id", { count: "exact", head: true }).eq("user_id", ctx.userId).eq("status", "pending");
   if ((count ?? 0) >= MAX_PENDING) throw new PaymentError("You already have payments waiting for review. We will email you once they are checked.");
+  await assertBkashPrice(ctx);
   const plan = await proPlan(ctx.admin);
   const { data, error } = await ctx.admin.from("payments").insert({
     user_id: ctx.userId, plan_code: plan.code, method: "bkash_manual", amount_minor: plan.priceMinor, currency: "BDT",
@@ -116,6 +132,7 @@ function client() {
 
 export async function startCheckout(ctx: { admin: SupabaseClient; userId: string }) {
   const bk = client();
+  await assertBkashPrice(ctx);
   const plan = await proPlan(ctx.admin);
   const invoice = newInvoice();
   const { data: row, error } = await ctx.admin.from("payments").insert({
