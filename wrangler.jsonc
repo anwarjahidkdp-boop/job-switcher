@@ -6,4 +6,8 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "observability": { "enabled": true }
+  // Workers Paid only: raise the per-request CPU limit (default 30000 ms on Paid; Free is fixed at 10 ms).
+  // "limits": { "cpu_ms": 30000 },
+  // Non-secret runtime settings can go here (secrets: `npx wrangler secret put NAME`):
+  // "vars": { "NEXT_PUBLIC_APP_URL": "https://app.example.com", "ADMIN_EMAILS": "owner@example.com" }
 }

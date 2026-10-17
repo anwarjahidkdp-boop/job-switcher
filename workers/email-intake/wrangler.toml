@@ -8,7 +8,7 @@ compatibility_date = "2026-09-01"
 
 [vars]
 # Public URL of the deployed app (no trailing slash).
-APP_URL = "https://your-app.vercel.app"
+APP_URL = "https://job-switcher.YOUR-SUBDOMAIN.workers.dev"
 # Reject anything larger than this many bytes (alert emails are small).
 MAX_BYTES = "5000000"
 

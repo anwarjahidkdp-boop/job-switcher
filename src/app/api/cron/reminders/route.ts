@@ -6,7 +6,7 @@ import { publicEnv } from "@/lib/env";
 
 export const maxDuration = 60;
 
-/** Optional HTTP trigger for the reminders job (Vercel Cron / external cron). Requires Authorization: Bearer CRON_SECRET. */
+/** Optional HTTP trigger for the reminders job (any external scheduler; the GitHub Actions cron is the default). Requires Authorization: Bearer CRON_SECRET. */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET || "";
   const auth = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");

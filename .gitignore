@@ -12,3 +12,4 @@ next-env.d.ts
 workers/**/node_modules/
 coverage/
 .open-next/
+.dev.vars

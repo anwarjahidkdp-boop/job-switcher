@@ -27,7 +27,7 @@ export function bkashCredentialsFromEnv(env: Record<string, string | undefined> 
 }
 
 // The id_token is valid for about an hour (expires_in, seconds). Cache it per Worker isolate.
-// TODO(bkash): bKash asks merchants not to call grant on every payment; a shared cache (KV) would be better at scale.
+// TODO(bkash): confirm bKash's guidance on grant-call frequency; a shared cache (KV) would avoid one grant per isolate.
 let cached: { key: string; token: string; until: number } | null = null;
 export const _resetTokenCache = () => { cached = null; };
 
