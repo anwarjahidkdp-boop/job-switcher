@@ -6,7 +6,7 @@ import { buildMatchProfile, type CareerFact, type CareerMeta } from "../facts";
 import { rowToJob, type JobRow } from "../jobs";
 import { scoreAll, type Scored } from "../matching";
 import { rule } from "../countries";
-import type { AppStatus, ApplicationPack, CvQuestion, CvStyle, MasterCV, MatchProfile, PersonalDetails, Preferences } from "../types";
+import type { AppStatus, ApplicationPack, CvQuestion, InterviewPrep, CvStyle, MasterCV, MatchProfile, PersonalDetails, Preferences } from "../types";
 
 export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
@@ -17,6 +17,8 @@ export interface ProfileRow {
 export interface ApplicationRow {
   id: string; user_id: string; job_id: string; status: AppStatus; pack: ApplicationPack | null; pack_flags: string[]; pack_ai: boolean; pack_model: string | null;
   reminder_date: string | null; applied_at: string | null; created_at: string; updated_at: string;
+  interview_at?: string | null; interview_mode?: "in_person" | "phone" | "video" | null; interview_where?: string | null; interview_notes?: string | null;
+  interview_prep?: InterviewPrep | null; interview_prep_ai?: boolean;
   application_events?: { event: string; status: string | null; actor: string; created_at: string }[];
 }
 export interface CvDocRow { id: string; text_content: string; questions: CvQuestion[]; answers: Record<string, string>; is_demo: boolean; file_name: string | null; storage_path: string | null; created_at: string }

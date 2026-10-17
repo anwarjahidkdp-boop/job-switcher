@@ -87,3 +87,14 @@ export type MasterCvOut = z.infer<typeof MasterCvSchema>;
 export type PackOut = z.infer<typeof PackSchema>;
 export type PastedJobOut = z.infer<typeof PastedJobSchema>;
 export type AlertJobsOut = z.infer<typeof AlertJobsSchema>;
+
+export const InterviewPrepSchema = z.object({
+  questions: z.array(z.object({
+    topic: z.enum(["about_you", "role", "technical", "behavioural", "company", "salary"]),
+    question: z.string(),
+    why: z.string(),
+    answer: z.string(),
+  })),
+  ask_them: z.array(z.string()),
+  checklist: z.array(z.string()),
+});

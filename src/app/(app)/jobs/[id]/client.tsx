@@ -126,7 +126,11 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       </div>
     </>
   );
-  if (p.status && DONE.includes(p.status)) return <><h3>{STATUS_LABEL[p.status]}</h3><p className="small muted">Added to your applications on {fmtDate((p.appliedAt || p.today).slice(0, 10))}.</p>{notice ? <p className="note" style={{ marginTop: 8 }}>{notice}</p> : null}<Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/applications">View applications</Link></>;
+  if (p.status && DONE.includes(p.status)) return <><h3>{STATUS_LABEL[p.status]}</h3><p className="small muted">Added to your applications on {fmtDate((p.appliedAt || p.today).slice(0, 10))}.</p>{notice ? <p className="note" style={{ marginTop: 8 }}>{notice}</p> : null}
+    <div className="row" style={{ marginTop: 10 }}>
+      {["applied", "interview", "offer"].includes(p.status) ? <a className="btn btn-primary btn-sm" href="#interview">{p.status === "applied" ? "Got an interview call?" : "Interview prep"}</a> : null}
+      <Link className="btn btn-ghost btn-sm" href="/applications">View applications</Link>
+    </div></>;
   if (mode === "notyet") return (
     <>
       <h3>No problem. When should we remind you?</h3>
