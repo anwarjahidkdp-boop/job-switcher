@@ -7,7 +7,7 @@ import { cc, type CountryCode } from "../countries";
 export interface Price { country: CountryCode; currency: string; minor: number }
 
 export const PRO_PRICES: Record<CountryCode, { currency: string; minor: number }> = {
-  BD: { currency: "BDT", minor: 19900 },
+  BD: { currency: "BDT", minor: 29900 },
   AE: { currency: "AED", minor: 2900 },
   SA: { currency: "SAR", minor: 2900 },
   MY: { currency: "MYR", minor: 1500 },

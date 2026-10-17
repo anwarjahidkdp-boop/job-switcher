@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { countryFromHeader, formatPrice, PAYABLE_CURRENCIES, proPrice } from "./pricing";
 
 describe("country pricing", () => {
-  it("keeps ৳199 for Bangladesh and the Gulf at 29", () => {
-    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 19900 });
+  it("charges ৳299 in Bangladesh and the Gulf at 29", () => {
+    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 29900 });
     expect(proPrice("AE")).toEqual({ country: "AE", currency: "AED", minor: 2900 });
     expect(proPrice("SA")).toEqual({ country: "SA", currency: "SAR", minor: 2900 });
     expect(proPrice("nope").country).toBe("BD");
   });
   it("formats local prices", () => {
-    expect(formatPrice(19900, "BDT")).toBe("৳199");
+    expect(formatPrice(29900, "BDT")).toBe("৳299");
     expect(formatPrice(799, "GBP")).toBe("£7.99");
     expect(formatPrice(2900, "AED")).toBe("AED 29");
     expect(formatPrice(1500, "MYR")).toBe("RM 15");
