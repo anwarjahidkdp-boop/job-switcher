@@ -37,11 +37,11 @@ const FEATURES: [string, string, string][] = [
   ["chart", "Skill insights", "Learn which skills unlock better jobs."],
 ];
 // Same person, two different jobs: what the tailored CV leads with and what the cover letter argues.
-const TAILOR: [string, string, string[], string][] = [
-  ["Assistant Manager, Accounts", "Textile · Dhaka", ["Monthly reporting for a 2,000-staff factory", "VAT & tax filing", "Textile industry experience"], "Opens with your factory reporting work."],
-  ["Finance Manager", "FMCG · Dhaka", ["Budgeting and cost control", "Leading a team of 4", "Management reports"], "Opens with budgets and team leadership."],
+const TAILOR: [string, string, string][] = [
+  ["Accounts Manager", "Factory reporting, VAT & tax", "Your reporting work"],
+  ["Finance Manager", "Budgets, team leadership", "Your leadership"],
 ];
-const YOU = ["Upload your CV", "Review and apply"];
+const YOU = ["Upload your CV", "Review and approve"];
 const US = ["Finds jobs daily", "Matches them to you", "Puts best matches first", "Tailors your CV", "Writes your cover letter", "Gets it ready to send", "Reminds you of deadlines"];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
@@ -71,9 +71,10 @@ export default async function Landing() {
         <section className="lp-hero">
           <div className="wrap lp-hero-in">
             <div>
-              <p className="lp-tag"><span className="lp-dot" />AI career agent</p>
-              <h1>Let the right jobs <span>find you.</span></h1>
-              <p className="lp-lead">Upload your CV. We find, match and prepare. <b className="lp-hl">You just review and apply.</b></p>
+              <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
+              <h1>Your job assistant. <span>Works for you like a friend.</span></h1>
+              <p className="lp-lead">It finds jobs, prepares every application and helps you get hired. <b className="lp-hl">You just review and approve.</b></p>
+              <p className="lp-teachip"><Icon name="cup" /><span><b>{perDay(local)} a day.</b> {local.currency === "BDT" ? "The price of one cup of tea." : "Less than a coffee."}</span></p>
               <div className="lp-cta">
                 <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
                 <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
@@ -101,14 +102,14 @@ export default async function Landing() {
 
           <section className="lp-sec lp-auto">
             <p className="lp-kicker">Your career on autopilot</p>
-            <h2>You review. You apply. We do the rest.</h2>
+            <h2>We do it all. You just review and approve.</h2>
             <div className="lp-split">
               <div className="lp-you">
                 <p className="lp-who">Your part</p>
                 <ul>{YOU.map((x) => <li key={x}><Icon name="hand" />{x}</li>)}</ul>
               </div>
               <div className="lp-us">
-                <p className="lp-who">Our part, until you&apos;re hired</p>
+                <p className="lp-who">We do everything else, until you&apos;re hired</p>
                 <ul>{US.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
               </div>
             </div>
@@ -116,20 +117,17 @@ export default async function Landing() {
 
           <section className="lp-sec lp-tailor">
             <p className="lp-kicker">Our biggest advantage</p>
-            <h2>A different CV and cover letter for every job</h2>
-            <p className="lp-sub">One CV for every job gets ignored. Job Switcher reads each job&apos;s requirements and rewrites your CV and cover letter to match them, using only your real experience.</p>
+            <h2>A new CV and cover letter for every job</h2>
             <div className="lp-tgrid">
-              {TAILOR.map(([job, meta, pts, letter]) => (
+              {TAILOR.map(([job, cv, letter]) => (
                 <div key={job} className="lp-tcard">
-                  <div className="lp-tjob"><span className="lp-tfor">For</span><b>{job}</b><span className="lp-tmeta">{meta}</span></div>
-                  <div className="lp-tdocs">
-                    <div><p className="lp-tlabel"><Icon name="cv" />Tailored CV highlights</p><ul>{pts.map((x) => <li key={x}>{x}</li>)}</ul></div>
-                    <div><p className="lp-tlabel"><Icon name="send" />Cover letter</p><p className="lp-tletter">{letter}</p></div>
-                  </div>
+                  <b>{job}</b>
+                  <p><Icon name="cv" /><span>CV leads with: {cv}</span></p>
+                  <p><Icon name="send" /><span>Cover letter on: {letter}</span></p>
                 </div>
               ))}
             </div>
-            <p className="lp-tnote"><Icon name="shield" />Never invents skills or experience. Everything comes from your own CV.</p>
+            <p className="lp-tnote"><Icon name="shield" />Only your real experience. Nothing invented.</p>
           </section>
 
           <section className="lp-sec">
