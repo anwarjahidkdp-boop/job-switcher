@@ -31,7 +31,7 @@ jobs:
       # Public values come from .env.production; APP_URL overrides the app address once it is known.
       - run: npx opennextjs-cloudflare build
         env:
-          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://job-switcher.jobswitcher.workers.dev' }}
       - run: npx wrangler deploy
       - name: Copy Worker settings from repository secrets
         env:
@@ -39,7 +39,6 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
           BKASH_MANUAL_NUMBER: ${{ secrets.BKASH_MANUAL_NUMBER }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL }}
           INBOUND_SHARED_SECRET: ${{ secrets.INBOUND_SHARED_SECRET }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
@@ -49,7 +48,7 @@ jobs:
         run: |
           set -e
           json="{}"
-          for name in SUPABASE_SERVICE_ROLE_KEY ANTHROPIC_API_KEY ADMIN_EMAILS BKASH_MANUAL_NUMBER NEXT_PUBLIC_APP_URL INBOUND_SHARED_SECRET CRON_SECRET RESEND_API_KEY BREVO_API_KEY EMAIL_PROVIDER EMAIL_FROM; do
+          for name in SUPABASE_SERVICE_ROLE_KEY ANTHROPIC_API_KEY ADMIN_EMAILS BKASH_MANUAL_NUMBER INBOUND_SHARED_SECRET CRON_SECRET RESEND_API_KEY BREVO_API_KEY EMAIL_PROVIDER EMAIL_FROM; do
             value="${!name}"
             if [ -n "$value" ]; then json=$(jq -c --arg k "$name" --arg v "$value" '. + {($k): $v}' <<<"$json"); fi
           done

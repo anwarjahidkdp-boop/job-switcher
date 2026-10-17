@@ -23,7 +23,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://job-switcher.jobswitcher.workers.dev' }}
           EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
