@@ -1,0 +1,60 @@
+name: Deploy
+# Builds the app with OpenNext and deploys it to Cloudflare Workers on every push to main.
+# Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare template "Edit Cloudflare Workers").
+# Worker settings are copied from repository secrets when they are set, so they never live in this public repo.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Check the Cloudflare token
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Add the repository secret CLOUDFLARE_API_TOKEN to deploy."; exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Public values come from .env.production; APP_URL overrides the app address once it is known.
+      - run: npx opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL }}
+      - run: npx wrangler deploy
+      - name: Copy Worker settings from repository secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+          BKASH_MANUAL_NUMBER: ${{ secrets.BKASH_MANUAL_NUMBER }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL }}
+          INBOUND_SHARED_SECRET: ${{ secrets.INBOUND_SHARED_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        run: |
+          set -e
+          json="{}"
+          for name in SUPABASE_SERVICE_ROLE_KEY ANTHROPIC_API_KEY ADMIN_EMAILS BKASH_MANUAL_NUMBER NEXT_PUBLIC_APP_URL INBOUND_SHARED_SECRET CRON_SECRET RESEND_API_KEY BREVO_API_KEY EMAIL_PROVIDER EMAIL_FROM; do
+            value="${!name}"
+            if [ -n "$value" ]; then json=$(jq -c --arg k "$name" --arg v "$value" '. + {($k): $v}' <<<"$json"); fi
+          done
+          if [ "$json" != "{}" ]; then
+            printf '%s' "$json" > "$RUNNER_TEMP/worker-secrets.json"
+            npx wrangler secret bulk "$RUNNER_TEMP/worker-secrets.json"
+            rm -f "$RUNNER_TEMP/worker-secrets.json"
+          fi
