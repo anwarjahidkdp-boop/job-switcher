@@ -40,8 +40,8 @@ const TAILOR: [string, string, string[], string][] = [
   ["Assistant Manager, Accounts", "Textile · Dhaka", ["Monthly reporting for a 2,000-staff factory", "VAT & tax filing", "Textile industry experience"], "Opens with your factory reporting work."],
   ["Finance Manager", "FMCG · Dhaka", ["Budgeting and cost control", "Leading a team of 4", "Management reports"], "Opens with budgets and team leadership."],
 ];
-const YOU = ["Upload your CV once", "Review and press apply"];
-const US = ["Rebuilds your CV professionally", "Finds new matching jobs daily", "Writes a tailored CV and cover letter for each", "Prepares the application email", "Reminds you before deadlines", "Shows which skills to grow next"];
+const YOU = ["Upload your CV", "Review and apply"];
+const US = ["Finds jobs daily", "Matches them to you", "Puts best matches first", "Tailors your CV", "Writes your cover letter", "Gets it ready to send", "Reminds you of deadlines"];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
   ["Get matched", "Fresh jobs, scored against your profile."],
@@ -72,7 +72,7 @@ export default async function Landing() {
             <div>
               <p className="lp-tag"><span className="lp-dot" />AI career agent</p>
               <h1>Let the right jobs <span>find you.</span></h1>
-              <p className="lp-lead">Upload your CV once. From then on, Job Switcher works for you every day until you&apos;re hired. You just review and apply.</p>
+              <p className="lp-lead">Upload your CV. We find, match and prepare. <b className="lp-hl">You just review and apply.</b></p>
               <div className="lp-cta">
                 <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
                 <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
@@ -100,14 +100,14 @@ export default async function Landing() {
 
           <section className="lp-sec lp-auto">
             <p className="lp-kicker">Your career on autopilot</p>
-            <h2>You upload once. We take it from there.</h2>
+            <h2>You review. You apply. We do the rest.</h2>
             <div className="lp-split">
               <div className="lp-you">
                 <p className="lp-who">Your part</p>
                 <ul>{YOU.map((x) => <li key={x}><Icon name="hand" />{x}</li>)}</ul>
               </div>
               <div className="lp-us">
-                <p className="lp-who">Job Switcher, every day until you&apos;re hired</p>
+                <p className="lp-who">Our part, until you&apos;re hired</p>
                 <ul>{US.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
               </div>
             </div>
