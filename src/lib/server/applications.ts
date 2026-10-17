@@ -1,5 +1,6 @@
-// Application lifecycle. The app never submits anything on the user's behalf:
-// "applied" (and interview/offer/withdrawn) is set only by the user's own confirmation, enforced again by a DB trigger.
+// Application lifecycle. The app never submits anything without the user's own press: "applied" (and interview/offer/withdrawn)
+// is set only in the user's session, either by their confirmation or after they press Apply and Gmail accepts the email
+// (see gmail.ts). A DB trigger enforces this again.
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";

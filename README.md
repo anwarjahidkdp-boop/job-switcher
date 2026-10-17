@@ -252,6 +252,15 @@ Both paths can be on at once; the upgrade page shows what is configured. Prices 
 
 The payment code never activates Pro from the callback's `status` parameter alone: it executes the payment and then queries bKash. Fields we could not confirm against bKash's official reference are marked `TODO(bkash)` in `src/lib/billing/` and listed in BUILD_NOTES.md; check them in the sandbox before going live.
 
+### 5b. Apply from the user's Gmail (optional)
+
+Users can connect Gmail once (scope `gmail.send` only: send, never read). On a job that takes email applications, pressing **Apply now** shows To/From/attachments and sends only after **Send application**; the tailored CV and cover letter go as Word attachments, and the application is marked applied only after Gmail returns a message id. Refresh tokens are AES-GCM encrypted with `GMAIL_TOKEN_KEY` and stored in `gmail_connections` (RLS on, server-only). The feature stays hidden until these repository secrets exist:
+
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google Cloud → APIs & Services → enable **Gmail API**; OAuth consent screen (External, scope `.../auth/gmail.send`); Credentials → OAuth client ID (Web application) with redirect URI `<app URL>/api/gmail/callback`.
+- `GMAIL_TOKEN_KEY`: 32 random bytes in base64 (`openssl rand -base64 32`).
+
+While the consent screen is in Testing, only listed test users (max 100) can connect. Publishing needs Google's verification of the sensitive scope, a privacy policy page and a verified own domain.
+
 ### 6. GitHub Actions
 
 Add these repository secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`, `EMAIL_PROVIDER`, `RESEND_API_KEY` or `BREVO_API_KEY`, and `EMAIL_FROM`.

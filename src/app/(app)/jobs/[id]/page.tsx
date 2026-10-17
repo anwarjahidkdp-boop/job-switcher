@@ -10,11 +10,13 @@ import { Ring, DeadlineChip } from "@/components/ui";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
 import { ActionsPanel, GapList, PackTabs } from "./client";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
 
-export default async function JobPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notyet?: string }> }) {
+export default async function JobPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notyet?: string; gmail?: string }> }) {
   const { id } = await params;
   const sp = await searchParams;
   const { st, db } = await requireAppState(`/jobs/${id}`);
@@ -26,6 +28,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const r = rule(job.country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, job.country);
   const photo = a?.pack ? await photoUrl(db, st.profile.photo_path) : null;
+  const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
+  const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   return (
     <>
       <Link className="btn btn-text" href="/inbox">← Back to opportunities</Link>
@@ -80,7 +84,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           </div>
           <div className="card panel">
             <ActionsPanel jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
-              deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"} />
+              deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
+              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} />
           </div>
         </aside>
       </div>
