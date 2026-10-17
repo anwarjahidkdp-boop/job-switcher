@@ -4,7 +4,7 @@ import type { z } from "zod";
 /** fast = extraction, normalisation, tailoring (Claude Haiku). quality = Master CV, cover letter (Claude Sonnet). */
 export type AITier = "fast" | "quality";
 
-export type AIFeature = "cv_extract" | "master_cv" | "pack" | "paste_job" | "alert_parse" | "roadmap";
+export type AIFeature = "cv_extract" | "cv_ocr" | "master_cv" | "pack" | "paste_job" | "alert_parse" | "roadmap";
 
 export interface AIUsage { model: string; inputTokens: number; outputTokens: number; costMicroUsd: number }
 
@@ -17,10 +17,17 @@ export interface JSONRequest<S extends z.ZodType> {
 }
 export interface TextRequest { tier: AITier; system: string; prompt: string; maxTokens?: number }
 
+/** One page image (base64, no data: prefix). JPEG from the browser's page renderer in practice. */
+export interface PageImage { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string }
+/** Vision request: images first, then the instruction. Returns plain text. */
+export interface VisionRequest { tier: AITier; system: string; prompt: string; images: PageImage[]; maxTokens?: number }
+
 export interface AIProvider {
   readonly name: string;
   generateJSON<S extends z.ZodType>(req: JSONRequest<S>): Promise<{ data: z.infer<S>; usage: AIUsage }>;
   generateText(req: TextRequest): Promise<{ text: string; usage: AIUsage }>;
+  /** Read text from images (CV photos / scanned pages). */
+  readImages(req: VisionRequest): Promise<{ text: string; usage: AIUsage; truncated: boolean }>;
 }
 
 export type AIErrorCode = "not_configured" | "over_cap" | "trial_expired" | "refused" | "invalid_json" | "rate_limited" | "upstream";

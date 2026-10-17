@@ -2,7 +2,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
-import { AIError, type AIProvider, type AITier, type JSONRequest, type TextRequest } from "./provider";
+import { AIError, type AIProvider, type AITier, type JSONRequest, type TextRequest, type VisionRequest } from "./provider";
 import { costMicroUsd } from "./pricing";
 
 export const MODELS: Record<AITier, string> = {
@@ -68,6 +68,30 @@ export class AnthropicProvider implements AIProvider {
       const text = res.content.map((c) => (c.type === "text" ? c.text : "")).join("").trim();
       const usage = { model: res.model || b.model, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, costMicroUsd: costMicroUsd(b.model, res.usage.input_tokens, res.usage.output_tokens) };
       return { text, usage };
+    } catch (e) {
+      mapError(e);
+    }
+  }
+
+  async readImages(req: VisionRequest) {
+    const b = this.base(req.tier, req.maxTokens);
+    try {
+      const res = await this.client.beta.messages.create({
+        ...b,
+        system: req.system,
+        messages: [{
+          role: "user",
+          content: [
+            ...req.images.map((img) => ({ type: "image" as const, source: { type: "base64" as const, media_type: img.mediaType, data: img.data } })),
+            { type: "text" as const, text: req.prompt },
+          ],
+        }],
+        output_config: { effort: "low" },
+      });
+      if (res.stop_reason === "refusal") throw new AIError("refused");
+      const text = res.content.map((c) => (c.type === "text" ? c.text : "")).join("").trim();
+      const usage = { model: res.model || b.model, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, costMicroUsd: costMicroUsd(b.model, res.usage.input_tokens, res.usage.output_tokens) };
+      return { text, usage, truncated: res.stop_reason === "max_tokens" };
     } catch (e) {
       mapError(e);
     }
