@@ -1,7 +1,7 @@
 node_modules/
 .next/
-out/
-build/
+/out/
+/build/
 .env
 .env.*
 !.env.example
