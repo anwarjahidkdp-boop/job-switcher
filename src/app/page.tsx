@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
 import type { Band } from "@/lib/types";
 import { headers } from "next/headers";
-import { countryFromHeader, formatPrice, proPrice } from "@/lib/billing/pricing";
+import { countryFromHeader, formatPrice, perDay, proPrice } from "@/lib/billing/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,7 @@ const ICONS: Record<string, React.ReactNode> = {
   lock: <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></>,
   hand: <><path d="M12 3v10M8 7l4-4 4 4" /><path d="M5 14v5h14v-5" /></>,
   shield: <><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /></>,
+  cup: <><path d="M4 9h12v5a5 5 0 01-5 5H9a5 5 0 01-5-5z" /><path d="M16 10h2a2 2 0 010 4h-2M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3" /></>,
   globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></>,
 };
 function Icon({ name }: { name: string }) {
@@ -162,6 +163,10 @@ export default async function Landing() {
           <section className="lp-sec lp-price-wrap">
             <div className="lp-price">
               <p className="lp-kicker">Job Switcher Pro</p>
+              <div className="lp-tea">
+                <span className="lp-cup"><Icon name="cup" /></span>
+                <div><b className="num">{perDay(local)} a day</b><span>{local.currency === "BDT" ? "The price of one cup of tea. Your personal job assistant works for you all day." : "Less than a coffee. Your personal job assistant works for you all day."}</span></div>
+              </div>
               <p className="lp-amt num">{formatPrice(local.minor, local.currency)}<span> / month</span></p>
               <ul>{PRO.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
               <Link className="btn btn-primary lp-btn lp-full" href={start}>Start 7-day free trial</Link>

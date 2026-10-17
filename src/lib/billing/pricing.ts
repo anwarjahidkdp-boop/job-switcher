@@ -35,6 +35,12 @@ export function formatPrice(minor: number, currency: string): string {
   return `${SYMBOL[currency] ?? `${currency} `}${n}`;
 }
 
+/** The monthly price as a daily amount: whole taka in Bangladesh (৳299 → ৳10), cents elsewhere. */
+export function perDay(p: { minor: number; currency: string }): string {
+  const day = p.currency === "BDT" ? Math.round(p.minor / 30 / 100) * 100 : Math.ceil(p.minor / 30);
+  return formatPrice(day, p.currency);
+}
+
 /** Country from Cloudflare's CF-IPCountry header, mapped to a supported price country (others fall back to XX). */
 export function countryFromHeader(v: string | null | undefined): CountryCode {
   const c = String(v || "").toUpperCase();
