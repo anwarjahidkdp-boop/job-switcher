@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState, photoUrl } from "@/lib/server/page";
 import { COUNTRIES, COUNTRY_CODES, cname, money, perLabel, PORTALS, rule } from "@/lib/countries";
@@ -34,8 +35,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const srcTitle = (s: string) => (s === "cv" ? "From your CV" : s === "answer" ? "From your answers" : "Added by you");
   return (
     <>
-      <h1 style={{ fontSize: 28 }}>Master Career Profile</h1>
-      <p className="muted" style={{ marginTop: 4 }}>Every application is built from this verified information.</p>
+      <PageHead kicker="Your profile" title={<>Master career <span>profile</span></>} sub="Every application is built from this verified information." />
       <div className="dash" style={{ marginTop: 18 }}>
         <div>
           <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} />

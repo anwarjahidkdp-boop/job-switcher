@@ -1,3 +1,5 @@
+import { PageHead } from "@/components/PageHead";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
 import { proPlan, proPriceFor } from "@/lib/server/billing";
@@ -41,9 +43,9 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
   return (
     <>
       <SiteHeader inApp={false} signedIn trialLabel={label} />
-      <main><div className="wrap ob">
-        <h1 style={{ fontSize: 30 }}>JobPao Pro</h1>
-        <p className="muted" style={{ marginTop: 6 }}>{payable ? price : formatPrice(local.minor, local.currency)} for 30 days: <b>your own job assistant for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day</b>. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</p>
+      <main><div className="wrap">
+        <PageHead kicker="Pricing" title={<>JobPao <span>Pro</span></>} sub={<>{payable ? price : formatPrice(local.minor, local.currency)} for 30 days: <b>your own job assistant for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day</b>. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</>} />
+        <div className="ob">
         {banner ? <p className="note" style={{ marginTop: 14, borderColor: banner[0] === "ok" ? "var(--accent)" : "var(--warn)" }}>{banner[1]}</p> : null}
         <div className="card panel" style={{ marginTop: 18 }}>
           <h3>Your plan</h3>
@@ -81,7 +83,8 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
             </table>
           </div>
         ) : null}
-      </div></main>
+      </div></div></main>
+      <SiteFooter signedIn />
     </>
   );
 }

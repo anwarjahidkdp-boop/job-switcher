@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
 import { cname, PORTALS } from "@/lib/countries";
@@ -75,11 +76,8 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <>
-      <Link className="btn btn-text" href="/inbox">← Back to opportunities</Link>
-      <div className="ob" style={{ marginTop: 8 }}>
-        <p className="eyebrow">Setup guide · {done} of {ports.length} job sites set up</p>
-        <h1 style={{ fontSize: 28, marginTop: 6 }}>Get new jobs automatically</h1>
-        <p className="muted" style={{ marginTop: 6 }}>Job sites already email new jobs to your Gmail. You set Gmail to pass only those job emails on to JobPao, and we turn them into matched jobs for you. No passwords, and we never see your other emails.</p>
+      <PageHead back={{ href: "/inbox", label: "Back to opportunities" }} kicker={`Setup guide · ${done} of ${ports.length} job sites set up`} title={<>Get new jobs <span>automatically</span></>} sub="Job sites already email new jobs to your Gmail. You set Gmail to pass only those job emails on to JobPao, and we turn them into matched jobs for you. No passwords, and we never see your other emails." />
+      <div className="ob">
         <div className="sg-flow">
           <div><b>1</b><span>{site} emails new jobs to your Gmail</span></div>
           <div><b>2</b><span>Gmail passes only those emails to JobPao</span></div>

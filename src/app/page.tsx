@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
@@ -182,7 +183,7 @@ export default async function Landing() {
           </section>
         </div>
       </main>
-      <footer className="footer"><div className="wrap">© JobPao · Your data is yours. Export or delete it any time.</div></footer>
+      <SiteFooter signedIn={signedIn} />
     </>
   );
 }

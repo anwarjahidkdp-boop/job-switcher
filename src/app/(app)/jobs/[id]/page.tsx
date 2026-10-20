@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PageHead } from "@/components/PageHead";
 import { notFound } from "next/navigation";
 import { requireAppState, photoUrl } from "@/lib/server/page";
 import { loadJob } from "@/lib/server/state";
@@ -34,7 +34,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   return (
     <>
-      <Link className="btn btn-text" href="/inbox">← Back to opportunities</Link>
+      <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
       <div className="jobgrid" style={{ marginTop: 10 }}>
         <div className="stack" style={{ gap: 18 }}>
           <div className="card panel">

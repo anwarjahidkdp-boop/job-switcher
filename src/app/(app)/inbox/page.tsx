@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
 import { stats } from "@/lib/server/state";
@@ -35,10 +36,7 @@ export default async function Inbox() {
 
   return (
     <>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 28 }}>Welcome back{first ? `, ${first}` : ""}</h1>
-        <p className="muted" style={{ marginTop: 4 }}>We analysed {s.analysed} jobs in {cname(country)} for you. {s.strong} {s.strong === 1 ? "is a strong match" : "are strong matches"} for your profile.</p>
-      </div>
+      <PageHead kicker="Your job assistant" title={<>Welcome back{first ? <>, <span>{first}</span></> : ""}</>} sub={`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${s.strong} ${s.strong === 1 ? "is a strong match" : "are strong matches"} for your profile.`} />
       {due.map(({ a, job }) => (
         <div key={a.id} className="banner warn" style={{ marginBottom: 14 }}>
           <div><b>Your {job!.company} application is ready.</b> <span className="muted">{job!.deadline ? `Deadline: ${daysUntil(job!.deadline, st.today)} days remaining. ` : ""}Did you submit your application?</span></div>

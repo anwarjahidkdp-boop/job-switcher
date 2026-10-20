@@ -33,9 +33,17 @@ export function InstallApp() {
     navigator.serviceWorker?.register("/sw.js").catch(() => {});
     let hidden = false;
     try { hidden = localStorage.getItem(KEY) === "1"; } catch {}
-    const t = setTimeout(() => { setOs(detectOs()); setShow(!hidden && !standalone()); }, 0);
-    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as Prompt); };
-    const onDone = () => { setShow(false); setOpen(false); };
+    const t = setTimeout(() => {
+      const o = detectOs();
+      setOs(o);
+      // Chrome and Edge only fire beforeinstallprompt while the app is NOT installed, so there we wait for it.
+      // iPhone never fires it and cannot tell us, so the guide button shows until the person hides it.
+      setShow(!hidden && !standalone() && o === "ios");
+    }, 0);
+    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as Prompt); if (!hidden && !standalone()) setShow(true); };
+    const onDone = () => { setShow(false); setOpen(false); try { localStorage.setItem(KEY, "1"); } catch {} };
+    // Already installed on this device (Android Chrome can tell): never show the button.
+    (navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> }).getInstalledRelatedApps?.().then((apps) => { if (apps.length) onDone(); }).catch(() => {});
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onDone);
     return () => { clearTimeout(t); window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onDone); };
@@ -47,8 +55,9 @@ export function InstallApp() {
     await evt.prompt();
     const { outcome } = await evt.userChoice;
     setEvt(null);
-    if (outcome === "accepted") setShow(false);
+    if (outcome === "accepted") onAccepted();
   };
+  const onAccepted = () => { setShow(false); try { localStorage.setItem(KEY, "1"); } catch {} };
   const hide = () => { setShow(false); try { localStorage.setItem(KEY, "1"); } catch {} };
   const g = GUIDE[os];
   return (
