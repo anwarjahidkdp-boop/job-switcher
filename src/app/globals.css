@@ -408,7 +408,7 @@ a.lp-btn-ghost{color:var(--ink)}
 .hs-slide.on img{animation:hs-zoom 7s ease-out both}
 @keyframes hs-zoom{from{transform:scale(1.1)}to{transform:scale(1)}}
 .hs-shade{position:absolute;inset:0;z-index:3;background:linear-gradient(90deg,rgba(10,21,51,.97) 0%,rgba(10,21,51,.92) 32%,rgba(10,21,51,.55) 55%,rgba(10,21,51,.18) 78%,rgba(10,21,51,.35) 100%),linear-gradient(0deg,rgba(10,21,51,.85),transparent 28%)}
-.lp-hero.hs::before{z-index:1}
+.lp-hero.hs::before{display:none}
 .lp-hero.hs::after{z-index:1;mix-blend-mode:screen;opacity:.7}
 .lp-hero.hs .lp-hero-in{z-index:2;min-height:620px}
 .hs-right{position:relative;height:560px}
