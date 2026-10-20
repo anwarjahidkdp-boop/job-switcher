@@ -1,7 +1,7 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
 import { proPlan, proPriceFor } from "@/lib/server/billing";
-import { formatPrice, PAYABLE_CURRENCIES, perDay } from "@/lib/billing/pricing";
+import { formatPrice, PAYABLE_CURRENCIES } from "@/lib/billing/pricing";
 import { cname } from "@/lib/countries";
 import Link from "next/link";
 import { billingConfig, formatTaka } from "@/lib/billing/manual";
@@ -43,7 +43,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
       <SiteHeader inApp={false} signedIn trialLabel={label} />
       <main><div className="wrap ob">
         <h1 style={{ fontSize: 30 }}>JobPao Pro</h1>
-        <p className="muted" style={{ marginTop: 6 }}>{payable ? price : formatPrice(local.minor, local.currency)} for 30 days, about <b>{perDay(local)} a day</b>{local.currency === "BDT" ? ", less than one cup of tea" : ""}. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</p>
+        <p className="muted" style={{ marginTop: 6 }}>{payable ? price : formatPrice(local.minor, local.currency)} for 30 days: <b>your own job assistant for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day</b>. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</p>
         {banner ? <p className="note" style={{ marginTop: 14, borderColor: banner[0] === "ok" ? "var(--accent)" : "var(--warn)" }}>{banner[1]}</p> : null}
         <div className="card panel" style={{ marginTop: 18 }}>
           <h3>Your plan</h3>
