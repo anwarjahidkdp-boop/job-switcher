@@ -626,3 +626,15 @@ a.lp-btn-ghost{color:var(--ink)}
 .hp-grid img{display:block;width:100%;aspect-ratio:64/46;object-fit:cover}
 .hp-num{position:absolute;top:10px;left:10px;display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
 .hp-grid figcaption{padding:8px 12px;font-size:13px;color:var(--ink-2)}
+/* Upgrade page: Pro packs */
+.packs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 10px;margin-top:18px}
+@media (max-width:760px){.packs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pack{position:relative;display:flex;flex-direction:column;gap:4px;padding:18px 14px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:inherit;text-decoration:none;transition:border-color .2s,box-shadow .2s,transform .2s}
+.pack:hover{transform:translateY(-1px);border-color:#B9C3D6}
+.pack.on{border-color:var(--g2);box-shadow:0 0 0 1px var(--g2),0 10px 26px rgba(201,150,64,.18);background:linear-gradient(135deg,#FFFBF2,#FFF6E4)}
+.pack-tag{position:absolute;top:-9px;left:12px;padding:2px 8px;border-radius:999px;background:#14275A;color:var(--g);font-size:11px;font-weight:700;letter-spacing:.02em}
+.pack-name{font-weight:700;color:#14275A}
+.pack-amt{font-family:var(--display);font-size:24px;font-weight:800;color:#14275A}
+.pack-sub{color:var(--muted)}
+.pack-sub b{color:#1B7F4B}
+.lp-packs{color:var(--ink-2);margin-top:2px}

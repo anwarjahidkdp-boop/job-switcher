@@ -1,4 +1,4 @@
-// Lemon Squeezy card payments (Merchant of Record) for every target country except Bangladesh, which pays with bKash.
+// Lemon Squeezy card payments (Merchant of Record) for everyone living outside Bangladesh, who pays with bKash.
 // The store sells one "JobPao Pro, 30 days" product in US dollars; the checkout is created per payment with a custom
 // price, and Pro is activated only from a signed order_created webhook whose amount and payment id match our row.
 import { createHmac, timingSafeEqual } from "node:crypto";

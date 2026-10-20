@@ -10,12 +10,12 @@ export function CountryPanel({ current, needsVisa, homeCountry, countries }: { c
   return (
     <div className="card panel"><h3>Target country</h3>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
-        <select id="countrysel" value={current} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${countries.find((x) => x.code === c)?.name}. CV format, currency, matches and your Pro price updated.`); router.refresh(); }); }}>
+        <select id="countrysel" value={current} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${countries.find((x) => x.code === c)?.name}. CV format, currency and matches updated.`); router.refresh(); }); }}>
           {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
       </label>
       <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
-        <select id="homesel" value={homeCountry} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs follow the country you live in."); router.refresh(); }); }}>
+        <select id="homesel" value={homeCountry} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }}>
           {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
       </label>

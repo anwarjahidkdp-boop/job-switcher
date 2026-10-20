@@ -2,8 +2,7 @@ import { PageHead } from "@/components/PageHead";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
-import { proPlan, proPriceFor } from "@/lib/server/billing";
-import { cardUsd, formatPrice, PAYABLE_CURRENCIES } from "@/lib/billing/pricing";
+import { formatPrice, isPack, packPrice, PACKS, PAYABLE_CURRENCIES, DEFAULT_PACK } from "@/lib/billing/pricing";
 import { lemonConfig } from "@/lib/billing/lemonsqueezy";
 import { cname } from "@/lib/countries";
 import Link from "next/link";
@@ -24,24 +23,27 @@ const BANNERS: Record<string, [string, string]> = {
 const inFuture = (iso: string) => Date.parse(iso) > Date.now();
 const STATUS: Record<string, string> = { pending: "Waiting for review", approved: "Confirmed", rejected: "Not confirmed", failed: "Failed", canceled: "Cancelled", initiated: "Not finished" };
 
-export default async function Upgrade({ searchParams }: { searchParams: Promise<{ payment?: string }> }) {
+export default async function Upgrade({ searchParams }: { searchParams: Promise<{ payment?: string; pack?: string }> }) {
   const sp = await searchParams;
   const { supabase, user } = await requireUser("/upgrade");
-  const [plan, label, subRes, payRes, profRes] = await Promise.all([
-    proPlan(supabase),
+  const [label, subRes, payRes, profRes] = await Promise.all([
     trialLabel(supabase, user.id),
     supabase.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", user.id).maybeSingle(),
     supabase.from("payments").select("id, method, amount_minor, currency, trx_id, status, period_end, review_note, created_at").eq("user_id", user.id).neq("status", "initiated").order("created_at", { ascending: false }).limit(10),
-    supabase.from("profiles").select("target_country").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("home_country").eq("id", user.id).maybeSingle(),
   ]);
-  const local = await proPriceFor(supabase, profRes.data?.target_country);
+  const home = profRes.data?.home_country;
+  const pack = isPack(sp.pack) ? sp.pack : DEFAULT_PACK;
+  const local = packPrice(home, pack);
+  const month = packPrice(home, "30d");
   const payable = PAYABLE_CURRENCIES.includes(local.currency);
   const cfg = payable ? billingConfig() : { manual: null, checkout: false };
   const sub = subRes.data;
   const payments = payRes.data || [];
-  const price = formatTaka(plan.priceMinor);
+  const price = formatTaka(local.minor);
+  const span = local.name;
   const card = !payable && !!lemonConfig();
-  const usd = formatPrice(cardUsd(local.country), "USD");
+  const usd = formatPrice(local.usd, "USD");
   const where = local.country === "XX" ? "your chosen country" : cname(local.country);
   const banner = sp.payment ? BANNERS[sp.payment] : null;
   const activeUntil = sub?.status === "active" && sub.current_period_end && inFuture(sub.current_period_end) ? sub.current_period_end : null;
@@ -49,18 +51,34 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
     <>
       <SiteHeader inApp={false} signedIn trialLabel={label} />
       <main><div className="wrap">
-        <PageHead kicker="Pricing" title={<>JobPao <span>Pro</span></>} sub={<>{payable ? price : formatPrice(local.minor, local.currency)} for 30 days: <b>your own job assistant for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day</b>. AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. No auto-renewal: you pay again when you want another month.</>} />
+        <PageHead kicker="Pricing" title={<>JobPao <span>Pro</span></>} sub={<><b>Your own job assistant for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b> AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. Pay once for the time you need, with no auto-renewal.</>} />
         <div className="ob">
         {banner ? <p className="note" style={{ marginTop: 14, borderColor: banner[0] === "ok" ? "var(--accent)" : "var(--warn)" }}>{banner[1]}</p> : null}
         <div className="card panel" style={{ marginTop: 18 }}>
           <h3>Your plan</h3>
-          <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds 30 days after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts 30 days of Pro today.</> : <>You are on the free plan. Paying starts 30 days of Pro.</>}</p>
+          <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds {span} after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts {span} of Pro today.</> : <>You are on the free plan. Paying starts {span} of Pro.</>}</p>
+        </div>
+        <div className="packs" role="radiogroup" aria-label="Choose your Pro pack">
+          {PACKS.map((k) => {
+            const p = packPrice(home, k.id);
+            const full = month.minor * (k.days / 30);
+            const save = k.days > 30 ? Math.round((1 - p.minor / full) * 100) : 0;
+            const tag = k.id === "30d" ? "Most popular" : k.id === "365d" ? "Best value" : "";
+            return (
+              <Link key={k.id} href={`/upgrade?pack=${k.id}`} scroll={false} replace role="radio" aria-checked={k.id === pack} className={`pack ${k.id === pack ? "on" : ""}`}>
+                {tag ? <span className="pack-tag">{tag}</span> : null}
+                <span className="pack-name">{k.name}</span>
+                <span className="pack-amt num">{formatPrice(p.minor, p.currency)}</span>
+                <span className="pack-sub small">{k.days > 30 ? <>{formatPrice(Math.round(p.minor / (k.days / 30) / (p.currency === "BDT" ? 100 : 1)) * (p.currency === "BDT" ? 100 : 1), p.currency)} a month{save > 0 ? <b> · save {save}%</b> : null}</> : k.days === 10 ? "Try it for a short search" : "Pay month by month"}</span>
+              </Link>
+            );
+          })}
         </div>
         {!payable ? (
           <div className="card panel stack" style={{ marginTop: 14 }}>
             <h3 style={{ margin: 0 }}>Pay by card</h3>
-            <p className="small muted">For jobs in {where}: <b>{formatPrice(local.minor, local.currency)}</b>{local.currency === "USD" ? null : <>, charged as <b>{usd}</b></>} for 30 days. Secure checkout by Lemon Squeezy, our payment partner: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows your target country; change it on your <Link href="/profile">profile</Link>.</p>
-            {card ? <CardCheckoutButton label={`Pay ${usd} by card`} /> : <p className="note">Card payment opens very soon. Your trial features keep working until the trial ends.</p>}
+            <p className="small muted">Living in {where}: <b>{formatPrice(local.minor, local.currency)}</b>{local.currency === "USD" ? null : <>, charged as <b>{usd}</b></>} for {span}. Secure checkout by Lemon Squeezy, our payment partner: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
+            {card ? <CardCheckoutButton label={`Pay ${usd} by card`} pack={pack} /> : <p className="note">Card payment opens very soon. Your trial features keep working until the trial ends.</p>}
           </div>
         ) : null}
         {payable && !cfg.manual && !cfg.checkout ? <p className="note" style={{ marginTop: 18 }}>Payments are not open yet. Your trial features keep working until the trial ends.</p> : null}
@@ -68,7 +86,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
           <div className="card panel stack" style={{ marginTop: 14 }}>
             <h3 style={{ margin: 0 }}>Pay with bKash</h3>
             <p className="small muted">You will go to bKash&apos;s own page to approve {price} with your bKash PIN and OTP. We never see your PIN. Pro starts as soon as bKash confirms the payment.</p>
-            <CheckoutButton label={`Pay ${price} with bKash`} />
+            <CheckoutButton label={`Pay ${price} with bKash`} pack={pack} />
           </div>
         ) : null}
         {cfg.manual ? (
@@ -81,7 +99,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
               <li>Finish with your PIN. bKash shows a Transaction ID (TrxID) and sends it by SMS.</li>
               <li>Enter the TrxID and the number you paid from below. We check it in our bKash statement, usually within a few hours, and email you when Pro is active.</li>
             </ol>
-            <ManualPaymentForm />
+            <ManualPaymentForm pack={pack} />
             <p className="small muted">Never share your bKash PIN or OTP with anyone, including us.</p>
           </div>
         ) : null}

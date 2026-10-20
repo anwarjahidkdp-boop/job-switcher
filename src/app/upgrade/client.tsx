@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
 
-export function CheckoutButton({ label, endpoint = "/api/billing/checkout", opening = "Opening bKash" }: { label: string; endpoint?: string; opening?: string }) {
+export function CheckoutButton({ label, pack, endpoint = "/api/billing/checkout", opening = "Opening bKash" }: { label: string; pack: string; endpoint?: string; opening?: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return (
@@ -11,7 +11,7 @@ export function CheckoutButton({ label, endpoint = "/api/billing/checkout", open
       <button className="btn btn-primary" disabled={busy} onClick={async () => {
         setBusy(true); setErr("");
         try {
-          const r = await fetch(endpoint, { method: "POST" });
+          const r = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pack }) });
           const j = await r.json().catch(() => ({}));
           if (!r.ok || !j.url) throw new Error(j.error || "Could not start the payment.");
           window.location.assign(j.url);
@@ -22,9 +22,9 @@ export function CheckoutButton({ label, endpoint = "/api/billing/checkout", open
   );
 }
 
-export const CardCheckoutButton = ({ label }: { label: string }) => <CheckoutButton label={label} endpoint="/api/billing/card" opening="Opening secure checkout" />;
+export const CardCheckoutButton = ({ label, pack }: { label: string; pack: string }) => <CheckoutButton label={label} pack={pack} endpoint="/api/billing/card" opening="Opening secure checkout" />;
 
-export function ManualPaymentForm() {
+export function ManualPaymentForm({ pack }: { pack: string }) {
   const router = useRouter();
   const [trxId, setTrx] = useState("");
   const [msisdn, setMsisdn] = useState("");
@@ -36,7 +36,7 @@ export function ManualPaymentForm() {
     <form className="stack" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setErr("");
       try {
-        const r = await fetch("/api/billing/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trxId, msisdn }) });
+        const r = await fetch("/api/billing/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trxId, msisdn, pack }) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || "Could not save the payment.");
         setDone(true); router.refresh();

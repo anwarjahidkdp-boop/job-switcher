@@ -7,8 +7,8 @@ export async function POST(req: Request) {
   const c = await apiCtx();
   if (!c) return unauthorized();
   try {
-    const body = (await req.json().catch(() => ({}))) as { trxId?: string; msisdn?: string };
-    return NextResponse.json(await submitManualPayment(c, { trxId: String(body.trxId || ""), msisdn: String(body.msisdn || "") }));
+    const body = (await req.json().catch(() => ({}))) as { trxId?: string; msisdn?: string; pack?: string };
+    return NextResponse.json(await submitManualPayment(c, { trxId: String(body.trxId || ""), msisdn: String(body.msisdn || ""), pack: body.pack }));
   } catch (e) {
     if (e instanceof PaymentError) return NextResponse.json({ error: e.message }, { status: 400 });
     return apiError(e);

@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { countryFromHeader } from "@/lib/billing/pricing";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { CvPreview } from "@/components/CvPreview";
@@ -41,6 +43,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   if (st.profile.onboarding_step === "done" && !editing) redirect("/inbox");
   const step = editing ? "prefs" : st.profile.onboarding_step;
   const country = st.country, r = rule(country), cn = cname(country);
+  // First visit: guess where they live from Cloudflare's country header; they can change it.
+  const ip = (await headers()).get("cf-ipcountry");
+  const home = st.homeCountry !== "BD" || !ip ? st.homeCountry : countryFromHeader(ip);
   const demo = sp.demo === "1";
   const trial = await trialLabel(supabase, user.id);
 
@@ -49,7 +54,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   if (step === "country") {
     head = <Head cur="country" kicker="Your 7-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
     body = <div className="ob">
-      <CountryStep current={country} needsVisa={st.profile.needs_visa} demo={demo} countries={COUNTRY_CODES.map((k) => { const c: CountryRule = COUNTRIES[k]; return { code: k, name: c.name, doc: c.doc, pages: c.pages, photo: c.photo, rules: c.rules }; })} />
+      <CountryStep current={country} home={home} needsVisa={st.profile.needs_visa} demo={demo} countries={COUNTRY_CODES.map((k) => { const c: CountryRule = COUNTRIES[k]; return { code: k, name: c.name, doc: c.doc, pages: c.pages, photo: c.photo, rules: c.rules }; })} />
     </div>;
   } else if (step === "upload") {
     head = <Head cur="upload" back="country" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;

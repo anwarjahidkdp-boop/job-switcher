@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
 import { headers } from "next/headers";
-import { countryFromHeader, formatPrice, proPrice } from "@/lib/billing/pricing";
+import { countryFromHeader, formatPrice, packPrice, PACKS, proPrice } from "@/lib/billing/pricing";
 import { AutoFlow } from "./AutoFlow";
 import { HeroStage } from "./HeroStage";
 
@@ -176,6 +176,7 @@ export default async function Landing() {
                 <div><b>Less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day</b><span>That is all your personal job assistant costs, and it works for you all day.</span></div>
               </div>
               <p className="lp-amt num">{formatPrice(local.minor, local.currency)}<span> / month</span></p>
+              <p className="small lp-packs">{PACKS.filter((k) => k.id !== "30d").map((k) => { const p = packPrice(local.country, k.id); return `${k.name} ${formatPrice(p.minor, p.currency)}`; }).join(" · ")}</p>
               <ul>{PRO.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
               <Link className="btn btn-primary lp-btn lp-full" href={start}>Start 7-day free trial</Link>
             </div>

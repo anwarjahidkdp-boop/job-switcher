@@ -5,17 +5,17 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { BkashClient, BkashError, bkashCredentialsFromEnv, verifyCompleted, type BkashPaymentState } from "../billing/bkash";
-import { billingConfig, bkashAmount, extendPeriod, formatTaka, normaliseMsisdn, normaliseTrxId, PERIOD_DAYS } from "../billing/manual";
+import { billingConfig, bkashAmount, extendPeriod, formatTaka, normaliseMsisdn, normaliseTrxId } from "../billing/manual";
 import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
-import { cardUsd, formatPrice, PAYABLE_CURRENCIES, proPrice, type Price } from "../billing/pricing";
+import { formatPrice, packPrice, PAYABLE_CURRENCIES, type PackPrice } from "../billing/pricing";
 import { createLemonCheckout, lemonConfig, parseOrderEvent, verifySignature } from "../billing/lemonsqueezy";
 
 export interface PaymentRow {
   id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy"; amount_minor: number; currency: string;
   trx_id: string | null; payer_msisdn: string | null; bkash_payment_id: string | null; invoice: string;
-  status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled"; period_end: string | null;
+  status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled"; period_end: string | null; period_days: number;
   review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string;
 }
 
@@ -29,26 +29,20 @@ export async function proPlan(db: SupabaseClient): Promise<{ code: string; name:
   return { code: "pro", name: data?.name || "JobPao Pro", priceMinor: Number(data?.price_minor ?? 19000) };
 }
 
-/** Pro price for the country the user wants to work in (plan_prices, falling back to the built-in table). */
-export async function proPriceFor(db: SupabaseClient, country: unknown): Promise<Price> {
-  const fallback = proPrice(country);
-  const { data } = await db.from("plan_prices").select("currency, price_minor").eq("plan_code", "pro").eq("country", fallback.country).maybeSingle();
-  return data ? { country: fallback.country, currency: String(data.currency), minor: Number(data.price_minor) } : fallback;
+/** The price, and so the way to pay, follows the country the user lives in: Bangladesh pays with bKash, everyone else by card. */
+export async function priceForUser(admin: SupabaseClient, userId: string, pack: unknown): Promise<PackPrice> {
+  const { data } = await admin.from("profiles").select("home_country").eq("id", userId).maybeSingle();
+  return packPrice(data?.home_country, pack);
 }
 
-/** The price, and so the way to pay, follows the target country: Bangladesh pays with bKash, everyone else by card. */
-export async function priceForUser(admin: SupabaseClient, userId: string): Promise<Price> {
-  const { data } = await admin.from("profiles").select("target_country").eq("id", userId).maybeSingle();
-  return proPriceFor(admin, data?.target_country);
-}
-
-async function assertBkashPrice(ctx: { admin: SupabaseClient; userId: string }) {
-  const price = await priceForUser(ctx.admin, ctx.userId);
-  if (!PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("bKash is for jobs in Bangladesh. For other countries, pay by card.");
+async function bkashPrice(ctx: { admin: SupabaseClient; userId: string }, pack: unknown) {
+  const price = await priceForUser(ctx.admin, ctx.userId, pack);
+  if (!PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("bKash is for people living in Bangladesh. Outside Bangladesh, pay by card.");
+  return price;
 }
 
 /** Manual path: the user paid with Send Money / Payment in their bKash app and gives us the TrxID. Stored as pending. */
-export async function submitManualPayment(ctx: { admin: SupabaseClient; userId: string }, input: { trxId: string; msisdn: string }) {
+export async function submitManualPayment(ctx: { admin: SupabaseClient; userId: string }, input: { trxId: string; msisdn: string; pack?: unknown }) {
   if (!billingConfig().manual) throw new PaymentError("Manual bKash payment is not available.");
   const trx = normaliseTrxId(input.trxId);
   if (!trx) throw new PaymentError("Enter the Transaction ID (TrxID) from your bKash SMS or app, for example 9JK7ABC1XY.");
@@ -56,11 +50,10 @@ export async function submitManualPayment(ctx: { admin: SupabaseClient; userId: 
   if (!msisdn) throw new PaymentError("Enter the bKash number you paid from, for example 017XXXXXXXX.");
   const { count } = await ctx.admin.from("payments").select("id", { count: "exact", head: true }).eq("user_id", ctx.userId).eq("status", "pending");
   if ((count ?? 0) >= MAX_PENDING) throw new PaymentError("You already have payments waiting for review. We will email you once they are checked.");
-  await assertBkashPrice(ctx);
-  const plan = await proPlan(ctx.admin);
+  const price = await bkashPrice(ctx, input.pack);
   const { data, error } = await ctx.admin.from("payments").insert({
-    user_id: ctx.userId, plan_code: plan.code, method: "bkash_manual", amount_minor: plan.priceMinor, currency: "BDT",
-    trx_id: trx, payer_msisdn: msisdn, invoice: newInvoice(), status: "pending", period_days: PERIOD_DAYS,
+    user_id: ctx.userId, plan_code: "pro", method: "bkash_manual", amount_minor: price.minor, currency: "BDT",
+    trx_id: trx, payer_msisdn: msisdn, invoice: newInvoice(), status: "pending", period_days: price.days,
   }).select("id").single();
   if (error) {
     if (error.code === "23505") throw new PaymentError("This Transaction ID has already been submitted. If you think this is wrong, contact support.");
@@ -81,10 +74,10 @@ export async function listPayments(admin: SupabaseClient, status: "pending" | "r
   return rows.map((r) => ({ ...r, email: who.get(r.user_id)?.email ?? null, name: who.get(r.user_id)?.full_name ?? null }));
 }
 
-/** Extend the user's Pro period by 30 days and record it on the payment. */
-async function activate(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_id" | "plan_code" | "trx_id" | "method">) {
+/** Extend the user's Pro period by the pack's days and record it on the payment. */
+async function activate(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_id" | "plan_code" | "trx_id" | "method" | "period_days">) {
   const { data: sub } = await admin.from("subscriptions").select("status, current_period_end").eq("user_id", p.user_id).maybeSingle();
-  const periodEnd = extendPeriod(sub?.current_period_end, sub?.status);
+  const periodEnd = extendPeriod(sub?.current_period_end, sub?.status, Date.now(), p.period_days || 30);
   const { error } = await admin.from("subscriptions").update({
     plan_code: p.plan_code, status: "active", current_period_end: periodEnd, payment_provider: p.method === "lemonsqueezy" ? "lemonsqueezy" : p.method === "bkash_checkout" ? "bkash_checkout" : "bkash", payment_ref: p.trx_id,
   }).eq("user_id", p.user_id);
@@ -109,7 +102,7 @@ export async function reviewPayment(admin: SupabaseClient, input: { paymentId: s
   const { data, error } = await admin.from("payments")
     .update({ status: input.approve ? "approved" : "rejected", reviewed_by: input.reviewer, reviewed_at: now, review_note: note })
     .eq("id", input.paymentId).eq("method", "bkash_manual").in("status", from)
-    .select("id, user_id, plan_code, trx_id, method, amount_minor, status").maybeSingle();
+    .select("id, user_id, plan_code, trx_id, method, amount_minor, status, period_days").maybeSingle();
   if (error) throw error;
   if (!data) throw new PaymentError("This payment was already reviewed.");
   let periodEnd: string | undefined;
@@ -135,18 +128,17 @@ function client() {
   return new BkashClient(creds);
 }
 
-export async function startCheckout(ctx: { admin: SupabaseClient; userId: string }) {
+export async function startCheckout(ctx: { admin: SupabaseClient; userId: string }, pack?: unknown) {
   const bk = client();
-  await assertBkashPrice(ctx);
-  const plan = await proPlan(ctx.admin);
+  const price = await bkashPrice(ctx, pack);
   const invoice = newInvoice();
   const { data: row, error } = await ctx.admin.from("payments").insert({
-    user_id: ctx.userId, plan_code: plan.code, method: "bkash_checkout", amount_minor: plan.priceMinor, currency: "BDT", invoice, status: "initiated", period_days: PERIOD_DAYS,
+    user_id: ctx.userId, plan_code: "pro", method: "bkash_checkout", amount_minor: price.minor, currency: "BDT", invoice, status: "initiated", period_days: price.days,
   }).select("id").single();
   if (error) throw error;
   try {
     const r = await bk.createPayment({
-      amount: bkashAmount(plan.priceMinor), invoice, payerReference: invoice,
+      amount: bkashAmount(price.minor), invoice, payerReference: invoice,
       callbackURL: `${publicEnv.appUrl}/api/billing/bkash/callback`,
     });
     await ctx.admin.from("payments").update({ bkash_payment_id: r.paymentID }).eq("id", row.id);
@@ -185,7 +177,7 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
     return "failure";
   }
   const { data: claimed, error } = await admin.from("payments").update({ status: "approved", trx_id: v.trxID, payer_msisdn: q.customerMsisdn ?? null, provider_response: keep(q), reviewed_by: "bkash-query", reviewed_at: new Date().toISOString() })
-    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method").maybeSingle();
+    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method, period_days").maybeSingle();
   if (error) throw error;
   if (!claimed) return "success"; // another request finished it first
   const periodEnd = await activate(admin, claimed as PaymentRow);
@@ -194,22 +186,22 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
 }
 
 // ---------------------------------------------------------------------------
-// Card payments through Lemon Squeezy (every target country except Bangladesh)
+// Card payments through Lemon Squeezy (everyone living outside Bangladesh)
 // ---------------------------------------------------------------------------
-export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }) {
+export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }, pack?: unknown) {
   const cfg = lemonConfig();
   if (!cfg) throw new PaymentError("Card payment is not open yet. Your trial features keep working until the trial ends.");
-  const price = await priceForUser(ctx.admin, ctx.userId);
-  if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("For jobs in Bangladesh, pay with bKash.");
-  const usd = cardUsd(price.country);
+  const price = await priceForUser(ctx.admin, ctx.userId, pack);
+  if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("In Bangladesh, pay with bKash.");
+  const usd = price.usd;
   const plan = await proPlan(ctx.admin);
   const { data: prof } = await ctx.admin.from("profiles").select("email").eq("id", ctx.userId).maybeSingle();
   const { data: row, error } = await ctx.admin.from("payments").insert({
-    user_id: ctx.userId, plan_code: plan.code, method: "lemonsqueezy", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: PERIOD_DAYS,
+    user_id: ctx.userId, plan_code: plan.code, method: "lemonsqueezy", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: price.days,
   }).select("id").single();
   if (error) throw error;
   try {
-    const url = await createLemonCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, redirectUrl: `${publicEnv.appUrl}/upgrade?payment=card`, label: `${plan.name}, ${PERIOD_DAYS} days` });
+    const url = await createLemonCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, redirectUrl: `${publicEnv.appUrl}/upgrade?payment=card`, label: `${plan.name}, ${price.name}` });
     return { url };
   } catch (e) {
     console.error("lemonsqueezy checkout", e);
@@ -239,7 +231,7 @@ export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string,
     return { status: 200, note: "amount mismatch" };
   }
   const { data: claimed, error } = await admin.from("payments").update({ status: "approved", trx_id: `LS-${ev.orderId}`, provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook", reviewed_at: new Date().toISOString() })
-    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method").maybeSingle();
+    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method, period_days").maybeSingle();
   if (error) throw error;
   if (!claimed) return { status: 200, note: "already done" };
   const periodEnd = await activate(admin, claimed as PaymentRow);
