@@ -11,9 +11,9 @@ import { STATUS_LABEL, type Band } from "@/lib/types";
 import { Ring, DeadlineChip, BandPill } from "@/components/ui";
 import { appliedAction } from "@/app/actions";
 import { PastePanel } from "./PastePanel";
+import { siteDone, sitesDone } from "@/lib/setup";
 
 export const metadata = { title: "Opportunities" };
-const SETUP_STEPS = ["address", "alerts", "forward", "filter", "test"];
 
 export default async function Inbox() {
   const { st } = await requireAppState("/inbox");
@@ -29,7 +29,8 @@ export default async function Inbox() {
   const comp = completeness(P, answered);
   const { rel, rows } = skillDemand(st.scored, P);
   const miss = rows.find((r) => r.h.v < 1);
-  const setupDone = SETUP_STEPS.filter((k) => st.profile.setup_steps?.[k]).length;
+  const setupSites = PORTALS[st.country];
+  const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const dayLabel = (d: string) => { const n = daysUntil(d, st.today) ?? 0; return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : fmtDate(d); };
 
   return (
@@ -62,12 +63,12 @@ export default async function Inbox() {
           </div>
         </div>
         <aside className="side">
-          {setupDone < SETUP_STEPS.length ? (
+          {setupDone < setupSites.length ? (
             <div className="card panel" style={{ borderColor: "var(--accent)" }}>
               <h3>Get jobs automatically</h3>
-              <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${Math.round((100 * setupDone) / SETUP_STEPS.length)}%` }} /></div><b className="num small">{setupDone}/{SETUP_STEPS.length}</b></div>
+              <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${Math.round((100 * setupDone) / setupSites.length)}%` }} /></div><b className="num small">{setupDone}/{setupSites.length}</b></div>
               <p className="small muted" style={{ marginTop: 8 }}>Forward job-alert emails from {PORTALS[country].slice(0, 2).join(" and ")} so new jobs arrive here on their own.</p>
-              <Link className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/setup">{setupDone ? "Continue setup" : "Start setup"}</Link>
+              <Link className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/setup">{setupDone ? `Set up ${setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p))}` : "Start setup"}</Link>
             </div>
           ) : null}
           <div className="card panel"><h3>Apply Queue</h3>

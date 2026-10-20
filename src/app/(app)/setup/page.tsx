@@ -2,19 +2,18 @@ import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
 import { cname, PORTALS } from "@/lib/countries";
 import { publicEnv } from "@/lib/env";
-import { completeSetupStepAction, toggleSetupStepAction } from "@/app/actions";
+import { completeSetupStepAction, resetSiteSetupAction, toggleSetupStepAction } from "@/app/actions";
 import { CopyButton } from "@/components/CopyButton";
 import { CodeWatcher } from "./CodeWatcher";
 import { PORTAL_HELP } from "@/lib/portalHelp";
+import { siteDone, siteKey, sitesDone } from "@/lib/setup";
 
 export const metadata = { title: "Automatic jobs setup" };
-const WIZARD = ["alerts", "forward", "filter", "test"] as const;
 // Keeps login, OTP and password-reset emails from the job sites out of the forward.
 const FILTER_HASNOT = "password OR OTP OR verify OR reset OR code";
 
-type StepKey = (typeof WIZARD)[number];
 /** One wizard step: only the current step is open; finished ones fold to a single line, later ones wait. */
-function Step({ k, n, title, isDone, active, children }: { k: StepKey; n: number; title: string; isDone: boolean; active: boolean; children: React.ReactNode }) {
+function Step({ k, n, title, isDone, active, children }: { k: string; n: number; title: string; isDone: boolean; active: boolean; children: React.ReactNode }) {
   return (
     <div className={`card panel sg-step${active ? " sg-active" : ""}`} style={!active && !isDone ? { opacity: 0.55 } : undefined}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "nowrap" }}>
@@ -32,7 +31,7 @@ function Ol({ items }: { items: React.ReactNode[] }) {
   return <ol className="small" style={{ paddingLeft: 20, margin: "6px 0 0", listStyle: "decimal" }}>{items.map((i, x) => <li key={x} style={{ margin: "3px 0" }}>{i}</li>)}</ol>;
 }
 
-export default async function Setup() {
+export default async function Setup({ searchParams }: { searchParams: Promise<{ site?: string }> }) {
   const { st, db } = await requireAppState("/setup");
   const first = (st.P.name || "you").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(/\s+/)[0];
   const { data: fwd } = await db.rpc("ensure_forwarding_address", { p_hint: first });
@@ -42,12 +41,19 @@ export default async function Setup() {
   const inboundReady = !/(^|\.)example\.com$/.test(publicEnv.inboundDomain);
   const { count } = await db.from("inbound_emails").select("id", { count: "exact", head: true }).eq("user_id", st.userId).eq("kind", "job_alert").eq("status", "processed");
   const steps = st.profile.setup_steps || {};
-  const done = WIZARD.filter((k) => steps[k]).length;
   const ports = PORTALS[st.country];
+  const done = sitesDone(steps, ports);
+  // One job site at a time: the one asked for, else the first one not set up yet.
+  const asked = (await searchParams).site;
+  const site = ports.find((p) => p === asked) ?? ports.find((p) => !siteDone(steps, p)) ?? ports[0];
+  const help = PORTAL_HELP[site];
+  const k = { alerts: siteKey("alerts", site), forward: "forward", filter: siteKey("filter", site), test: siteKey("test", site) };
+  const otherDone = ports.filter((p) => p !== site && siteDone(steps, p));
+  const next = ports.filter((p) => p !== site && !siteDone(steps, p));
   const roles = st.P.targetRoles.slice(0, 2).join(", ") || "your target role";
   // The wizard opens the first unfinished step; copying the address is part of the Gmail step.
-  const current = WIZARD.find((k) => !steps[k]) ?? null;
-  const filterFrom = ports.map((p) => PORTAL_HELP[p]?.from).filter(Boolean).join(" OR ");
+  const current = (["alerts", "forward", "filter", "test"] as const).find((x) => !steps[k[x]]) ?? null;
+  const filterFrom = help?.from || "";
   // Open the Gmail account the user signed up with when it is a Gmail address; otherwise the browser's first Gmail.
   const email = (st.profile.email || "").toLowerCase();
   const gmailBase = /@(gmail|googlemail)\.com$/.test(email) ? `https://mail.google.com/mail/u/${encodeURIComponent(email)}/` : "https://mail.google.com/mail/u/0/";
@@ -57,31 +63,34 @@ export default async function Setup() {
     <>
       <Link className="btn btn-text" href="/inbox">← Back to opportunities</Link>
       <div className="ob" style={{ marginTop: 8 }}>
-        <p className="eyebrow">Setup guide · {done} of {WIZARD.length} done</p>
+        <p className="eyebrow">Setup guide · {done} of {ports.length} job sites set up</p>
         <h1 style={{ fontSize: 28, marginTop: 6 }}>Get new jobs automatically</h1>
         <p className="muted" style={{ marginTop: 6 }}>Job sites already email new jobs to your Gmail. You set Gmail to pass only those job emails on to JobPao, and we turn them into matched jobs for you. No passwords, and we never see your other emails.</p>
         <div className="sg-flow">
-          <div><b>1</b><span>{ports[0]} emails new jobs to your Gmail</span></div>
+          <div><b>1</b><span>{site} emails new jobs to your Gmail</span></div>
           <div><b>2</b><span>Gmail passes only those emails to JobPao</span></div>
           <div><b>3</b><span>You see matched jobs in JobPao</span></div>
         </div>
         {!inboundReady ? <p className="note" style={{ marginTop: 14 }}><b>Coming soon:</b> your JobPao address is being switched on. You can do step 1 now.</p> : null}
-        <p className="small muted" style={{ marginTop: 12 }}>About 3 minutes, once. After that, new jobs arrive on their own.</p>
-        <div className="stack" style={{ marginTop: 20 }}>
-          <Step k="alerts" isDone={!!steps.alerts} active={current === "alerts"} n={1} title={`Turn on job alerts on ${ports.join(" and ")}`}>
-            <p className="small muted">On the job site, use the <b>same Gmail address</b> as your account email, because the site sends alerts there. Look for jobs like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null}.</p>
-            <div className="sg-sites">
-              {ports.map((name, i) => {
-                const h = PORTAL_HELP[name];
-                return (
-                  <details key={name} className="sg-site" open={i === 0}>
-                    <summary>How to do it on {name}</summary>
-                    {h ? <><Ol items={h.steps} /><a className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} href={h.url} target="_blank" rel="noopener noreferrer">Open {name} ↗</a></> : <Ol items={["Sign in, search for your job, and look for a button like \"Create job alert\" or \"Save search\"."]} />}
-                  </details>
-                );
-              })}
+        <p className="small muted" style={{ marginTop: 12 }}>About 3 minutes for each job site. After that, new jobs arrive on their own.</p>
+        <h3 style={{ fontSize: 16, marginTop: 20 }}>Pick a job site to set up</h3>
+        <div className="sg-tabs">
+          {ports.map((p) => <Link key={p} href={`/setup?site=${encodeURIComponent(p)}`} className={`sg-tab${p === site ? " on" : ""}`} aria-current={p === site ? "page" : undefined}>{siteDone(steps, p) ? "✓ " : ""}{p}</Link>)}
+        </div>
+        {siteDone(steps, site) ? (
+          <div className="note" style={{ marginTop: 14 }}>
+            <b>{site} is set up.</b> {next.length ? <>Set up {next.join(" and ")} too, so you get jobs from there as well.</> : <>All your job sites are set up.</>}
+            <div className="row" style={{ marginTop: 10, gap: 8 }}>
+              {next.slice(0, 1).map((p) => <Link key={p} className="btn btn-primary btn-sm" href={`/setup?site=${encodeURIComponent(p)}`}>Set up {p} →</Link>)}
+              <form action={resetSiteSetupAction.bind(null, site)}><button className="btn btn-ghost btn-sm">Set up {site} again</button></form>
             </div>
-            <p className="small muted" style={{ marginTop: 8 }}>Already get job emails from these sites? Then this step is done.</p>
+          </div>
+        ) : null}
+        <div className="stack" style={{ marginTop: 16 }}>
+          <Step k={k.alerts} isDone={!!steps[k.alerts]} active={current === "alerts"} n={1} title={`Turn on job alerts on ${site}`}>
+            <p className="small muted">On the job site, use the <b>same Gmail address</b> as your account email, because the site sends alerts there. Look for jobs like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null}.</p>
+            {help ? <><Ol items={help.steps} /><a className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} href={help.url} target="_blank" rel="noopener noreferrer">Open {site} ↗</a></> : <Ol items={["Sign in, search for your job, and look for a button like \"Create job alert\" or \"Save search\"."]} />}
+            <p className="small muted" style={{ marginTop: 8 }}>Already get job emails from {site}? Then this step is done.</p>
           </Step>
           <Step k="forward" isDone={!!steps.forward} active={current === "forward"} n={2} title="Connect your Gmail to JobPao">
             <p className="small muted">Do this on a computer (on a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo;). Be signed in to the <b>same Gmail</b> that gets your job alerts. If you use more than one Gmail, check the address at the top right of Gmail before you start.</p>
@@ -90,13 +99,13 @@ export default async function Setup() {
             <CodeWatcher code={f?.gmail_verification_code || null} link={f?.gmail_verification_link || null} />
             <p className="small muted" style={{ marginTop: 8 }}>Keep <b>Disable forwarding</b> selected in Gmail. Your other emails stay private; the next step sends only job emails.</p>
           </Step>
-          <Step k="filter" isDone={!!steps.filter} active={current === "filter"} n={3} title="Send only job emails to JobPao">
-            <p className="small muted">We filled in the Gmail filter for you. It picks only emails from {ports.join(" and ")}, and never login or password emails.</p>
+          <Step k={k.filter} isDone={!!steps[k.filter]} active={current === "filter"} n={3} title={`Send only ${site} job emails to JobPao`}>
+            <p className="small muted">We filled in the Gmail filter for you. It picks only emails from {site}, and never login or password emails.{otherDone.length ? <> This is a new filter; keep the one you made for {otherDone.join(" and ")}.</> : null}</p>
             <Ol items={[<><a className="btn btn-primary btn-sm" style={{ margin: "4px 0" }} href={filterUrl} target="_blank" rel="noopener noreferrer">Open the ready-made filter ↗</a></>, <>In Gmail, click <b>Create filter</b>.</>, <>Tick <b>Forward it to</b>, choose <b>{addr || "your JobPao address"}</b>, and click <b>Create filter</b>.</>]} />
             <p className="small muted" style={{ marginTop: 8 }}>If the boxes are empty, type <b>{filterFrom}</b> in <b>From</b> and <b>{FILTER_HASNOT}</b> in <b>Doesn&apos;t have</b>.</p>
           </Step>
-          <Step k="test" isDone={!!steps.test} active={current === "test"} n={4} title="All set: your next job alert shows up here">
-            <p className="small muted">When the next alert email comes, its jobs appear in your Opportunities with the site name. This step ticks itself.</p>
+          <Step k={k.test} isDone={!!steps[k.test]} active={current === "test"} n={4} title={`All set: your next ${site} alert shows up here`}>
+            <p className="small muted">When the next {site} alert email comes, its jobs appear in your Opportunities with the site name. This step ticks itself.</p>
             <div className="row" style={{ marginTop: 8 }}>{count ? <><span className="pill p-st">{count} alert email{count === 1 ? "" : "s"} received</span><Link className="btn-text small" href="/inbox">See it in Opportunities</Link></> : <span className="small muted">Waiting for your first alert email…</span>}</div>
           </Step>
         </div>

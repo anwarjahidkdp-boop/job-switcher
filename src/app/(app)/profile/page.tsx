@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAppState, photoUrl } from "@/lib/server/page";
-import { COUNTRIES, cname, money, perLabel, rule } from "@/lib/countries";
+import { COUNTRIES, cname, money, perLabel, PORTALS, rule } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
@@ -9,9 +9,9 @@ import { backToStepAction, setReminderPrefAction } from "@/app/actions";
 import { CountryPanel, SkillAdder, FactReview, DangerZone, GmailPanel } from "./client";
 import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sitesDone } from "@/lib/setup";
 
 export const metadata = { title: "Profile" };
-const SETUP_STEPS = ["address", "alerts", "forward", "filter", "test"];
 
 function describeFact(kind: string, d: Record<string, unknown>): string {
   if (kind === "experience") return `${d.title} at ${d.company}`;
@@ -28,7 +28,8 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const P = st.P, country = st.country, r = rule(country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
   const photo = await photoUrl(db, st.profile.photo_path);
-  const setupDone = SETUP_STEPS.filter((k) => st.profile.setup_steps?.[k]).length;
+  const setupSites = PORTALS[st.country];
+  const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const pending = st.facts.filter((f) => !f.verified && f.kind !== "answer" && f.id).map((f) => ({ id: f.id!, kind: f.kind, text: describeFact(f.kind, f.data) }));
   const srcTitle = (s: string) => (s === "cv" ? "From your CV" : s === "answer" ? "From your answers" : "Added by you");
   return (
@@ -67,7 +68,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <div className="qitem"><div><b className="small">Bdjobs</b><div className="small muted">Paste a Bdjobs link or job text and we match it. To apply, open the job in your own browser, where you sign in yourself.</div></div><span className="pill p-neutral">No password</span></div>
             <div className="qitem"><div><b className="small">LinkedIn</b><div className="small muted">Paste the job here, then apply on LinkedIn yourself.</div></div><span className="pill p-neutral">No password</span></div>
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>
-            <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{SETUP_STEPS.length})</Link>
+            <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{setupSites.length} sites)</Link>
           </div>
           {gmailConfigured() ? <GmailPanel email={gmail} status={gmailStatus} /> : null}
           <div className="card panel"><h3>Reminder emails</h3>

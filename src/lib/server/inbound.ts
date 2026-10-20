@@ -15,6 +15,8 @@ import { parseRawEmail } from "../inbound/parse";
 import { loadProfile } from "./state";
 import { refreshMatches } from "./matches";
 import { safeUrl } from "./jobs";
+import { PORTAL_HELP } from "../portalHelp";
+import { SITE_STEPS, siteKey } from "../setup";
 
 export interface InboundInput { alias: string; raw: string; rawKey?: string | null }
 
@@ -121,7 +123,10 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   }
   await done({ kind: rows.length || det.jobLinkCount ? "job_alert" : "other", status: rows.length ? "processed" : "ignored", jobs_created: created, error: aiNote ? `ai fill skipped: ${aiNote}` : null });
   if (created && profile) {
-    await admin.from("profiles").update({ setup_steps: { ...(profile.setup_steps || {}), alerts: true, address: true, forward: true, filter: true, test: true } }).eq("id", userId);
+    // Jobs arrived, so Gmail forwarding works; the alert and filter are proven only for the site that sent them.
+    const site = PORTAL_HELP[det.portal] ? det.portal : null;
+    const siteSteps = site ? Object.fromEntries(SITE_STEPS.map((k) => [siteKey(k, site), true])) : {};
+    await admin.from("profiles").update({ setup_steps: { ...(profile.setup_steps || {}), address: true, forward: true, ...siteSteps } }).eq("id", userId);
     await refreshMatches(admin, userId).catch(() => 0);
   }
   return { status: "processed" as const, created };

@@ -9,8 +9,8 @@ import { refreshMatches } from "@/lib/server/matches";
 import { isAccent, isTemplate, rule, cc } from "@/lib/countries";
 import { todayStr } from "@/lib/dates";
 import { loadProfile } from "@/lib/server/state";
+import { isSetupKey, SITE_STEPS, siteKey } from "@/lib/setup";
 
-const SETUP_KEYS = ["address", "alerts", "forward", "filter", "test"];
 
 export async function setCountryAction(country: string, needsVisa: boolean) {
   const c = await ctx("/onboarding");
@@ -81,7 +81,7 @@ export async function reviewFactAction(factId: string, keep: boolean) {
 }
 
 export async function toggleSetupStepAction(key: string) {
-  if (!SETUP_KEYS.includes(key)) return;
+  if (!isSetupKey(key)) return;
   const c = await ctx("/setup");
   const p = await loadProfile(c.db, c.userId);
   const steps = { ...(p?.setup_steps || {}) };
@@ -90,9 +90,20 @@ export async function toggleSetupStepAction(key: string) {
   revalidatePath("/setup");
 }
 
+/** Clears one job site's steps so its setup can be done again; the Gmail connection stays. */
+export async function resetSiteSetupAction(site: string) {
+  if (!isSetupKey(siteKey("alerts", site))) return;
+  const c = await ctx("/setup");
+  const p = await loadProfile(c.db, c.userId);
+  const steps = { ...(p?.setup_steps || {}) };
+  for (const k of SITE_STEPS) delete steps[siteKey(k, site)];
+  await c.db.from("profiles").update({ setup_steps: steps }).eq("id", c.userId);
+  revalidatePath("/setup");
+}
+
 /** Marks setup steps done (never undoes them); adding the Gmail forwarding address implies it was copied. */
 export async function completeSetupStepAction(key: string) {
-  if (!SETUP_KEYS.includes(key)) return;
+  if (!isSetupKey(key)) return;
   const c = await ctx("/setup");
   const p = await loadProfile(c.db, c.userId);
   const steps = { ...(p?.setup_steps || {}), [key]: true, ...(key === "forward" ? { address: true } : {}) };
