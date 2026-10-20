@@ -292,4 +292,4 @@ a.lp-btn-ghost{color:var(--ink)}
 .lp-ivq b{font-family:var(--display);font-size:16px}
 .lp-ivq p{font-size:13.5px;color:var(--ink-2)}
 @media (max-width:900px){.lp-ivgrid{grid-template-columns:minmax(0,1fr)}}
-.brand-pao{color:var(--accent)}
+.brand-pao{color:#F2A20F}

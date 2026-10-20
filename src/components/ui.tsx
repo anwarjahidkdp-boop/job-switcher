@@ -3,19 +3,18 @@ import { daysUntil, fmtDate } from "@/lib/dates";
 import type { Band } from "@/lib/types";
 
 export function Logo({ size = 28 }: { size?: number }) {
-  // JobPao mark: a person in a suit and tie carrying a briefcase.
+  // JobPao mark: a gold briefcase on navy with a tick cut out of it.
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="16" fill="var(--accent)" />
-      <g fill="var(--accent-ink)" stroke="var(--accent-ink)">
-        <circle cx="29" cy="15" r="8" stroke="none" />
-        <path d="M15 55V38c0-8 6-12 14-12s14 4 14 12v17z" stroke="none" />
-        <path d="M24 26.6L29 35l5-8.4c-1.5-.4-3.2-.6-5-.6s-3.5.2-5 .6z" fill="var(--accent)" opacity=".18" stroke="none" />
-        <path d="M27.6 28.5h2.8l.9 2.2-1.3 9.3-1 1.5-1-1.5-1.3-9.3z" fill="#F5B83D" stroke="none" />
-        <path d="M40 33l9 8.5" fill="none" strokeWidth="5" strokeLinecap="round" />
-        <rect x="44" y="42" width="15" height="12" rx="2.5" stroke="none" />
-        <path d="M48.5 42v-2.2a1.8 1.8 0 011.8-1.8h2.4a1.8 1.8 0 011.8 1.8V42" fill="none" strokeWidth="2" />
-      </g>
+      <defs>
+        <linearGradient id="jp-navy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#14275A" /><stop offset="1" stopColor="#0A1533" /></linearGradient>
+        <linearGradient id="jp-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFD36A" /><stop offset="1" stopColor="#F29A0B" /></linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="14.5" fill="url(#jp-navy)" />
+      <path d="M24.5 21v-3.4a3.4 3.4 0 013.4-3.4h8.2a3.4 3.4 0 013.4 3.4V21" fill="none" stroke="url(#jp-gold)" strokeWidth="3.6" />
+      <rect x="11" y="21" width="42" height="30" rx="7" fill="url(#jp-gold)" />
+      <path d="M13 25.5c0-1.9 1.4-2.8 3-2.8h32" stroke="#fff" strokeOpacity=".45" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+      <path d="M22 36.2l7.2 7.2L44 28.6" fill="none" stroke="#0D1B3E" strokeWidth="6.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
