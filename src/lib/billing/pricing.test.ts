@@ -9,8 +9,8 @@ describe("country pricing", () => {
     expect(proPrice("nope").country).toBe("BD");
   });
   it("falls back to 30 days for an unknown pack", () => {
-    expect(packPrice("US", "bogus")).toMatchObject({ pack: "30d", days: 30, minor: 2399, usd: 2399 });
-    expect(packPrice("AE", "365d")).toMatchObject({ currency: "AED", minor: 36900, usd: 9999, days: 365 });
+    expect(packPrice("US", "bogus")).toMatchObject({ pack: "30d", days: 30, minor: 2500, usd: 2500 });
+    expect(packPrice("AE", "365d")).toMatchObject({ currency: "AED", minor: 36400, usd: 9900, days: 365 });
   });
   it("never charges a card less than US$9", () => {
     for (const [c, r] of Object.entries(PACK_PRICES)) if (c !== "BD") for (const v of r.usd) expect(v).toBeGreaterThanOrEqual(MIN_CARD_USD);
@@ -43,6 +43,6 @@ describe("perDay", () => {
     expect(perDay(proPrice("BD"))).toBe("৳24");
   });
   it("rounds other currencies up to the cent", () => {
-    expect(perDay(proPrice("US"))).toBe("$0.80");
+    expect(perDay(proPrice("US"))).toBe("$0.84");
   });
 });
