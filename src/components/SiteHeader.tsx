@@ -20,7 +20,7 @@ export function SiteHeader(props: { inApp: boolean; signedIn?: boolean; countryN
           ) : (
             <>
               <div style={{ flex: 1 }} />
-              {props.signedIn ? <Link className="btn btn-ghost btn-sm" href="/inbox">Open my dashboard</Link> : <><Link className="btn btn-ghost btn-sm" href="/login?next=/inbox">Log in</Link><Link className="btn btn-primary btn-sm" style={{ marginLeft: 8 }} href="/login?mode=signup&next=/onboarding">Sign up free</Link></>}
+              {props.signedIn ? <Link className="btn btn-ghost btn-sm" href="/inbox">Open my dashboard</Link> : <div className="top-cta"><Link className="btn btn-ghost btn-sm" href="/login?next=/inbox">Log in</Link><Link className="btn btn-primary btn-sm" href="/login?mode=signup&next=/onboarding">Sign up free</Link></div>}
             </>
           )}
         </div>
