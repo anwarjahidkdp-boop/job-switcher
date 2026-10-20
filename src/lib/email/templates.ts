@@ -9,7 +9,7 @@ export function reminderEmail(p: { name: string; jobTitle: string; company: stri
   const html = `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#0F1B2D;max-width:520px">
 <p>Hi ${esc(first)},</p><p>You asked us to remind you today about the <b>${esc(p.jobTitle)}</b> role at <b>${esc(p.company)}</b>. ${esc(dl)}</p>
 <p>${p.packReady ? "Your tailored CV, cover letter and email are ready." : "Open the job to prepare your application."}</p>
-<p><a href="${esc(p.link)}" style="display:inline-block;background:#0B7A6E;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open my application</a></p>
+<p><a href="${esc(p.link)}" style="display:inline-block;background:#14275A;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open my application</a></p>
 <p style="color:#4A5568;font-size:13px">JobPao never submits applications for you. When you have applied, tap "Yes, Applied" in the app.</p></div>`;
   return { subject, text, html };
 }
@@ -25,6 +25,6 @@ export function paymentEmail(p: { kind: "approved" | "rejected"; name: string; a
   const text = `Hi ${first},\n\n${body}\n\nOpen JobPao: ${p.link}\n`;
   const html = `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#0F1B2D;max-width:520px">
 <p>Hi ${esc(first)},</p><p>${esc(body)}</p>
-<p><a href="${esc(p.link)}" style="display:inline-block;background:#0B7A6E;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open JobPao</a></p></div>`;
+<p><a href="${esc(p.link)}" style="display:inline-block;background:#14275A;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open JobPao</a></p></div>`;
   return { subject, text, html };
 }

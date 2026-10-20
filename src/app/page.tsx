@@ -6,6 +6,7 @@ import { supabaseConfigured } from "@/lib/env";
 import type { Band } from "@/lib/types";
 import { headers } from "next/headers";
 import { countryFromHeader, formatPrice, proPrice } from "@/lib/billing/pricing";
+import { AutoFlow } from "./AutoFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -79,8 +80,12 @@ export default async function Landing() {
           <div className="wrap lp-hero-in">
             <div>
               <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
-              <h1>Your job assistant. <span>Works for you like a friend.</span></h1>
-              <p className="lp-lead">It finds jobs, prepares every application and helps you get hired. <b className="lp-hl">You just review and approve.</b></p>
+              <h1>Your job <span>assistant.</span></h1>
+              <ul className="lp-pts">
+                <li><span className="lp-pt-ic"><Icon name="radar" /></span><div><b>Finds your best-matched jobs</b><span>New jobs every day, ranked by how well they fit you.</span></div></li>
+                <li><span className="lp-pt-ic"><Icon name="cv" /></span><div><b>Prepares every application</b><span>A tailored CV, a cover letter and everything else each job asks for.</span></div></li>
+                <li><span className="lp-pt-ic"><Icon name="chat" /></span><div><b>Gets you ready for the interview</b><span>Likely questions, with answers from your own experience.</span></div></li>
+              </ul>
               <p className="lp-teachip"><Icon name="cup" /><span><b>Your own job assistant, for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b></span></p>
               <div className="lp-cta">
                 <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
@@ -110,16 +115,7 @@ export default async function Landing() {
           <section className="lp-sec lp-auto">
             <p className="lp-kicker">Your career on autopilot</p>
             <h2>We do it all. You just review and approve.</h2>
-            <div className="lp-split">
-              <div className="lp-you">
-                <p className="lp-who">Your part</p>
-                <ul>{YOU.map((x) => <li key={x}><Icon name="hand" />{x}</li>)}</ul>
-              </div>
-              <div className="lp-us">
-                <p className="lp-who">We do everything else, until you&apos;re hired</p>
-                <ul>{US.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
-              </div>
-            </div>
+            <AutoFlow us={US} you={YOU} />
           </section>
 
           <section className="lp-sec lp-tailor">
