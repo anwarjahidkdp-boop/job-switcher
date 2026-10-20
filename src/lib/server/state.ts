@@ -12,7 +12,7 @@ export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
   target_country: string; home_country: string; needs_visa: boolean; personal: PersonalDetails; preferences: Preferences | null;
   career_meta: Partial<CareerMeta>; cv_style: CvStyle; photo_path: string | null; onboarding_step: string;
-  setup_steps: Record<string, boolean>; dismissed_job_ids: string[]; email_reminders: boolean; created_at: string;
+  setup_steps: Record<string, boolean | string>; dismissed_job_ids: string[]; email_reminders: boolean; created_at: string;
 }
 export interface ApplicationRow {
   id: string; user_id: string; job_id: string; status: AppStatus; pack: ApplicationPack | null; pack_flags: string[]; pack_ai: boolean; pack_model: string | null;

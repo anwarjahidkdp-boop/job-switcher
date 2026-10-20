@@ -6,7 +6,8 @@ import { completeSetupStepAction, resetSiteSetupAction, toggleSetupStepAction } 
 import { CopyButton } from "@/components/CopyButton";
 import { CodeWatcher } from "./CodeWatcher";
 import { PORTAL_HELP } from "@/lib/portalHelp";
-import { siteDone, siteKey, sitesDone } from "@/lib/setup";
+import { accountKind, forwardKey, siteDone, siteKey, sitesDone } from "@/lib/setup";
+import { AccountChoice } from "./AccountChoice";
 
 export const metadata = { title: "Automatic jobs setup" };
 // Keeps login, OTP and password-reset emails from the job sites out of the forward.
@@ -47,7 +48,9 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
   const asked = (await searchParams).site;
   const site = ports.find((p) => p === asked) ?? ports.find((p) => !siteDone(steps, p)) ?? ports[0];
   const help = PORTAL_HELP[site];
-  const k = { alerts: siteKey("alerts", site), forward: "forward", filter: siteKey("filter", site), test: siteKey("test", site) };
+  const acct = accountKind(steps, site);
+  const gmail2 = acct === "gmail2";
+  const k = { alerts: siteKey("alerts", site), forward: forwardKey(steps, site), filter: siteKey("filter", site), test: siteKey("test", site) };
   const otherDone = ports.filter((p) => p !== site && siteDone(steps, p));
   const next = ports.filter((p) => p !== site && !siteDone(steps, p));
   const roles = st.P.targetRoles.slice(0, 2).join(", ") || "your target role";
@@ -56,7 +59,18 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
   const filterFrom = help?.from || "";
   // Open the Gmail account the user signed up with when it is a Gmail address; otherwise the browser's first Gmail.
   const email = (st.profile.email || "").toLowerCase();
-  const gmailBase = /@(gmail|googlemail)\.com$/.test(email) ? `https://mail.google.com/mail/u/${encodeURIComponent(email)}/` : "https://mail.google.com/mail/u/0/";
+  const gmailBase = !gmail2 && /@(gmail|googlemail)\.com$/.test(email) ? `https://mail.google.com/mail/u/${encodeURIComponent(email)}/` : "https://mail.google.com/mail/u/0/";
+  // A second Gmail gets its own confirmation, so only one that arrived after the user picked it counts.
+  const since = steps[`since:${site}`];
+  const confirmLink = !gmail2 || (typeof since === "string" && (f?.gmail_code_received_at || "") > since) ? f?.gmail_verification_link || null : null;
+  const confirmCode = confirmLink || !gmail2 ? f?.gmail_verification_code || null : null;
+  const siteHow = (
+    <>
+      <p className="small muted">Search for jobs like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null}, then:</p>
+      {help ? <><Ol items={help.steps} /><a className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} href={help.url} target="_blank" rel="noopener noreferrer">Open {site} ↗</a></> : <Ol items={["Sign in, search for your job, and look for a button like \"Create job alert\" or \"Save search\"."]} />}
+    </>
+  );
+  const me = <b>{email || "your JobPao email"}</b>;
   const filterUrl = `${gmailBase}#create-filter/from=${encodeURIComponent(filterFrom)}&hasnot=${encodeURIComponent(FILTER_HASNOT)}`;
 
   return (
@@ -88,15 +102,24 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
         ) : null}
         <div className="stack" style={{ marginTop: 16 }}>
           <Step k={k.alerts} isDone={!!steps[k.alerts]} active={current === "alerts"} n={1} title={`Turn on job alerts on ${site}`}>
-            <p className="small muted">On the job site, use the <b>same Gmail address</b> as your account email, because the site sends alerts there. Look for jobs like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null}.</p>
-            {help ? <><Ol items={help.steps} /><a className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} href={help.url} target="_blank" rel="noopener noreferrer">Open {site} ↗</a></> : <Ol items={["Sign in, search for your job, and look for a button like \"Create job alert\" or \"Save search\"."]} />}
-            <p className="small muted" style={{ marginTop: 8 }}>Already get job emails from {site}? Then this step is done.</p>
+            <p className="small muted">Which email does your {site} account use?</p>
+            <AccountChoice site={site} value={acct} options={[
+              { v: "new", label: `I don't have a ${site} account` },
+              { v: "same", label: `The same email I use here (${email || "my JobPao email"})` },
+              { v: "gmail2", label: "A different Gmail" },
+              { v: "other", label: "Outlook, Yahoo or another email" },
+            ]} panels={{
+              new: <><p className="small">Create a free {site} account with {me}.</p>{siteHow}</>,
+              same: siteHow,
+              gmail2: <><p className="small">Easiest: in your {site} account settings, change the email to {me}. Or keep that Gmail; step 2 then connects it too.</p>{siteHow}</>,
+              other: <><p className="small">In your {site} account settings, change the email to {me}, so alerts come to your Gmail.</p>{siteHow}<p className="small muted" style={{ marginTop: 8 }}>Want to keep Outlook? In Outlook, open Settings → Mail → Rules → Add new rule: From <b>{filterFrom}</b>, Forward to <b>{addr || "your JobPao address"}</b>. Then press Done on steps 2 and 3.</p></>,
+            }} />
           </Step>
-          <Step k="forward" isDone={!!steps.forward} active={current === "forward"} n={2} title="Connect your Gmail to JobPao">
-            <p className="small muted">Do this on a computer (on a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo;). Be signed in to the <b>same Gmail</b> that gets your job alerts. If you use more than one Gmail, check the address at the top right of Gmail before you start.</p>
+          <Step k={k.forward} isDone={!!steps[k.forward]} active={current === "forward"} n={2} title={gmail2 ? `Connect your other Gmail to JobPao` : "Connect your Gmail to JobPao"}>
+            <p className="small muted">Do this on a computer (on a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo;). {gmail2 ? <>Be signed in to the Gmail your <b>{site}</b> account uses. Check the address at the top right of Gmail, and switch account there if needed.</> : <>Be signed in to the <b>same Gmail</b> that gets your job alerts. If you use more than one Gmail, check the address at the top right of Gmail before you start.</>}</p>
             {inboundReady ? <div className="row" style={{ marginTop: 10, flexWrap: "nowrap" }}><code className="copybox" style={{ padding: "8px 10px", flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{addr || "Could not create your address. Reload the page."}</code>{addr ? <CopyButton text={addr} label="Copy" /> : null}</div> : <p className="small" style={{ marginTop: 8 }}>Your JobPao address will appear here soon.</p>}
             <Ol items={[<>Click <b>Copy</b> above, then <a className="btn btn-primary btn-sm" style={{ margin: "4px 0" }} href={`${gmailBase}#settings/fwdandpop`} target="_blank" rel="noopener noreferrer">Open Gmail settings ↗</a></>, <>Click <b>Add a forwarding address</b>, paste, then <b>Next → Proceed → OK</b>. If you see a box with a list instead of that button, click the box and choose <b>Add a forwarding address</b>. If your JobPao address is already in that list, this step is done.</>, <>Come back here. A <b>Confirm in Gmail</b> button appears below in a few seconds. Click it, then <b>Confirm</b> on Google&apos;s page.</>]} />
-            <CodeWatcher code={f?.gmail_verification_code || null} link={f?.gmail_verification_link || null} />
+            <CodeWatcher code={confirmCode} link={confirmLink} stepKey={k.forward} />
             <p className="small muted" style={{ marginTop: 8 }}>Keep <b>Disable forwarding</b> selected in Gmail. Your other emails stay private; the next step sends only job emails.</p>
           </Step>
           <Step k={k.filter} isDone={!!steps[k.filter]} active={current === "filter"} n={3} title={`Send only ${site} job emails to JobPao`}>
