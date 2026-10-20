@@ -9,7 +9,7 @@ import { refreshMatches } from "@/lib/server/matches";
 import { isAccent, isTemplate, rule, cc } from "@/lib/countries";
 import { todayStr } from "@/lib/dates";
 import { loadProfile } from "@/lib/server/state";
-import { isSetupKey, SITE_STEPS, siteKey } from "@/lib/setup";
+import { ACCOUNT_KINDS, isSetupKey, SITE_STEPS, siteKey } from "@/lib/setup";
 
 
 export async function setCountryAction(country: string, needsVisa: boolean) {
@@ -90,6 +90,17 @@ export async function toggleSetupStepAction(key: string) {
   revalidatePath("/setup");
 }
 
+/** Saves which email the user's account on a job site uses. Choosing a second Gmail records when, so only a newer Gmail confirmation counts for it. */
+export async function setSiteAccountAction(site: string, kind: string) {
+  if (!isSetupKey(siteKey("alerts", site)) || !ACCOUNT_KINDS.some((k) => k === kind)) return;
+  const c = await ctx("/setup");
+  const p = await loadProfile(c.db, c.userId);
+  const steps = { ...(p?.setup_steps || {}), [`acct:${site}`]: kind };
+  if (kind === "gmail2" && !steps[`forward:${site}`]) steps[`since:${site}`] = new Date().toISOString();
+  await c.db.from("profiles").update({ setup_steps: steps }).eq("id", c.userId);
+  revalidatePath("/setup");
+}
+
 /** Clears one job site's steps so its setup can be done again; the Gmail connection stays. */
 export async function resetSiteSetupAction(site: string) {
   if (!isSetupKey(siteKey("alerts", site))) return;
@@ -97,6 +108,7 @@ export async function resetSiteSetupAction(site: string) {
   const p = await loadProfile(c.db, c.userId);
   const steps = { ...(p?.setup_steps || {}) };
   for (const k of SITE_STEPS) delete steps[siteKey(k, site)];
+  for (const k of ["acct", "forward", "since"]) delete steps[`${k}:${site}`];
   await c.db.from("profiles").update({ setup_steps: steps }).eq("id", c.userId);
   revalidatePath("/setup");
 }

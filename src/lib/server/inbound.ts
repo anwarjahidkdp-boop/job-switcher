@@ -125,7 +125,7 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   if (created && profile) {
     // Jobs arrived, so Gmail forwarding works; the alert and filter are proven only for the site that sent them.
     const site = PORTAL_HELP[det.portal] ? det.portal : null;
-    const siteSteps = site ? Object.fromEntries(SITE_STEPS.map((k) => [siteKey(k, site), true])) : {};
+    const siteSteps = site ? { ...Object.fromEntries(SITE_STEPS.map((k) => [siteKey(k, site), true])), [`forward:${site}`]: true } : {};
     await admin.from("profiles").update({ setup_steps: { ...(profile.setup_steps || {}), address: true, forward: true, ...siteSteps } }).eq("id", userId);
     await refreshMatches(admin, userId).catch(() => 0);
   }
