@@ -20,7 +20,26 @@ describe("Gmail forwarding verification", () => {
     const m = await parseRawEmail(RAW);
     expect(m.messageId).toContain("abc123");
     const v = detectGmailVerification(m);
-    expect(v).toEqual({ code: "842917365", forwardingFrom: "rahim.uddin@gmail.com" });
+    expect(v).toEqual({ code: "842917365", link: null, forwardingFrom: "rahim.uddin@gmail.com" });
+  });
+  it("finds the confirmation link when there is no code", async () => {
+    const raw = [
+      "From: Gmail Team <forwarding-noreply@google.com>",
+      "To: rahim-3f9a1c@jobs.example.com",
+      "Subject: (Gmail Forwarding Confirmation - Receive Mail from rahim.uddin@gmail.com",
+      "Content-Type: text/plain; charset=UTF-8",
+      "",
+      "rahim.uddin@gmail.com has requested to automatically forward mail to your email address.",
+      "To allow rahim.uddin@gmail.com to automatically forward mail to your address, please click the link below to confirm the request:",
+      "https://mail-settings.google.com/mail/vf-%5BANGjdJ8abc%5D-xyz123",
+      "",
+    ].join("\r\n");
+    const v = detectGmailVerification(await parseRawEmail(raw));
+    expect(v).toEqual({ code: null, link: "https://mail-settings.google.com/mail/vf-%5BANGjdJ8abc%5D-xyz123", forwardingFrom: "rahim.uddin@gmail.com" });
+  });
+  it("never takes a link to another site", () => {
+    const v = detectGmailVerification({ from: "<forwarding-noreply@google.com>", subject: "Gmail Forwarding Confirmation", text: "confirm: https://evil.example/mail/vf-abc" });
+    expect(v).toBeNull();
   });
   it("ignores lookalike senders", () => {
     expect(detectGmailVerification({ from: "Gmail <forwarding-noreply@g00gle.com>", subject: "(#123456789) Gmail Forwarding Confirmation", text: "Confirmation code: 123456789" })).toBeNull();

@@ -3,17 +3,19 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 
-/** Shows Gmail's forwarding confirmation code once our inbound worker receives it; polls until then. */
-export function CodeWatcher({ code }: { code: string | null }) {
+/** Shows Gmail's forwarding confirmation (a link, a code or both) once our inbound worker receives it; polls until then. */
+export function CodeWatcher({ code, link }: { code: string | null; link: string | null }) {
   const router = useRouter();
   useEffect(() => {
-    if (code) return;
+    if (code || link) return;
     const t = setInterval(() => router.refresh(), 8000);
     return () => clearInterval(t);
-  }, [code, router]);
+  }, [code, link, router]);
   return (
     <div className="row" style={{ marginTop: 10 }}>
-      {code ? <><span className="pill p-st">Gmail code received: <b className="num">{code}</b></span><CopyButton text={code} label="Copy code" /></> : <span className="small muted">Waiting for Gmail&apos;s code… (this page checks every few seconds)</span>}
+      {link ? <a className="btn btn-primary btn-sm" href={link} target="_blank" rel="noopener noreferrer nofollow">Confirm in Gmail ↗</a> : null}
+      {code ? <><span className="pill p-st">Gmail code received: <b className="num">{code}</b></span><CopyButton text={code} label="Copy code" /></> : null}
+      {!code && !link ? <span className="small muted">Waiting for Gmail&apos;s confirmation… (this page checks every few seconds)</span> : null}
     </div>
   );
 }

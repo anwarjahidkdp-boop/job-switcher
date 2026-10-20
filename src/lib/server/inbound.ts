@@ -56,7 +56,7 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
 
   const verification = detectGmailVerification(parsed);
   if (verification) {
-    await admin.from("forwarding_addresses").update({ gmail_verification_code: verification.code, gmail_code_received_at: new Date().toISOString() }).eq("id", fwd.id);
+    await admin.from("forwarding_addresses").update({ gmail_verification_code: verification.code, gmail_verification_link: verification.link, gmail_code_received_at: new Date().toISOString() }).eq("id", fwd.id);
     await done({ kind: "gmail_verification", status: "processed" });
     return { status: "verification" as const };
   }

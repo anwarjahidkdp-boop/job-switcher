@@ -32,7 +32,7 @@ export default async function Setup() {
   const { st, db } = await requireAppState("/setup");
   const first = (st.P.name || "you").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(/\s+/)[0];
   const { data: fwd } = await db.rpc("ensure_forwarding_address", { p_hint: first });
-  const f = (Array.isArray(fwd) ? fwd[0] : fwd) as { alias: string; gmail_verification_code: string | null; gmail_code_received_at: string | null } | null;
+  const f = (Array.isArray(fwd) ? fwd[0] : fwd) as { alias: string; gmail_verification_code: string | null; gmail_verification_link: string | null; gmail_code_received_at: string | null } | null;
   const addr = f ? `${f.alias}@${publicEnv.inboundDomain}` : "";
   // The placeholder domain cannot receive mail, so the address is hidden until a real one is configured.
   const inboundReady = !/(^|\.)example\.com$/.test(publicEnv.inboundDomain);
@@ -77,8 +77,8 @@ export default async function Setup() {
           </Step>
           <Step k="forward" isDone={!!steps.forward} n={3} title="Allow Gmail to send to your JobPao address">
             <p className="small muted">Gmail only allows this on a computer. On a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo; from the menu.</p>
-            <Ol items={[<>Open <a href="https://mail.google.com/mail/u/0/#settings/fwdandpop" target="_blank" rel="noopener noreferrer">Gmail forwarding settings ↗</a> (or in Gmail: the <b>gear icon → See all settings → Forwarding and POP/IMAP</b>).</>, <>Click <b>Add a forwarding address</b>, paste your JobPao address from step 2, then click <b>Next → Proceed → OK</b>.</>, <>Gmail sends a code to JobPao. The code shows up below in a few seconds. Copy it, paste it in Gmail next to <b>Verify</b>, and click <b>Verify</b>.</>, <>Leave <b>Disable forwarding</b> selected and close settings. This keeps your other emails private; step 4 forwards only the job emails.</>]} />
-            <CodeWatcher code={f?.gmail_verification_code || null} />
+            <Ol items={[<>Open <a href="https://mail.google.com/mail/u/0/#settings/fwdandpop" target="_blank" rel="noopener noreferrer">Gmail forwarding settings ↗</a> (or in Gmail: the <b>gear icon → See all settings → Forwarding and POP/IMAP</b>).</>, <>Click <b>Add a forwarding address</b>, paste your JobPao address from step 2, then click <b>Next → Proceed → OK</b>.</>, <>Gmail sends a confirmation to JobPao. In a few seconds a <b>Confirm in Gmail</b> button (or a code) shows up below. Click the button and then <b>Confirm</b> on Google&apos;s page, or type the code into Gmail and click <b>Verify</b>. If nothing comes, click <b>Re-send email</b> in Gmail.</>, <>Leave <b>Disable forwarding</b> selected and close settings. This keeps your other emails private; step 4 forwards only the job emails.</>]} />
+            <CodeWatcher code={f?.gmail_verification_code || null} link={f?.gmail_verification_link || null} />
           </Step>
           <Step k="filter" isDone={!!steps.filter} n={4} title="Tell Gmail to pass on only the job alert emails">
             <p className="small muted">Do this after the first alert email from {ports.join(" or ")} arrives in your Gmail.</p>
