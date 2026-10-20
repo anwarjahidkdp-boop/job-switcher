@@ -4,7 +4,7 @@ import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
 import { requireUser, photoUrl, trialLabel } from "@/lib/server/page";
 import { loadState } from "@/lib/server/state";
-import { COUNTRIES, cname, PORTALS, rule, perLabel } from "@/lib/countries";
+import { COUNTRIES, COUNTRY_CODES, type CountryRule, cname, PORTALS, rule, perLabel } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { inboxList } from "@/lib/matching";
 import { aiConfigured } from "@/lib/ai";
@@ -17,7 +17,17 @@ export const maxDuration = 120;
 const STEPS: [string, string][] = [["country", "Target country"], ["upload", "Your CV"], ["questions", "A few questions"], ["prefs", "Preferences"], ["reveal", "Your new CV"]];
 function Steps({ cur }: { cur: string }) {
   const i = STEPS.findIndex((s) => s[0] === cur);
-  return <div className="steps">{STEPS.map(([k, l], j) => <span key={k} className={j === i ? "on" : j < i ? "done" : ""}>{j < i ? "✓ " : ""}{l}</span>)}</div>;
+  return <ol className="ob-steps" aria-label="Setup steps">{STEPS.map(([k, l], j) => <li key={k} className={j === i ? "on" : j < i ? "done" : ""} aria-current={j === i ? "step" : undefined}><i>{j < i ? "✓" : j + 1}</i><span>{l}</span></li>)}</ol>;
+}
+
+/** Navy band at the top of every setup step, in the same look as the home page hero. */
+function Head({ cur, kicker, title, sub }: { cur: string; kicker: string; title: React.ReactNode; sub?: React.ReactNode }) {
+  return <section className="ob-hero"><div className="wrap"><div className="ob-in">
+    <Steps cur={cur} />
+    <p className="ob-kicker">{kicker}</p>
+    <h1>{title}</h1>
+    {sub ? <p className="ob-sub">{sub}</p> : null}
+  </div></div></section>;
 }
 
 export default async function Onboarding({ searchParams }: { searchParams: Promise<{ demo?: string; step?: string }> }) {
@@ -32,17 +42,16 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   const demo = sp.demo === "1";
   const trial = await trialLabel(supabase, user.id);
 
+  let head: React.ReactNode = null;
   let body: React.ReactNode = null;
   if (step === "country") {
-    body = <div className="ob"><Steps cur="country" />
-      <h1 style={{ fontSize: 30 }}>Welcome to JobPao Pro. Where do you want to work?</h1>
-      <p className="muted" style={{ marginTop: 6 }}>Your 7-day free trial has started. Your CV format, documents checklist, salary currency and job matches follow this country. You can change it later in your profile.</p>
-      <CountryStep current={country} needsVisa={st.profile.needs_visa} demo={demo} countries={Object.entries(COUNTRIES).map(([k, c]) => ({ code: k, name: c.name, doc: c.doc, pages: c.pages, photo: c.photo, rules: c.rules }))} />
+    head = <Head cur="country" kicker="Your 7-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
+    body = <div className="ob">
+      <CountryStep current={country} needsVisa={st.profile.needs_visa} demo={demo} countries={COUNTRY_CODES.map((k) => { const c: CountryRule = COUNTRIES[k]; return { code: k, name: c.name, doc: c.doc, pages: c.pages, photo: c.photo, rules: c.rules }; })} />
     </div>;
   } else if (step === "upload") {
-    body = <div className="ob"><Steps cur="upload" />
-      <h1 style={{ fontSize: 30 }}>Upload your current CV</h1>
-      <p className="muted" style={{ marginTop: 6 }}>Even if it is outdated or plain. We read it, ask what is missing, and build a professional {cn}-format version.</p>
+    head = <Head cur="upload" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;
+    body = <div className="ob">
       <UploadStep aiReady={aiConfigured()} autoDemo={demo} />
       <form action={backToStepAction.bind(null, "country")}><button className="btn-text small" style={{ marginTop: 8 }}>← Change target country</button></form>
     </div>;
@@ -51,9 +60,8 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const nExp = st.facts.filter((f) => f.kind === "experience").length, nEdu = st.facts.filter((f) => f.kind === "education").length, nSk = st.facts.filter((f) => f.kind === "skill").length;
     const unverified = st.facts.filter((f) => !f.verified && f.kind !== "answer").length;
     const last = (st.profile.full_name || "").split(" ").slice(-1)[0];
-    body = <div className="ob"><Steps cur="questions" />
-      <h1 style={{ fontSize: 28 }}>We read your CV{last ? `, ${last}` : ""}.</h1>
-      <p className="muted" style={{ marginTop: 6 }}>Found {nExp} roles, {nEdu} degrees and {nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.</p>
+    head = <Head cur="questions" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.`} />;
+    body = <div className="ob">
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
       <form action={saveAnswersAction}>
         <div className="stack" style={{ marginTop: 22 }}>
@@ -65,9 +73,8 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
-    body = <div className="ob"><Steps cur="prefs" />
-      <h1 style={{ fontSize: 28 }}>What would a better job look like?</h1>
-      <p className="muted" style={{ marginTop: 6 }}>We use this to choose which opportunities to bring you. Any category works; we suggested roles from your CV.</p>
+    head = <Head cur="prefs" kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub="We use this to choose which opportunities to bring you. Any category works; we suggested roles from your CV." />;
+    body = <div className="ob">
       <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} showPersonal={r.personal} visaField={!!r.visaField} isBD={country === "BD"} />
     </div>;
   } else if (step === "reveal" && st.master && st.P) {
@@ -76,8 +83,8 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const strong = nm.filter((x) => x.m.score >= 70).length;
     const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
     const photo = await photoUrl(supabase, st.profile.photo_path);
+    head = <Head cur="reveal" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>} />;
     body = <>
-      <Steps cur="reveal" />
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {nm.length} opportunities</button></form></div></div>
       {st.master.flags.length ? <p className="note" style={{ marginTop: 12, borderColor: "var(--warn)" }}>Our fact check {st.master.flags.join("; ")}.</p> : null}
@@ -97,7 +104,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   return (
     <>
       <SiteHeader inApp={false} signedIn trialLabel={trial} />
-      <main><div className="wrap">{body}</div></main>
+      <main className="ob-page">{head}<div className="wrap ob-body">{body}</div></main>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { CV_SCREEN_CSS } from "@/lib/cv/styles";
+import { InstallApp } from "@/components/InstallApp";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter", display: "swap" });
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
   title: { default: "JobPao", template: "%s · JobPao" },
   description: "Your personal AI career agent. Upload your CV once; JobPao improves it, finds matching jobs in Bangladesh and abroad, prepares applications and keeps you ahead of deadlines.",
   icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "JobPao", statusBarStyle: "black-translucent" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#FFFFFF" }, { media: "(prefers-color-scheme: dark)", color: "#121B23" }] };
 
@@ -19,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <style dangerouslySetInnerHTML={{ __html: CV_SCREEN_CSS }} />
       </head>
-      <body>{children}</body>
+      <body>{children}<InstallApp /></body>
     </html>
   );
 }
