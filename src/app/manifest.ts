@@ -1,0 +1,20 @@
+import type { MetadataRoute } from "next";
+
+/** Lets phones and desktops install JobPao as an app (home-screen icon, opens full screen). */
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "JobPao: your job assistant",
+    short_name: "JobPao",
+    description: "Finds your best-matched jobs, prepares every application and gets you ready for the interview.",
+    start_url: "/inbox",
+    scope: "/",
+    display: "standalone",
+    background_color: "#0A1533",
+    theme_color: "#14275A",
+    icons: [
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+  };
+}

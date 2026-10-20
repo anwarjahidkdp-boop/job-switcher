@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAppState, photoUrl } from "@/lib/server/page";
-import { COUNTRIES, cname, money, perLabel, PORTALS, rule } from "@/lib/countries";
+import { COUNTRIES, COUNTRY_CODES, cname, money, perLabel, PORTALS, rule } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
@@ -47,7 +47,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side">
-          <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} countries={Object.entries(COUNTRIES).map(([k, c]) => ({ code: k, name: c.name }))} />
+          <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} countries={COUNTRY_CODES.map((k) => ({ code: k, name: COUNTRIES[k].name }))} />
           <div className="card panel"><h3>Verified skills</h3>
             <div className="skchips">{P.skills.map((s) => <span key={s.name} className={`sk ${s.src === "user" ? "u" : ""}`} title={srcTitle(s.src)}>{skillLabel(s.name)}</span>)}</div>
             <SkillAdder />

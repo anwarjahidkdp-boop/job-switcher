@@ -23,11 +23,10 @@ export function CountryStep(props: { current: string; needsVisa: boolean; demo: 
   const c = props.countries.find((x) => x.code === cur)!;
   return (
     <>
-      <div className="cgrid" role="radiogroup" aria-label="Target country" style={{ marginTop: 20 }}>
+      <div className="cgrid" role="radiogroup" aria-label="Target country">
         {props.countries.map((k) => (
           <button key={k.code} type="button" className={`ccard ${cur === k.code ? "on" : ""}`} role="radio" aria-checked={cur === k.code} onClick={() => setCur(k.code)}>
-            <b>{k.name}</b><span className="small muted">{k.doc} · {k.pages} · {k.photo ? "with photo" : "no photo"}</span>
-            {k.code === "BD" ? <span className="pill p-ex" style={{ marginTop: 6 }}>Launching first</span> : null}
+            <span className="cc-code" aria-hidden="true">{k.code === "XX" ? "🌐" : k.code}</span><span className="cc-txt"><b>{k.name}</b><span className="small muted">{k.doc} · {k.pages} · {k.photo ? "with photo" : "no photo"}</span></span><span className="cc-tick" aria-hidden="true">✓</span>
           </button>
         ))}
       </div>

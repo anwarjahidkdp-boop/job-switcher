@@ -63,7 +63,8 @@ export const COUNTRIES = {
 } satisfies Record<string, CountryRule>;
 
 export type CountryCode = keyof typeof COUNTRIES;
-export const COUNTRY_CODES = Object.keys(COUNTRIES) as CountryCode[];
+/** Display order in country pickers: Bangladesh, then the West, then the Gulf and Malaysia (owner's choice), "another country" last. */
+export const COUNTRY_CODES: CountryCode[] = ["BD", "US", "GB", "CA", "AU", "AE", "SA", "MY", "XX"];
 export const HOME_COUNTRY: CountryCode = "BD";
 
 export function isCountry(c: unknown): c is CountryCode {
