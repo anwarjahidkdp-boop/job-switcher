@@ -49,8 +49,6 @@ const INTERVIEW: [string, string, string][] = [
 ];
 const YOU = ["Upload your CV", "Review and approve"];
 const US = ["Finds jobs daily", "Puts your best matches first", "Tailors your CV", "Writes your cover letter", "Drafts the application email", "Lists every document needed", "Reminds you of deadlines", "Preps you for interviews"];
-// Hero: everything a job application needs, not only the cover letter.
-const HERO_POINTS = ["New jobs found for you daily", "Ranked by how well they fit", "A CV tailored to each job", "A cover letter for each job", "The application email, drafted", "Every document it asks for", "Deadline reminders", "Interview questions, answered"];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
   ["Get matched", "Fresh jobs, scored against your profile."],
@@ -79,9 +77,10 @@ export default async function Landing() {
         <HeroStage>
           <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
           <h1>Your job <span>assistant.</span></h1>
-          <p className="lp-lead">From the first match to the interview, it does the work. You just review and approve.</p>
-          <ul className="lp-hfeat">
-            {HERO_POINTS.map((x) => <li key={x}><span className="hp-tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>{x}</li>)}
+          <ul className="lp-pts lp-pts-c">
+            <li><span className="lp-pt-ic"><Icon name="radar" /></span><b>Finds your best-matched jobs</b></li>
+            <li><span className="lp-pt-ic"><Icon name="cv" /></span><b>Prepares every application</b></li>
+            <li><span className="lp-pt-ic"><Icon name="chat" /></span><b>Gets you ready for the interview</b></li>
           </ul>
           <p className="lp-teachip"><Icon name="cup" /><span><b>Your own job assistant, for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b></span></p>
           <div className="lp-cta">
