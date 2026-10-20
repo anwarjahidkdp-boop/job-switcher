@@ -4,7 +4,7 @@ import { HeroPhone } from "./HeroPhone";
 
 const RM = "(prefers-reduced-motion: reduce)";
 const subscribe = (cb: () => void) => { const m = window.matchMedia?.(RM); m?.addEventListener("change", cb); return () => m?.removeEventListener("change", cb); };
-const src = (id: string, w: number) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${Math.round(w * 1.42)}&q=80&crop=faces,edges`;
+const src = (id: string, w: number) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${Math.round(w * 0.92)}&q=80&crop=faces,edges`;
 const HOLD = 4600;
 
 const Tick = () => <span className="hp-tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>;
@@ -44,7 +44,7 @@ const SLIDES: Slide[] = [
   },
 ];
 
-/** Home hero: the text stays clean on navy; on the right, happy job-seeker photos glide in from alternating sides and come into focus inside an arch frame, one after another, each with its own message cards beside the sample phone. */
+/** Home hero: the text stays clean on navy; on the right, happy job-seeker photos glide in from alternating sides and come into focus on the right of the hero, fading and blurring into the navy towards the text and the phone, each with its own message cards beside the sample phone. */
 export function HeroStage({ children }: { children: ReactNode }) {
   const [n, setN] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -59,25 +59,23 @@ export function HeroStage({ children }: { children: ReactNode }) {
   const cur = SLIDES[n];
   return (
     <section className="lp-hero hs">
+      <div className="hs-bg" aria-hidden="true">
+        {SLIDES.map((s, i) => (
+          <figure key={s.id} className={`hs-slide${cls(i)}`} style={{ ["--from" as string]: i % 2 ? "-8%" : "8%" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="hs-soft" src={src(s.id, 480)} alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="hs-sharp" src={src(s.id, 1200)} srcSet={`${src(s.id, 800)} 800w, ${src(s.id, 1200)} 1200w, ${src(s.id, 1600)} 1600w`} sizes="(max-width: 900px) 100vw, 60vw" alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" style={s.pos ? { objectPosition: s.pos } : undefined} />
+          </figure>
+        ))}
+      </div>
       <div className="wrap lp-hero-in">
         <div className="hs-copy">{children}</div>
         <div className="hs-right">
-          <svg className="hs-deco" viewBox="0 0 520 600" aria-hidden="true">
-            <circle cx="330" cy="250" r="230" /><circle cx="330" cy="250" r="170" className="hs-dash" /><circle cx="330" cy="250" r="290" className="hs-faint" />
-            <path d="M40 560H500M330 20V580" className="hs-faint" />
-          </svg>
-          <div className="hs-arch">
-            {SLIDES.map((s, i) => (
-              <figure key={s.id} className={`hs-slide${cls(i)}`} style={{ ["--from" as string]: i % 2 ? "-16%" : "16%" }} aria-hidden={i !== n}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src(s.id, 760)} srcSet={`${src(s.id, 480)} 480w, ${src(s.id, 760)} 760w, ${src(s.id, 1100)} 1100w`} sizes="(max-width: 900px) 90vw, 380px" alt={i === n ? s.alt : ""} loading={i < 2 ? "eager" : "lazy"} decoding="async" style={s.pos ? { objectPosition: s.pos } : undefined} />
-                <figcaption><i>{String(i + 1).padStart(2, "0")}</i>{s.step}</figcaption>
-              </figure>
-            ))}
-            <div className="hs-dots" aria-hidden="true">{SLIDES.map((s, i) => <i key={s.id} className={i === n ? "on" : ""} />)}</div>
-          </div>
+          <p className="hs-step" key={n}><i>{String(n + 1).padStart(2, "0")}</i>{cur.step}</p>
           <div className="hs-phone"><HeroPhone paused={paused} /></div>
           {SLIDES.map((s, i) => <div key={s.id} className={`hs-over${cls(i)}`} aria-hidden={i !== n}>{s.over}</div>)}
+          <div className="hs-dots" aria-hidden="true">{SLIDES.map((s, i) => <i key={s.id} className={i === n ? "on" : ""} />)}</div>
           <p className="hs-foot">
             {reduced ? null : <button type="button" onClick={() => setPaused((p) => !p)}>{paused ? "Play" : "Pause"}</button>}
             <span>Sample screens · Photo: <a href={cur.page} target="_blank" rel="noopener noreferrer">{cur.by} / Unsplash</a></span>
