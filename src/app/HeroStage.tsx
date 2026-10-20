@@ -11,7 +11,7 @@ const Tick = () => <span className="hp-tick" aria-hidden="true"><svg viewBox="0 
 
 type Slide = { id: string; step: string; alt: string; by: string; page: string; pos?: string; over: ReactNode };
 
-// One job-seeker story, told in five free Unsplash License photos (hotlinked, credited): the match, the call, the prep, the handshake, the offer.
+// One job-seeker story, told in five free Unsplash License photos (hotlinked, credited): the match, the call, the interview, the handshake, the offer.
 const SLIDES: Slide[] = [
   {
     id: "photo-1758873267202-44c33e64f084", step: "The match", alt: "Man smiling at his laptop as a great job match arrives", by: "Vitaly Gariev",
@@ -22,13 +22,13 @@ const SLIDES: Slide[] = [
     </>,
   },
   {
-    id: "photo-1758599543129-bec77e427ac6", step: "The call", alt: "Smiling woman taking an interview call on her way to the office", by: "Vitaly Gariev",
-    page: "https://unsplash.com/photos/woman-talking-on-phone-holding-coffee-cup-outside-office-LU-hFAv_iOQ",
+    id: "photo-1758611972271-fce956444233", step: "The call", alt: "Man at his office desk smiling at good news on his phone", by: "Vitaly Gariev",
+    page: "https://unsplash.com/photos/man-smiling-while-looking-at-his-phone-at-desk-61xM5EIiG5w",
     over: <div className="hs-chip hs-call"><span className="hs-ic" aria-hidden="true">📞</span><div><b>Interview call!</b><span>Tuesday, 11:00 AM</span></div></div>,
   },
   {
-    id: "photo-1758518727888-ffa196002e59", step: "Walk in ready", alt: "Confident woman in a suit, ready for her interview", by: "Vitaly Gariev",
-    page: "https://unsplash.com/photos/a-professional-woman-in-a-suit-smiling-confidently-LlcpQWSWPUo",
+    id: "photo-1758518730162-09a142505bfd", step: "The interview", alt: "Candidate in a suit answering questions in a job interview", by: "Vitaly Gariev",
+    page: "https://unsplash.com/photos/woman-in-suit-interviews-man-across-table-Hl1HIQ0fmQk",
     over: <div className="hs-chip hs-prep"><div><b>Walk in prepared</b>
       <ul><li><Tick />Tell me about yourself</li><li><Tick />Why this company?</li><li><Tick />Your biggest win</li></ul></div></div>,
   },
