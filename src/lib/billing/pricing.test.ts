@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { countryFromHeader, formatPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
 
 describe("country pricing", () => {
-  it("charges ৳299 in Bangladesh and the Gulf at 29", () => {
-    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 29900 });
+  it("charges ৳190 in Bangladesh and the Gulf at 29", () => {
+    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 19000 });
     expect(proPrice("AE")).toEqual({ country: "AE", currency: "AED", minor: 2900 });
     expect(proPrice("SA")).toEqual({ country: "SA", currency: "SAR", minor: 2900 });
     expect(proPrice("nope").country).toBe("BD");
@@ -26,8 +26,8 @@ describe("country pricing", () => {
 });
 
 describe("perDay", () => {
-  it("turns ৳299 a month into ৳10 a day", () => {
-    expect(perDay(proPrice("BD"))).toBe("৳10");
+  it("turns ৳190 a month into ৳6 a day", () => {
+    expect(perDay(proPrice("BD"))).toBe("৳6");
   });
   it("rounds other currencies up to the cent", () => {
     expect(perDay(proPrice("US"))).toBe("$0.34");

@@ -7,7 +7,7 @@ import { cc, type CountryCode } from "../countries";
 export interface Price { country: CountryCode; currency: string; minor: number }
 
 export const PRO_PRICES: Record<CountryCode, { currency: string; minor: number }> = {
-  BD: { currency: "BDT", minor: 29900 },
+  BD: { currency: "BDT", minor: 19000 },
   AE: { currency: "AED", minor: 2900 },
   SA: { currency: "SAR", minor: 2900 },
   MY: { currency: "MYR", minor: 1500 },
@@ -35,7 +35,7 @@ export function formatPrice(minor: number, currency: string): string {
   return `${SYMBOL[currency] ?? `${currency} `}${n}`;
 }
 
-/** The monthly price as a daily amount: whole taka in Bangladesh (৳299 → ৳10), cents elsewhere. */
+/** The monthly price as a daily amount: whole taka in Bangladesh (৳190 → ৳6), cents elsewhere. */
 export function perDay(p: { minor: number; currency: string }): string {
   const day = p.currency === "BDT" ? Math.round(p.minor / 30 / 100) * 100 : Math.ceil(p.minor / 30);
   return formatPrice(day, p.currency);
