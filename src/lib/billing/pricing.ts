@@ -22,17 +22,18 @@ export interface PackPrice extends Price { pack: PackId; days: number; name: str
 
 type Quad = [number, number, number, number];
 type Row = { currency: string; local: Quad; usd: Quad };
-// Minor units for [10 days, 30 days, 3 months, 1 year]. Bangladesh prices set by the owner 2026-10-20.
+// Minor units for [10 days, 30 days, 3 months, 1 year]. Bangladesh and the card prices ($15, $25, $55) set by the owner
+// 2026-10-20; the year is $99. Local amounts are about the card price at Oct 2026 exchange rates.
 export const PACK_PRICES: Record<CountryCode, Row> = {
   BD: { currency: "BDT", local: [29000, 70000, 150000, 190000], usd: [0, 0, 0, 0] },
-  US: { currency: "USD", local: [1199, 2399, 5999, 9900], usd: [1199, 2399, 5999, 9900] },
-  GB: { currency: "GBP", local: [999, 1999, 4999, 7900], usd: [1299, 2599, 6499, 10499] },
-  CA: { currency: "CAD", local: [1599, 3299, 7999, 13900], usd: [1149, 2349, 5749, 9999] },
-  AU: { currency: "AUD", local: [1799, 3699, 8999, 14900], usd: [1149, 2399, 5799, 9699] },
-  AE: { currency: "AED", local: [4500, 8900, 21900, 36900], usd: [1199, 2399, 5949, 9999] },
-  SA: { currency: "SAR", local: [4500, 8900, 21900, 36900], usd: [1199, 2349, 5799, 9799] },
-  MY: { currency: "MYR", local: [4900, 9900, 24900, 44900], usd: [1099, 2199, 5599, 9999] },
-  XX: { currency: "USD", local: [999, 1999, 4999, 7900], usd: [999, 1999, 4999, 7900] },
+  US: { currency: "USD", local: [1500, 2500, 5500, 9900], usd: [1500, 2500, 5500, 9900] },
+  GB: { currency: "GBP", local: [1149, 1899, 4199, 7499], usd: [1500, 2500, 5500, 9900] },
+  CA: { currency: "CAD", local: [2099, 3499, 7699, 13700], usd: [1500, 2500, 5500, 9900] },
+  AU: { currency: "AUD", local: [2299, 3799, 8399, 14900], usd: [1500, 2500, 5500, 9900] },
+  AE: { currency: "AED", local: [5500, 9200, 20200, 36400], usd: [1500, 2500, 5500, 9900] },
+  SA: { currency: "SAR", local: [5600, 9400, 20600, 37100], usd: [1500, 2500, 5500, 9900] },
+  MY: { currency: "MYR", local: [6600, 11000, 24200, 43600], usd: [1500, 2500, 5500, 9900] },
+  XX: { currency: "USD", local: [1500, 2500, 5500, 9900], usd: [1500, 2500, 5500, 9900] },
 };
 
 /** Currencies bKash can take. */
