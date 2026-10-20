@@ -81,7 +81,7 @@ export default async function Landing() {
               <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
               <h1>Your job assistant. <span>Works for you like a friend.</span></h1>
               <p className="lp-lead">It finds jobs, prepares every application and helps you get hired. <b className="lp-hl">You just review and approve.</b></p>
-              <p className="lp-teachip"><Icon name="cup" /><span><b>{perDay(local)} a day.</b> {local.currency === "BDT" ? "The price of one cup of tea." : "Less than a coffee."}</span></p>
+              <p className="lp-teachip"><Icon name="cup" /><span><b>{perDay(local)} a day.</b> {local.currency === "BDT" ? "Less than one cup of tea." : "Less than a coffee."}</span></p>
               <div className="lp-cta">
                 <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
                 <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
@@ -185,7 +185,7 @@ export default async function Landing() {
               <p className="lp-kicker">JobPao Pro</p>
               <div className="lp-tea">
                 <span className="lp-cup"><Icon name="cup" /></span>
-                <div><b className="num">{perDay(local)} a day</b><span>{local.currency === "BDT" ? "The price of one cup of tea. Your personal job assistant works for you all day." : "Less than a coffee. Your personal job assistant works for you all day."}</span></div>
+                <div><b className="num">{perDay(local)} a day</b><span>{local.currency === "BDT" ? "Less than one cup of tea. Your personal job assistant works for you all day." : "Less than a coffee. Your personal job assistant works for you all day."}</span></div>
               </div>
               <p className="lp-amt num">{formatPrice(local.minor, local.currency)}<span> / month</span></p>
               <ul>{PRO.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>

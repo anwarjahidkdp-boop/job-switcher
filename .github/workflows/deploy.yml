@@ -31,7 +31,7 @@ jobs:
       # Public values come from .env.production; APP_URL overrides the app address once it is known.
       - run: npx opennextjs-cloudflare build
         env:
-          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://job-switcher.jobswitcher.workers.dev' }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://jobpao.app' }}
       - run: npx wrangler deploy
       - name: Copy Worker settings from repository secrets
         env:

@@ -26,8 +26,8 @@ describe("country pricing", () => {
 });
 
 describe("perDay", () => {
-  it("turns ৳190 a month into ৳6 a day", () => {
-    expect(perDay(proPrice("BD"))).toBe("৳6");
+  it("turns ৳190 a month into ৳7 a day", () => {
+    expect(perDay(proPrice("BD"))).toBe("৳7");
   });
   it("rounds other currencies up to the cent", () => {
     expect(perDay(proPrice("US"))).toBe("$0.34");
