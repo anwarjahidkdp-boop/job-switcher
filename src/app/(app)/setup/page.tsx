@@ -48,7 +48,10 @@ export default async function Setup() {
   // The wizard opens the first unfinished step; copying the address is part of the Gmail step.
   const current = WIZARD.find((k) => !steps[k]) ?? null;
   const filterFrom = ports.map((p) => PORTAL_HELP[p]?.from).filter(Boolean).join(" OR ");
-  const filterUrl = `https://mail.google.com/mail/u/0/#create-filter/from=${encodeURIComponent(filterFrom)}&hasnot=${encodeURIComponent(FILTER_HASNOT)}`;
+  // Open the Gmail account the user signed up with when it is a Gmail address; otherwise the browser's first Gmail.
+  const email = (st.profile.email || "").toLowerCase();
+  const gmailBase = /@(gmail|googlemail)\.com$/.test(email) ? `https://mail.google.com/mail/u/${encodeURIComponent(email)}/` : "https://mail.google.com/mail/u/0/";
+  const filterUrl = `${gmailBase}#create-filter/from=${encodeURIComponent(filterFrom)}&hasnot=${encodeURIComponent(FILTER_HASNOT)}`;
 
   return (
     <>
@@ -81,9 +84,9 @@ export default async function Setup() {
             <p className="small muted" style={{ marginTop: 8 }}>Already get job emails from these sites? Then this step is done.</p>
           </Step>
           <Step k="forward" isDone={!!steps.forward} active={current === "forward"} n={2} title="Connect your Gmail to JobPao">
-            <p className="small muted">Do this on a computer (on a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo;).</p>
+            <p className="small muted">Do this on a computer (on a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo;). Be signed in to the <b>same Gmail</b> that gets your job alerts. If you use more than one Gmail, check the address at the top right of Gmail before you start.</p>
             {inboundReady ? <div className="row" style={{ marginTop: 10, flexWrap: "nowrap" }}><code className="copybox" style={{ padding: "8px 10px", flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{addr || "Could not create your address. Reload the page."}</code>{addr ? <CopyButton text={addr} label="Copy" /> : null}</div> : <p className="small" style={{ marginTop: 8 }}>Your JobPao address will appear here soon.</p>}
-            <Ol items={[<>Click <b>Copy</b> above, then <a className="btn btn-primary btn-sm" style={{ margin: "4px 0" }} href="https://mail.google.com/mail/u/0/#settings/fwdandpop" target="_blank" rel="noopener noreferrer">Open Gmail settings ↗</a></>, <>Click <b>Add a forwarding address</b>, paste, then <b>Next → Proceed → OK</b>.</>, <>Come back here. A <b>Confirm in Gmail</b> button appears below in a few seconds. Click it, then <b>Confirm</b> on Google&apos;s page.</>]} />
+            <Ol items={[<>Click <b>Copy</b> above, then <a className="btn btn-primary btn-sm" style={{ margin: "4px 0" }} href={`${gmailBase}#settings/fwdandpop`} target="_blank" rel="noopener noreferrer">Open Gmail settings ↗</a></>, <>Click <b>Add a forwarding address</b>, paste, then <b>Next → Proceed → OK</b>. If you see a box with a list instead of that button, click the box and choose <b>Add a forwarding address</b>. If your JobPao address is already in that list, this step is done.</>, <>Come back here. A <b>Confirm in Gmail</b> button appears below in a few seconds. Click it, then <b>Confirm</b> on Google&apos;s page.</>]} />
             <CodeWatcher code={f?.gmail_verification_code || null} link={f?.gmail_verification_link || null} />
             <p className="small muted" style={{ marginTop: 8 }}>Keep <b>Disable forwarding</b> selected in Gmail. Your other emails stay private; the next step sends only job emails.</p>
           </Step>
