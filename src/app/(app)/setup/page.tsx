@@ -82,7 +82,7 @@ export default async function Setup() {
           </Step>
           <Step k="filter" isDone={!!steps.filter} n={4} title="Tell Gmail to pass on only the job alert emails">
             <p className="small muted">Do this after the first alert email from {ports.join(" or ")} arrives in your Gmail.</p>
-            <Ol items={[<>Open that job alert email in Gmail on a computer.</>, <>Click the <b>three dots (⋮)</b> at the top right of the email and choose <b>Filter messages like these</b>. Gmail fills in the sender for you.</>, <>Click <b>Create filter</b>.</>, <>Tick <b>Forward it to</b>, pick your JobPao address, and click <b>Create filter</b> again.</>, `Do the same once for each job site (${ports.join(", ")}).`]} />
+            <Ol items={[<>Open that job alert email in Gmail on a computer.</>, <>Click the <b>three dots (⋮)</b> at the top right of the email and choose <b>Filter messages like these</b>. Gmail fills in the sender for you.</>, <>To catch every email from the site, change <b>From</b> to just the site name (for example <b>bdjobs.com</b>). In <b>Doesn&apos;t have</b>, type <b>password OR OTP OR verify OR reset OR code</b> so login and password emails always stay only with you. Then click <b>Create filter</b>.</>, <>Tick <b>Forward it to</b>, pick your JobPao address, and click <b>Create filter</b> again.</>, `Do the same once for each job site (${ports.join(", ")}).`]} />
           </Step>
           <Step k="test" isDone={!!steps.test} n={5} title="Done: wait for the next alert">
             <p className="small muted">When the next alert email comes, its jobs appear in your Opportunities with the site name shown. This step ticks itself.</p>
