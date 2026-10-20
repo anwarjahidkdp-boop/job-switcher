@@ -57,6 +57,8 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   const verification = detectGmailVerification(parsed);
   if (verification) {
     await admin.from("forwarding_addresses").update({ gmail_verification_code: verification.code, gmail_verification_link: verification.link, gmail_code_received_at: new Date().toISOString() }).eq("id", fwd.id);
+    const { data: pr } = await admin.from("profiles").select("setup_steps").eq("id", userId).maybeSingle();
+    await admin.from("profiles").update({ setup_steps: { ...(pr?.setup_steps || {}), address: true } }).eq("id", userId);
     await done({ kind: "gmail_verification", status: "processed" });
     return { status: "verification" as const };
   }
@@ -119,7 +121,7 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   }
   await done({ kind: rows.length || det.jobLinkCount ? "job_alert" : "other", status: rows.length ? "processed" : "ignored", jobs_created: created, error: aiNote ? `ai fill skipped: ${aiNote}` : null });
   if (created && profile) {
-    await admin.from("profiles").update({ setup_steps: { ...(profile.setup_steps || {}), test: true } }).eq("id", userId);
+    await admin.from("profiles").update({ setup_steps: { ...(profile.setup_steps || {}), alerts: true, address: true, forward: true, filter: true, test: true } }).eq("id", userId);
     await refreshMatches(admin, userId).catch(() => 0);
   }
   return { status: "processed" as const, created };
