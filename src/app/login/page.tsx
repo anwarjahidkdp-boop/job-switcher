@@ -1,3 +1,5 @@
+import { PageHead } from "@/components/PageHead";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { LoginForm } from "./LoginForm";
 
@@ -10,12 +12,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <SiteHeader inApp={false} />
-      <main><div className="wrap"><div className="ob" style={{ maxWidth: 460 }}>
-        <h1 style={{ fontSize: 28 }}>{signup ? "Create your JobPao account" : "Welcome back"}</h1>
-        <p className="muted" style={{ marginTop: 6 }}>{signup ? "Your own job assistant, ready in a minute." : "Log in with your email and password."}</p>
-        {sp.error ? <p className="err" style={{ marginTop: 12 }}>That link has expired. Log in, or ask for a new link.</p> : null}
-        <LoginForm next={next} initial={signup ? "signup" : "login"} />
-      </div></div></main>
+      <main><div className="wrap">
+        <PageHead kicker={signup ? "7 days free · No card needed" : "JobPao"} title={signup ? <>Create your <span>account</span></> : <>Welcome <span>back</span></>} sub={signup ? "Your own job assistant, ready in a minute." : "Log in with your email and password."} />
+        <div className="ob card panel pg-form">
+          {sp.error ? <p className="err" style={{ marginBottom: 12 }}>That link has expired. Log in, or ask for a new link.</p> : null}
+          <LoginForm next={next} initial={signup ? "signup" : "login"} />
+        </div>
+      </div></main>
+      <SiteFooter />
     </>
   );
 }

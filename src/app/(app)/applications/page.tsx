@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
 import { loadJob, stats } from "@/lib/server/state";
@@ -23,7 +24,7 @@ export default async function Applications() {
   const pending = s.reminders + rows.filter((r) => ["ready", "waiting"].includes(r.a.status)).length;
   return (
     <>
-      <h1 style={{ fontSize: 28 }}>Applications</h1>
+      <PageHead kicker="Your progress" title={<>Your <span>applications</span></>} sub="Every job you prepared, applied to or interviewed for, in one place." />
       <div className="tiles" style={{ marginTop: 18 }}>
         {([["Jobs analysed", s.analysed], ["Strong matches", s.strong], ["Prepared", s.prepared], ["Submitted", s.applied], ["Pending", pending], ["Interviews", s.interviews], ["Offers", s.offers]] as [string, number][]).map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}
       </div>

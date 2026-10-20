@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
@@ -105,6 +106,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     <>
       <SiteHeader inApp={false} signedIn trialLabel={trial} />
       <main className="ob-page">{head}<div className="wrap ob-body">{body}</div></main>
+      <SiteFooter signedIn />
     </>
   );
 }

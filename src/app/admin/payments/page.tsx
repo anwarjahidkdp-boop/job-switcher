@@ -1,3 +1,5 @@
+import { PageHead } from "@/components/PageHead";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listPayments } from "@/lib/server/billing";
@@ -16,7 +18,7 @@ export default async function AdminPayments() {
     <>
       <SiteHeader inApp={false} signedIn />
       <main><div className="wrap">
-        <h1 style={{ fontSize: 28 }}>bKash payments</h1>
+        <PageHead kicker="Admin" title={<>bKash <span>payments</span></>} />
         <p className="muted" style={{ marginTop: 6 }}>Approve a payment only after you find the exact TrxID, amount and sender number in your bKash app or merchant statement. Approval adds 30 days of Pro and emails the user.</p>
         <h2 style={{ fontSize: 20, marginTop: 22 }}>Waiting for review ({pending.length})</h2>
         {pending.length ? <div className="stack" style={{ marginTop: 10 }}>{pending.map((p) => (
@@ -39,6 +41,7 @@ export default async function AdminPayments() {
               <td>{p.status === "rejected" && p.method === "bkash_manual" ? <form action={reviewPaymentAction}><input type="hidden" name="id" value={p.id} /><button className="btn-text small" name="decision" value="approve">Approve after all</button></form> : null}</td></tr>))}</tbody>
         </table>
       </div></main>
+      <SiteFooter signedIn />
     </>
   );
 }

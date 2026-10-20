@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
 import { loadJob } from "@/lib/server/state";
@@ -20,8 +21,7 @@ export default async function Queue() {
   for (const x of items) { const k = label(x.date); groups.set(k, [...(groups.get(k) || []), x]); }
   return (
     <>
-      <h1 style={{ fontSize: 28 }}>Apply Queue</h1>
-      <p className="muted" style={{ marginTop: 4 }}>Your job-switching task list: applications ready to send and reminders you set.</p>
+      <PageHead kicker="To do" title={<>Apply <span>queue</span></>} sub="Your task list: applications ready to send and reminders you set." />
       <div className="stack" style={{ marginTop: 20 }}>
         {groups.size ? [...groups.entries()].map(([k, xs]) => (
           <div key={k} className="card">
