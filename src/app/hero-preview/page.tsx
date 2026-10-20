@@ -71,7 +71,7 @@ export default function HeroPreview() {
       <SiteHeader inApp={false} />
       <main className="wrap hp-pick">
         <h1>Pick the hero photos</h1>
-        <p>Choose one photo for each step and send the numbers (for example 3, 12, 18, 24, 31). Hero now uses 1, 18, 8, 15, 21 and 4. Step 6 has new options (34 to 40).</p>
+        <p>Choose one photo for each step and send the numbers (for example 3, 12, 18, 24, 31). Hero now uses 1, 17, 27, 15, 21, 40 and 4.</p>
         {GROUPS.map((g, gi) => (
           <section key={g.step}>
             <h2>{g.step}</h2>
