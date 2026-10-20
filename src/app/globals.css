@@ -492,3 +492,15 @@ a.lp-btn-ghost{color:var(--ink)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lp-auto{background:linear-gradient(120deg,#1A1A12,#262013 45%,#1A1A12 90%);border-color:#3A3220}:root:not([data-theme="light"]) .lp-tailor{background:linear-gradient(160deg,#121C36,#0F1629 60%);border-color:#2A3A66}:root:not([data-theme="light"]) .lp-iv{background:linear-gradient(160deg,#0F231C,#0E1A16 60%);border-color:#24493B}:root:not([data-theme="light"]) .lp-iv .lp-kicker,:root:not([data-theme="light"]) .lp-iv .lp-ivq span{color:#6FD1AC}}
 @media (max-width:520px){.lp-auto{padding:22px 14px}}
 @media (prefers-reduced-motion:reduce){.lp-hero::after,.lp-auto,.lp-us::before,.hs-ic,.hs-conf i,.hs-step,.lp-rail::after,.lp-rail li,.lp-rail-ic{animation:none!important}.hs-slide{transition:none}.hs-over.on>*{animation:none;opacity:1;transform:none}}
+/* Owner photo picker (/hero-preview) */
+.hp-pick{padding-block:28px 60px}
+.hp-pick h1{font-size:28px}
+.hp-pick>p{color:var(--ink-2);margin-top:6px}
+.hp-pick section{margin-top:32px}
+.hp-pick h2{font-size:20px}
+.hp-pick section>p{color:var(--ink-2);font-size:14px;margin:2px 0 12px}
+.hp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.hp-grid figure{position:relative;margin:0;border-radius:14px;overflow:hidden;background:var(--card);border:1px solid var(--line)}
+.hp-grid img{display:block;width:100%;aspect-ratio:64/46;object-fit:cover}
+.hp-num{position:absolute;top:10px;left:10px;display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.hp-grid figcaption{padding:8px 12px;font-size:13px;color:var(--ink-2)}
