@@ -9,7 +9,7 @@ const manrope = Manrope({ subsets: ["latin"], weight: ["600", "700", "800"], var
 export const metadata: Metadata = {
   title: { default: "JobPao", template: "%s · JobPao" },
   description: "Your personal AI career agent. Upload your CV once; JobPao improves it, finds matching jobs in Bangladesh and abroad, prepares applications and keeps you ahead of deadlines.",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#FFFFFF" }, { media: "(prefers-color-scheme: dark)", color: "#121B23" }] };
 
