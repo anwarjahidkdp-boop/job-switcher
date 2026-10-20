@@ -18,10 +18,11 @@ import { refreshMatches } from "./matches";
 
 export interface Ctx { db: SupabaseClient; admin: SupabaseClient; userId: string }
 
-export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean) {
+export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean, homeCountry?: string) {
   const code = cc(country);
   const prev = await loadProfile(ctx.db, ctx.userId);
   const patch: Record<string, unknown> = { target_country: code, needs_visa: code === "BD" ? true : !!needsVisa };
+  if (homeCountry) patch.home_country = cc(homeCountry);
   if (prev?.onboarding_step === "country") patch.onboarding_step = "upload";
   // Changing country resets the currency-dependent salary and the city list (prototype changeCountry()).
   if (prev && prev.preferences && prev.target_country !== code) {
@@ -33,7 +34,7 @@ export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean) 
   }
   const { error } = await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
   if (error) throw error;
-  if (prev && prev.target_country !== code) await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
+  if (prev && (prev.target_country !== code || (homeCountry && prev.home_country !== cc(homeCountry)))) await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
 }
 
 function cleanExtraction(x: Extraction): Extraction {

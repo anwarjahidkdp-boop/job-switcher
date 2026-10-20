@@ -14,10 +14,11 @@ async function post(url: string, body: unknown) {
   return j;
 }
 
-export function CountryStep(props: { current: string; needsVisa: boolean; demo: boolean; countries: { code: string; name: string; doc: string; pages: string; photo: boolean; rules: string[] }[] }) {
+export function CountryStep(props: { current: string; home: string; needsVisa: boolean; demo: boolean; countries: { code: string; name: string; doc: string; pages: string; photo: boolean; rules: string[] }[] }) {
   const router = useRouter();
   const [cur, setCur] = useState(props.current);
   const [visa, setVisa] = useState(props.needsVisa);
+  const [home, setHome] = useState(props.home);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const c = props.countries.find((x) => x.code === cur)!;
@@ -33,14 +34,20 @@ export function CountryStep(props: { current: string; needsVisa: boolean; demo: 
       <div className="card panel" style={{ marginTop: 16 }}>
         <h3>{c.name} conventions we will apply</h3>
         <ul className="why-list">{c.rules.map((x) => <li key={x}><span className="mk ok">✓</span><span>{x}</span></li>)}</ul>
-        {cur !== "BD" ? <label className="row small" style={{ marginTop: 12, gap: 8, flexWrap: "nowrap", fontWeight: 500 }}><input type="checkbox" checked={visa} onChange={(e) => setVisa(e.target.checked)} /> I will need the employer to sponsor my work visa</label> : null}
+        <label className="f" htmlFor="obhome" style={{ marginTop: 14 }}>I live in
+          <select id="obhome" value={home} onChange={(e) => setHome(e.target.value)}>
+            {props.countries.map((k) => <option key={k.code} value={k.code}>{k.code === "XX" ? "Another country" : k.name}</option>)}
+          </select>
+        </label>
+        <p className="small muted" style={{ marginTop: 4 }}>Your Pro price and how you pay follow the country you live in.</p>
+        {cur !== home ? <label className="row small" style={{ marginTop: 12, gap: 8, flexWrap: "nowrap", fontWeight: 500 }}><input type="checkbox" checked={visa} onChange={(e) => setVisa(e.target.checked)} /> I will need the employer to sponsor my work visa</label> : null}
       </div>
       {err ? <p className="err" style={{ marginTop: 12 }}>{err}</p> : null}
       <div className="row" style={{ marginTop: 20 }}>
         <button className="btn btn-primary" disabled={busy} onClick={async () => {
           setBusy(true); setErr("");
           try {
-            await setCountryAction(cur, visa);
+            await setCountryAction(cur, visa, home);
             if (props.demo) await post("/api/cv/upload", { demo: true });
             router.refresh();
           } catch (e) { setErr((e as Error).message); setBusy(false); }

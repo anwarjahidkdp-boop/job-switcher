@@ -1,12 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { countryFromHeader, formatPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
+import { countryFromHeader, formatPrice, MIN_CARD_USD, PACK_PRICES, PACKS, packPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
 
 describe("country pricing", () => {
-  it("charges ৳190 in Bangladesh and the Gulf at 29", () => {
-    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 19000 });
-    expect(proPrice("AE")).toEqual({ country: "AE", currency: "AED", minor: 2900 });
-    expect(proPrice("SA")).toEqual({ country: "SA", currency: "SAR", minor: 2900 });
+  it("prices the four Bangladesh packs set by the owner", () => {
+    expect(PACKS.map((p) => packPrice("BD", p.id).minor)).toEqual([29000, 70000, 150000, 190000]);
+    expect(PACKS.map((p) => p.days)).toEqual([10, 30, 90, 365]);
+    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 70000 });
     expect(proPrice("nope").country).toBe("BD");
+  });
+  it("falls back to 30 days for an unknown pack", () => {
+    expect(packPrice("US", "bogus")).toMatchObject({ pack: "30d", days: 30, minor: 2399, usd: 2399 });
+    expect(packPrice("AE", "365d")).toMatchObject({ currency: "AED", minor: 36900, usd: 9999, days: 365 });
+  });
+  it("never charges a card less than US$9", () => {
+    for (const [c, r] of Object.entries(PACK_PRICES)) if (c !== "BD") for (const v of r.usd) expect(v).toBeGreaterThanOrEqual(MIN_CARD_USD);
+  });
+  it("makes longer packs cheaper per day outside Bangladesh", () => {
+    for (const [c, r] of Object.entries(PACK_PRICES)) if (c !== "BD") {
+      const perDayUsd = r.usd.map((v, i) => v / PACKS[i].days);
+      for (let i = 1; i < perDayUsd.length; i++) expect(perDayUsd[i]).toBeLessThan(perDayUsd[i - 1]);
+    }
   });
   it("formats local prices", () => {
     expect(formatPrice(29900, "BDT")).toBe("৳299");
@@ -20,16 +33,16 @@ describe("country pricing", () => {
     expect(countryFromHeader("XX")).toBe("XX");
     expect(countryFromHeader(null)).toBe("BD");
   });
-  it("only taka is payable today", () => {
+  it("only taka is payable by bKash", () => {
     expect(PAYABLE_CURRENCIES).toEqual(["BDT"]);
   });
 });
 
 describe("perDay", () => {
-  it("turns ৳190 a month into ৳7 a day", () => {
-    expect(perDay(proPrice("BD"))).toBe("৳7");
+  it("turns ৳700 a month into ৳24 a day", () => {
+    expect(perDay(proPrice("BD"))).toBe("৳24");
   });
   it("rounds other currencies up to the cent", () => {
-    expect(perDay(proPrice("US"))).toBe("$0.34");
+    expect(perDay(proPrice("US"))).toBe("$0.80");
   });
 });

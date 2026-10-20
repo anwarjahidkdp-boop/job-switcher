@@ -15,7 +15,7 @@ export function CountryPanel({ current, needsVisa, homeCountry, countries }: { c
         </select>
       </label>
       <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
-        <select id="homesel" value={homeCountry} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs and your Pro price follow the country you live in."); router.refresh(); }); }}>
+        <select id="homesel" value={homeCountry} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }}>
           {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select>
       </label>

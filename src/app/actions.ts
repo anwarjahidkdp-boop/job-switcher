@@ -12,9 +12,9 @@ import { loadProfile } from "@/lib/server/state";
 import { ACCOUNT_KINDS, isSetupKey, SITE_STEPS, siteKey } from "@/lib/setup";
 
 
-export async function setCountryAction(country: string, needsVisa: boolean) {
+export async function setCountryAction(country: string, needsVisa: boolean, homeCountry?: string) {
   const c = await ctx("/onboarding");
-  await setCountry(c, country, needsVisa);
+  await setCountry(c, country, needsVisa, homeCountry);
   revalidatePath("/", "layout");
 }
 
