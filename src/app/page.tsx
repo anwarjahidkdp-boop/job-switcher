@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
-import { Ring } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
-import type { Band } from "@/lib/types";
 import { headers } from "next/headers";
 import { countryFromHeader, formatPrice, proPrice } from "@/lib/billing/pricing";
 import { AutoFlow } from "./AutoFlow";
+import { HeroStage } from "./HeroStage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +29,6 @@ function Icon({ name }: { name: string }) {
   return <svg className="lp-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS[name]}</svg>;
 }
 
-const MOCK: [string, string, number, Band][] = [["Assistant Manager, Accounts", "Shuvra Knit Composite", 96, "ex"], ["Finance Manager", "Nodi Agro Foods", 84, "st"], ["VAT & Tax Specialist", "Meghdoot Ceramics", 78, "st"]];
 const FEATURES: [string, string, string][] = [
   ["cv", "AI-rebuilt CV", "A clean, recruiter-ready CV in your target country's format."],
   ["radar", "Jobs come to you", "Matching jobs collected for you every day."],
@@ -50,7 +48,9 @@ const INTERVIEW: [string, string, string][] = [
   ["calendar", "Interview tracker", "Every call, date and link in one place."],
 ];
 const YOU = ["Upload your CV", "Review and approve"];
-const US = ["Finds jobs daily", "Matches them to you", "Puts best matches first", "Tailors your CV", "Writes your cover letter", "Gets it ready to send", "Reminds you of deadlines", "Preps you for interviews"];
+const US = ["Finds jobs daily", "Puts your best matches first", "Tailors your CV", "Writes your cover letter", "Drafts the application email", "Lists every document needed", "Reminds you of deadlines", "Preps you for interviews"];
+// Hero: everything a job application needs, not only the cover letter.
+const HERO_POINTS = ["New jobs found for you daily", "Ranked by how well they fit", "A CV tailored to each job", "A cover letter for each job", "The application email, drafted", "Every document it asks for", "Deadline reminders", "Interview questions, answered"];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
   ["Get matched", "Fresh jobs, scored against your profile."],
@@ -61,7 +61,7 @@ const TRUST: [string, string, string][] = [
   ["hand", "You stay in control", "Nothing is sent without your approval."],
   ["shield", "Private by default", "Your CV is never public. Delete it any time."],
 ];
-const PRO = ["Daily job matching", "A tailored CV for every job", "A matching cover letter for every job", "Deadline reminders", "Interview prep and tracking", "Career insights"];
+const PRO = ["Daily job matching", "A tailored CV for every job", "Cover letter, email and document checklist for every job", "Deadline reminders", "Interview prep and tracking", "Career insights"];
 
 export default async function Landing() {
   let signedIn = false;
@@ -76,34 +76,20 @@ export default async function Landing() {
     <>
       <SiteHeader inApp={false} signedIn={signedIn} />
       <main className="lp">
-        <section className="lp-hero">
-          <div className="wrap lp-hero-in">
-            <div>
-              <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
-              <h1>Your job <span>assistant.</span></h1>
-              <ul className="lp-pts">
-                <li><span className="lp-pt-ic"><Icon name="radar" /></span><div><b>Finds your best-matched jobs</b><span>New jobs every day, ranked by how well they fit you.</span></div></li>
-                <li><span className="lp-pt-ic"><Icon name="cv" /></span><div><b>Prepares every application</b><span>A tailored CV, a cover letter and everything else each job asks for.</span></div></li>
-                <li><span className="lp-pt-ic"><Icon name="chat" /></span><div><b>Gets you ready for the interview</b><span>Likely questions, with answers from your own experience.</span></div></li>
-              </ul>
-              <p className="lp-teachip"><Icon name="cup" /><span><b>Your own job assistant, for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b></span></p>
-              <div className="lp-cta">
-                <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
-                <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
-              </div>
-              <p className="lp-fine">7 days free · No card needed</p>
-            </div>
-            <div className="lp-mock" aria-label="Example of today's matches">
-              <div className="lp-mock-head"><span>Today&apos;s matches</span><span className="lp-live">Example</span></div>
-              {MOCK.map(([t, c, s, b]) => (
-                <div key={t} className="lp-job">
-                  <Ring score={s} band={b} />
-                  <div className="lp-jt"><b>{t}</b><span>{c} · Dhaka</span></div>
-                </div>
-              ))}
-            </div>
+        <HeroStage>
+          <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
+          <h1>Your job <span>assistant.</span></h1>
+          <p className="lp-lead">From the first match to the interview, it does the work. You just review and approve.</p>
+          <ul className="lp-hfeat">
+            {HERO_POINTS.map((x) => <li key={x}><span className="hp-tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>{x}</li>)}
+          </ul>
+          <p className="lp-teachip"><Icon name="cup" /><span><b>Your own job assistant, for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b></span></p>
+          <div className="lp-cta">
+            <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
+            <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
           </div>
-        </section>
+          <p className="lp-fine">7 days free · No card needed</p>
+        </HeroStage>
 
         <div className="wrap">
           <div className="lp-stats">
@@ -120,7 +106,7 @@ export default async function Landing() {
 
           <section className="lp-sec lp-tailor">
             <p className="lp-kicker">Our biggest advantage</p>
-            <h2>A new CV and cover letter for every job</h2>
+            <h2>A complete application for every job</h2>
             <div className="lp-tgrid">
               {TAILOR.map(([job, cv, letter]) => (
                 <div key={job} className="lp-tcard">
