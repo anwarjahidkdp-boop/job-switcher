@@ -27,9 +27,13 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Deploy the email-intake Worker
-        run: npx wrangler deploy --var "APP_URL:$APP_URL"
+        run: |
+          set -o pipefail
+          if ! npx wrangler deploy -c wrangler.toml --var "APP_URL:$APP_URL" 2>&1 | tee "$RUNNER_TEMP/out.txt"; then
+            grep -iE "error|✘" "$RUNNER_TEMP/out.txt" | head -5 | sed 's/^/::error::/'; exit 1
+          fi
       - name: Set the shared signing secret on both Workers
         run: |
           s=$(openssl rand -hex 32)
-          printf '%s' "$s" | npx wrangler secret put INBOUND_SHARED_SECRET
+          printf '%s' "$s" | npx wrangler secret put INBOUND_SHARED_SECRET -c wrangler.toml
           printf '%s' "$s" | npx wrangler secret put INBOUND_SHARED_SECRET --name job-switcher
