@@ -25,7 +25,7 @@ const SLIDES: Slide[] = [
     </>,
   },
   {
-    id: "photo-1698047681432-006d2449c631", step: "Your CV", alt: "Recruiter reading a CV across the table from the candidate", by: "Unsplash", wide: true, pos: "50% 40%",
+    id: "photo-1698047681432-006d2449c631", step: "Your CV", alt: "Recruiter reading a CV across the table from the candidate", by: "Resume Genius", wide: true, pos: "50% 40%",
     page: "https://unsplash.com/photos/a-woman-is-reading-a-resume-at-a-table-9si2noVCVH8",
     over: <div className="hs-chip hs-b"><Tick /><div><b>Your CV stands out</b><span>Tailored to this job</span></div></div>,
   },
@@ -81,7 +81,7 @@ export function HeroStage({ children }: { children: ReactNode }) {
         <div className="hs-copy">{children}</div>
         <div className="hs-right">
           <p className="hs-step" key={n}><i>{String(n + 1).padStart(2, "0")}</i>{cur.step}</p>
-          <div className="hs-phone"><HeroPhone paused={paused} /></div>
+          <div className={`hs-phone${cur.wide ? " hs-phone-away" : ""}`}><HeroPhone paused={paused} /></div>
           {SLIDES.map((s, i) => <div key={s.id} className={`hs-over${cls(i)}`} aria-hidden={i !== n}>{s.over}</div>)}
           <div className="hs-dots" aria-hidden="true">{SLIDES.map((s, i) => <i key={s.id} className={i === n ? "on" : ""} />)}</div>
           <p className="hs-foot">
