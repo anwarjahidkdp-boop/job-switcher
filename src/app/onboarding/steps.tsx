@@ -157,6 +157,12 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   const off = !!busy || !aiReady;
   return (
     <>
+      {!aiReady ? (
+        <div className="ob-wait">
+          <div><b>AI reading of your own CV is being switched on.</b><p className="small muted">Uploading opens as soon as it is ready. Meanwhile you can go through every step with a sample CV and see how JobPao works.</p></div>
+          <button className="btn btn-primary" disabled={!!busy} onClick={demo}>Continue with a sample CV →</button>
+        </div>
+      ) : null}
       <div className="drop" style={{ marginTop: 22 }}>
         <p style={{ fontWeight: 600 }}>Upload your CV (PDF, DOCX, TXT or a photo)</p>
         <p className="small muted" style={{ margin: "4px 0 14px" }}>Your file is read on this device and stored privately; only you can open it. Scanned PDFs and photos are read by our AI and shown to you to check first.</p>
@@ -195,8 +201,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
       </details>
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
       {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
-      {!aiReady ? <p className="note" style={{ marginTop: 18 }}>AI analysis is not set up on this server yet (no AI key). The sample CV still shows the full flow.</p> : null}
-      <div className="row" style={{ marginTop: 22 }}><button className="btn btn-text" disabled={!!busy} onClick={demo}>Try with a sample CV instead</button></div>
+      {aiReady ? <div className="row" style={{ marginTop: 22 }}><button className="btn btn-text" disabled={!!busy} onClick={demo}>Try with a sample CV instead</button></div> : null}
     </>
   );
 }

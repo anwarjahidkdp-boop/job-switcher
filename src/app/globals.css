@@ -203,6 +203,13 @@ main.ob-page{padding-top:0;padding-bottom:56px}
 .ob-hero h1 span{background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .ob-kicker{display:inline-flex;align-items:center;gap:8px;margin-top:26px;font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g)}
 .ob-kicker::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 0 4px rgba(var(--g-rgb),.2)}
+.ob-back{margin-top:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#EAF0FA;border-radius:999px;padding:6px 14px;font-size:13.5px;font-weight:600;cursor:pointer}
+.ob-back:hover{background:rgba(255,255,255,.16)}
+.ob-back+.ob-kicker,form+.ob-kicker{margin-top:14px}
+.ob-wait{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:18px 20px;border-radius:16px;background:linear-gradient(135deg,#FFFBF2,#FFF3DA);border:1px solid rgba(201,150,64,.5);box-shadow:0 18px 50px rgba(10,21,51,.18)}
+.ob-wait>div{flex:1 1 280px}
+.ob-wait b{font-family:var(--display);color:#14275A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ob-wait{background:#2A2210}:root:not([data-theme="light"]) .ob-wait b{color:var(--g)}}
 .ob-sub{margin-top:12px;max-width:620px;color:#B8C4DB;font-size:15.5px}
 .ob-steps{list-style:none;margin:0;padding:0;display:flex;gap:6px;counter-reset:s}
 .ob-steps li{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:12px;font-weight:600;color:#8193B5}

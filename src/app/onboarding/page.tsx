@@ -22,9 +22,10 @@ function Steps({ cur }: { cur: string }) {
 }
 
 /** Navy band at the top of every setup step, in the same look as the home page hero. */
-function Head({ cur, kicker, title, sub }: { cur: string; kicker: string; title: React.ReactNode; sub?: React.ReactNode }) {
+function Head({ cur, kicker, title, sub, back }: { cur: string; kicker: string; title: React.ReactNode; sub?: React.ReactNode; back?: "country" | "upload" | "prefs" }) {
   return <section className="ob-hero"><div className="wrap"><div className="ob-in">
     <Steps cur={cur} />
+    {back ? <form action={backToStepAction.bind(null, back)}><button className="ob-back">← Back</button></form> : null}
     <p className="ob-kicker">{kicker}</p>
     <h1>{title}</h1>
     {sub ? <p className="ob-sub">{sub}</p> : null}
@@ -51,17 +52,16 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       <CountryStep current={country} needsVisa={st.profile.needs_visa} demo={demo} countries={COUNTRY_CODES.map((k) => { const c: CountryRule = COUNTRIES[k]; return { code: k, name: c.name, doc: c.doc, pages: c.pages, photo: c.photo, rules: c.rules }; })} />
     </div>;
   } else if (step === "upload") {
-    head = <Head cur="upload" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;
+    head = <Head cur="upload" back="country" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;
     body = <div className="ob">
       <UploadStep aiReady={aiConfigured()} autoDemo={demo} />
-      <form action={backToStepAction.bind(null, "country")}><button className="btn-text small" style={{ marginTop: 8 }}>← Change target country</button></form>
     </div>;
   } else if (step === "questions" && st.cvDoc) {
     const qs = st.cvDoc.questions || [];
     const nExp = st.facts.filter((f) => f.kind === "experience").length, nEdu = st.facts.filter((f) => f.kind === "education").length, nSk = st.facts.filter((f) => f.kind === "skill").length;
     const unverified = st.facts.filter((f) => !f.verified && f.kind !== "answer").length;
     const last = (st.profile.full_name || "").split(" ").slice(-1)[0];
-    head = <Head cur="questions" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.`} />;
+    head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.`} />;
     body = <div className="ob">
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
       <form action={saveAnswersAction}>
@@ -74,7 +74,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
-    head = <Head cur="prefs" kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub="We use this to choose which opportunities to bring you. Any category works; we suggested roles from your CV." />;
+    head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub="We use this to choose which opportunities to bring you. Any category works; we suggested roles from your CV." />;
     body = <div className="ob">
       <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} showPersonal={r.personal} visaField={!!r.visaField} isBD={country === "BD"} />
     </div>;
@@ -84,7 +84,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const strong = nm.filter((x) => x.m.score >= 70).length;
     const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
     const photo = await photoUrl(supabase, st.profile.photo_path);
-    head = <Head cur="reveal" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>} />;
+    head = <Head cur="reveal" back="prefs" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>} />;
     body = <>
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {nm.length} opportunities</button></form></div></div>
