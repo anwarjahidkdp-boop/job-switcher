@@ -6,12 +6,12 @@ export type PortalHelp = { url: string; steps: string[] };
 
 export const PORTAL_HELP: Record<string, PortalHelp> = {
   Bdjobs: {
-    url: "https://www.bdjobs.com",
+    url: "https://mybdjobs.bdjobs.com/jobseeker-panel/email-notification",
     steps: [
-      "Open bdjobs.com and sign in to your My Bdjobs account (create one with your Gmail if you don't have it).",
-      "Search for your job: pick a category or type a job title, and choose a location if you want.",
-      "On the results page, click \"Save as Favorite Search\". Bdjobs uses your saved searches to find matched jobs for you.",
-      "Then open My Bdjobs → Account Settings → Email Notification, tick the job emails (matched or new jobs), and click \"Add/Update Preference\".",
+      "Open bdjobs.com and sign in to My Bdjobs (create an account with your Gmail if you don't have one).",
+      "In the left menu, click \"Account Settings\", then \"Email Notification\".",
+      "Turn on the \"Hot Job Notification\" switch. Bdjobs then emails you the hot jobs that match your qualification.",
+      "Keep your Bdjobs CV and job category up to date, because Bdjobs matches these emails to your Bdjobs profile.",
     ],
   },
   LinkedIn: {
