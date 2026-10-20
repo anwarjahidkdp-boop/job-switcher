@@ -6,6 +6,8 @@ import { buildForward, validRecipient, type IntakeEnv } from "./handler";
 
 interface Env extends IntakeEnv {
   RAW?: R2Bucket;
+  // Service binding to the app Worker: one workers.dev Worker cannot fetch another of the same account directly.
+  APP?: Fetcher;
 }
 
 const worker = {
@@ -24,7 +26,7 @@ const worker = {
     }
 
     const { url, init } = await buildForward(env, message.to, raw, rawKey);
-    const res = await fetch(url, init);
+    const res = env.APP ? await env.APP.fetch(url, init) : await fetch(url, init);
     if (res.status === 401 || res.status === 400) {
       // Bad signature / unknown alias: bounce so the sender (Gmail) shows a failure instead of silently losing it.
       message.setReject("Recipient not accepted");

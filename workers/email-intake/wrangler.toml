@@ -12,6 +12,11 @@ APP_URL = "https://job-switcher.jobswitcher.workers.dev"
 # Reject anything larger than this many bytes (alert emails are small).
 MAX_BYTES = "5000000"
 
+# Calls the app through a service binding (a plain fetch between two workers.dev Workers is refused).
+[[services]]
+binding = "APP"
+service = "job-switcher"
+
 # Secret (do NOT put it here): npx wrangler secret put INBOUND_SHARED_SECRET
 # Must equal INBOUND_SHARED_SECRET in the app's environment.
 
