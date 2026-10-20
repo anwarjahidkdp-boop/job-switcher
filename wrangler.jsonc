@@ -6,13 +6,15 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "observability": { "enabled": true },
+  // The app's public address; Cloudflare creates the DNS record. workers.dev keeps working too.
+  "routes": [{ "pattern": "jobpao.app", "custom_domain": true }],
   // Keep variables and secrets set in the Cloudflare dashboard (bKash number, ADMIN_EMAILS, ...) across deploys.
   "keep_vars": true,
   // Public, non-secret runtime settings. Personal values (bKash number, admin email) are set in the dashboard.
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://hplxsueitluutdbkbupi.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwbHhzdWVpdGx1dXRkYmtidXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyMjc3NjcsImV4cCI6MjEwNzgwMzc2N30.71pxoXFWYU9UN0_0LQvTfQ53aIw8xII7PBJ-L3s-MwQ",
-    "NEXT_PUBLIC_APP_URL": "https://job-switcher.jobswitcher.workers.dev",
+    "NEXT_PUBLIC_APP_URL": "https://jobpao.app",
     "PAYMENT_METHODS": "manual",
     "BKASH_MANUAL_ACCOUNT_TYPE": "personal"
   }

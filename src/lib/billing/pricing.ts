@@ -35,9 +35,9 @@ export function formatPrice(minor: number, currency: string): string {
   return `${SYMBOL[currency] ?? `${currency} `}${n}`;
 }
 
-/** The monthly price as a daily amount: whole taka in Bangladesh (৳190 → ৳6), cents elsewhere. */
+/** The monthly price as a daily amount, rounded up: whole taka in Bangladesh (৳190 → ৳7), cents elsewhere. */
 export function perDay(p: { minor: number; currency: string }): string {
-  const day = p.currency === "BDT" ? Math.round(p.minor / 30 / 100) * 100 : Math.ceil(p.minor / 30);
+  const day = p.currency === "BDT" ? Math.ceil(p.minor / 30 / 100) * 100 : Math.ceil(p.minor / 30);
   return formatPrice(day, p.currency);
 }
 
