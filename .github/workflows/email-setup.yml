@@ -1,0 +1,35 @@
+name: Email intake
+# Deploys the email-intake Worker (it receives forwarded job-alert emails) and gives it and the app a
+# fresh shared signing secret. Runs when this file changes or by hand; re-running rotates the secret on both.
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/email-setup.yml, workers/email-intake/**]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+env:
+  APP_URL: https://job-switcher.jobswitcher.workers.dev
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/email-intake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Deploy the email-intake Worker
+        run: npx wrangler deploy --var "APP_URL:$APP_URL"
+      - name: Set the shared signing secret on both Workers
+        run: |
+          s=$(openssl rand -hex 32)
+          printf '%s' "$s" | npx wrangler secret put INBOUND_SHARED_SECRET
+          printf '%s' "$s" | npx wrangler secret put INBOUND_SHARED_SECRET --name job-switcher
