@@ -49,6 +49,12 @@ const INTERVIEW: [string, string, string][] = [
 ];
 const YOU = ["Upload your CV", "Review and approve"];
 const US = ["Finds jobs daily", "Puts your best matches first", "Tailors your CV", "Writes your cover letter", "Drafts the application email", "Lists every document needed", "Reminds you of deadlines", "Preps you for interviews"];
+// Hero: what the assistant does, lit up one step after another.
+const RAIL: [string, string, string][] = [
+  ["radar", "Finds your best-matched jobs", "New jobs every day, ranked by fit."],
+  ["cv", "Prepares every application", "CV, cover letter, email and documents."],
+  ["chat", "Gets you ready for the interview", "Likely questions, answered from your CV."],
+];
 const STEPS: [string, string][] = [
   ["Upload your CV", "PDF, Word or a photo of each page."],
   ["Get matched", "Fresh jobs, scored against your profile."],
@@ -77,11 +83,11 @@ export default async function Landing() {
         <HeroStage>
           <p className="lp-tag"><span className="lp-dot" />Your personal job assistant</p>
           <h1>Your job <span>assistant.</span></h1>
-          <ul className="lp-pts lp-pts-c">
-            <li><span className="lp-pt-ic"><Icon name="radar" /></span><b>Finds your best-matched jobs</b></li>
-            <li><span className="lp-pt-ic"><Icon name="cv" /></span><b>Prepares every application</b></li>
-            <li><span className="lp-pt-ic"><Icon name="chat" /></span><b>Gets you ready for the interview</b></li>
-          </ul>
+          <ol className="lp-rail">
+            {RAIL.map(([ic, h, p], i) => (
+              <li key={h}><span className="lp-rail-ic"><Icon name={ic} /></span><div><small>0{i + 1}</small><b>{h}</b><span>{p}</span></div></li>
+            ))}
+          </ol>
           <p className="lp-teachip"><Icon name="cup" /><span><b>Your own job assistant, for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b></span></p>
           <div className="lp-cta">
             <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
