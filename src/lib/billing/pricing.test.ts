@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { countryFromHeader, formatPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
+import { CARD_USD, cardUsd, countryFromHeader, formatPrice, MIN_CARD_USD, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
 
 describe("country pricing", () => {
-  it("charges ৳190 in Bangladesh and the Gulf at 29", () => {
+  it("charges ৳190 in Bangladesh and the Gulf at 35", () => {
     expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 19000 });
-    expect(proPrice("AE")).toEqual({ country: "AE", currency: "AED", minor: 2900 });
-    expect(proPrice("SA")).toEqual({ country: "SA", currency: "SAR", minor: 2900 });
+    expect(proPrice("AE")).toEqual({ country: "AE", currency: "AED", minor: 3500 });
+    expect(proPrice("SA")).toEqual({ country: "SA", currency: "SAR", minor: 3500 });
     expect(proPrice("nope").country).toBe("BD");
   });
   it("formats local prices", () => {
@@ -19,6 +19,11 @@ describe("country pricing", () => {
     expect(countryFromHeader("IN")).toBe("XX");
     expect(countryFromHeader("XX")).toBe("XX");
     expect(countryFromHeader(null)).toBe("BD");
+  });
+  it("never charges a card less than US$9", () => {
+    for (const [c, v] of Object.entries(CARD_USD)) if (c !== "BD") expect(v).toBeGreaterThanOrEqual(MIN_CARD_USD);
+    expect(cardUsd("nope")).toBe(900);
+    expect(cardUsd("GB")).toBe(1049);
   });
   it("only taka is payable today", () => {
     expect(PAYABLE_CURRENCIES).toEqual(["BDT"]);

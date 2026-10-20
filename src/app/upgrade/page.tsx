@@ -3,12 +3,13 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
 import { proPlan, proPriceFor } from "@/lib/server/billing";
-import { formatPrice, PAYABLE_CURRENCIES } from "@/lib/billing/pricing";
+import { cardUsd, formatPrice, PAYABLE_CURRENCIES } from "@/lib/billing/pricing";
+import { lemonConfig } from "@/lib/billing/lemonsqueezy";
 import { cname } from "@/lib/countries";
 import Link from "next/link";
 import { billingConfig, formatTaka } from "@/lib/billing/manual";
 import { fmtDate } from "@/lib/dates";
-import { CheckoutButton, ManualPaymentForm } from "./client";
+import { CardCheckoutButton, CheckoutButton, ManualPaymentForm } from "./client";
 
 export const metadata = { title: "Upgrade to Pro" };
 
@@ -18,6 +19,7 @@ const BANNERS: Record<string, [string, string]> = {
   failure: ["warn", "bKash did not confirm the payment, so Pro was not activated. If money left your account, contact us with the TrxID."],
   error: ["warn", "We could not check the payment with bKash just now. If money left your account, contact us with the TrxID."],
   unknown: ["warn", "We could not find that payment."],
+  card: ["ok", "Thank you. Pro starts as soon as Lemon Squeezy confirms your card payment, usually within a minute. Refresh this page to see it."],
 };
 const inFuture = (iso: string) => Date.parse(iso) > Date.now();
 const STATUS: Record<string, string> = { pending: "Waiting for review", approved: "Confirmed", rejected: "Not confirmed", failed: "Failed", canceled: "Cancelled", initiated: "Not finished" };
@@ -29,15 +31,18 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
     proPlan(supabase),
     trialLabel(supabase, user.id),
     supabase.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", user.id).maybeSingle(),
-    supabase.from("payments").select("id, method, amount_minor, trx_id, status, period_end, review_note, created_at").eq("user_id", user.id).neq("status", "initiated").order("created_at", { ascending: false }).limit(10),
-    supabase.from("profiles").select("home_country").eq("id", user.id).maybeSingle(),
+    supabase.from("payments").select("id, method, amount_minor, currency, trx_id, status, period_end, review_note, created_at").eq("user_id", user.id).neq("status", "initiated").order("created_at", { ascending: false }).limit(10),
+    supabase.from("profiles").select("target_country").eq("id", user.id).maybeSingle(),
   ]);
-  const local = await proPriceFor(supabase, profRes.data?.home_country);
+  const local = await proPriceFor(supabase, profRes.data?.target_country);
   const payable = PAYABLE_CURRENCIES.includes(local.currency);
   const cfg = payable ? billingConfig() : { manual: null, checkout: false };
   const sub = subRes.data;
   const payments = payRes.data || [];
   const price = formatTaka(plan.priceMinor);
+  const card = !payable && !!lemonConfig();
+  const usd = formatPrice(cardUsd(local.country), "USD");
+  const where = local.country === "XX" ? "your chosen country" : cname(local.country);
   const banner = sp.payment ? BANNERS[sp.payment] : null;
   const activeUntil = sub?.status === "active" && sub.current_period_end && inFuture(sub.current_period_end) ? sub.current_period_end : null;
   return (
@@ -51,7 +56,13 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
           <h3>Your plan</h3>
           <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds 30 days after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts 30 days of Pro today.</> : <>You are on the free plan. Paying starts 30 days of Pro.</>}</p>
         </div>
-        {!payable ? <p className="note" style={{ marginTop: 18 }}>Online payment for people living in {local.country === "XX" ? "your country" : cname(local.country)} is coming soon. bKash works only in Bangladesh. If you live in Bangladesh, change <b>I live in</b> on your <Link href="/profile">profile</Link>.</p> : null}
+        {!payable ? (
+          <div className="card panel stack" style={{ marginTop: 14 }}>
+            <h3 style={{ margin: 0 }}>Pay by card</h3>
+            <p className="small muted">For jobs in {where}: <b>{formatPrice(local.minor, local.currency)}</b>{local.currency === "USD" ? null : <>, charged as <b>{usd}</b></>} for 30 days. Secure checkout by Lemon Squeezy, our payment partner: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows your target country; change it on your <Link href="/profile">profile</Link>.</p>
+            {card ? <CardCheckoutButton label={`Pay ${usd} by card`} /> : <p className="note">Card payment opens very soon. Your trial features keep working until the trial ends.</p>}
+          </div>
+        ) : null}
         {payable && !cfg.manual && !cfg.checkout ? <p className="note" style={{ marginTop: 18 }}>Payments are not open yet. Your trial features keep working until the trial ends.</p> : null}
         {cfg.checkout ? (
           <div className="card panel stack" style={{ marginTop: 14 }}>
@@ -79,7 +90,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
             <h3>Your payments</h3>
             <table className="small" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead><tr><th align="left">Date</th><th align="left">Amount</th><th align="left">TrxID</th><th align="left">Status</th></tr></thead>
-              <tbody>{payments.map((p) => <tr key={p.id}><td>{fmtDate(p.created_at.slice(0, 10))}</td><td>{formatTaka(p.amount_minor)}</td><td>{p.trx_id || "-"}</td><td>{STATUS[p.status] || p.status}{p.status === "rejected" && p.review_note ? `: ${p.review_note}` : ""}</td></tr>)}</tbody>
+              <tbody>{payments.map((p) => <tr key={p.id}><td>{fmtDate(p.created_at.slice(0, 10))}</td><td>{p.currency && p.currency !== "BDT" ? formatPrice(p.amount_minor, p.currency) : formatTaka(p.amount_minor)}</td><td>{p.trx_id || "-"}</td><td>{STATUS[p.status] || p.status}{p.status === "rejected" && p.review_note ? `: ${p.review_note}` : ""}</td></tr>)}</tbody>
             </table>
           </div>
         ) : null}

@@ -9,10 +9,11 @@ import { billingConfig, bkashAmount, extendPeriod, formatTaka, normaliseMsisdn, 
 import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
-import { PAYABLE_CURRENCIES, proPrice, type Price } from "../billing/pricing";
+import { cardUsd, formatPrice, PAYABLE_CURRENCIES, proPrice, type Price } from "../billing/pricing";
+import { createLemonCheckout, lemonConfig, parseOrderEvent, verifySignature } from "../billing/lemonsqueezy";
 
 export interface PaymentRow {
-  id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout"; amount_minor: number; currency: string;
+  id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy"; amount_minor: number; currency: string;
   trx_id: string | null; payer_msisdn: string | null; bkash_payment_id: string | null; invoice: string;
   status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled"; period_end: string | null;
   review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string;
@@ -28,18 +29,22 @@ export async function proPlan(db: SupabaseClient): Promise<{ code: string; name:
   return { code: "pro", name: data?.name || "JobPao Pro", priceMinor: Number(data?.price_minor ?? 19000) };
 }
 
-/** Pro price for the country the user lives in (plan_prices, falling back to the built-in table). */
+/** Pro price for the country the user wants to work in (plan_prices, falling back to the built-in table). */
 export async function proPriceFor(db: SupabaseClient, country: unknown): Promise<Price> {
   const fallback = proPrice(country);
   const { data } = await db.from("plan_prices").select("currency, price_minor").eq("plan_code", "pro").eq("country", fallback.country).maybeSingle();
   return data ? { country: fallback.country, currency: String(data.currency), minor: Number(data.price_minor) } : fallback;
 }
 
-/** bKash charges taka, so it is offered only to people whose price is in a payable currency (Bangladesh today). */
+/** The price, and so the way to pay, follows the target country: Bangladesh pays with bKash, everyone else by card. */
+export async function priceForUser(admin: SupabaseClient, userId: string): Promise<Price> {
+  const { data } = await admin.from("profiles").select("target_country").eq("id", userId).maybeSingle();
+  return proPriceFor(admin, data?.target_country);
+}
+
 async function assertBkashPrice(ctx: { admin: SupabaseClient; userId: string }) {
-  const { data } = await ctx.admin.from("profiles").select("home_country").eq("id", ctx.userId).maybeSingle();
-  const price = await proPriceFor(ctx.admin, data?.home_country);
-  if (!PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("Payment in your country is not available yet. bKash works only for people living in Bangladesh.");
+  const price = await priceForUser(ctx.admin, ctx.userId);
+  if (!PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("bKash is for jobs in Bangladesh. For other countries, pay by card.");
 }
 
 /** Manual path: the user paid with Send Money / Payment in their bKash app and gives us the TrxID. Stored as pending. */
@@ -81,18 +86,18 @@ async function activate(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_
   const { data: sub } = await admin.from("subscriptions").select("status, current_period_end").eq("user_id", p.user_id).maybeSingle();
   const periodEnd = extendPeriod(sub?.current_period_end, sub?.status);
   const { error } = await admin.from("subscriptions").update({
-    plan_code: p.plan_code, status: "active", current_period_end: periodEnd, payment_provider: p.method === "bkash_checkout" ? "bkash_checkout" : "bkash", payment_ref: p.trx_id,
+    plan_code: p.plan_code, status: "active", current_period_end: periodEnd, payment_provider: p.method === "lemonsqueezy" ? "lemonsqueezy" : p.method === "bkash_checkout" ? "bkash_checkout" : "bkash", payment_ref: p.trx_id,
   }).eq("user_id", p.user_id);
   if (error) throw error;
   await admin.from("payments").update({ period_end: periodEnd }).eq("id", p.id);
   return periodEnd;
 }
 
-async function notify(admin: SupabaseClient, userId: string, kind: "approved" | "rejected", info: { periodEnd?: string; trx: string | null; amountMinor: number; note?: string | null }) {
+async function notify(admin: SupabaseClient, userId: string, kind: "approved" | "rejected", info: { periodEnd?: string; trx: string | null; amountMinor: number; currency?: string; note?: string | null }) {
   if (!emailProvider()) return;
   const { data: prof } = await admin.from("profiles").select("email, full_name").eq("id", userId).maybeSingle();
   if (!prof?.email) return;
-  const m = paymentEmail({ kind, name: prof.full_name || "", amount: formatTaka(info.amountMinor), trx: info.trx, periodEnd: info.periodEnd ?? null, note: info.note ?? null, link: `${publicEnv.appUrl}/upgrade` });
+  const m = paymentEmail({ kind, name: prof.full_name || "", amount: info.currency && info.currency !== "BDT" ? formatPrice(info.amountMinor, info.currency) : formatTaka(info.amountMinor), trx: info.trx, periodEnd: info.periodEnd ?? null, note: info.note ?? null, link: `${publicEnv.appUrl}/upgrade` });
   await sendEmail({ to: prof.email, ...m }).catch((e) => console.error("payment email", e));
 }
 
@@ -186,4 +191,58 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
   const periodEnd = await activate(admin, claimed as PaymentRow);
   await notify(admin, p.user_id, "approved", { periodEnd, trx: v.trxID, amountMinor: p.amount_minor });
   return "success";
+}
+
+// ---------------------------------------------------------------------------
+// Card payments through Lemon Squeezy (every target country except Bangladesh)
+// ---------------------------------------------------------------------------
+export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }) {
+  const cfg = lemonConfig();
+  if (!cfg) throw new PaymentError("Card payment is not open yet. Your trial features keep working until the trial ends.");
+  const price = await priceForUser(ctx.admin, ctx.userId);
+  if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("For jobs in Bangladesh, pay with bKash.");
+  const usd = cardUsd(price.country);
+  const plan = await proPlan(ctx.admin);
+  const { data: prof } = await ctx.admin.from("profiles").select("email").eq("id", ctx.userId).maybeSingle();
+  const { data: row, error } = await ctx.admin.from("payments").insert({
+    user_id: ctx.userId, plan_code: plan.code, method: "lemonsqueezy", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: PERIOD_DAYS,
+  }).select("id").single();
+  if (error) throw error;
+  try {
+    const url = await createLemonCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, redirectUrl: `${publicEnv.appUrl}/upgrade?payment=card`, label: `${plan.name}, ${PERIOD_DAYS} days` });
+    return { url };
+  } catch (e) {
+    console.error("lemonsqueezy checkout", e);
+    await ctx.admin.from("payments").update({ status: "failed", review_note: e instanceof Error ? e.message.slice(0, 300) : "checkout failed" }).eq("id", row.id);
+    throw new PaymentError("Card checkout could not start. Try again in a minute.");
+  }
+}
+
+/**
+ * Signed webhook from Lemon Squeezy. Pro starts only for a paid order_created event from our store whose payment id,
+ * currency and amount match a card payment we started. Safe to receive twice: the row is claimed atomically.
+ */
+export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string, signature: string | null): Promise<{ status: number; note: string }> {
+  const cfg = lemonConfig();
+  if (!cfg) return { status: 503, note: "not configured" };
+  if (!verifySignature(rawBody, signature, cfg.webhookSecret)) return { status: 401, note: "bad signature" };
+  let body: unknown;
+  try { body = JSON.parse(rawBody); } catch { return { status: 400, note: "bad json" }; }
+  const ev = parseOrderEvent(body);
+  if (!ev || ev.event !== "order_created") return { status: 200, note: "ignored" };
+  if (ev.storeId !== cfg.storeId || !ev.paymentId || ev.status !== "paid") return { status: 200, note: "not ours or not paid" };
+  const { data: p } = await admin.from("payments").select("id, user_id, plan_code, amount_minor, currency, status, method").eq("id", ev.paymentId).maybeSingle();
+  if (!p || p.method !== "lemonsqueezy") return { status: 200, note: "unknown payment" };
+  if (p.status === "approved") return { status: 200, note: "already done" };
+  if (ev.currency !== "USD" || ev.subtotal !== p.amount_minor) {
+    await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.subtotal}`, provider_order_id: ev.orderId }).eq("id", p.id).eq("status", "initiated");
+    return { status: 200, note: "amount mismatch" };
+  }
+  const { data: claimed, error } = await admin.from("payments").update({ status: "approved", trx_id: `LS-${ev.orderId}`, provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook", reviewed_at: new Date().toISOString() })
+    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method").maybeSingle();
+  if (error) throw error;
+  if (!claimed) return { status: 200, note: "already done" };
+  const periodEnd = await activate(admin, claimed as PaymentRow);
+  await notify(admin, p.user_id, "approved", { periodEnd, trx: `LS-${ev.orderId}`, amountMinor: p.amount_minor, currency: "USD" });
+  return { status: 200, note: "activated" };
 }

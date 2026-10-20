@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
 
-export function CheckoutButton({ label }: { label: string }) {
+export function CheckoutButton({ label, endpoint = "/api/billing/checkout", opening = "Opening bKash" }: { label: string; endpoint?: string; opening?: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return (
@@ -11,16 +11,18 @@ export function CheckoutButton({ label }: { label: string }) {
       <button className="btn btn-primary" disabled={busy} onClick={async () => {
         setBusy(true); setErr("");
         try {
-          const r = await fetch("/api/billing/checkout", { method: "POST" });
+          const r = await fetch(endpoint, { method: "POST" });
           const j = await r.json().catch(() => ({}));
           if (!r.ok || !j.url) throw new Error(j.error || "Could not start the payment.");
           window.location.assign(j.url);
         } catch (e) { setErr((e as Error).message); setBusy(false); }
-      }}>{busy ? <><Spinner /> Opening bKash</> : label}</button>
+      }}>{busy ? <><Spinner /> {opening}</> : label}</button>
       {err ? <p className="err" style={{ marginTop: 8 }}>{err}</p> : null}
     </div>
   );
 }
+
+export const CardCheckoutButton = ({ label }: { label: string }) => <CheckoutButton label={label} endpoint="/api/billing/card" opening="Opening secure checkout" />;
 
 export function ManualPaymentForm() {
   const router = useRouter();

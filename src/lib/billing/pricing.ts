@@ -1,25 +1,31 @@
-// Pro price per country the user lives in (profiles.home_country). Bangladesh is the launch market and the only
-// country where payment works today (bKash, taka). Other prices are shown so people know the cost; paying in
-// those currencies needs an international card provider, which is not built yet.
-// The database table plan_prices is the source of truth; this table is the fallback and the seed.
+// Pro price per country the user wants to work in (profiles.target_country, owner decision 2026-10-20).
+// Bangladesh pays in taka with bKash; every other country pays by card through Lemon Squeezy, charged in US dollars
+// (CARD_USD below) while the local price is shown next to it.
+// The database table plan_prices is the source of truth for the shown price; this table is the fallback and the seed.
 import { cc, type CountryCode } from "../countries";
 
 export interface Price { country: CountryCode; currency: string; minor: number }
 
+// Outside Bangladesh no price is under US$9 (owner decision 2026-10-20); local amounts are about that or more.
 export const PRO_PRICES: Record<CountryCode, { currency: string; minor: number }> = {
   BD: { currency: "BDT", minor: 19000 },
-  AE: { currency: "AED", minor: 2900 },
-  SA: { currency: "SAR", minor: 2900 },
-  MY: { currency: "MYR", minor: 1500 },
+  AE: { currency: "AED", minor: 3500 },
+  SA: { currency: "SAR", minor: 3500 },
+  MY: { currency: "MYR", minor: 4200 },
   GB: { currency: "GBP", minor: 799 },
   CA: { currency: "CAD", minor: 1299 },
   AU: { currency: "AUD", minor: 1499 },
   US: { currency: "USD", minor: 999 },
-  XX: { currency: "USD", minor: 499 },
+  XX: { currency: "USD", minor: 900 },
 };
 
-/** Currencies that can be paid today. */
+/** Currencies bKash can take. */
 export const PAYABLE_CURRENCIES = ["BDT"];
+
+/** What a card payment through Lemon Squeezy charges, in US cents, per target country (about the local price). */
+export const CARD_USD: Record<CountryCode, number> = { BD: 0, AE: 949, SA: 949, MY: 949, GB: 1049, CA: 949, AU: 999, US: 999, XX: 900 };
+export const MIN_CARD_USD = 900;
+export const cardUsd = (country: unknown) => CARD_USD[cc(country)] || CARD_USD.XX;
 
 export function proPrice(country: unknown): Price {
   const c = cc(country);
