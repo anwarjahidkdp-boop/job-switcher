@@ -4,10 +4,10 @@ import { HeroPhone } from "./HeroPhone";
 
 const RM = "(prefers-reduced-motion: reduce)";
 const subscribe = (cb: () => void) => { const m = window.matchMedia?.(RM); m?.addEventListener("change", cb); return () => m?.removeEventListener("change", cb); };
-const src = (id: string, w: number, wide?: boolean) => wide
-  // Two-person scenes: keep the whole frame so both people stay in view.
-  ? `https://images.unsplash.com/${id}?auto=format&fit=max&w=${w}&q=85`
-  : `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${Math.round(w * 0.92)}&q=85&crop=faces,edges`;
+// Whole photo at its own shape (no server crop), so the hero never looks zoomed in or cut.
+const src = (id: string, w: number) => `https://images.unsplash.com/${id}?auto=format&fit=max&w=${w}&q=85`;
+// Phones: a tall, face-centred crop of one-person photos so they fill the screen.
+const tall = (id: string, w: number) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${Math.round(w * 1.45)}&q=85&crop=faces`;
 const HOLD = 4600;
 
 const Tick = () => <span className="hp-tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>;
@@ -77,9 +77,12 @@ export function HeroStage({ children }: { children: ReactNode }) {
         {SLIDES.map((s, i) => (
           <figure key={s.id} className={`hs-slide${s.wide ? " hs-wide" : ""}${cls(i)}`} style={{ ["--from" as string]: i % 2 ? "-8%" : "8%" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hs-soft" src={src(s.id, 480, s.wide)} alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hs-sharp" src={src(s.id, 1600, s.wide)} srcSet={`${src(s.id, 900, s.wide)} 900w, ${src(s.id, 1300, s.wide)} 1300w, ${src(s.id, 1800, s.wide)} 1800w, ${src(s.id, 2400, s.wide)} 2400w`} sizes="(max-width: 900px) 100vw, 62vw" alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" />
+            <img className="hs-soft" src={src(s.id, 480)} alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" />
+            <picture>
+              {s.wide ? null : <source media="(max-width: 900px)" srcSet={`${tall(s.id, 600)} 600w, ${tall(s.id, 900)} 900w, ${tall(s.id, 1200)} 1200w`} sizes="100vw" />}
+              { }
+              <img className="hs-sharp" src={src(s.id, 1600)} srcSet={`${src(s.id, 900)} 900w, ${src(s.id, 1300)} 1300w, ${src(s.id, 1800)} 1800w, ${src(s.id, 2400)} 2400w`} sizes="(max-width: 900px) 100vw, 62vw" alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" />
+            </picture>
           </figure>
         ))}
       </div>

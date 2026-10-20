@@ -422,11 +422,11 @@ a.lp-btn-ghost{color:var(--ink)}
 .hs-soft{filter:blur(22px) saturate(1.1);transform:scale(1.1);opacity:.7}
 .hs-sharp{-webkit-mask-image:linear-gradient(90deg,transparent 8%,#000 40%);mask-image:linear-gradient(90deg,transparent 8%,#000 40%)}
 /* Two-person scenes: shorter fade so the person on the left stays visible */
-.hs-wide .hs-sharp{-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 12%);mask-image:linear-gradient(90deg,transparent 0%,#000 12%)}
 /* Two-person scenes: show the whole photo (no crop) at the right, blurred copy behind, and a wider, softer panel so nobody is cut off or faded out. */
 .hs-bg{transition:left .9s cubic-bezier(.2,.8,.2,1)}
 .hs-bg-wide{left:49%;-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 7%),linear-gradient(0deg,transparent 0%,#000 10%);mask-image:linear-gradient(90deg,transparent 0%,#000 7%),linear-gradient(0deg,transparent 0%,#000 10%)}
-.hs-wide .hs-sharp{object-fit:contain;object-position:100% 55%}
+/* The two-person photo keeps its own 3:2 shape with feathered edges, so it fills the panel without a hard box and nobody is cut. */
+.hs-wide .hs-sharp{inset:auto 0 auto auto;top:52%;width:100%;height:auto;aspect-ratio:3/2;transform:translateY(-50%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 12%),linear-gradient(0deg,transparent 0%,#000 14%,#000 86%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0%,#000 12%),linear-gradient(0deg,transparent 0%,#000 14%,#000 86%,transparent 100%);mask-composite:intersect}
 .hs-wide .hs-soft{opacity:.85}
 .hs-over.hs-ow>*{top:auto;bottom:36px}
 .hs-bg::after{content:"";position:absolute;inset:0;z-index:3;background:linear-gradient(0deg,rgba(10,21,51,.45),transparent 22%)}
@@ -476,21 +476,21 @@ a.lp-btn-ghost{color:var(--ink)}
 @media (max-width:1100px){.hs-bg-wide{left:44%}.hs-phone{left:-20px}.hs-call,.hs-a,.hs-new,.hs-b,.hs-prep,.hs-hired{right:-8px}.hs-a{top:310px}.hs-call,.hs-new,.hs-hired{top:350px}.hs-b{top:395px}.hs-prep{top:320px}}
 @media (max-width:900px){
   .lp-hero.hs .lp-hero-in{grid-template-columns:minmax(0,1fr);padding-block:40px 88px}
-  .hs-right{height:540px;max-width:440px;width:100%;margin:0 auto}
-  .hs-bg{left:0;top:auto;height:600px;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 30%);mask-image:linear-gradient(180deg,transparent 0%,#000 30%)}
+  /* Phones: the photo story comes first, at the top, then the text. */
+  .lp-hero.hs{--hs-h:min(86svh,720px)}
+  .lp-hero.hs .lp-hero-in{padding-top:16px}
+  .hs-right{order:-1;height:calc(var(--hs-h) - 40px);max-width:440px;width:100%;margin:0 auto}
+  .hs-bg,.hs-bg-wide{left:0;top:0;bottom:auto;height:var(--hs-h);-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 22%);mask-image:linear-gradient(0deg,transparent 0%,#000 22%)}
   .hs-sharp{-webkit-mask-image:none;mask-image:none}
-  .hs-bg-wide{left:0}
-  .hs-wide .hs-sharp{object-position:50% 40%}
-  .hs-over.hs-ow>*{bottom:20px}
-  .hs-phone{left:0;transform:scale(.56)}
-  .hs-step{top:60px;right:0}
-  .hs-a{top:330px;right:0}
-  .hs-call,.hs-new,.hs-hired{top:360px;right:0}
-  .hs-b{top:410px;right:0}
-  .hs-prep{top:340px;right:0}
+  .hs-slide img{object-position:50% 35%}
+  .hs-wide .hs-sharp{top:40%;width:116%;right:-8%;-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 14%,#000 86%,transparent 100%);mask-image:linear-gradient(0deg,transparent 0%,#000 14%,#000 86%,transparent 100%)}
+  .hs-phone{left:0;transform:scale(.48)}
+  .hs-step{top:8px;right:0}
+  .hs-over>*{top:auto!important;bottom:24px;right:0!important}
+  .hs-over>.hs-a{bottom:92px}
   .hs-foot{bottom:-30px;left:0;justify-content:center}
 }
-@media (max-width:520px){.hs-chip{white-space:normal;max-width:70%}.hs-right{height:500px}.hs-bg{height:540px}.hs-a{top:310px}.hs-call,.hs-new,.hs-hired{top:340px}.hs-b{top:390px}.hs-prep{top:320px}}
+@media (max-width:520px){.hs-chip{white-space:normal;max-width:62%}}
 /* Sections get their own colour so the page doesn't read as one block */
 .lp-auto{position:relative;padding:32px 28px 30px;border-radius:24px;background:linear-gradient(120deg,#FFF8EA,#F6EBD3 45%,#FFF8EA 90%);background-size:220% 100%;animation:lp-sheen 14s ease-in-out infinite alternate;border:1px solid #EBDDBE}
 .lp-auto .lp-kicker{color:var(--gold)}
