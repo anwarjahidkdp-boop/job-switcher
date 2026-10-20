@@ -53,6 +53,10 @@ main{padding-block:28px 64px}
 .btn-text{background:none;border:0;color:var(--accent);padding:6px 4px;font-weight:600;cursor:pointer}
 .btn[disabled],.btn.disabled{opacity:.55;cursor:default;pointer-events:none}
 .btn-sm{padding:7px 12px;font-size:14px}
+/* Log in and Sign up stay side by side on one line, even on small phones */
+.top-cta{display:flex;gap:8px;flex-shrink:0}
+.top-cta .btn{white-space:nowrap}
+@media (max-width:420px){.top .wrap:has(.top-cta){gap:10px;flex-wrap:nowrap}.top .brand{font-size:16px;gap:8px;min-width:0}.top-cta{gap:6px}.top-cta .btn-sm{padding:6px 10px;font-size:13px}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px}
 .muted{color:var(--ink-2)}
 .small{font-size:13px}
@@ -483,12 +487,17 @@ a.lp-btn-ghost{color:var(--ink)}
   .hs-bg,.hs-bg-wide{left:0;top:0;bottom:auto;height:var(--hs-h);-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 22%);mask-image:linear-gradient(0deg,transparent 0%,#000 22%)}
   .hs-sharp{-webkit-mask-image:none;mask-image:none}
   .hs-slide img{object-position:50% 35%}
-  .hs-wide .hs-sharp{top:40%;width:116%;right:-8%;-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 14%,#000 86%,transparent 100%);mask-image:linear-gradient(0deg,transparent 0%,#000 14%,#000 86%,transparent 100%)}
+  /* Two-person photos: edge to edge across the screen at their own shape, nothing cut; the phone sits in the space below. */
+  .hs-wide .hs-sharp{top:52px;right:0;width:100%;transform:none;-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 16%);mask-image:linear-gradient(0deg,transparent 0%,#000 16%)}
+  .hs-wide .hs-soft{opacity:0}
+  .hs-phone-away{opacity:1;translate:none;pointer-events:auto}
+  .hs-over.hs-ow>*{top:calc(52px + 66.7vw - 20px)!important;bottom:auto}
   .hs-phone{left:0;transform:scale(.48)}
   .hs-step{top:8px;right:0}
   .hs-over>*{top:auto!important;bottom:24px;right:0!important}
   .hs-over>.hs-a{bottom:92px}
   .hs-foot{bottom:-30px;left:0;justify-content:center}
+  .hs-dots{bottom:4px}
 }
 @media (max-width:520px){.hs-chip{white-space:normal;max-width:62%}}
 /* Sections get their own colour so the page doesn't read as one block */
