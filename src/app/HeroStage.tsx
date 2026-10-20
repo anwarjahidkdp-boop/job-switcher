@@ -4,7 +4,7 @@ import { HeroPhone } from "./HeroPhone";
 
 const RM = "(prefers-reduced-motion: reduce)";
 const subscribe = (cb: () => void) => { const m = window.matchMedia?.(RM); m?.addEventListener("change", cb); return () => m?.removeEventListener("change", cb); };
-const src = (id: string, w: number) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${Math.round(w * 0.92)}&q=80&crop=faces,edges`;
+const src = (id: string, w: number) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${Math.round(w * 0.92)}&q=85&crop=faces,edges`;
 const HOLD = 4600;
 
 const Tick = () => <span className="hp-tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>;
@@ -65,7 +65,7 @@ export function HeroStage({ children }: { children: ReactNode }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="hs-soft" src={src(s.id, 480)} alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hs-sharp" src={src(s.id, 1200)} srcSet={`${src(s.id, 800)} 800w, ${src(s.id, 1200)} 1200w, ${src(s.id, 1600)} 1600w`} sizes="(max-width: 900px) 100vw, 60vw" alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" style={s.pos ? { objectPosition: s.pos } : undefined} />
+            <img className="hs-sharp" src={src(s.id, 1600)} srcSet={`${src(s.id, 900)} 900w, ${src(s.id, 1300)} 1300w, ${src(s.id, 1800)} 1800w, ${src(s.id, 2400)} 2400w`} sizes="(max-width: 900px) 100vw, 62vw" alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" style={s.pos ? { objectPosition: s.pos } : undefined} />
           </figure>
         ))}
       </div>
