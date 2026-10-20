@@ -2,10 +2,12 @@
  * Plain, click-by-click steps for turning on email job alerts on each job site.
  * Menu names on these sites change from time to time, so the steps name what to look for, not exact pixels.
  */
-export type PortalHelp = { url: string; steps: string[] };
+/** `from` is what the Gmail filter matches: the site's alert sender, or its domain when alerts come from several addresses. */
+export type PortalHelp = { url: string; from: string; steps: string[] };
 
 export const PORTAL_HELP: Record<string, PortalHelp> = {
   Bdjobs: {
+    from: "bdjobs.com",
     url: "https://mybdjobs.bdjobs.com/jobseeker-panel/email-notification",
     steps: [
       "Open bdjobs.com and sign in (create an account with your Gmail if you don't have one).",
@@ -16,6 +18,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   LinkedIn: {
+    from: "jobalerts-noreply@linkedin.com",
     url: "https://www.linkedin.com/jobs/",
     steps: [
       "Open linkedin.com and sign in. Click \"Jobs\" in the top bar (on the phone app, tap the Jobs tab).",
@@ -25,6 +28,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   Indeed: {
+    from: "indeed.com",
     url: "https://www.indeed.com",
     steps: [
       "Open Indeed and sign in with your Gmail.",
@@ -33,6 +37,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   Bayt: {
+    from: "bayt.com",
     url: "https://www.bayt.com",
     steps: [
       "Open bayt.com and sign in with your Gmail.",
@@ -41,6 +46,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   GulfTalent: {
+    from: "gulftalent.com",
     url: "https://www.gulftalent.com",
     steps: [
       "Open gulftalent.com and sign in with your Gmail.",
@@ -49,6 +55,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   Naukrigulf: {
+    from: "naukrigulf.com",
     url: "https://www.naukrigulf.com",
     steps: [
       "Open naukrigulf.com and sign in with your Gmail.",
@@ -57,6 +64,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   JobStreet: {
+    from: "jobstreet.com",
     url: "https://www.jobstreet.com.my",
     steps: [
       "Open JobStreet and sign in with your Gmail.",
@@ -65,6 +73,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   SEEK: {
+    from: "seek.com.au",
     url: "https://www.seek.com.au",
     steps: [
       "Open seek.com.au and sign in with your Gmail.",
@@ -73,6 +82,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   Reed: {
+    from: "reed.co.uk",
     url: "https://www.reed.co.uk",
     steps: [
       "Open reed.co.uk and sign in with your Gmail.",
@@ -81,6 +91,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     ],
   },
   "Job Bank": {
+    from: "jobbank.gc.ca",
     url: "https://www.jobbank.gc.ca",
     steps: [
       "Open jobbank.gc.ca and sign in to your Job Bank account.",

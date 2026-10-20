@@ -90,6 +90,16 @@ export async function toggleSetupStepAction(key: string) {
   revalidatePath("/setup");
 }
 
+/** Marks setup steps done (never undoes them); adding the Gmail forwarding address implies it was copied. */
+export async function completeSetupStepAction(key: string) {
+  if (!SETUP_KEYS.includes(key)) return;
+  const c = await ctx("/setup");
+  const p = await loadProfile(c.db, c.userId);
+  const steps = { ...(p?.setup_steps || {}), [key]: true, ...(key === "forward" ? { address: true } : {}) };
+  await c.db.from("profiles").update({ setup_steps: steps }).eq("id", c.userId);
+  revalidatePath("/setup");
+}
+
 export async function dismissAction(jobId: string) {
   const c = await ctx();
   await dismissJob(c, jobId);
