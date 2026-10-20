@@ -79,6 +79,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <p className="small muted">Your CV and photo are stored privately; links to them expire after a minute.</p>
             <div className="row" style={{ marginTop: 10 }}>
               {st.cvDoc?.storage_path ? <a className="btn btn-ghost btn-sm" href="/api/cv/original">Download my original CV</a> : null}
+              <Link className="btn btn-ghost btn-sm" href="/account/password">Set or change password</Link>
               <a className="btn btn-ghost btn-sm" href="/api/account/export">Export my data</a>
               <form action={backToStepAction.bind(null, "upload")}><button className="btn btn-ghost btn-sm">Upload a new CV</button></form>
             </div>
