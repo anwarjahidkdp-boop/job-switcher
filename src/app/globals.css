@@ -421,6 +421,8 @@ a.lp-btn-ghost{color:var(--ink)}
 .hs-slide img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:60% 30%;image-rendering:auto}
 .hs-soft{filter:blur(22px) saturate(1.1);transform:scale(1.1);opacity:.7}
 .hs-sharp{-webkit-mask-image:linear-gradient(90deg,transparent 8%,#000 40%);mask-image:linear-gradient(90deg,transparent 8%,#000 40%)}
+/* Two-person scenes: shorter fade so the person on the left stays visible */
+.hs-wide .hs-sharp{-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 22%);mask-image:linear-gradient(90deg,transparent 0%,#000 22%)}
 .hs-bg::after{content:"";position:absolute;inset:0;z-index:3;background:linear-gradient(0deg,rgba(10,21,51,.45),transparent 22%)}
 .hs-step{position:absolute;right:-6px;top:6px;z-index:6;display:flex;gap:8px;align-items:center;margin:0;padding:6px 14px 6px 6px;border-radius:999px;background:rgba(10,21,51,.7);border:1px solid rgba(var(--g-rgb),.4);backdrop-filter:blur(8px);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#EAF0FA;white-space:nowrap;animation:hs-in .7s ease .5s both}
 .hs-step i{font-style:normal;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--g);color:#0A1533;font-size:11px;letter-spacing:0}
