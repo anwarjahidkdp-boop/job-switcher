@@ -6,6 +6,7 @@ import { supabaseConfigured } from "@/lib/env";
 import type { Band } from "@/lib/types";
 import { headers } from "next/headers";
 import { countryFromHeader, formatPrice, proPrice } from "@/lib/billing/pricing";
+import { AutoFlow } from "./AutoFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -110,16 +111,7 @@ export default async function Landing() {
           <section className="lp-sec lp-auto">
             <p className="lp-kicker">Your career on autopilot</p>
             <h2>We do it all. You just review and approve.</h2>
-            <div className="lp-split">
-              <div className="lp-you">
-                <p className="lp-who">Your part</p>
-                <ul>{YOU.map((x) => <li key={x}><Icon name="hand" />{x}</li>)}</ul>
-              </div>
-              <div className="lp-us">
-                <p className="lp-who">We do everything else, until you&apos;re hired</p>
-                <ul>{US.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
-              </div>
-            </div>
+            <AutoFlow us={US} you={YOU} />
           </section>
 
           <section className="lp-sec lp-tailor">
