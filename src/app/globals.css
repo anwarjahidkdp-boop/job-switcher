@@ -178,6 +178,12 @@ main.lp{padding-block:0 56px}
 .lp-hero h1{font-size:clamp(36px,6vw,60px);line-height:1.04;font-weight:800;margin-top:18px;letter-spacing:-.025em}
 .lp-hero h1 span{background:linear-gradient(90deg,#FFD36A,#F29A0B);-webkit-background-clip:text;background-clip:text;color:transparent}
 .lp-lead{font-size:18px;color:var(--ink-2);margin-top:18px;max-width:30em}
+.lp-pts{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-direction:column;gap:14px;max-width:32em}
+.lp-pts li{display:flex;gap:14px;align-items:flex-start}
+.lp-pt-ic{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:rgba(245,181,54,.14);border:1px solid rgba(245,181,54,.35);color:#F5B536}
+.lp-pt-ic .lp-ic{width:22px;height:22px}
+.lp-pts b{display:block;font-family:var(--display);font-size:19px;color:var(--ink)}
+.lp-pts li span:not(.lp-pt-ic){font-size:14.5px;color:var(--ink-2)}
 .lp-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 .lp-btn{padding:13px 22px;font-size:16px;border-radius:10px}
 .lp-hero .btn-primary{box-shadow:0 8px 24px rgba(245,181,54,.3)}
@@ -209,7 +215,18 @@ a.lp-btn-ghost{color:var(--ink)}
 .lp-fcard p{font-size:14px;color:var(--ink-2);margin-top:4px}
 .lp-icwrap{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:11px;background:var(--accent-soft);color:var(--accent)}
 .lp-ic{width:22px;height:22px;flex:none}
-.lp-flow{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.55fr);gap:14px;align-items:start}
+.lp-flow{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.55fr);gap:14px;align-items:stretch}
+.lp-flow>.lp-share{padding:0;border-radius:0;grid-column:1/-1;display:flex;gap:6px;height:38px;font-size:14px}
+.lp-share>div{display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:10px;white-space:nowrap;overflow:hidden}
+.lp-share-us{background:linear-gradient(90deg,#FFD36A,#F29A0B);color:#0A1533}
+.lp-share-you{background:var(--card);border:1px solid var(--line);color:var(--ink-2);justify-content:center}
+.lp-flow.go .lp-share-us{animation:lp-grow 1.2s ease both}
+@keyframes lp-grow{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.lp-count{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.lp-count b{font-family:var(--display);font-size:44px;line-height:1;font-weight:800;color:#F5B536}
+.lp-count span{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#C9D3E6}
+.lp-count-you b{color:var(--ink-3)}
+.lp-count-you span{color:var(--ink-3)}
 .lp-flow>div{border-radius:16px;padding:22px}
 .lp-you{background:var(--card);border:1px solid var(--line)}
 .lp-us{background:linear-gradient(150deg,#0A1533,#14275A);color:#EAF2F1;box-shadow:0 16px 40px rgba(10,21,51,.25)}
@@ -277,6 +294,7 @@ a.lp-btn-ghost{color:var(--ink)}
 @media (max-width:520px){
   .lp-hero h1{font-size:38px}
   .lp-lead{font-size:16px}
+  .lp-pts b{font-size:17px}
   .lp-cta .lp-btn{flex:1 1 100%}
   .lp-feat{gap:10px}
   .lp-fcard{padding:16px}

@@ -14,8 +14,12 @@ export function AutoFlow({ us, you }: { us: string[]; you: string[] }) {
   }, []);
   return (
     <div ref={ref} className={`lp-flow${go ? " go" : ""}`}>
+      <div className="lp-share" aria-label={`JobPao does ${us.length} jobs, you do ${you.length}`}>
+        <div className="lp-share-us" style={{ flexGrow: us.length }}><b>JobPao</b> {us.length} jobs</div>
+        <div className="lp-share-you" style={{ flexGrow: you.length }}><b>You</b> {you.length}</div>
+      </div>
       <div className="lp-us">
-        <p className="lp-who">We do everything else, until you&apos;re hired</p>
+        <div className="lp-count"><b>{us.length}</b><span>jobs JobPao does for you, until you&apos;re hired</span></div>
         <ol className="lp-tl">
           {us.map((x, i) => (
             <li key={x} style={{ "--i": i } as React.CSSProperties}>
@@ -26,7 +30,7 @@ export function AutoFlow({ us, you }: { us: string[]; you: string[] }) {
         </ol>
       </div>
       <div className="lp-you">
-        <p className="lp-who">Your part</p>
+        <div className="lp-count lp-count-you"><b>{you.length}</b><span>jobs left for you</span></div>
         <ol className="lp-mine">
           {you.map((x, i) => <li key={x}><b>{i + 1}</b><span>{x}</span></li>)}
         </ol>
