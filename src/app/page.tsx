@@ -69,7 +69,7 @@ export default async function Landing() {
     const { data } = await (await createClient()).auth.getUser();
     signedIn = !!data.user;
   }
-  const start = signedIn ? "/onboarding" : "/login?next=/onboarding";
+  const start = signedIn ? "/onboarding" : "/login?mode=signup&next=/onboarding";
   const demo = signedIn ? "/onboarding?demo=1" : "/login?next=%2Fonboarding%3Fdemo%3D1";
   const local = proPrice(countryFromHeader((await headers()).get("cf-ipcountry")));
   return (
