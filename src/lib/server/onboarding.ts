@@ -16,6 +16,8 @@ import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill, skillLabel } from ".
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
 import { DEFAULT_META, loadFacts, loadProfile, type CvDocRow, type ProfileRow } from "./state";
 import { refreshMatches } from "./matches";
+import { freshnessQuestions } from "../cv-fresh";
+import { todayStr } from "../dates";
 
 export interface Ctx { db: SupabaseClient; admin: SupabaseClient; userId: string }
 
@@ -90,7 +92,9 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
     extraction = cleanExtraction(res.data as Extraction);
     if (!extraction.experiences) throw new AIError("invalid_json");
   }
-  const questions: (CvQuestion & { demo?: string })[] = extraction.questions;
+  // An old CV (newest date a year or more ago) first asks whether the current role and dates still hold.
+  const fresh = input.demo ? [] : freshnessQuestions(extraction, todayStr(rule(country).timeZone));
+  const questions: (CvQuestion & { demo?: string })[] = [...fresh, ...extraction.questions].slice(0, 6);
 
   await ctx.db.from("cv_documents").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true);
   const { data: doc, error } = await ctx.db.from("cv_documents").insert({

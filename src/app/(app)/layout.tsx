@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <SiteHeader inApp countryName={cname(profile.target_country)} trialLabel={trial} unread={unread} />
-      <main><div className="wrap">{children}</div></main>
+      <main className="app-main"><div className="wrap">{children}</div></main>
       <SiteFooter signedIn />
     </>
   );

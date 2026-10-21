@@ -71,7 +71,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
       <form action={saveAnswersAction}>
         <div className="stack" style={{ marginTop: 22 }}>
-          {qs.map((q) => <div key={q.id} className="card panel"><label className="f" htmlFor={`a_${q.id}`}>{q.question}<input type="text" id={`a_${q.id}`} name={`a_${q.id}`} defaultValue={st.cvDoc!.answers?.[q.id] || ""} placeholder={q.placeholder || ""} maxLength={1000} /></label></div>)}
+          {qs.map((q) => <div key={q.id} className={`card panel${q.id.startsWith("fresh_") ? " q-fresh" : ""}`}>{q.id.startsWith("fresh_") ? <span className="q-fresh-k">Please check: your CV may be out of date</span> : null}<label className="f" htmlFor={`a_${q.id}`}>{q.question}<input type="text" id={`a_${q.id}`} name={`a_${q.id}`} defaultValue={st.cvDoc!.answers?.[q.id] || ""} placeholder={q.placeholder || ""} maxLength={1000} /></label></div>)}
         </div>
         <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary">Continue</button></div>
       </form>
@@ -94,15 +94,20 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {nm.length} opportunities</button></form></div></div>
       {st.master.flags.length ? <p className="note" style={{ marginTop: 12, borderColor: "var(--warn)" }}>Our fact check {st.master.flags.join("; ")}.</p> : null}
-      <div className="cmp" style={{ marginTop: 22 }}>
-        <div><p className="eyebrow" style={{ marginBottom: 8 }}>Before: your CV</p><div className="raw">{(st.cvDoc?.text_content || "").slice(0, 2600)}</div>
-          <div className="card panel" style={{ marginTop: 16 }}><h3>What we improved</h3><ul className="why-list">{(m.improvements || []).map((i, k) => <li key={k}><span className="mk ok">✓</span><div><s className="muted small">{i.before}</s><br />{i.after}</div></li>)}</ul></div></div>
-        <div><p className="eyebrow" style={{ marginBottom: 8 }}>After: your Master CV, {cn} format</p>
-          <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} />
-          <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} /></div>
+      {(m.improvements || []).length ? (
+        <div className="card panel imp-card" style={{ marginTop: 22 }}>
+          <h3>What we improved <span className="imp-n">{(m.improvements || []).length}</span></h3>
+          <ol className="imp-list">{(m.improvements || []).map((i, k) => <li key={k}><span className="imp-after">{i.after}</span><span className="imp-before">Before: {i.before}</span></li>)}</ol>
+        </div>
+      ) : null}
+      <div style={{ marginTop: 22 }}>
+        <p className="eyebrow" style={{ marginBottom: 8 }}>Your new Master CV, {cn} format</p>
+        <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} />
+        <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} />
       </div>
       <div className="banner" style={{ marginTop: 22 }}><p><b>We found {nm.length} current opportunities in {cn} relevant to your career.</b> {strong} {strong === 1 ? "is a strong match" : "are strong matches"}.</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>
       <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {portals(country).slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>
+      {st.cvDoc?.text_content ? <details className="orig-cv" style={{ marginTop: 22 }}><summary>See the CV you uploaded</summary><div className="raw">{st.cvDoc.text_content.slice(0, 6000)}</div></details> : null}
     </>;
   } else {
     body = <div className="ob"><p className="muted">Let&apos;s pick up where you left off.</p><form action={backToStepAction.bind(null, "upload")}><button className="btn btn-primary" style={{ marginTop: 12 }}>Upload my CV</button></form></div>;
