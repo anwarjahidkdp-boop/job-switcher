@@ -24,7 +24,14 @@ export interface CareerMeta {
   seniority: Seniority;
   target_roles: string[];
   location: string | null;
+  /** Instructions from "Ask AI to change your CV", so a Master CV rebuild follows them too. Reset by a new CV. */
+  edits?: string[];
+  /** Items the person removed that way; the original CV text still has them. */
+  removed?: RemovedItem[];
 }
+
+/** Something the person removed from their CV, by kind and a short label (employer, degree, name). */
+export interface RemovedItem { kind: Exclude<FactKind, "answer">; label: string }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9&+.#\s]/g, " ").replace(/\.(?![a-z0-9])/g, " ").replace(/\s+/g, " ").trim();
 const STOP = new Set(["ltd", "limited", "plc", "inc", "llc", "the", "and", "of", "co", "company", "group", "bd", "pvt", "sdn", "bhd"]);

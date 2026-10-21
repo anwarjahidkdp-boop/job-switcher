@@ -3,17 +3,18 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { cc, rule, type CountryCode } from "../countries";
-import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type CareerFact } from "../facts";
+import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type CareerFact, type CareerMeta, type RemovedItem } from "../facts";
+import { dropRemoved, EditRefused, factRefs, FIELDS, MAX_EDIT_CHARS, MAX_EDITS_KEPT, nextRemoved, planFactEdits, type FactOp } from "../cv-edit";
 import { checkMasterCv } from "../numbers-check";
-import { EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
-import { ExtractionSchema, MasterCvSchema } from "../ai/schemas";
+import { CV_EDIT_PROMPT, EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
+import { CvEditSchema, ExtractionSchema, MasterCvSchema, type CvEditOut } from "../ai/schemas";
 import { aiConfigured, checkBudget, getBudget, runAI } from "../ai";
 import { AIError } from "../ai/provider";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_MASTER } from "../demo";
 import { MAX_CV_TEXT, MIME, MIN_CV_CHARS, CvReadError, sniffImage, sniffKind, tidy } from "../cv/sniff";
-import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill } from "../taxonomy";
+import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill, skillLabel } from "../taxonomy";
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
-import { loadFacts, loadProfile, type CvDocRow } from "./state";
+import { DEFAULT_META, loadFacts, loadProfile, type CvDocRow, type ProfileRow } from "./state";
 import { refreshMatches } from "./matches";
 
 export interface Ctx { db: SupabaseClient; admin: SupabaseClient; userId: string }
@@ -165,6 +166,44 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   if (profile?.onboarding_step === "done") await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
 }
 
+const verifiedFactsFor = (facts: CareerFact[]) => {
+  const v = verifiedOnly(facts);
+  return {
+    experiences: v.filter((f) => f.kind === "experience").map((f) => f.data as unknown as ExtractedExperience),
+    education: v.filter((f) => f.kind === "education").map((f) => f.data) as never[],
+    certifications: v.filter((f) => f.kind === "certification").map((f) => f.data) as never[],
+    skills: v.filter((f) => f.kind === "skill").map((f) => String((f.data as { name: string }).name)),
+    languages: v.filter((f) => f.kind === "language").map((f) => String((f.data as { name: string }).name)),
+  };
+};
+type VerifiedFacts = ReturnType<typeof verifiedFactsFor>;
+const metaOf = (p: ProfileRow): CareerMeta => ({ ...DEFAULT_META, ...(p.career_meta || {}) });
+
+/**
+ * Deterministic checks shared by the build and the edit: dates from verified facts, employers, skills and numbers
+ * against the sources, then items the person removed. What the person typed or added counts as a source.
+ */
+function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: { cvText: string; answersText: string; prefs: unknown; edits: string[]; removed: RemovedItem[] }) {
+  // Dates always come from verified facts, never from the generator.
+  m.experience = (m.experience || []).map((e) => {
+    const f = vf.experiences.find((x) => appearsIn(x.company, e.company) || appearsIn(e.company, x.company));
+    return f ? { ...e, start: f.start, end: f.end } : e;
+  });
+  const userFacts = verifiedOnly(facts).filter((f) => f.provenance === "user").map((f) => f.data);
+  const checked = checkMasterCv(m, {
+    cvText: src.cvText, answersText: src.answersText, extra: JSON.stringify(src.prefs || {}) + "\n" + src.edits.join("\n") + "\n" + JSON.stringify(userFacts),
+    verifiedCompanies: vf.experiences.map((e) => e.company), verifiedSkills: vf.skills,
+  });
+  return { master: dropRemoved(checked.master, src.removed), flags: checked.flags };
+}
+
+async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null) {
+  const { data: prev } = await ctx.db.from("master_cvs").select("version").eq("user_id", ctx.userId).order("version", { ascending: false }).limit(1).maybeSingle();
+  await ctx.db.from("master_cvs").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true);
+  const { error } = await ctx.db.from("master_cvs").insert({ user_id: ctx.userId, version: (prev?.version || 0) + 1, content, flags, ai, model, source_cv_document_id: docId });
+  if (error) throw error;
+}
+
 /** Generate the Master CV from verified facts only, then run the deterministic post-checks. */
 export async function buildMasterCv(ctx: Ctx) {
   const profile = await loadProfile(ctx.db, ctx.userId);
@@ -174,45 +213,91 @@ export async function buildMasterCv(ctx: Ctx) {
   const doc = docRow as (CvDocRow & { extraction: Extraction | null }) | null;
   if (!doc) throw new Error("Upload a CV first.");
   const facts = await loadFacts(ctx.db, ctx.userId);
-  const v = verifiedOnly(facts);
-  const verifiedFacts = {
-    experiences: v.filter((f) => f.kind === "experience").map((f) => f.data as unknown as ExtractedExperience),
-    education: v.filter((f) => f.kind === "education").map((f) => f.data) as never[],
-    certifications: v.filter((f) => f.kind === "certification").map((f) => f.data) as never[],
-    skills: v.filter((f) => f.kind === "skill").map((f) => String((f.data as { name: string }).name)),
-    languages: v.filter((f) => f.kind === "language").map((f) => String((f.data as { name: string }).name)),
-  };
+  const verifiedFacts = verifiedFactsFor(facts);
   const answers = doc.answers || {};
   const answersText = Object.values(answers).filter(Boolean).join("\n");
+  const meta = metaOf(profile);
+  const edits = meta.edits || [], removed = meta.removed || [];
 
   let m: MasterCV, ai = false, model: string | null = null;
   if (doc.is_demo && !aiConfigured()) m = JSON.parse(JSON.stringify(DEMO_MASTER));
   else {
-    const res = await runAI(ctx.admin, ctx.userId, "master_cv", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: MASTER_PROMPT(doc.text_content, verifiedFacts, doc.questions || [], answers, profile.preferences?.roles || "", country), schema: MasterCvSchema }));
+    const res = await runAI(ctx.admin, ctx.userId, "master_cv", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: MASTER_PROMPT(doc.text_content, verifiedFacts, doc.questions || [], answers, profile.preferences?.roles || "", country, { edits, removed: removed.map((r) => `${r.kind}: ${r.label}`) }), schema: MasterCvSchema }));
     m = res.data as MasterCV; ai = true; model = res.usage.model;
   }
-  // Dates always come from verified facts, never from the generator.
-  m.experience = (m.experience || []).map((e) => {
-    const f = verifiedFacts.experiences.find((x) => appearsIn(x.company, e.company) || appearsIn(e.company, x.company));
-    return f ? { ...e, start: f.start, end: f.end } : e;
-  });
-  const checked = checkMasterCv(m, {
-    cvText: doc.text_content, answersText, extra: JSON.stringify(profile.preferences || {}),
-    verifiedCompanies: verifiedFacts.experiences.map((e) => e.company), verifiedSkills: verifiedFacts.skills,
-  });
+  const checked = finishMaster(m, verifiedFacts, facts, { cvText: doc.text_content, answersText, prefs: profile.preferences, edits, removed });
 
   // Skills the generator says the answers confirmed: keep only those the answers really mention.
   const existing = new Set(verifiedFacts.skills.map(normSkill));
   const newSkills = answerSkillFacts(m.extra_skills || [], answersText, existing);
   if (newSkills.length) await ctx.db.from("career_facts").insert(newSkills.map((f: CareerFact) => ({ ...f, user_id: ctx.userId, cv_document_id: doc.id })));
 
-  const { data: prev } = await ctx.db.from("master_cvs").select("version").eq("user_id", ctx.userId).order("version", { ascending: false }).limit(1).maybeSingle();
-  await ctx.db.from("master_cvs").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true);
-  const { error } = await ctx.db.from("master_cvs").insert({ user_id: ctx.userId, version: (prev?.version || 0) + 1, content: checked.master, flags: checked.flags, ai, model, source_cv_document_id: doc.id });
-  if (error) throw error;
+  await saveMaster(ctx, checked.master, checked.flags, ai, model, doc.id);
   await ctx.db.from("profiles").update({ onboarding_step: profile.onboarding_step === "done" ? "done" : "reveal" }).eq("id", ctx.userId);
   await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
   return { flags: checked.flags, ai };
+}
+
+/**
+ * "Ask AI to change your CV": apply one typed instruction. The AI proposes fact changes and the edited Master CV;
+ * the fact changes are checked against what the person typed (planFactEdits) before anything is stored, so the
+ * change sticks for later rebuilds and application packs. Facts added or corrected this way have provenance "user".
+ */
+export async function editMasterCv(ctx: Ctx, instruction: string) {
+  const text = String(instruction || "").replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
+  if (text.length < 3) throw new EditRefused("Tell us what to change in your CV.");
+  if (!aiConfigured()) throw new AIError("not_configured");
+  const profile = await loadProfile(ctx.db, ctx.userId);
+  if (!profile) throw new Error("profile missing");
+  const [{ data: masterRow }, { data: docRow }, facts] = await Promise.all([
+    ctx.db.from("master_cvs").select("content").eq("user_id", ctx.userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    ctx.db.from("cv_documents").select("id, text_content, answers").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle(),
+    loadFacts(ctx.db, ctx.userId),
+  ]);
+  const before = (masterRow?.content as MasterCV | undefined) || null;
+  if (!before) throw new EditRefused("Create your CV first, then ask for changes.");
+  const doc = docRow as Pick<CvDocRow, "id" | "text_content" | "answers"> | null;
+
+  const refs = factRefs(facts).map(({ ref, fact }) => ({ ref, kind: fact.kind, data: fact.data, confirmed: fact.verified }));
+  const res = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: CV_EDIT_PROMPT(before, refs, text), schema: CvEditSchema, maxTokens: 12000 }));
+  const out = res.data as CvEditOut;
+  if (!out.ok || !out.master) throw new EditRefused(String(out.message || "").slice(0, 300) || "We could not tell what to change. Try saying it another way, for example \"remove the skill Tally\".");
+
+  const meta = metaOf(profile);
+  const ops: FactOp[] = (out.ops || []).map((o) => ({
+    op: o.op, ref: o.ref || null, kind: o.kind, clear: o.clear || [],
+    values: Object.fromEntries((o.values || []).filter((x) => FIELDS[o.kind].includes(x.field)).map((x) => [x.field, x.value])),
+  }));
+  const plan = planFactEdits(facts, ops, text, meta.removed || []);
+  const m: MasterCV = { ...(out.master as MasterCV), improvements: before.improvements, extra_skills: before.extra_skills };
+  // A skill the person added is on the CV even if the model left it out.
+  const listed = new Set([...(m.skills_core || []), ...(m.skills_tools || [])].map(normSkill));
+  for (const f of plan.add) if (f.kind === "skill" && !listed.has(normSkill(f.data.name))) m.skills_core = [...(m.skills_core || []), skillLabel(normSkill(f.data.name))];
+  const factsChange = plan.remove.length + plan.update.length + plan.add.length;
+  if (!factsChange && JSON.stringify(m) === JSON.stringify(before)) throw new EditRefused("We could not find anything to change for that. Name the item the way it appears on your CV.");
+
+  if (plan.remove.length) {
+    const { error } = await ctx.db.from("career_facts").delete().eq("user_id", ctx.userId).in("id", plan.remove);
+    if (error) throw error;
+  }
+  for (const u of plan.update) {
+    const { error } = await ctx.db.from("career_facts").update({ data: u.data, provenance: "user", verified: true }).eq("id", u.id).eq("user_id", ctx.userId);
+    if (error) throw error;
+  }
+  if (plan.add.length) {
+    const { error } = await ctx.db.from("career_facts").insert(plan.add.map((f) => ({ ...f, user_id: ctx.userId, cv_document_id: doc?.id ?? null })));
+    if (error) throw error;
+  }
+
+  const edits = [...(meta.edits || []), text].slice(-MAX_EDITS_KEPT);
+  const removed = nextRemoved(meta.removed || [], plan);
+  const after = await loadFacts(ctx.db, ctx.userId);
+  const answersText = Object.values(doc?.answers || {}).filter(Boolean).join("\n");
+  const checked = finishMaster(m, verifiedFactsFor(after), after, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed });
+  await saveMaster(ctx, checked.master, checked.flags, true, res.usage.model, doc?.id ?? null);
+  await ctx.db.from("profiles").update({ career_meta: { ...meta, edits, removed } }).eq("id", ctx.userId);
+  await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
+  return { message: String(out.message || "Your CV was updated.").slice(0, 300), flags: checked.flags };
 }
 
 /** Skills the user confirms they have (prototype addSkill). Provenance "user", verified by the user's explicit confirmation. */
