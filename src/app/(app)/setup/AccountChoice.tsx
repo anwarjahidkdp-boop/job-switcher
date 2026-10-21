@@ -1,16 +1,15 @@
 "use client";
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useSave } from "@/components/useSave";
 import { setSiteAccountAction } from "@/app/actions";
 
 /** One question with a few answers; picking one shows only its instructions underneath and saves the answer. */
 export function AccountChoice({ site, value, options, panels }: { site: string; value: string | null; options: { v: string; label: string }[]; panels: Record<string, React.ReactNode> }) {
-  const router = useRouter();
   const [picked, setPicked] = useState(value);
-  const [, start] = useTransition();
+  const { err, save } = useSave();
   const pick = (v: string) => {
     setPicked(v);
-    start(async () => { await setSiteAccountAction(site, v); router.refresh(); });
+    save(() => setSiteAccountAction(site, v));
   };
   return (
     <div style={{ marginTop: 8 }}>
@@ -21,6 +20,7 @@ export function AccountChoice({ site, value, options, panels }: { site: string; 
           </button>
         ))}
       </div>
+      {err ? <p className="err small" style={{ marginTop: 6 }}>{err}</p> : null}
       {picked ? <div style={{ marginTop: 10 }}>{panels[picked]}</div> : null}
     </div>
   );

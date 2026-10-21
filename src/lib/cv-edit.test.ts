@@ -89,3 +89,12 @@ describe("leaving removed items out of a rebuilt CV", () => {
     expect(out.education).toEqual(m.education);
   });
 });
+
+describe("Bangla instructions", () => {
+  it("spots Bangla and reads Bangla digits", async () => {
+    const { hasBangla, bnDigits } = await import("./cv-edit");
+    expect(hasBangla("আমার রেজাল্ট")).toBe(true);
+    expect(hasBangla("remove Tally")).toBe(false);
+    expect(bnDigits("জিপিএ ৪.৫০, ২০১৯")).toBe("জিপিএ 4.50, 2019");
+  });
+});

@@ -109,6 +109,8 @@ export const MatchCheckSchema = z.object({
 });
 export type MatchCheckOut = z.infer<typeof MatchCheckSchema>;
 
+export const TranslateSchema = z.object({ english: z.string() });
+
 export type ExtractionOut = z.infer<typeof ExtractionSchema>;
 export type CvEditOut = z.infer<typeof CvEditSchema>;
 export type MasterCvOut = z.infer<typeof MasterCvSchema>;

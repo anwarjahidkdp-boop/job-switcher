@@ -4,10 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { cc, rule, type CountryCode } from "../countries";
 import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type CareerFact, type CareerMeta, type RemovedItem } from "../facts";
-import { dropRemoved, EditRefused, factRefs, FIELDS, MAX_EDIT_CHARS, MAX_EDITS_KEPT, nextRemoved, planFactEdits, type FactOp } from "../cv-edit";
+import { bnDigits, dropRemoved, EditRefused, factRefs, hasBangla, FIELDS, MAX_EDIT_CHARS, MAX_EDITS_KEPT, nextRemoved, planFactEdits, type FactOp } from "../cv-edit";
 import { checkMasterCv } from "../numbers-check";
-import { CV_EDIT_PROMPT, EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
-import { CvEditSchema, ExtractionSchema, MasterCvSchema, type CvEditOut } from "../ai/schemas";
+import { CV_EDIT_PROMPT, TRANSLATE_EDIT_PROMPT, EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
+import { CvEditSchema, ExtractionSchema, MasterCvSchema, TranslateSchema, type CvEditOut } from "../ai/schemas";
 import { aiConfigured, checkBudget, getBudget, runAI } from "../ai";
 import { AIError } from "../ai/provider";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_MASTER } from "../demo";
@@ -243,9 +243,17 @@ export async function buildMasterCv(ctx: Ctx) {
  * change sticks for later rebuilds and application packs. Facts added or corrected this way have provenance "user".
  */
 export async function editMasterCv(ctx: Ctx, instruction: string) {
-  const text = String(instruction || "").replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
+  let text = bnDigits(String(instruction || "")).replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
   if (text.length < 3) throw new EditRefused("Tell us what to change in your CV.");
   if (!aiConfigured()) throw new AIError("not_configured");
+  // Written (or spoken) in Bangla: translate it first, then apply the English version with the same checks.
+  let readAs = "";
+  if (hasBangla(text)) {
+    const tr = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: TRANSLATE_EDIT_PROMPT(text), schema: TranslateSchema, maxTokens: 800 }));
+    const en = bnDigits(String((tr.data as { english?: string }).english || "")).replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
+    if (en.length < 3 || hasBangla(en)) throw new EditRefused("We could not read that. Try saying it another way, in Bangla or English.");
+    text = readAs = en;
+  }
   const profile = await loadProfile(ctx.db, ctx.userId);
   if (!profile) throw new Error("profile missing");
   const [{ data: masterRow }, { data: docRow }, facts] = await Promise.all([
@@ -295,7 +303,8 @@ export async function editMasterCv(ctx: Ctx, instruction: string) {
   const checked = finishMaster(m, verifiedFactsFor(after), after, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed });
   await saveMaster(ctx, checked.master, checked.flags, true, res.usage.model, doc?.id ?? null);
   await ctx.db.from("profiles").update({ career_meta: { ...meta, edits, removed } }).eq("id", ctx.userId);
-  return { message: String(out.message || "Your CV was updated.").slice(0, 300), flags: checked.flags };
+  const message = String(out.message || "Your CV was updated.").slice(0, 300);
+  return { message: readAs ? `We read your request as: "${readAs}". ${message}` : message, flags: checked.flags };
 }
 
 /** Skills the user confirms they have (prototype addSkill). Provenance "user", verified by the user's explicit confirmation. */
@@ -311,6 +320,13 @@ export async function addUserSkill(ctx: Ctx, skill: string) {
 
 /** The user confirms (or removes) a CV fact we could not find in their CV text. */
 export async function reviewFact(ctx: Ctx, factId: string, keep: boolean) {
+  if (keep) {
+    // The same role already on the CV (same title and dates): confirming must not add it twice.
+    const facts = await loadFacts(ctx.db, ctx.userId);
+    const f = facts.find((x) => x.id === factId);
+    const key = (d: Record<string, unknown>) => [d.title, d.start, d.end].map((v) => String(v ?? "").trim().toLowerCase()).join("|");
+    if (f?.kind === "experience" && facts.some((x) => x.id !== factId && x.kind === "experience" && x.verified && key(x.data) === key(f.data))) keep = false;
+  }
   if (keep) await ctx.db.from("career_facts").update({ verified: true }).eq("id", factId).eq("user_id", ctx.userId);
   else await ctx.db.from("career_facts").delete().eq("id", factId).eq("user_id", ctx.userId);
 }

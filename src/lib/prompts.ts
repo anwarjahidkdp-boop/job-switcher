@@ -97,6 +97,13 @@ Target roles: ${roles || ""}
 ${editsBlock(edits)}`;
 
 /** "Ask AI to change your CV": apply one instruction to the facts and the Master CV, and nothing else. */
+export const TRANSLATE_EDIT_PROMPT = (instruction: string) => `Translate this instruction, written by a job seeker about changing their own CV, from Bangla (it may mix in English) into plain English.
+Translate faithfully: keep every name, organisation, degree, result, date and number exactly as stated (write names in English letters the way the person would spell them). Add nothing, drop nothing, do not improve or interpret it. Keep English words as they are.
+Return JSON {"english": "..."}.
+
+Instruction:
+"""${instruction}"""`;
+
 export const CV_EDIT_PROMPT = (m: MasterCV, facts: { ref: string; kind: string; data: Record<string, unknown>; confirmed: boolean }[], instruction: string) => `You are the CV-editing step of JobPao. The person typed an instruction to change their Master CV. Apply exactly that change and nothing else.
 
 Rules:

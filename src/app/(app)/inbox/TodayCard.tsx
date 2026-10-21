@@ -2,36 +2,28 @@ import Link from "next/link";
 import type { Plan } from "@/lib/today";
 import type { NotificationRow } from "@/lib/server/notify";
 
-/** Top of the dashboard: the 7-day trial plan (during a trial) and what is new today. */
-export function TodayCard({ plan, items, summary }: { plan: Plan | null; items: NotificationRow[]; summary: [string, number][] }) {
-  if (!plan && !items.length) return null;
+export interface DoneItem { text: string; href?: string }
+
+/** Top of the dashboard: what JobPao has done for the person so far, and anything new. */
+export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; items: NotificationRow[]; done: DoneItem[]; summary: [string, number][] }) {
+  if (!done.length && !items.length) return null;
+  const days = plan && !plan.ended ? plan.day : 0;
   return (
     <div className="card panel today" id="trial">
       <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-        <h3 style={{ margin: 0 }}>Today for you</h3>
+        <h3 style={{ margin: 0 }}>{days > 1 ? `Done for you in the last ${days} days` : days === 1 ? "Done for you today" : "Done for you"}</h3>
         {plan ? <span className="small muted">{plan.ended ? "Your free week is over" : `Day ${plan.day} of your 7-day free trial`}</span> : null}
       </div>
-      {plan ? (
-        <>
-          <div className="plan" aria-hidden="true">{plan.steps.map((s, i) => <i key={i} className={s.done ? "done" : s === plan.next ? "cur" : ""} />)}</div>
-          {plan.next && !plan.summaryTime ? (
-            <div className="today-next">
-              <div><b>{plan.next.title}</b><div className="small muted">{plan.next.why}</div></div>
-              <Link className="btn btn-primary btn-sm" href={plan.next.href}>{plan.next.cta}</Link>
-            </div>
-          ) : null}
-          {plan.summaryTime ? (
-            <div className="today-next" style={{ display: "block" }}>
-              <b>Your week with JobPao</b>
-              <div className="tiles" style={{ marginTop: 10 }}>{summary.map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}</div>
-              <div className="row" style={{ marginTop: 12 }}>
-                <Link className="btn btn-primary btn-sm" href="/upgrade">Keep my assistant working</Link>
-                <span className="small muted">New matches and ready applications every day.</span>
-              </div>
-            </div>
-          ) : null}
-          <ul className="today-steps">{plan.steps.map((s) => <li key={s.title}><span className={`mk ${s.done ? "ok" : ""}`}>{s.done ? "✓" : "○"}</span><span className={s.done ? "muted" : ""}>Day {s.day}: {s.title}</span></li>)}</ul>
-        </>
+      {done.length ? <ul className="done-list">{done.map((d) => <li key={d.text}><span className="mk ok">✓</span>{d.href ? <Link href={d.href}>{d.text}</Link> : <span>{d.text}</span>}</li>)}</ul> : null}
+      {plan?.summaryTime ? (
+        <div className="today-next" style={{ display: "block" }}>
+          <b>Your week with JobPao</b>
+          <div className="tiles" style={{ marginTop: 10 }}>{summary.map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}</div>
+          <div className="row" style={{ marginTop: 12 }}>
+            <Link className="btn btn-primary btn-sm" href="/upgrade">Keep my assistant working</Link>
+            <span className="small muted">New matches and ready applications every day.</span>
+          </div>
+        </div>
       ) : null}
       {items.length ? (
         <div className="today-items">

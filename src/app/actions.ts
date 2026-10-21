@@ -1,5 +1,7 @@
 "use server";
 // Small user mutations as server actions. Each runs as the signed-in user (RLS applies).
+// Actions called from client code only save; the caller refreshes the page in its own request. Re-rendering a page
+// inside the action as well doubles the work of one request, which is what pushed it past the Worker CPU limit.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ctx } from "@/lib/server/page";
@@ -14,19 +16,16 @@ import { ACCOUNT_KINDS, isSetupKey, SITE_STEPS, siteKey } from "@/lib/setup";
 export async function setCountryAction(country: string, needsVisa: boolean, homeCountry?: string) {
   const c = await ctx("/onboarding");
   await setCountry(c, country, needsVisa, homeCountry);
-  revalidatePath("/", "layout");
 }
 
 export async function setHomeCountryAction(country: string) {
   const c = await ctx();
   await c.db.from("profiles").update({ home_country: cc(country) }).eq("id", c.userId);
-  revalidatePath("/", "layout");
 }
 
 export async function setNeedsVisaAction(needsVisa: boolean) {
   const c = await ctx();
   await c.db.from("profiles").update({ needs_visa: needsVisa }).eq("id", c.userId);
-  revalidatePath("/", "layout");
 }
 
 export async function saveAnswersAction(formData: FormData) {
@@ -68,13 +67,11 @@ export async function removePhotoAction() {
 export async function addSkillAction(skill: string) {
   const c = await ctx();
   await addUserSkill(c, skill);
-  revalidatePath("/", "layout");
 }
 
 export async function reviewFactAction(factId: string, keep: boolean) {
   const c = await ctx();
   await reviewFact(c, factId, keep);
-  revalidatePath("/profile");
 }
 
 export async function toggleSetupStepAction(key: string) {
@@ -95,7 +92,6 @@ export async function setSiteAccountAction(site: string, kind: string) {
   const steps = { ...(p?.setup_steps || {}), [`acct:${site}`]: kind };
   if (kind === "gmail2" && !steps[`forward:${site}`]) steps[`since:${site}`] = new Date().toISOString();
   await c.db.from("profiles").update({ setup_steps: steps }).eq("id", c.userId);
-  revalidatePath("/setup");
 }
 
 /** Clears one job site's steps so its setup can be done again; the Gmail connection stays. */
@@ -129,7 +125,6 @@ export async function dismissAction(jobId: string) {
 export async function openedAction(jobId: string) {
   const c = await ctx();
   await markOpened(c, jobId);
-  revalidatePath(`/jobs/${jobId}`);
 }
 
 export async function appliedAction(jobId: string) {
@@ -142,13 +137,11 @@ export async function snoozeAction(jobId: string, date: string) {
   const c = await ctx();
   const p = await loadProfile(c.db, c.userId);
   await setReminder(c, jobId, date, todayStr(rule(cc(p?.target_country)).timeZone));
-  revalidatePath("/", "layout");
 }
 
 export async function statusAction(jobId: string, status: string) {
   const c = await ctx();
   await updateStatus(c, jobId, status);
-  revalidatePath("/applications");
 }
 
 export async function setReminderPrefAction(on: boolean) {
@@ -160,5 +153,4 @@ export async function setReminderPrefAction(on: boolean) {
 export async function noReplyYetAction(jobId: string) {
   const c = await ctx();
   await c.db.from("applications").update({ reply_checked_at: new Date().toISOString() }).eq("user_id", c.userId).eq("job_id", jobId);
-  revalidatePath(`/jobs/${jobId}`);
 }

@@ -18,7 +18,7 @@ import { courseLinks, nowMs, trialPlan } from "@/lib/today";
 import { skillImpact } from "@/lib/matching";
 import { listNotifications } from "@/lib/server/notify";
 import { REPLY_CHECK_DAYS } from "@/lib/server/nudges";
-import { TodayCard } from "./TodayCard";
+import { TodayCard, type DoneItem } from "./TodayCard";
 import { KpiStrip, type Kpi } from "./KpiStrip";
 
 export const metadata = { title: "Opportunities" };
@@ -46,6 +46,18 @@ export default async function Inbox() {
   const apps = Object.values(st.apps);
   const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= REPLY_CHECK_DAYS * 86_400_000).length;
   const plan = trialPlan({ status: sub?.status ?? null, trialStart: sub?.trial_started_at ?? null, trialEnd: sub?.trial_ends_at ?? null, now, hasMaster: !!st.master, strong: s.strong, prepared: s.prepared, applied: s.applied, interviews: s.interviews, setupDone: setupDone >= setupSites.length, repliesPending });
+  // What JobPao has done so far, in plain lines (the trial's day-by-day plan was more than people needed).
+  const improved = (st.master.content.improvements || []).length;
+  const checked = [...st.aiCheck.values()].length;
+  const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+  const done: DoneItem[] = [
+    { text: `Your CV was rewritten in ${cname(country)} format${improved ? `, with ${plural(improved, "improvement")}` : ""}`, href: "/profile" },
+    ...(s.analysed ? [{ text: `${plural(s.analysed, "job")} searched in ${cname(country)}`, href: "#matches" }] : []),
+    ...(s.relevant ? [{ text: `${plural(s.relevant, "job")} matched to your profile${s.strong ? `, ${plural(s.strong, "strong match", "strong matches")}` : ""}`, href: "#matches" }] : []),
+    ...(checked ? [{ text: `${plural(checked, "match", "matches")} checked by AI against your CV`, href: "#matches" }] : []),
+    ...(s.prepared ? [{ text: `${plural(s.prepared, "application")} prepared and ready for you to send`, href: "/queue" }] : []),
+    ...(s.applied ? [{ text: `${plural(s.applied, "application")} sent by you`, href: "/applications" }] : []),
+  ];
   const summary: [string, number][] = [["Jobs analysed", s.analysed], ["Strong matches", s.strong], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
   // Career guide: the missing skills that would lift the most matches to Strong.
   const opts = { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry };
@@ -86,11 +98,11 @@ export default async function Inbox() {
           <span className="spot-go">{st.apps[best.job.id]?.pack ? "Review application" : "See why it fits"} →</span>
         </Link>
       ) : null}
-      <TodayCard plan={plan} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
+      <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
       <div className="dash" id="matches">
         <div>
           <div className="card">
-            <PastePanel />
+            <PastePanel sites={portals(st.country)} />
             {groups.length ? groups.map(([b, items]) => (
               <div key={b}>
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>

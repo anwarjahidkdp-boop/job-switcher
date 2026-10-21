@@ -17,7 +17,7 @@ import { aiConfigured } from "@/lib/ai";
 export const metadata = { title: "Profile" };
 
 function describeFact(kind: string, d: Record<string, unknown>): string {
-  if (kind === "experience") return `${d.title} at ${d.company}`;
+  if (kind === "experience") return `${d.title}${d.company ? " at " + d.company : " (employer not named on your CV)"}`;
   if (kind === "education") return `${d.degree}${d.field ? " in " + d.field : ""}${d.institution ? ", " + d.institution : ""}`;
   if (kind === "certification") return `${d.name} (${d.status})`;
   if (kind === "skill") return skillLabel(String(d.name));
@@ -69,8 +69,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <Link className="btn btn-text" style={{ marginTop: 6 }} href="/onboarding?step=prefs">Edit preferences</Link>
           </div>
           <div className="card panel"><h3>Job sites</h3>
-            <div className="qitem"><div><b className="small">Bdjobs</b><div className="small muted">Paste a Bdjobs link or job text and we match it. To apply, open the job in your own browser, where you sign in yourself.</div></div><span className="pill p-neutral">No password</span></div>
-            <div className="qitem"><div><b className="small">LinkedIn</b><div className="small muted">Paste the job here, then apply on LinkedIn yourself.</div></div><span className="pill p-neutral">No password</span></div>
+            {setupSites.map((site) => <div key={site} className="qitem"><div><b className="small">{site}</b><div className="small muted">Paste a {site} link or job text and we match it. To apply, open the job on {site} yourself, where you sign in.</div></div><span className="pill p-neutral">No password</span></div>)}
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>
             <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{setupSites.length} sites)</Link>
           </div>

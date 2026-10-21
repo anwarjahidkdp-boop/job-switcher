@@ -1,15 +1,13 @@
 "use client";
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useSave } from "@/components/useSave";
 import { noReplyYetAction, statusAction } from "@/app/actions";
 import { CopyButton } from "@/components/CopyButton";
 
 /** After applying: "Any reply?" in one tap, and a ready follow-up email when there is no reply yet. */
 export function ReplyPanel(p: { jobId: string; company: string; daysSince: number; followUp: { subject: string; body: string } | null; to: string | null; canFollowUp: boolean; followUps: boolean }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
+  const { pending, err, save: act } = useSave();
   const [none, setNone] = useState(false);
-  const act = (f: () => Promise<void>) => start(async () => { await f(); router.refresh(); });
   return (
     <div className="card panel" id="reply">
       <h3>Any reply from {p.company}?</h3>
@@ -17,8 +15,9 @@ export function ReplyPanel(p: { jobId: string; company: string; daysSince: numbe
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => act(() => statusAction(p.jobId, "interview"))}>Got an interview call</button>
         <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => act(() => statusAction(p.jobId, "closed"))}>Not selected</button>
-        <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setNone(true); start(async () => { await noReplyYetAction(p.jobId); }); }}>No reply yet</button>
+        <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setNone(true); void noReplyYetAction(p.jobId).catch(() => {}); }}>No reply yet</button>
       </div>
+      {err ? <p className="err small" style={{ marginTop: 8 }}>{err}</p> : null}
       {none ? (
         p.followUp && p.canFollowUp ? (
           <div style={{ marginTop: 14 }}>
