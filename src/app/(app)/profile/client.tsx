@@ -18,7 +18,7 @@ export function CountryPanel({ current, needsVisa, homeCountry }: { current: str
         <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" first={homeCountry} onChange={(c) => save(() => setHomeCountryAction(c), () => setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."))} />
       </label>
       {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; save(() => setNeedsVisaAction(v)); }} /> I need visa sponsorship</label> : null}
-      {err ? <p className="err" style={{ marginTop: 8 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 8 }}>{err}</p> : null}
       <p className="small muted" style={{ marginTop: 8 }}>{msg || "Changing it reformats your CV, switches the salary currency and checklist, and shows jobs in that country."}</p>
     </div>
   );
@@ -33,7 +33,7 @@ export function SkillAdder() {
       <input type="text" placeholder="Add a skill you have" value={v} onChange={(e) => setV(e.target.value)} maxLength={60} aria-label="Add a skill you have" />
       <button className="btn btn-ghost btn-sm" disabled={pending}>Add</button>
     </form>
-    {err ? <p className="err small" style={{ marginTop: 6 }}>{err}</p> : null}
+    {err ? <p role="alert" className="err small" style={{ marginTop: 6 }}>{err}</p> : null}
     </>
   );
 }
@@ -47,7 +47,7 @@ export function FactReview({ facts }: { facts: { id: string; kind: string; text:
   if (!left.length) return <p className="small">✓ Thanks, all confirmed.</p>;
   return (
     <>
-      {err ? <p className="err small">{err}</p> : null}
+      {err ? <p role="alert" className="err small">{err}</p> : null}
       {left.map((f) => (
         <div key={f.id} className="qitem">
           <div className="small"><span className="muted">{f.kind}:</span> {f.text}</div>

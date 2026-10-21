@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safe-next";
 
 /** Magic-link landing: verifies the token hash from the email and signs the user in. */
 export async function GET(request: NextRequest) {
   const u = request.nextUrl;
   const token_hash = u.searchParams.get("token_hash");
   const type = u.searchParams.get("type") as EmailOtpType | null;
-  const nextParam = u.searchParams.get("next") || "/onboarding";
-  const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/onboarding";
+  const next = safeNext(u.searchParams.get("next"));
   const code = u.searchParams.get("code");
   if (token_hash && type) {
     // Recommended email template link: works even when the link opens in another browser.
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) return NextResponse.redirect(new URL(next, request.url));
+    return NextResponse.redirect(new URL("/login?error=browser", request.url));
   }
   return NextResponse.redirect(new URL("/login?error=link", request.url));
 }

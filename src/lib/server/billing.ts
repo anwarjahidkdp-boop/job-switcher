@@ -15,7 +15,7 @@ import { createLemonCheckout, lemonConfig, parseOrderEvent, verifySignature } fr
 export interface PaymentRow {
   id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy"; amount_minor: number; currency: string;
   trx_id: string | null; payer_msisdn: string | null; bkash_payment_id: string | null; invoice: string;
-  status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled"; period_end: string | null; period_days: number;
+  status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled" | "refunded"; period_end: string | null; period_days: number;
   review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string;
 }
 
@@ -75,15 +75,32 @@ export async function listPayments(admin: SupabaseClient, status: "pending" | "r
 }
 
 /** Extend the user's Pro period by the pack's days and record it on the payment. */
+// One SQL statement (extend_pro) reads and moves the period end, so two approvals at the same time never lose a period.
+// It extends an active period from its end, otherwise starts from now (same rule as extendPeriod).
 async function activate(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_id" | "plan_code" | "trx_id" | "method" | "period_days">) {
-  const { data: sub } = await admin.from("subscriptions").select("status, current_period_end").eq("user_id", p.user_id).maybeSingle();
-  const periodEnd = extendPeriod(sub?.current_period_end, sub?.status, Date.now(), p.period_days || 30);
-  const { error } = await admin.from("subscriptions").update({
-    plan_code: p.plan_code, status: "active", current_period_end: periodEnd, payment_provider: p.method === "lemonsqueezy" ? "lemonsqueezy" : p.method === "bkash_checkout" ? "bkash_checkout" : "bkash", payment_ref: p.trx_id,
-  }).eq("user_id", p.user_id);
-  if (error) throw error;
-  await admin.from("payments").update({ period_end: periodEnd }).eq("id", p.id);
+  const provider = p.method === "lemonsqueezy" ? "lemonsqueezy" : p.method === "bkash_checkout" ? "bkash_checkout" : "bkash";
+  const { data, error } = await admin.rpc("extend_pro", { p_user: p.user_id, p_days: p.period_days || 30, p_provider: provider, p_ref: p.trx_id });
+  let periodEnd: string;
+  if (error?.code === "PGRST202") {
+    // The database function is not installed yet (migration 20261021000024): use the older two-step update.
+    const { data: sub } = await admin.from("subscriptions").select("status, current_period_end").eq("user_id", p.user_id).maybeSingle();
+    periodEnd = extendPeriod(sub?.current_period_end, sub?.status, Date.now(), p.period_days || 30);
+    const { error: ue } = await admin.from("subscriptions").update({ plan_code: p.plan_code, status: "active", current_period_end: periodEnd, payment_provider: provider, payment_ref: p.trx_id }).eq("user_id", p.user_id);
+    if (ue) throw ue;
+  } else if (error) throw error;
+  else periodEnd = new Date(String(data)).toISOString();
+  const { error: pe } = await admin.from("payments").update({ period_end: periodEnd }).eq("id", p.id);
+  if (pe) console.error("payment period_end", p.id, pe);
   return periodEnd;
+}
+
+/** A provider-confirmed payment was claimed; extend Pro, and if that fails put the row back so a retry (or the admin) can finish it. */
+async function activateClaimed(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_id" | "plan_code" | "trx_id" | "method" | "period_days">) {
+  try { return await activate(admin, p); }
+  catch (e) {
+    await admin.from("payments").update({ status: "initiated", reviewed_by: null, reviewed_at: null }).eq("id", p.id).eq("status", "approved");
+    throw e;
+  }
 }
 
 async function notify(admin: SupabaseClient, userId: string, kind: "approved" | "rejected", info: { periodEnd?: string; trx: string | null; amountMinor: number; currency?: string; note?: string | null }) {
@@ -163,12 +180,17 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
   if (!p || p.method !== "bkash_checkout") return "unknown";
   if (p.status === "approved") return "success";
   if (p.status !== "initiated") return "failure";
-  if (status !== "success") {
-    await admin.from("payments").update({ status: status === "cancel" ? "canceled" : "failed" }).eq("id", p.id).eq("status", "initiated");
-    return status === "cancel" ? "cancel" : "failure";
-  }
   const bk = client();
-  try { await bk.executePayment(paymentID); } catch (e) { console.error("bkash execute", e); /* fall through to the query, which is authoritative */ }
+  if (status !== "success") {
+    // The callback URL is public, so its status is only a hint: cancel only if bKash itself does not report the payment completed.
+    const q0 = await bk.queryPayment(paymentID).catch(() => null);
+    if (!q0 || !verifyCompleted(q0, { paymentID, amount: bkashAmount(p.amount_minor), invoice: p.invoice }).ok) {
+      await admin.from("payments").update({ status: status === "cancel" ? "canceled" : "failed" }).eq("id", p.id).eq("status", "initiated");
+      return status === "cancel" ? "cancel" : "failure";
+    }
+  } else {
+    try { await bk.executePayment(paymentID); } catch (e) { console.error("bkash execute", e); /* fall through to the query, which is authoritative */ }
+  }
   const q = await bk.queryPayment(paymentID);
   const v = verifyCompleted(q, { paymentID, amount: bkashAmount(p.amount_minor), invoice: p.invoice });
   if (!v.ok) {
@@ -180,7 +202,7 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
     .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method, period_days").maybeSingle();
   if (error) throw error;
   if (!claimed) return "success"; // another request finished it first
-  const periodEnd = await activate(admin, claimed as PaymentRow);
+  const periodEnd = await activateClaimed(admin, claimed as PaymentRow);
   await notify(admin, p.user_id, "approved", { periodEnd, trx: v.trxID, amountMinor: p.amount_minor });
   return "success";
 }
@@ -221,6 +243,7 @@ export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string,
   let body: unknown;
   try { body = JSON.parse(rawBody); } catch { return { status: 400, note: "bad json" }; }
   const ev = parseOrderEvent(body);
+  if (ev?.event === "order_refunded") return handleLemonRefund(admin, cfg.storeId, ev);
   if (!ev || ev.event !== "order_created") return { status: 200, note: "ignored" };
   if (ev.storeId !== cfg.storeId || !ev.paymentId || ev.status !== "paid") return { status: 200, note: "not ours or not paid" };
   const { data: p } = await admin.from("payments").select("id, user_id, plan_code, amount_minor, currency, status, method").eq("id", ev.paymentId).maybeSingle();
@@ -234,7 +257,20 @@ export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string,
     .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method, period_days").maybeSingle();
   if (error) throw error;
   if (!claimed) return { status: 200, note: "already done" };
-  const periodEnd = await activate(admin, claimed as PaymentRow);
+  const periodEnd = await activateClaimed(admin, claimed as PaymentRow);
   await notify(admin, p.user_id, "approved", { periodEnd, trx: `LS-${ev.orderId}`, amountMinor: p.amount_minor, currency: "USD" });
   return { status: 200, note: "activated" };
+}
+
+/** A full card refund takes back the pack's days (once). Partial refunds are left to the admin. */
+async function handleLemonRefund(admin: SupabaseClient, storeId: string, ev: NonNullable<ReturnType<typeof parseOrderEvent>>): Promise<{ status: number; note: string }> {
+  if (ev.storeId !== storeId || !ev.paymentId) return { status: 200, note: "not ours" };
+  if (ev.status !== "refunded") { console.error("lemonsqueezy partial refund, check by hand", ev.orderId); return { status: 200, note: "partial refund" }; }
+  const { data: p, error } = await admin.from("payments").update({ status: "refunded", review_note: `refunded (order ${ev.orderId})`, reviewed_by: "lemonsqueezy-webhook", reviewed_at: new Date().toISOString() })
+    .eq("id", ev.paymentId).eq("method", "lemonsqueezy").eq("status", "approved").select("id, user_id, period_days").maybeSingle();
+  if (error) throw error;
+  if (!p) return { status: 200, note: "nothing to refund" };
+  const { error: re } = await admin.rpc("extend_pro", { p_user: p.user_id, p_days: -(p.period_days || 30), p_provider: "lemonsqueezy", p_ref: `LS-${ev.orderId}-refund` });
+  if (re) { await admin.from("payments").update({ status: "approved" }).eq("id", p.id).eq("status", "refunded"); throw re; }
+  return { status: 200, note: "refunded" };
 }

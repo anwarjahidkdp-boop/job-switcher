@@ -46,8 +46,10 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
   if (!st) redirect("/login");
   const editing = st.profile.onboarding_step === "done" && sp.step === "prefs";
-  if (st.profile.onboarding_step === "done" && !editing) redirect("/inbox");
-  const step = editing ? "prefs" : st.profile.onboarding_step;
+  // "done" without a CV (an old account, or a failed save) would bounce between here and the dashboard: ask for the CV again.
+  const noCv = st.profile.onboarding_step === "done" && !st.master;
+  if (st.profile.onboarding_step === "done" && !editing && !noCv) redirect("/inbox");
+  const step = noCv ? "upload" : editing ? "prefs" : st.profile.onboarding_step;
   const country = st.country, r = rule(country), cn = cname(country);
   // First visit: guess where they live from Cloudflare's country header; they can change it.
   const ip = (await headers()).get("cf-ipcountry");

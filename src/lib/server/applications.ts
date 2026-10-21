@@ -22,15 +22,42 @@ async function getApp(ctx: Ctx, jobId: string) {
   return data as ApplicationRow | null;
 }
 async function event(ctx: Ctx, applicationId: string, text: string, status?: string) {
-  await ctx.db.from("application_events").insert({ application_id: applicationId, user_id: ctx.userId, event: text, status: status ?? null, actor: "user" });
+  // Background work (the daily auto-prepare) runs with the service role and is recorded as the system's, not the user's.
+  const actor = ctx.db === ctx.admin ? "system" : "user";
+  const { error } = await ctx.db.from("application_events").insert({ application_id: applicationId, user_id: ctx.userId, event: text, status: status ?? null, actor });
+  if (error) console.error("application event", error);
 }
 async function ensureApp(ctx: Ctx, jobId: string): Promise<ApplicationRow> {
   const existing = await getApp(ctx, jobId);
   if (existing) return existing;
   const { data, error } = await ctx.db.from("applications").insert({ user_id: ctx.userId, job_id: jobId, status: "preparing" }).select("*").single();
+  if (error?.code === "23505") { const again = await getApp(ctx, jobId); if (again) return again; } // a second press created it first
   if (error) throw error;
   return data as ApplicationRow;
 }
+
+/** Statuses after the person sent the application: nothing the app prepares may move them back. */
+export const SUBMITTED: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
+
+/** Paid Pro with time left (a lapsed period is not Pro, whatever its status says). */
+export async function hasPro(ctx: Pick<Ctx, "db" | "userId">): Promise<boolean> {
+  const { data } = await ctx.db.from("subscriptions").select("plan_code, status, current_period_end").eq("user_id", ctx.userId).maybeSingle();
+  return !!data && data.plan_code === "pro" && data.status === "active" && (!data.current_period_end || Date.parse(data.current_period_end) > Date.now());
+}
+
+/** The free trial's daily application is used; callers send the person to the Pro page. */
+export class TrialLimit extends Error {}
+
+/** Free plan: one application a day, 5 in all. Every path to "applied" checks this (the database checks it again). */
+export async function assertCanApply(ctx: Pick<Ctx, "db" | "userId">) {
+  if (await hasPro(ctx)) return;
+  const { data: sent, error } = await ctx.db.from("applications").select("applied_at").eq("user_id", ctx.userId).not("applied_at", "is", null);
+  if (error) throw error;
+  if (!trialApplyRoom((sent || []) as { applied_at: string | null }[])) throw new TrialLimit(TRIAL_LIMIT_COPY);
+}
+const TRIAL_LIMIT_COPY = "Your free trial includes one application a day. Go Pro to apply to more jobs today.";
+/** The database refused "applied" because the free limit is used (see guard_application_limits). */
+export const isTrialLimitError = (e: unknown) => !!e && typeof e === "object" && String((e as { message?: string }).message || "").startsWith("Your free trial includes one application a day");
 
 async function requireJob(ctx: Ctx, jobId: string): Promise<Job> {
   const job = await loadJob(ctx.db, jobId);
@@ -55,6 +82,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
   const app = await ensureApp(ctx, jobId);
+  if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
   await event(ctx, app.id, "Preparing application");
   if (app.status !== "reminder") await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id);
 
@@ -82,7 +110,8 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
-  await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id);
+  const { error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id);
+  if (saveErr) throw saveErr;
   await event(ctx, app.id, "Application ready", status);
   return { flags: checked.flags, ai, notice };
 }
@@ -108,20 +137,13 @@ export async function markOpened(ctx: Ctx, jobId: string) {
 }
 
 /** The user tells us they submitted. This is the only path to "applied". */
-/** The free trial's daily application is used; callers send the person to the Pro page. */
-export class TrialLimit extends Error {}
 
 export async function confirmApplied(ctx: Ctx, jobId: string) {
   const app = await ensureApp(ctx, jobId);
-  if (!["applied", "interview", "offer"].includes(app.status)) {
-    // Free trial: one application a day, 5 in all (the Apply Queue shows the rest behind Pro).
-    const { data: sub } = await ctx.db.from("subscriptions").select("plan_code, status").eq("user_id", ctx.userId).maybeSingle();
-    if (!(sub?.plan_code === "pro" && sub.status === "active")) {
-      const { data: sent } = await ctx.db.from("applications").select("applied_at").eq("user_id", ctx.userId).not("applied_at", "is", null);
-      if (!trialApplyRoom((sent || []) as { applied_at: string | null }[])) throw new TrialLimit("Your free trial includes one application a day. Go Pro to apply to more jobs today.");
-    }
-  }
+  // Free trial: one application a day, 5 in all (the Apply Queue shows the rest behind Pro).
+  if (!["applied", "interview", "offer"].includes(app.status)) await assertCanApply(ctx);
   const { error } = await ctx.db.from("applications").update({ status: "applied" }).eq("id", app.id);
+  if (isTrialLimitError(error)) throw new TrialLimit(TRIAL_LIMIT_COPY);
   if (error) throw error;
   await ctx.db.from("reminders").delete().eq("application_id", app.id).is("sent_at", null);
   await event(ctx, app.id, "You confirmed: applied", "applied");

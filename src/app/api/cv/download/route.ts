@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiCtx, unauthorized } from "@/lib/server/api";
 import { loadState } from "@/lib/server/state";
+import { isPro } from "@/lib/server/page";
+import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { cvDocHtml, cvPrintHtml, safeFileName } from "@/lib/cv/doc";
 
 /** GET ?format=doc|print&jobId=<optional, for the tailored CV>. "print" opens a printable page (Save as PDF). */
@@ -14,6 +16,11 @@ export async function GET(req: Request) {
   if (!st?.master) return NextResponse.json({ error: "No CV yet." }, { status: 404 });
   const app = jobId ? st.apps[jobId] : null;
   if (jobId && !app?.pack) return NextResponse.json({ error: "No application pack for this job." }, { status: 404 });
+  // Free trial: a ready application beyond today's one stays locked behind Pro here too (same rule as the job page).
+  if (app && (app.status === "ready" || app.status === "reminder") && !(await isPro(c.db, c.userId))) {
+    const apps = Object.values(st.apps);
+    if (!unlockedReady(apps, trialApplyRoom(apps)).has(app.job_id)) return NextResponse.redirect(new URL("/upgrade?from=trial", req.url));
+  }
   let photoUrl: string | null = null;
   if (st.profile.photo_path) {
     // Embed as a data URL so the file works offline and no long-lived link to the private bucket is created.

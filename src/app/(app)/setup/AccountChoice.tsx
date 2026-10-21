@@ -20,7 +20,7 @@ export function AccountChoice({ site, value, options, panels }: { site: string; 
           </button>
         ))}
       </div>
-      {err ? <p className="err small" style={{ marginTop: 6 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err small" style={{ marginTop: 6 }}>{err}</p> : null}
       {picked ? <div style={{ marginTop: 10 }}>{panels[picked]}</div> : null}
     </div>
   );

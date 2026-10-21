@@ -51,7 +51,7 @@ export function CountryStep(props: { current: string; home: string; needsVisa: b
         <p className="small muted" style={{ marginTop: 4 }}>Your Pro price and how you pay follow the country you live in.</p>
         {cur !== home ? <label className="row small" style={{ marginTop: 12, gap: 8, flexWrap: "nowrap", fontWeight: 500 }}><input type="checkbox" checked={visa} onChange={(e) => setVisa(e.target.checked)} /> I will need the employer to sponsor my work visa</label> : null}
       </div>
-      {err ? <p className="err" style={{ marginTop: 12 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 12 }}>{err}</p> : null}
       <div className="row" style={{ marginTop: 20 }}>
         <button className="btn btn-primary" disabled={busy} onClick={async () => {
           setBusy(true); setErr("");
@@ -155,7 +155,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
         {review.truncated ? <p className="note" style={{ borderColor: "var(--warn)" }}>The text may be cut off at the end. Add anything missing before you continue.</p> : null}
         <textarea aria-label="Transcribed CV text" style={{ minHeight: 360 }} value={review.text} onChange={(e) => setReview({ ...review, text: e.target.value })} />
         {busy ? <p><Spinner /> {busy}</p> : null}
-        {err ? <p className="err">{err}</p> : null}
+        {err ? <p role="alert" className="err">{err}</p> : null}
         <div className="row">
           <button className="btn btn-primary" disabled={!!busy} onClick={() => {
             const t = review.text.replace(/\[unclear\]/gi, "").trim();
@@ -176,7 +176,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
     <>
       <NoCvForm disabled={off} onSubmit={(cv) => send(READING, () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: cv }) }))} onBack={() => { setFresh(false); setErr(""); }} />
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
-      {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 14 }}>{err}</p> : null}
       {!aiReady ? <p className="note" style={{ marginTop: 18 }}>Building a CV from your answers opens as soon as our AI is switched on. Meanwhile you can try every step with a sample CV.</p> : null}
     </>
   );
@@ -223,14 +223,14 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
       </div>
       <details style={{ marginTop: 14 }}>
         <summary style={{ cursor: "pointer", fontWeight: 600 }}>Or paste your CV text</summary>
-        <textarea style={{ marginTop: 10 }} placeholder="Paste the full text of your CV" value={text} onChange={(e) => setText(e.target.value)} />
+        <textarea style={{ marginTop: 10 }} aria-label="CV text" placeholder="Paste the full text of your CV" value={text} onChange={(e) => setText(e.target.value)} />
         <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} disabled={off} onClick={() => {
           if (text.trim().length < 200) { setErr("That looks too short for a CV. Paste the full text."); return; }
           send(READING, () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
         }}>Use this text</button>
       </details>
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
-      {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 14 }}>{err}</p> : null}
       {aiReady ? <div className="row" style={{ marginTop: 22 }}><button className="btn btn-text" disabled={!!busy} onClick={demo}>Try with a sample CV instead</button></div> : null}
     </>
   );
@@ -272,7 +272,7 @@ function NoCvForm({ disabled, onSubmit, onBack }: { disabled: boolean; onSubmit:
             : <input id={`nocv-${f.k}`} type="text" placeholder={f.hint} value={v[f.k] || ""} onChange={(e) => setV({ ...v, [f.k]: e.target.value })} />}
         </label>
       ))}
-      {err ? <p className="err">{err}</p> : null}
+      {err ? <p role="alert" className="err">{err}</p> : null}
       <div className="row" style={{ justifyContent: "space-between" }}>
         <button type="button" className="btn btn-text" onClick={onBack}>← I have a CV to upload</button>
         <button className="btn btn-primary" disabled={disabled}>Build my CV</button>
@@ -346,7 +346,7 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
       ) : null}
       {!props.fields.length ? <p className="note" style={{ marginTop: 14 }}>{props.countryLabel} CVs leave out photo, date of birth and marital status, so we will not add them.</p> : null}
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
-      {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 14 }}>{err}</p> : null}
       <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary" disabled={!!busy} onClick={submit}>{props.editing ? "Save preferences" : "Create my professional CV"}</button></div>
     </>
   );

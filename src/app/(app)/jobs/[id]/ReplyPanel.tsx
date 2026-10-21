@@ -15,9 +15,9 @@ export function ReplyPanel(p: { jobId: string; company: string; daysSince: numbe
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => act(() => statusAction(p.jobId, "interview"))}>Got an interview call</button>
         <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => act(() => statusAction(p.jobId, "closed"))}>Not selected</button>
-        <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setNone(true); void noReplyYetAction(p.jobId).catch(() => {}); }}>No reply yet</button>
+        <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setNone(true); act(() => noReplyYetAction(p.jobId)); }}>No reply yet</button>
       </div>
-      {err ? <p className="err small" style={{ marginTop: 8 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err small" style={{ marginTop: 8 }}>{err}</p> : null}
       {none ? (
         p.followUp && p.canFollowUp ? (
           <div style={{ marginTop: 14 }}>
