@@ -38,6 +38,24 @@ export const MasterCvSchema = z.object({
   improvements: z.array(z.object({ before: z.string(), after: z.string() })),
 });
 
+const EditField = z.enum(["title", "company", "start", "end", "location", "degree", "field", "institution", "year", "level", "result", "name", "status", "detail"]);
+/**
+ * "Ask AI to change your CV": fact changes plus the whole Master CV after the change.
+ * Field values are a list of pairs rather than nullable fields: structured output limits how many nullable (union) fields a schema may have.
+ */
+export const CvEditSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  ops: z.array(z.object({
+    op: z.enum(["remove", "update", "add"]),
+    ref: z.string(),
+    kind: z.enum(["experience", "education", "certification", "skill", "language"]),
+    values: z.array(z.object({ field: EditField, value: z.string() })),
+    clear: z.array(EditField),
+  })),
+  master: MasterCvSchema.nullable(),
+});
+
 export const PackSchema = z.object({
   summary: z.string(),
   top_bullets: z.array(z.string()),
@@ -83,6 +101,7 @@ export const AlertFillSchema = z.object({
 export type AlertFillOut = z.infer<typeof AlertFillSchema>;
 
 export type ExtractionOut = z.infer<typeof ExtractionSchema>;
+export type CvEditOut = z.infer<typeof CvEditSchema>;
 export type MasterCvOut = z.infer<typeof MasterCvSchema>;
 export type PackOut = z.infer<typeof PackSchema>;
 export type PastedJobOut = z.infer<typeof PastedJobSchema>;

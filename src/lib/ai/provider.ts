@@ -4,7 +4,7 @@ import type { z } from "zod";
 /** fast = extraction, normalisation, tailoring (Claude Haiku). quality = Master CV, cover letter (Claude Sonnet). */
 export type AITier = "fast" | "quality";
 
-export type AIFeature = "cv_extract" | "cv_ocr" | "master_cv" | "pack" | "paste_job" | "alert_parse" | "roadmap" | "interview";
+export type AIFeature = "cv_extract" | "cv_ocr" | "master_cv" | "pack" | "paste_job" | "alert_parse" | "roadmap" | "interview" | "cv_edit";
 
 export interface AIUsage { model: string; inputTokens: number; outputTokens: number; costMicroUsd: number }
 

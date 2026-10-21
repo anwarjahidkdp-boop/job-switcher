@@ -11,6 +11,8 @@ import { CountryPanel, SkillAdder, FactReview, DangerZone, GmailPanel } from "./
 import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sitesDone } from "@/lib/setup";
+import { CvEditBox } from "@/components/CvEditBox";
+import { aiConfigured } from "@/lib/ai";
 
 export const metadata = { title: "Profile" };
 
@@ -45,6 +47,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">Save as PDF</a>
             <form action={backToStepAction.bind(null, "upload")}><button className="btn btn-ghost btn-sm">Upload a new CV</button></form>
           </div>
+          <CvEditBox aiReady={aiConfigured()} style={{ marginTop: 12 }} />
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side">
