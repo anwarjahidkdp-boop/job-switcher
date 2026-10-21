@@ -19,6 +19,8 @@ import { followUpDraft } from "@/lib/followup";
 import { daysUntil } from "@/lib/dates";
 import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
+import { packAllowanceFor } from "@/lib/server/applications";
+import { limitNotice } from "@/lib/pack-limits";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -44,6 +46,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const photo = a?.pack ? await photoUrl(db, st.profile.photo_path) : null;
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
+  const allowance = !a?.pack && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const aiLeft = !allowance ? null : allowance.left ? `${allowance.left} AI-tailored ${allowance.left === 1 ? "application" : "applications"} left today (${Math.max(0, allowance.limits.month - allowance.used.month)} this month)` : `${limitNotice(allowance)} You will get the standard version.`;
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -116,7 +120,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <ActionsPanel jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
-              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} />
+              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} aiLeft={aiLeft} />
           </div>
         </aside>
       </div>

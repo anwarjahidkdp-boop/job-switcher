@@ -1,3 +1,4 @@
+import { packLimits } from "@/lib/pack-limits";
 import { PageHead } from "@/components/PageHead";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -58,6 +59,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
           <h3>Your plan</h3>
           <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds {span} after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts {span} of Pro today.</> : <>You are on the free plan. Paying starts {span} of Pro.</>}</p>
         </div>
+        {(() => { const l = packLimits("pro", home); return <p className="small muted" style={{ marginTop: 10 }}>Pro includes up to <b>{l.day} AI-tailored applications a day</b> (CV + cover letter for one job), up to {l.week} a week and {l.month} a month. After that you still get the standard version, free.</p>; })()}
         <div className="packs" role="radiogroup" aria-label="Choose your Pro pack">
           {PACKS.map((k) => {
             const p = packPrice(home, k.id);
