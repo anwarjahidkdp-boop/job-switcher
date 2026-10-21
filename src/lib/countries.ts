@@ -175,8 +175,12 @@ export function cname(c: unknown): string {
 export function money(n: number | null | undefined, c: unknown): string {
   if (!n) return "";
   const r = rule(c);
-  return r.sym + Number(n).toLocaleString(r.loc || "en-US");
+  const loc = r.loc || "en-US";
+  let f = NUM_FMT.get(loc);
+  if (!f) { f = new Intl.NumberFormat(loc); NUM_FMT.set(loc, f); }
+  return r.sym + f.format(Number(n));
 }
+const NUM_FMT = new Map<string, Intl.NumberFormat>();
 export function perLabel(c: unknown): string {
   return rule(c).per === "year" ? "/yr" : "/mo";
 }

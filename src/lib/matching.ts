@@ -21,15 +21,29 @@ export function bandOf(score: number): Band {
 
 export const hasSkillSet = (P: MatchProfile) => new Set(P.skills.map((s) => s.name));
 
+// Per-profile lookups reused across every job in one scoring pass (scoreAll scores hundreds of jobs per page view).
+interface ProfileIdx { skills: Set<string>; tokens: Set<string>; fams: Set<number>; roles: Set<string> }
+const IDX = new WeakMap<MatchProfile, ProfileIdx>();
+const normTitle = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, "");
+function profileIdx(P: MatchProfile): ProfileIdx {
+  let x = IDX.get(P);
+  if (!x) {
+    const tokens = new Set<string>();
+    [...P.targetRoles, ...P.titles].forEach((t) => titleTokens(t).forEach((w) => tokens.add(w)));
+    const fams = new Set([...tokens].map(famOf).filter((f) => f >= 0));
+    x = { skills: hasSkillSet(P), tokens, fams, roles: new Set(P.targetRoles.map(normTitle)) };
+    IDX.set(P, x);
+  }
+  return x;
+}
+
 export function roleRel(job: Pick<Job, "title" | "category">, P: MatchProfile): number {
-  const pt = new Set<string>();
-  [...P.targetRoles, ...P.titles].forEach((t) => titleTokens(t).forEach((w) => pt.add(w)));
+  const { tokens: pt, fams, roles } = profileIdx(P);
   const jt = titleTokens(job.title);
   let ts = 0;
   if (jt.some((w) => pt.has(w))) ts = 1;
-  else if (jt.some((w) => { const f = famOf(w); return f >= 0 && [...pt].some((x) => famOf(x) === f); })) ts = 0.7;
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, "");
-  if (P.targetRoles.some((r) => norm(r) === norm(job.title))) ts = 1;
+  else if (jt.some((w) => fams.has(famOf(w)))) ts = 0.7;
+  if (roles.has(normTitle(job.title))) ts = 1;
   const catMatch = !!job.category && P.categories.includes(job.category);
   return catMatch ? 0.6 + 0.4 * ts : 0.55 * ts;
 }
@@ -53,7 +67,7 @@ export interface ScoreOptions {
 }
 
 export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchResult {
-  const set = hasSkillSet(P);
+  const set = profileIdx(P).skills;
   const f: Partial<Record<Factor, number | null>> = {};
   const matched: { t: string; w: number }[] = [];
   const gaps: Gap[] = [];
