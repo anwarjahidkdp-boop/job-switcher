@@ -4,6 +4,7 @@
 import { cc, cname, isAccent, isTemplate, rule, ACCENTS, HOME_COUNTRY, type CountryCode, type CvTemplate } from "../countries";
 import { fmtYM } from "../dates";
 import type { ApplicationPack, CvStyle, MasterCV, PersonalDetails } from "../types";
+import { convention, personalRows, cleanReferees, DECLARATION, signDate } from "./conventions";
 
 /**
  * South Asian shorthand amounts written out for an international reader: "2 lacs+" -> "more than 200,000",
@@ -15,6 +16,11 @@ export function proAmounts(s: string): string {
     const v = Math.round(Number(n) * AMT_UNIT[u.toLowerCase()]);
     return Number.isFinite(v) ? `${plus ? "more than " : ""}${v.toLocaleString("en-GB")}` : _;
   });
+}
+
+function refHtml(x: { name: string; title?: string; org?: string; phone?: string; email?: string; relation?: string }): string {
+  const ln = (v?: string, cls = "") => (v ? `<span${cls ? ` class="${cls}"` : ""}>${esc(v)}</span>` : "");
+  return `<b>${esc(x.name)}</b>${ln(x.title)}${ln(x.org)}${ln([x.phone, x.email].filter(Boolean).join(" · "), "rc")}${ln(x.relation ? `Relation: ${x.relation}` : "", "rr")}`;
 }
 
 export const esc = (s: unknown) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -66,6 +72,10 @@ export interface RenderInput {
   photoUrl?: string | null;
   /** Word/print-safe markup (tables instead of grid, no placeholders, no highlight marks). */
   forDoc?: boolean;
+  /** Notice period in days, from the person's preferences. */
+  noticeDays?: number | null;
+  /** Date on the signature line; defaults to today. */
+  today?: Date;
 }
 
 const SAFE_IMG = /^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+|https:\/\/[^\s"'<>]+)$/;
@@ -81,7 +91,8 @@ export function renderCvHtml(inp: RenderInput): string {
   let exp = (m.experience || []).map((e, i) => ({ ...e, bullets: t && i === 0 && t.top_bullets && t.top_bullets.length ? t.top_bullets : e.bullets || [] }));
   if (r.onePage) exp = exp.map((e, i) => ({ ...e, bullets: e.bullets.slice(0, i === 0 ? 5 : 3) }));
   const pd = inp.personal || {};
-  const personal = r.personal ? ([["Nationality", pd.nationality], ["Date of birth", pd.dob], r.visaField ? ["Visa status", pd.visa] : null].filter((x) => x && x[1]) as [string, string][]) : [];
+  const cv = convention(country);
+  const personal = personalRows(cv, pd, inp.noticeDays);
   const contact = String(m.contact || "").split(/\s*·\s*/).filter(Boolean);
   if (country !== (inp.homeCountry || HOME_COUNTRY)) contact.push("Open to relocate to " + cname(country));
   const H = r.doc === "Résumé" ? { sum: "Summary", exp: "Work Experience" } : { sum: "Profile", exp: "Professional Experience" };
@@ -91,7 +102,20 @@ export function renderCvHtml(inp: RenderInput): string {
   const sec = (h: string, body: string) => (body ? `<section class="cs"><h3>${h}</h3>${body}</section>` : "");
   const list = (a: string[] | undefined) => ((a || []).length ? `<ul>${(a || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const chips = (a: string[]) => (!a.length ? "" : forDoc ? `<p>${a.map(esc).join(" · ")}</p>` : `<div class="cvchips">${a.map((x) => `<span>${esc(x)}</span>`).join("")}</div>`);
-  const pers = personal.length ? `<dl class="pd">${personal.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
+  const pers = personal.length ? `<dl class="pd">${personal.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
+  const persH = r.personal ? "Personal details" : "Additional information";
+  // References, declaration, signature and consent: the closing block every template ends with.
+  const refs = cleanReferees(pd.references, cv.refCount);
+  const refBody = cv.refs === "none" ? "" : cv.refs === "list" && refs.length
+    ? (forDoc
+      ? `<table width="100%" cellspacing="0" cellpadding="0"><tr>${refs.map((x) => `<td valign="top" width="${Math.floor(100 / refs.length)}%">${refHtml(x)}</td>`).join("")}</tr></table>`
+      : `<div class="refs">${refs.map((x) => `<div class="ref">${refHtml(x)}</div>`).join("")}</div>`)
+    : "<p>Available on request.</p>";
+  // The declaration, signature and consent stay together so the signature never sits alone on a last page.
+  const endBlock = (cv.declaration ? sec("Declaration", `<p>${DECLARATION}</p>`) : "")
+    + (cv.sign ? `<div class="sign"><div><span class="sig-line"></span><b>${esc(m.name)}</b></div><span>Date: ${esc(signDate(cv, inp.today || new Date()))}</span></div>` : "")
+    + (cv.consent ? `<p class="gdpr">${esc(cv.consent)}</p>` : "");
+  const closing = sec("References", refBody) + (endBlock ? `<div class="cv-end">${endBlock}</div>` : "");
   const langs = (m.languages || []).length ? `<p>${m.languages.map(esc).join(", ")}</p>` : "";
   const expH = exp.map((e) => {
     const dt = `${fmtYM(e.start)} – ${fmtYM(e.end)}`;
@@ -132,10 +156,8 @@ export function renderCvHtml(inp: RenderInput): string {
       ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td valign="top">${nameBlock}<p class="ct">${contact.map(esc).join(" &nbsp;|&nbsp; ")}</p></td>${ph ? `<td align="right" valign="top" width="96">${ph}</td>` : ""}</tr></table>`
       : `<div class="hd"><div>${nameBlock}<p class="ct">${contact.map((x) => `<span>${esc(x)}</span>`).join("")}</p></div>${ph}</div>`;
     const langList = (m.languages || []).length ? `<ul class="plain">${m.languages.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : "";
-    const tail = `${sec("Languages", langList)}${sec("Personal details", pers)}`;
-    // Country conventions: referees in Australia and New Zealand, the GDPR consent line in Italy.
-    const extra = (country === "AU" || country === "NZ" ? sec("Referees", "<p>Available on request.</p>") : "")
-      + (country === "IT" ? `<p class="gdpr">Autorizzo il trattamento dei dati personali contenuti nel mio curriculum vitae ai sensi del Regolamento UE 2016/679 (GDPR).</p>` : "");
+    const tail = `${sec("Languages", langList)}${sec(persH, pers)}`;
+    const extra = closing;
     const body = `${sec(r.doc === "Résumé" ? "Executive Summary" : "Executive Profile", `<p>${sumTxt}</p>`).replace('class="cs"', 'class="cs sum"')}`
       + `${hi.length ? sec("Career Highlights", `<ul class="hi">${hi.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`) : ""}`
       + `${sec("Areas of Expertise", expertise)}${sec(H.exp, roles)}${sec("Education", list(m.education))}${sec("Professional Qualifications", list(m.certifications))}`
@@ -144,17 +166,17 @@ export function renderCvHtml(inp: RenderInput): string {
     return `<article class="cv t-corp" style="--cva:${acc}"><header>${head}</header>${body}</article>`;
   }
   if (tpl === "modern") {
-    const side = `${ph}${sec("Contact", contact.map((x) => `<p>${esc(x)}</p>`).join(""))}${sec("Skills", chips(skills))}${sec("Languages", langs)}${sec("Personal details", pers)}`;
-    const main = `<header>${nameBlock}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}`;
+    const side = `${ph}${sec("Contact", contact.map((x) => `<p>${esc(x)}</p>`).join(""))}${sec("Skills", chips(skills))}${sec("Languages", langs)}${sec(persH, pers)}`;
+    const main = `<header>${nameBlock}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${closing}`;
     if (forDoc) return `<table width="100%" cellspacing="0" cellpadding="0"><tr><td class="sb" width="32%" valign="top" style="background:${acc};padding:18pt 14pt">${side}</td><td valign="top" style="padding:18pt 18pt">${main}</td></tr></table>`;
     return `<article class="cv t-modern" style="--cva:${acc}"><aside class="sb">${side}</aside><div class="mn">${main}</div></article>`;
   }
   if (tpl === "executive") {
     const band = `${ph}<div>${nameBlock}<p class="ct">${contact.map(esc).join(" · ")}</p></div>`;
-    const body = `${sec(H.sum, `<p>${sumTxt}</p>`)}${sec("Core skills", chips(skills))}${sec(H.exp, expH)}<div class="two">${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}</div>${sec("Languages", langs)}${sec("Personal details", pers)}`;
+    const body = `${sec(H.sum, `<p>${sumTxt}</p>`)}${sec("Core skills", chips(skills))}${sec(H.exp, expH)}<div class="two">${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}</div>${sec("Languages", langs)}${sec(persH, pers)}${closing}`;
     if (forDoc) return `<table width="100%" cellspacing="0" cellpadding="0"><tr><td class="band" style="background:${acc};padding:16pt 18pt">${band}</td></tr></table><div style="padding:0 6pt">${body}</div>`;
     return `<article class="cv t-exec" style="--cva:${acc}"><header class="band">${band}</header><div class="body">${body}</div></article>`;
   }
-  const inner = `<header>${ph}${nameBlock}<p class="ct">${contact.map(esc).join(" · ")}</p></header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${sec("Skills", skills.length ? `<p>${skills.map(esc).join(" · ")}</p>` : "")}${sec("Languages", langs)}${sec("Personal details", pers)}`;
+  const inner = `<header>${ph}${nameBlock}<p class="ct">${contact.map(esc).join(" · ")}</p></header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${sec("Skills", skills.length ? `<p>${skills.map(esc).join(" · ")}</p>` : "")}${sec("Languages", langs)}${sec(persH, pers)}${closing}`;
   return forDoc ? `<div class="classic">${inner}</div>` : `<article class="cv t-classic" style="--cva:${acc}">${inner}</article>`;
 }

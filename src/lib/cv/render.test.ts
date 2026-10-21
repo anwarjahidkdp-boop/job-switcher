@@ -75,14 +75,55 @@ describe("CV print polish", () => {
     expect(h).toContain("role grp");
     expect(h.match(/Acme Ltd/g)!.length).toBe(1);
   });
-  it("uses Letter paper in the US and Canada, A4 elsewhere, with margins except on full-bleed layouts", () => {
-    expect(pageCss({ master: DEMO_MASTER, country: "US" })).toContain("size:Letter;margin:15mm");
+  it("uses Letter paper with US margins in the US and Canada, A4 elsewhere, and no margin on full-bleed layouts", () => {
+    expect(pageCss({ master: DEMO_MASTER, country: "US" })).toContain("size:Letter;margin:0.7in 0.75in");
     expect(pageCss({ master: DEMO_MASTER, country: "CA" })).toContain("size:Letter");
-    expect(pageCss({ master: DEMO_MASTER, country: "GB" })).toContain("size:A4;margin:15mm");
+    expect(pageCss({ master: DEMO_MASTER, country: "GB" })).toContain("size:A4;margin:18mm");
+    expect(pageCss({ master: DEMO_MASTER, country: "DE" })).toContain("margin:20mm 20mm 18mm 25mm");
     expect(pageCss({ master: DEMO_MASTER, country: "GB", style: { tpl: "modern" } })).toContain("margin:0");
   });
-  it("adds referees for Australia and the GDPR consent line for Italy", () => {
-    expect(renderCvHtml({ master: DEMO_MASTER, country: "AU" })).toContain("Referees");
-    expect(renderCvHtml({ master: DEMO_MASTER, country: "IT" })).toContain("GDPR");
+  it("adds a references section for Australia and the GDPR consent line and signature for Italy", () => {
+    expect(renderCvHtml({ master: DEMO_MASTER, country: "AU" })).toContain("<h3>References</h3><p>Available on request.</p>");
+    const itc = renderCvHtml({ master: DEMO_MASTER, country: "IT", today: new Date("2026-10-21T00:00:00Z") });
+    expect(itc).toContain("GDPR");
+    expect(itc).toContain('class="sign"');
+    expect(itc).toContain("21/10/2026");
+  });
+});
+
+describe("country conventions on the CV", () => {
+  const refs = [{ name: "Md. Rafiqul Islam", title: "Finance Director", org: "Gentle Park Ltd.", phone: "+880 1711 000000", email: "r@x.com", relation: "Former line manager" }, { name: "No Contact" }];
+  const bd = { fatherName: "Abdul Karim", motherName: "Rokeya Begum", religion: "Islam", dob: "1 Jan 1990", references: refs };
+  it("Bangladesh: parents' names, two listed referees, declaration and signature on every template", () => {
+    for (const tpl of ["corporate", "modern", "executive", "classic"] as const) {
+      const h = renderCvHtml({ master: DEMO_MASTER, country: "BD", personal: bd, style: { tpl }, today: new Date("2026-10-21T00:00:00Z") });
+      expect(h).toContain("Father&#39;s name");
+      expect(h).toContain("Abdul Karim");
+      expect(h).toContain("Md. Rafiqul Islam");
+      expect(h).not.toContain("No Contact");
+      expect(h).toContain("I hereby declare");
+      expect(h).toContain("Date: 21/10/2026");
+    }
+  });
+  it("UK: no personal details or referee contacts, right to work shown, references on request", () => {
+    const h = renderCvHtml({ master: DEMO_MASTER, country: "GB", personal: { ...bd, visa: "British citizen" } });
+    expect(h).not.toContain("Abdul Karim");
+    expect(h).not.toContain("Rafiqul");
+    expect(h).toContain("Right to work");
+    expect(h).toContain("Available on request.");
+    expect(h).not.toContain("I hereby declare");
+  });
+  it("US: no references section at all", () => {
+    expect(renderCvHtml({ master: DEMO_MASTER, country: "US", personal: bd })).not.toContain("References");
+  });
+  it("Gulf: notice period from preferences and driving licence", () => {
+    const h = renderCvHtml({ master: DEMO_MASTER, country: "AE", personal: { licence: "UAE driving licence" }, noticeDays: 30 });
+    expect(h).toContain("30 days");
+    expect(h).toContain("UAE driving licence");
+  });
+  it("Word export carries the same closing block", () => {
+    const h = cvDocHtml({ master: DEMO_MASTER, country: "BD", personal: bd });
+    expect(h).toContain("Md. Rafiqul Islam");
+    expect(h).toContain("I hereby declare");
   });
 });

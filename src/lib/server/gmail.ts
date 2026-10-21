@@ -97,7 +97,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
     if (data) photoUrl = "data:image/jpeg;base64," + Buffer.from(await data.arrayBuffer()).toString("base64");
   }
   const master = st.master.content;
-  const cv = cvDocHtml({ master, tailored: app.pack, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, photoUrl });
+  const cv = cvDocHtml({ master, tailored: app.pack, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, noticeDays: st.profile.preferences?.notice ?? null, photoUrl });
   const base = safeFileName(master.name) + (job.company ? "-" + safeFileName(job.company) : "");
   const raw = buildMime({
     from: fromHeader(master.name, conn.google_email), to, subject: app.pack.email_subject, text: app.pack.email_body,

@@ -1,6 +1,7 @@
 // Word export: an HTML document Word opens natively (.doc), as in the prototype saveDoc().
 import { renderCvHtml, resolveStyle, esc, type RenderInput } from "./render";
 import { CV_PRINT_CSS, CV_SCREEN_CSS, cvDocCss } from "./styles";
+import { convention } from "./conventions";
 
 export function cvDocHtml(inp: Omit<RenderInput, "forDoc">): string {
   const { accent } = resolveStyle(inp.style, inp.country);
@@ -17,14 +18,14 @@ export function cvPrintHtml(inp: Omit<RenderInput, "forDoc">, opts: { autoPrint?
 }
 
 /**
- * Paper and margins: Letter in the US and Canada, A4 elsewhere. Layouts with a full-bleed colour band or sidebar print
+ * Paper and margins follow the target country (conventions.ts): Letter in North America and the Philippines, A4 elsewhere. Layouts with a full-bleed colour band or sidebar print
  * edge to edge; the others get real page margins, so the second page does not start at the paper's edge.
  */
 export function pageCss(inp: Omit<RenderInput, "forDoc">): string {
-  const size = ["US", "CA"].includes(String(inp.country)) ? "Letter" : "A4";
+  const cv = convention(inp.country);
   const { tpl } = resolveStyle(inp.style, inp.country);
   const bleed = tpl === "modern" || tpl === "executive";
-  return `@page{size:${size};margin:${bleed ? "0" : "15mm 17mm 14mm"}}@media print{.sheet .cv{min-height:0}${bleed ? "" : ".sheet .t-classic{padding:0}"}}`;
+  return `@page{size:${cv.paper};margin:${bleed ? "0" : cv.margin}}@media print{.sheet .cv{min-height:0}${bleed ? "" : ".sheet .t-classic{padding:0}"}}`;
 }
 
 export function safeFileName(s: string): string {

@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui";
 import { CountrySelect } from "@/components/CountrySelect";
 import { popularFor, rule } from "@/lib/countries";
 import { setCountryAction } from "../actions";
-import type { PersonalDetails, Preferences } from "@/lib/types";
+import type { PersonalDetails, Preferences, Referee } from "@/lib/types";
 
 const MAX_PAGES = 4; // keep in sync with MAX_PAGES in src/lib/cv/browser-read.ts and MAX_SCAN_PAGES on the server
 
@@ -281,10 +281,13 @@ function NoCvForm({ disabled, onSubmit, onBack }: { disabled: boolean; onSubmit:
   );
 }
 
-export function PrefsStep(props: { editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; showPersonal: boolean; visaField: boolean; isBD: boolean }) {
+export type PersonalField = { k: Exclude<keyof PersonalDetails, "references">; label: string; hint: string };
+const emptyRef = (): Referee => ({ name: "", title: "", org: "", phone: "", email: "", relation: "" });
+export function PrefsStep(props: { editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean }) {
   const router = useRouter();
   const [p, setP] = useState({ roles: props.initial.roles || "", locations: props.initial.locations || "", salaryMin: props.initial.salaryMin ?? "", salaryMax: props.initial.salaryMax ?? "", notice: props.initial.notice ?? "", mode: props.initial.mode || "On-site" });
-  const [pd, setPd] = useState({ nationality: props.personal.nationality || "", dob: props.personal.dob || "", visa: props.personal.visa || "" });
+  const [pd, setPd] = useState<Record<string, string>>(Object.fromEntries(props.fields.map((f) => [f.k, String(props.personal[f.k] || "")])));
+  const [refs, setRefs] = useState<Referee[]>(() => { const r = (props.personal.references || []).map((x) => ({ ...emptyRef(), ...x })); while (r.length < props.refs.count) r.push(emptyRef()); return r.slice(0, props.refs.count); });
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [, start] = useTransition();
@@ -293,7 +296,7 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
     setErr("");
     try {
       setBusy("Saving your preferences");
-      await post("/api/onboarding/prefs", { prefs: p, personal: props.showPersonal ? pd : null });
+      await post("/api/onboarding/prefs", { prefs: p, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
       if (props.editing) { start(() => router.push("/profile")); return; }
       setBusy("Writing your professional CV. This usually takes under a minute.");
       await post("/api/cv/build", {});
@@ -314,17 +317,34 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
           <label className="f" htmlFor="p_mode" style={{ flex: 1, minWidth: 140 }}>Work mode<select id="p_mode" value={p.mode} onChange={upd("mode")}>{["On-site", "Hybrid", "Remote", "Any"].map((o) => <option key={o}>{o}</option>)}</select></label>
         </div>
       </div>
-      {props.showPersonal ? (
+      {props.fields.length ? (
         <div className="card panel stack" style={{ marginTop: 14 }}>
-          <h3 style={{ margin: 0 }}>Personal details for your {props.countryLabel} CV (optional)</h3>
-          <p className="small muted">{props.countryLabel} CVs often include these. Leave a box blank to keep it off your CV.</p>
-          <div className="row" style={{ alignItems: "flex-end" }}>
-            <label className="f" htmlFor="pd_nat" style={{ flex: 1, minWidth: 140 }}>Nationality<input type="text" id="pd_nat" value={pd.nationality} onChange={(e) => setPd({ ...pd, nationality: e.target.value })} placeholder="e.g. Bangladeshi" /></label>
-            <label className="f" htmlFor="pd_dob" style={{ flex: 1, minWidth: 140 }}>Date of birth<input type="text" id="pd_dob" value={pd.dob} onChange={(e) => setPd({ ...pd, dob: e.target.value })} placeholder="e.g. 12 March 1992" /></label>
-            {props.visaField ? <label className="f" htmlFor="pd_visa" style={{ flex: 1, minWidth: 140 }}>Visa status<input type="text" id="pd_visa" value={pd.visa} onChange={(e) => setPd({ ...pd, visa: e.target.value })} placeholder="e.g. Requires employment visa" /></label> : null}
+          <h3 style={{ margin: 0 }}>{props.personalCountry ? "Personal details" : "Work status"} for your {props.countryLabel} CV (optional)</h3>
+          <p className="small muted">{props.personalCountry ? `${props.countryLabel} CVs usually include these.` : `${props.countryLabel} CVs leave out photo, date of birth and marital status, so we only add what employers there expect.`} Leave a box blank to keep it off your CV.</p>
+          <div className="pd-grid">
+            {props.fields.map((f) => (
+              <label key={f.k} className="f" htmlFor={`pd_${f.k}`}>{f.label}<input type="text" id={`pd_${f.k}`} value={pd[f.k] || ""} onChange={(e) => setPd({ ...pd, [f.k]: e.target.value })} placeholder={f.hint} maxLength={f.k === "address" ? 200 : 120} /></label>
+            ))}
           </div>
         </div>
-      ) : <p className="note" style={{ marginTop: 14 }}>{props.countryLabel} CVs leave out photo, date of birth and marital status, so we will not add them.</p>}
+      ) : null}
+      {props.refs.mode === "list" ? (
+        <div className="card panel stack" style={{ marginTop: 14 }}>
+          <h3 style={{ margin: 0 }}>References for your {props.countryLabel} CV</h3>
+          <p className="small muted">{props.countryLabel} employers expect {props.refs.count} referees who are not relatives, such as a former manager or a senior colleague. Ask them first. Until you add them, your CV says &quot;Available on request&quot;.</p>
+          {refs.map((r, i) => (
+            <fieldset key={i} className="ref-box">
+              <legend>Referee {i + 1}</legend>
+              <div className="pd-grid">
+                {([["name", "Full name", "e.g. Md. Rafiqul Islam"], ["title", "Designation", "e.g. Finance Director"], ["org", "Organisation", "e.g. Gentle Park Ltd."], ["phone", "Phone", "e.g. +880 1711 000000"], ["email", "Email", "e.g. rafiq@company.com"], ["relation", "Relation", "e.g. Former line manager"]] as const).map(([k, l, h]) => (
+                  <label key={k} className="f" htmlFor={`ref${i}_${k}`}>{l}<input type={k === "email" ? "email" : "text"} id={`ref${i}_${k}`} value={r[k] || ""} placeholder={h} maxLength={120} onChange={(e) => setRefs(refs.map((x, n) => (n === i ? { ...x, [k]: e.target.value } : x)))} /></label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+      ) : null}
+      {!props.fields.length ? <p className="note" style={{ marginTop: 14 }}>{props.countryLabel} CVs leave out photo, date of birth and marital status, so we will not add them.</p> : null}
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
       {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
       <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary" disabled={!!busy} onClick={submit}>{props.editing ? "Save preferences" : "Create my professional CV"}</button></div>

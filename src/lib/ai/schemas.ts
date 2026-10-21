@@ -65,9 +65,11 @@ export const PackSchema = z.object({
   email_subject: z.string(),
   email_body: z.string(),
   checklist: z.array(z.string()),
+  asks: z.array(z.string()),
+  instructions: z.string().nullable(),
 });
 
-export const PackTailorSchema = PackSchema.pick({ summary: true, top_bullets: true, skills_order: true, emphasis: true, checklist: true });
+export const PackTailorSchema = PackSchema.pick({ summary: true, top_bullets: true, skills_order: true, emphasis: true, checklist: true, asks: true, instructions: true });
 export const PackLetterSchema = PackSchema.pick({ cover_letter: true, email_subject: true, email_body: true });
 
 const JobFields = {

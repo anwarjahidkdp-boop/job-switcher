@@ -32,7 +32,7 @@ export default async function Queue() {
       <div className="stack" style={{ marginTop: 20 }}>
         {nLocked ? <div className="card panel upsell upsell-row">
           <div><p className="eyebrow">Free trial · {TRIAL_APPLY.day} application a day</p><h3 style={{ margin: "4px 0 4px" }}>{nLocked} more {nLocked === 1 ? "application is" : "applications are"} ready for you</h3>
-            <p className="small">Each one has its own tailored CV and cover letter. Go Pro to send them all today and get new ones every day.</p></div>
+            <p className="small">Each one is prepared to what its job post asks for: a tailored CV, a cover letter and a list of anything else to attach. Go Pro to send them all today and get new ones every day.</p></div>
           <Link className="btn btn-gold" href="/upgrade?from=queue">Go Pro and apply to all</Link>
         </div> : null}
         {groups.size ? [...groups.entries()].map(([k, xs]) => (

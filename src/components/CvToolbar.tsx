@@ -17,7 +17,7 @@ async function shrinkPhoto(file: File): Promise<Blob> {
   } finally { URL.revokeObjectURL(url); }
 }
 
-export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed: boolean; hasPhoto: boolean; countryLabel: string; rules: string[] }) {
+export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed: boolean; hasPhoto: boolean; countryLabel: string; rules: string[]; downloads?: { doc: string; pdf: string; label?: string } }) {
   const router = useRouter();
   const { pending, err, save } = useSave();
   const [msg, setMsg] = useState("");
@@ -61,6 +61,13 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
           ) : null}
         </div>
       </div>
+      {props.downloads ? (
+        <div className="cvbar-dl">
+          <a className="btn btn-primary btn-sm" href={props.downloads.pdf} target="_blank" rel="noopener">Download PDF</a>
+          <a className="btn btn-ghost btn-sm" href={props.downloads.doc}>Download Word</a>
+          {props.downloads.label ? <span className="small muted">{props.downloads.label}</span> : null}
+        </div>
+      ) : null}
       <p className="small muted" style={{ margin: 0 }}>
         {props.countryLabel} format: {props.rules.join(" · ")}.{!props.photoAllowed && props.hasPhoto ? " Your photo is hidden for this country." : ""}
         {err ? ` ${err}` : msg ? ` ${msg}` : ""}

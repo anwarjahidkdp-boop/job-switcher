@@ -13,6 +13,7 @@ import { AIError } from "../ai/provider";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_MASTER } from "../demo";
 import { MAX_CV_TEXT, MIME, MIN_CV_CHARS, CvReadError, sniffImage, sniffKind, tidy } from "../cv/sniff";
 import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill, skillLabel } from "../taxonomy";
+import { mergePersonal } from "../cv/conventions";
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
 import { DEFAULT_META, loadFacts, loadProfile, type CvDocRow, type ProfileRow } from "./state";
 import { freshnessQuestions } from "../cv-fresh";
@@ -162,7 +163,10 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
     mode: (["On-site", "Hybrid", "Remote", "Any"] as const).includes(prefs.mode as Preferences["mode"]) ? (prefs.mode as Preferences["mode"]) : "On-site",
   };
   const patch: Record<string, unknown> = { preferences: p };
-  if (personal) patch.personal = { nationality: String(personal.nationality || "").slice(0, 80), dob: String(personal.dob || "").slice(0, 40), visa: String(personal.visa || "").slice(0, 120) };
+  if (personal) {
+    const { data } = await ctx.db.from("profiles").select("personal").eq("id", ctx.userId).maybeSingle();
+    patch.personal = mergePersonal((data?.personal as PersonalDetails | null) ?? null, personal);
+  }
   await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
 }
 
