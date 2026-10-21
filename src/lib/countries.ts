@@ -3,7 +3,7 @@
 // into the `country_rules` table so foreign keys accept any code; this file is the typed source used by code.
 import { WORLD, WORLD_BY_CODE, type Region } from "./world";
 
-export type CvTemplate = "modern" | "executive" | "classic";
+export type CvTemplate = "corporate" | "modern" | "executive" | "classic";
 
 export interface CountryRule {
   name: string;
@@ -199,6 +199,6 @@ export function portals(c: unknown): string[] {
 }
 
 export const ACCENTS: [string, string][] = [["#0B7A6E", "Teal"], ["#1E3A5F", "Navy"], ["#7A2E3A", "Burgundy"], ["#2F3B45", "Charcoal"]];
-export const TEMPLATES: [CvTemplate, string][] = [["modern", "Modern sidebar"], ["executive", "Executive"], ["classic", "Classic (ATS-safe)"]];
+export const TEMPLATES: [CvTemplate, string][] = [["corporate", "Corporate (senior)"], ["modern", "Modern sidebar"], ["executive", "Executive"], ["classic", "Classic (ATS-safe)"]];
 export const isAccent = (a: unknown): a is string => typeof a === "string" && ACCENTS.some(([c]) => c === a);
-export const isTemplate = (t: unknown): t is CvTemplate => t === "modern" || t === "executive" || t === "classic";
+export const isTemplate = (t: unknown): t is CvTemplate => t === "corporate" || t === "modern" || t === "executive" || t === "classic";
