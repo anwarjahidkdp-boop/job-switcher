@@ -43,10 +43,12 @@ const COUNTRY_HINTS: [CountryCode, RegExp][] = [
   ["AE", /\b(united arab emirates|uae|dubai|abu dhabi|sharjah)\b|^ae$/i],
   ["SA", /\b(saudi arabia|ksa|riyadh|jeddah|dammam)\b|^sa$/i],
   ["MY", /\b(malaysia|kuala lumpur|selangor|penang|johor)\b|^my$/i],
-  ["GB", /\b(united kingdom|uk|england|scotland|wales|london|manchester|birmingham)\b|^gb$/i],
+  ["GB", /\b(united kingdom|uk|england|scotland|wales|london|manchester|birmingham|edinburgh|glasgow|bristol|leeds|cambridge|oxford)\b|^gb$/i],
   ["CA", /\b(canada|toronto|vancouver|montreal|calgary|ottawa)\b|^ca$/i],
   ["AU", /\b(australia|sydney|melbourne|brisbane|perth)\b|^au$/i],
-  ["US", /\b(united states|usa|new york|san francisco|chicago|houston|seattle|remote - us)\b|^us$/i],
+  ["US", /\b(united states|usa|u\.s\.|new york|nyc|san francisco|bay area|los angeles|chicago|houston|dallas|austin|seattle|boston|denver|atlanta|miami|washington,? d\.?c|remote - us|us remote|remote,? us)\b|^us$/i],
+  // US state codes are upper case ("Austin, TX"); case-sensitive so a word like "in" or "or" never matches.
+  ["US", /,\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/],
 ];
 export function countryFromLocation(loc: string | null | undefined, fallback: CountryCode): CountryCode {
   if (!loc) return fallback;
