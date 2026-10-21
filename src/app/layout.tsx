@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { CV_SCREEN_CSS } from "@/lib/cv/styles";
 import { InstallApp } from "@/components/InstallApp";
+import { RouteProgress } from "@/components/RouteProgress";
+import { Suspense } from "react";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter", display: "swap" });
@@ -21,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <style dangerouslySetInnerHTML={{ __html: CV_SCREEN_CSS }} />
       </head>
-      <body>{children}<InstallApp /></body>
+      <body><Suspense fallback={null}><RouteProgress /></Suspense>{children}<InstallApp /></body>
     </html>
   );
 }

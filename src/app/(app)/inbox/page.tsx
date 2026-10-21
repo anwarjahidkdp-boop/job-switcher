@@ -1,3 +1,4 @@
+import { backToStepAction } from "@/app/actions";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
@@ -18,6 +19,7 @@ import { skillImpact } from "@/lib/matching";
 import { listNotifications } from "@/lib/server/notify";
 import { REPLY_CHECK_DAYS } from "@/lib/server/nudges";
 import { TodayCard } from "./TodayCard";
+import { KpiStrip, type Kpi } from "./KpiStrip";
 
 export const metadata = { title: "Opportunities" };
 
@@ -49,6 +51,14 @@ export default async function Inbox() {
   const opts = { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry };
   const guide = rows.filter((r) => r.h.v < 1).slice(0, 6).map((r) => { const imp = skillImpact(st.scored, P, r.s, opts); return { s: r.s, n: r.n, gain: imp.after - imp.before }; })
     .sort((a, b) => b.gain - a.gain || b.n - a.n).slice(0, 3);
+  const kpis: Kpi[] = [
+    { label: "Jobs analysed", n: s.analysed, href: "#matches", tone: "navy", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', hint: `in ${cname(country)}` },
+    { label: "Strong matches", n: s.strong, href: "#matches", tone: "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: "70%+ fit" },
+    { label: "Ready to apply", n: s.prepared, href: "/queue", tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: "CV + cover letter" },
+    { label: "Applied", n: s.applied, href: "/applications", tone: "teal", icon: '<path d="m22 2-7 20-4-9-9-4z"/>' },
+    { label: "Interviews", n: s.interviews + s.offers, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
+  ];
+  const best = list.find((x) => !st.apps[x.job.id]) || list[0];
   const dayLabel = (d: string) => { const n = daysUntil(d, st.today) ?? 0; return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : fmtDate(d); };
 
   return (
@@ -63,6 +73,19 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
+      <KpiStrip items={kpis} />
+      {best ? (
+        <Link className="spot" href={`/jobs/${best.job.id}`}>
+          <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>
+          <div className="spot-txt">
+            <span className="spot-k">Your best match right now</span>
+            <b>{best.job.title}</b>
+            <span className="spot-m">{best.job.company}{best.job.location ? ` · ${best.job.location}` : ""}</span>
+            {best.m.matched.length ? <span className="spot-why">{best.m.matched.slice(0, 3).map((t) => "✓ " + t).join("  ")}</span> : null}
+          </div>
+          <span className="spot-go">{st.apps[best.job.id]?.pack ? "Review application" : "See why it fits"} →</span>
+        </Link>
+      ) : null}
       <TodayCard plan={plan} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
       <div className="dash" id="matches">
         <div>
@@ -97,6 +120,7 @@ export default async function Inbox() {
           <div className="card panel"><h3>Profile completeness</h3>
             <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${comp}%` }} /></div><b className="num small">{comp}%</b></div>
             <p className="small muted" style={{ marginTop: 8 }}>{comp < 100 ? "Add confirmed skills or answer the skipped questions to sharpen your matches." : "Your profile is complete."}</p>
+            <div className="row" style={{ marginTop: 8 }}><a className="btn btn-text btn-sm" href="/profile">Edit profile</a><form action={backToStepAction.bind(null, "upload")}><button className="btn btn-text btn-sm">Upload a new CV</button></form></div>
           </div>
           <div className="card panel"><h3>Career guide</h3>
             {guide.length ? <>
