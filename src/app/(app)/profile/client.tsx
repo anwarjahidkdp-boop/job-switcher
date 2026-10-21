@@ -1,51 +1,59 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addSkillAction, reviewFactAction, setCountryAction, setHomeCountryAction, setNeedsVisaAction } from "@/app/actions";
 import { CountrySelect } from "@/components/CountrySelect";
+import { useSave } from "@/components/useSave";
 import { rule } from "@/lib/countries";
 
 export function CountryPanel({ current, needsVisa, homeCountry }: { current: string; needsVisa: boolean; homeCountry: string }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
+  const { pending, err, save } = useSave();
   const [msg, setMsg] = useState("");
   return (
     <div className="card panel"><h3>Target country</h3>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
-        <CountrySelect id="countrysel" value={current} disabled={pending} label="Target country" first={homeCountry} onChange={(c) => { start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${rule(c).name}. CV format, currency and matches updated.`); router.refresh(); }); }} />
+        <CountrySelect id="countrysel" value={current} disabled={pending} label="Target country" first={homeCountry} onChange={(c) => save(() => setCountryAction(c, needsVisa), () => setMsg(`Now applying in ${rule(c).name}. CV format, currency and matches updated.`))} />
       </label>
       <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
-        <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" first={homeCountry} onChange={(c) => { start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }} />
+        <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" first={homeCountry} onChange={(c) => save(() => setHomeCountryAction(c), () => setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."))} />
       </label>
-      {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; start(async () => { await setNeedsVisaAction(v); router.refresh(); }); }} /> I need visa sponsorship</label> : null}
+      {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; save(() => setNeedsVisaAction(v)); }} /> I need visa sponsorship</label> : null}
+      {err ? <p className="err" style={{ marginTop: 8 }}>{err}</p> : null}
       <p className="small muted" style={{ marginTop: 8 }}>{msg || "Changing it reformats your CV, switches the salary currency and checklist, and shows jobs in that country."}</p>
     </div>
   );
 }
 
 export function SkillAdder() {
-  const router = useRouter();
   const [v, setV] = useState("");
-  const [pending, start] = useTransition();
+  const { pending, err, save } = useSave();
   return (
-    <form className="row" style={{ marginTop: 12, flexWrap: "nowrap" }} onSubmit={(e) => { e.preventDefault(); if (!v.trim()) return; start(async () => { await addSkillAction(v); setV(""); router.refresh(); }); }}>
+    <>
+    <form className="row" style={{ marginTop: 12, flexWrap: "nowrap" }} onSubmit={(e) => { e.preventDefault(); if (!v.trim()) return; save(() => addSkillAction(v), () => setV("")); }}>
       <input type="text" placeholder="Add a skill you have" value={v} onChange={(e) => setV(e.target.value)} maxLength={60} aria-label="Add a skill you have" />
       <button className="btn btn-ghost btn-sm" disabled={pending}>Add</button>
     </form>
+    {err ? <p className="err small" style={{ marginTop: 6 }}>{err}</p> : null}
+    </>
   );
 }
 
 export function FactReview({ facts }: { facts: { id: string; kind: string; text: string }[] }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
+  const { pending, err, save } = useSave();
+  // Answered items leave the list at once; the page refresh then catches up.
+  const [done, setDone] = useState<string[]>([]);
+  const answer = (id: string, keep: boolean) => save(() => reviewFactAction(id, keep), () => setDone((d) => [...d, id]));
+  const left = facts.filter((f) => !done.includes(f.id));
+  if (!left.length) return <p className="small">✓ Thanks, all confirmed.</p>;
   return (
     <>
-      {facts.map((f) => (
+      {err ? <p className="err small">{err}</p> : null}
+      {left.map((f) => (
         <div key={f.id} className="qitem">
           <div className="small"><span className="muted">{f.kind}:</span> {f.text}</div>
           <div className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
-            <button className="btn-text small" disabled={pending} onClick={() => start(async () => { await reviewFactAction(f.id, true); router.refresh(); })}>It&apos;s correct</button>
-            <button className="btn-text small" disabled={pending} onClick={() => start(async () => { await reviewFactAction(f.id, false); router.refresh(); })}>Remove</button>
+            <button className="btn-text small" disabled={pending} onClick={() => answer(f.id, true)}>It&apos;s correct</button>
+            <button className="btn-text small" disabled={pending} onClick={() => answer(f.id, false)}>Remove</button>
           </div>
         </div>
       ))}

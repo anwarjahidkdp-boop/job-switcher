@@ -823,3 +823,11 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .chip-chance{display:inline-block;margin-top:6px;margin-right:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
 .chip-chance.high{background:var(--good-soft);color:var(--good)}
 .chip-chance.low{background:var(--warn-soft);color:var(--warn)}
+
+/* --- "Done for you" card on the dashboard --- */
+.done-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.done-list li{display:flex;gap:10px;align-items:center;font-size:15px}
+.done-list li .mk{flex:none}
+.done-list a{color:inherit;text-decoration:none}
+.done-list a:hover{text-decoration:underline}
+.seg-group{display:inline-flex;gap:4px}

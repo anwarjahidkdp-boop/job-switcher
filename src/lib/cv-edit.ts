@@ -50,6 +50,11 @@ export interface FactPlan {
 
 export class EditRefused extends Error {}
 
+/** Bangla (Bengali script) in the text? Such instructions are translated to English before they are applied. */
+export const hasBangla = (s: string) => /[\u0980-\u09FF]/.test(s);
+/** Bangla digits (০-৯) as 0-9, so dates, results and amounts the person states can be checked. */
+export const bnDigits = (s: string) => s.replace(/[\u09E6-\u09EF]/g, (d) => String(d.charCodeAt(0) - 0x09e6));
+
 /** Short refs for the prompt (f1, f2...) so the model never has to copy database ids. */
 export function factRefs(facts: CareerFact[]): { ref: string; fact: CareerFact }[] {
   return facts.filter((f) => f.id && f.kind !== "answer").map((f, i) => ({ ref: `f${i + 1}`, fact: f }));

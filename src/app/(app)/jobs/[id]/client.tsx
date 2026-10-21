@@ -23,7 +23,7 @@ export function GapList({ gaps }: { gaps: { t: string; skill: string | null; lab
         <div className="banner" style={{ marginTop: 12 }}>
           <p className="small">Add <b>{confirm.label}</b> to your verified profile? Only add skills you really have; we use them in every application.</p>
           <div className="row">
-            <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => start(async () => { await addSkillAction(confirm.skill); setConfirm(null); router.refresh(); })}>Yes, add it</button>
+            <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => start(async () => { try { await addSkillAction(confirm.skill); setConfirm(null); router.refresh(); } catch { setConfirm(null); } })}>Yes, add it</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Cancel</button>
           </div>
         </div>
@@ -203,7 +203,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       <div className="stack" style={{ marginTop: 10, gap: 8 }}>
         <button className="btn btn-primary" onClick={prepare}>Prepare Application</button>
         <button className="btn btn-ghost" onClick={() => setMode("later")}>Apply Later</button>
-        <button className="btn btn-text" disabled={pending} onClick={() => start(async () => { await dismissAction(p.jobId); router.push("/inbox"); })}>Not interested</button>
+        <button className="btn btn-text" disabled={pending} onClick={() => start(async () => { try { await dismissAction(p.jobId); } catch { /* still leave the page */ } router.push("/inbox"); })}>Not interested</button>
       </div>
       {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
     </>

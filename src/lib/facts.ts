@@ -62,11 +62,16 @@ export function skillGrounded(skill: string, text: string): boolean {
  * Facts we cannot find in the CV are kept but unverified (the user must confirm them),
  * and dates whose year is not in the CV are dropped rather than guessed.
  */
+/** The reader sometimes writes "not specified in CV" or "N/A" instead of leaving a value empty: those are blanks, not values. */
+export const PLACEHOLDER = /^\s*(not\s+(specified|stated|given|mentioned|available|provided|known)|unknown|n\/?a|none|null|-+)\b/i;
+export const real = (v: unknown): string => (v == null || PLACEHOLDER.test(String(v)) ? "" : String(v).trim());
+
 export function groundExtraction(x: Extraction, cvText: string): CareerFact[] {
   const out: CareerFact[] = [];
   for (const e of x.experiences || []) {
+    if (!real(e.title) && !real(e.company)) continue;
     const data: ExtractedExperience = {
-      title: String(e.title || ""), company: String(e.company || ""), industry: e.industry ? String(e.industry).toLowerCase() : null,
+      title: real(e.title), company: real(e.company), industry: real(e.industry) ? real(e.industry).toLowerCase() : null,
       location: e.location ?? null,
       start: yearPresent(e.start, cvText) ? e.start : null,
       end: e.end && yearPresent(e.end, cvText) ? e.end : null,
@@ -78,7 +83,7 @@ export function groundExtraction(x: Extraction, cvText: string): CareerFact[] {
     out.push({ kind: "experience", data: data as unknown as Record<string, unknown>, provenance: "cv", verified, evidence: verified ? data.company : null });
   }
   for (const ed of x.education || []) {
-    const data: ExtractedEducation = { degree: String(ed.degree || ""), field: String(ed.field || ""), institution: String(ed.institution || ""), year: ed.year && cvText.includes(String(ed.year)) ? String(ed.year) : "", level: isEduLevel(ed.level) ? ed.level : "bachelors", result: ed.result && appearsIn(ed.result, cvText) ? ed.result : null };
+    const data: ExtractedEducation = { degree: real(ed.degree), field: real(ed.field), institution: real(ed.institution), year: ed.year && cvText.includes(String(ed.year)) ? String(ed.year) : "", level: isEduLevel(ed.level) ? ed.level : "bachelors", result: ed.result && appearsIn(ed.result, cvText) ? ed.result : null };
     const verified = appearsIn(data.degree, cvText, "any") || (!!data.institution && appearsIn(data.institution, cvText));
     out.push({ kind: "education", data: data as unknown as Record<string, unknown>, provenance: "cv", verified, evidence: verified ? data.degree : null });
   }

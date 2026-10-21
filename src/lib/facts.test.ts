@@ -32,3 +32,12 @@ describe("grounding AI extraction against the CV", () => {
     expect(appearsIn("Imaginary Corp", DEMO_CV_TEXT)).toBe(false);
   });
 });
+
+describe("placeholder values from the CV reader", () => {
+  it("treats 'not specified in CV' as blank", async () => {
+    const { real } = await import("./facts");
+    expect(real("not specified in CV")).toBe("");
+    expect(real("N/A")).toBe("");
+    expect(real("Northern Trust")).toBe("Northern Trust");
+  });
+});

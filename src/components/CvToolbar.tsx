@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useSave } from "@/components/useSave";
 import { ACCENTS, TEMPLATES, type CvTemplate } from "@/lib/countries";
 import { removePhotoAction, setCvStyleAction } from "@/app/actions";
 
@@ -18,9 +19,9 @@ async function shrinkPhoto(file: File): Promise<Blob> {
 
 export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed: boolean; hasPhoto: boolean; countryLabel: string; rules: string[] }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const { pending, err, save } = useSave();
   const [msg, setMsg] = useState("");
-  const set = (patch: { tpl?: CvTemplate; accent?: string }) => start(async () => { await setCvStyleAction(patch); router.refresh(); });
+  const set = (patch: { tpl?: CvTemplate; accent?: string }) => save(() => setCvStyleAction(patch));
   return (
     <>
       <div className="cvbar" aria-busy={pending}>
@@ -51,14 +52,14 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
                   } catch { setMsg("Could not read that image."); }
                 }} />
               </label>
-              {props.hasPhoto ? <button type="button" className="btn-text small" onClick={() => start(async () => { await removePhotoAction(); router.refresh(); })}>Remove</button> : null}
+              {props.hasPhoto ? <button type="button" className="btn-text small" onClick={() => save(() => removePhotoAction())}>Remove</button> : null}
             </>
           ) : null}
         </div>
       </div>
       <p className="small muted" style={{ marginBottom: 10 }}>
         {props.countryLabel} format: {props.rules.join(" · ")}.{!props.photoAllowed && props.hasPhoto ? " Your photo is hidden for this country." : ""}
-        {msg ? ` ${msg}` : ""}
+        {err ? ` ${err}` : msg ? ` ${msg}` : ""}
       </p>
     </>
   );
