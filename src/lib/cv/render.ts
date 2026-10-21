@@ -5,6 +5,18 @@ import { cc, cname, isAccent, isTemplate, rule, ACCENTS, HOME_COUNTRY, type Coun
 import { fmtYM } from "../dates";
 import type { ApplicationPack, CvStyle, MasterCV, PersonalDetails } from "../types";
 
+/**
+ * South Asian shorthand amounts written out for an international reader: "2 lacs+" -> "more than 200,000",
+ * "1.5 crore" -> "15,000,000". Display only; the stored text is unchanged. Same figure, so no new claim.
+ */
+const AMT_UNIT: Record<string, number> = { lac: 1e5, lacs: 1e5, lakh: 1e5, lakhs: 1e5, crore: 1e7, crores: 1e7, cr: 1e7 };
+export function proAmounts(s: string): string {
+  return s.replace(/(\d+(?:\.\d+)?)\s*(lacs?|lakhs?|crores?|cr)\b(\s*\+)?/gi, (_, n: string, u: string, plus?: string) => {
+    const v = Math.round(Number(n) * AMT_UNIT[u.toLowerCase()]);
+    return Number.isFinite(v) ? `${plus ? "more than " : ""}${v.toLocaleString("en-GB")}` : _;
+  });
+}
+
 export const esc = (s: unknown) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /**
@@ -35,6 +47,14 @@ export function initials(n: string) {
   return String(n || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 }
 
+function polishMaster(m: MasterCV): MasterCV {
+  return {
+    ...m,
+    summary: proAmounts(m.summary || ""),
+    experience: (m.experience || []).map((e) => ({ ...e, bullets: (e.bullets || []).map(proAmounts) })),
+  };
+}
+
 export interface RenderInput {
   master: MasterCV;
   tailored?: Pick<ApplicationPack, "summary" | "top_bullets" | "skills_order"> | null;
@@ -51,7 +71,9 @@ export interface RenderInput {
 const SAFE_IMG = /^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+|https:\/\/[^\s"'<>]+)$/;
 
 export function renderCvHtml(inp: RenderInput): string {
-  const { master: m, tailored: t, forDoc } = inp;
+  const { forDoc } = inp;
+  const m = polishMaster(inp.master);
+  const t = inp.tailored ? { ...inp.tailored, summary: inp.tailored.summary ? proAmounts(inp.tailored.summary) : inp.tailored.summary, top_bullets: (inp.tailored.top_bullets || []).map(proAmounts) } : inp.tailored;
   const country = cc(inp.country);
   const r = rule(country);
   const { tpl, accent } = resolveStyle(inp.style, country);
@@ -86,13 +108,22 @@ export function renderCvHtml(inp: RenderInput): string {
     const hi = careerHighlights(exp);
     // Results moved into the highlights are not repeated under the role.
     const expC = hi.length ? exp.map((e) => ({ ...e, bullets: e.bullets.filter((b) => !hi.includes(b)) })) : exp;
-    const roles = expC.map((e) => {
-      const dt = `${fmtYM(e.start)} – ${fmtYM(e.end)}`;
-      const co = esc(e.company) + (e.location ? `, ${esc(e.location)}` : "");
-      const head = forDoc
-        ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td><b class="rtl">${esc(e.title)}</b></td><td align="right" class="dt">${dt}</td></tr></table><p class="co">${co}</p>`
-        : `<div class="rt"><b class="rtl">${esc(e.title)}</b><span class="dt">${dt}</span></div><p class="co">${co}</p>`;
-      return `<div class="role">${head}${e.bullets.length ? `<ul>${e.bullets.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</div>`;
+    // Roles held one after another at the same employer (a promotion) sit under one employer heading.
+    const groups: { company: string; location: string | null; roles: typeof expC }[] = [];
+    for (const e of expC) {
+      const g = groups[groups.length - 1];
+      if (g && g.company.trim().toLowerCase() === String(e.company || "").trim().toLowerCase()) g.roles.push(e);
+      else groups.push({ company: e.company, location: e.location ?? null, roles: [e] });
+    }
+    const span = (rs: typeof expC) => { const st = rs.map((r) => r.start).filter(Boolean).sort()[0] || null; const en = rs.some((r) => !r.end) ? null : rs.map((r) => r.end).filter(Boolean).sort().slice(-1)[0] || null; return `${fmtYM(st)} – ${fmtYM(en)}`; };
+    const line = (title: string, dt: string, cls: string) => forDoc
+      ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td><b class="${cls}">${title}</b></td><td align="right" class="dt">${dt}</td></tr></table>`
+      : `<div class="rt"><b class="${cls}">${title}</b><span class="dt">${dt}</span></div>`;
+    const bl = (b: string[]) => (b.length ? `<ul>${b.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
+    const roles = groups.map((g) => {
+      const co = esc(g.company) + (g.location ? `, ${esc(g.location)}` : "");
+      if (g.roles.length === 1) { const e = g.roles[0]; return `<div class="role">${line(esc(e.title), `${fmtYM(e.start)} – ${fmtYM(e.end)}`, "rtl")}<p class="co">${co}</p>${bl(e.bullets)}</div>`; }
+      return `<div class="role grp">${line(co, span(g.roles), "co co-h")}${g.roles.map((e) => `<div class="sub">${line(esc(e.title), `${fmtYM(e.start)} – ${fmtYM(e.end)}`, "rtl")}${bl(e.bullets)}</div>`).join("")}</div>`;
     }).join("");
     const expertise = !skills.length ? "" : forDoc
       ? `<p>${skills.map(esc).join(" &nbsp;|&nbsp; ")}</p>`
@@ -100,11 +131,15 @@ export function renderCvHtml(inp: RenderInput): string {
     const head = forDoc
       ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td valign="top">${nameBlock}<p class="ct">${contact.map(esc).join(" &nbsp;|&nbsp; ")}</p></td>${ph ? `<td align="right" valign="top" width="96">${ph}</td>` : ""}</tr></table>`
       : `<div class="hd"><div>${nameBlock}<p class="ct">${contact.map((x) => `<span>${esc(x)}</span>`).join("")}</p></div>${ph}</div>`;
-    const tail = `${sec("Languages", langs)}${sec("Personal details", pers)}`;
-    const body = `${sec(r.doc === "Résumé" ? "Executive Summary" : "Executive Profile", `<p>${sumTxt}</p>`)}`
+    const langList = (m.languages || []).length ? `<ul class="plain">${m.languages.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : "";
+    const tail = `${sec("Languages", langList)}${sec("Personal details", pers)}`;
+    // Country conventions: referees in Australia and New Zealand, the GDPR consent line in Italy.
+    const extra = (country === "AU" || country === "NZ" ? sec("Referees", "<p>Available on request.</p>") : "")
+      + (country === "IT" ? `<p class="gdpr">Autorizzo il trattamento dei dati personali contenuti nel mio curriculum vitae ai sensi del Regolamento UE 2016/679 (GDPR).</p>` : "");
+    const body = `${sec(r.doc === "Résumé" ? "Executive Summary" : "Executive Profile", `<p>${sumTxt}</p>`).replace('class="cs"', 'class="cs sum"')}`
       + `${hi.length ? sec("Career Highlights", `<ul class="hi">${hi.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`) : ""}`
       + `${sec("Areas of Expertise", expertise)}${sec(H.exp, roles)}${sec("Education", list(m.education))}${sec("Professional Qualifications", list(m.certifications))}`
-      + (forDoc ? tail : tail ? `<div class="two">${tail}</div>` : "");
+      + (forDoc ? tail : tail ? `<div class="two">${tail}</div>` : "") + extra;
     if (forDoc) return `<div class="corp">${head}<hr>${body}</div>`;
     return `<article class="cv t-corp" style="--cva:${acc}"><header>${head}</header>${body}</article>`;
   }

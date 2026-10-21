@@ -14,7 +14,11 @@ export function useSave() {
   const [err, setErr] = useState("");
   const save = (f: () => Promise<unknown>, done?: () => void) => start(async () => {
     setErr("");
-    try { await f(); } catch { setErr(SAVE_FAILED); return; }
+    try { await f(); } catch (e) {
+      // After a new release, a page opened earlier cannot reach the old server actions: reload it once to get the new version.
+      if (/server action/i.test(String((e as Error)?.message || ""))) { window.location.reload(); return; }
+      setErr(SAVE_FAILED); return;
+    }
     done?.();
     router.refresh();
   });
