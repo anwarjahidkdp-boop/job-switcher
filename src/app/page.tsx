@@ -89,7 +89,7 @@ export default async function Landing() {
               <li key={h}><span className="lp-rail-ic"><Icon name={ic} /></span><div><small>0{i + 1}</small><b>{h}</b><span>{p}</span></div></li>
             ))}
           </ol>
-          <p className="lp-teachip"><Icon name="cup" /><span><b>Your own job assistant, for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b></span></p>
+          <p className="lp-teachip"><Icon name="cup" /><span><b>{local.currency === "BDT" ? "Your own job assistant, for the price of one cup of tea a day." : "Your own job assistant, for less than a coffee a day."}</b></span></p>
           <div className="lp-cta">
             <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
             <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
@@ -173,7 +173,7 @@ export default async function Landing() {
               <p className="lp-kicker">JobPao Pro</p>
               <div className="lp-tea">
                 <span className="lp-cup"><Icon name="cup" /></span>
-                <div><b>Less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day</b><span>That is all your personal job assistant costs, and it works for you all day.</span></div>
+                <div><b>{local.currency === "BDT" ? "The price of one cup of tea a day" : "Less than a coffee a day"}</b><span>That is all your personal job assistant costs, and it works for you all day.</span></div>
               </div>
               <p className="lp-amt num">{formatPrice(local.minor, local.currency)}<span> / month</span></p>
               <p className="small lp-packs">{PACKS.filter((k) => k.id !== "30d").map((k) => { const p = packPrice(local.country, k.id); return `${k.name} ${formatPrice(p.minor, p.currency)}`; }).join(" · ")}</p>

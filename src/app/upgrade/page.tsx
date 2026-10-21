@@ -51,7 +51,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
     <>
       <SiteHeader inApp={false} signedIn trialLabel={label} />
       <main><div className="wrap">
-        <PageHead kicker="Pricing" title={<>JobPao <span>Pro</span></>} sub={<><b>Your own job assistant for less than {local.currency === "BDT" ? "one cup of tea" : "a coffee"} a day.</b> AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. Pay once for the time you need, with no auto-renewal.</>} />
+        <PageHead kicker="Pricing" title={<>JobPao <span>Pro</span></>} sub={<><b>{local.currency === "BDT" ? "Your own job assistant for the price of one cup of tea a day." : "Your own job assistant for less than a coffee a day."}</b> AI CV building, tailored application packs, cover letters and alert reading. Matching and reminders keep working without Pro. Pay once for the time you need, with no auto-renewal.</>} />
         <div className="ob">
         {banner ? <p className="note" style={{ marginTop: 14, borderColor: banner[0] === "ok" ? "var(--accent)" : "var(--warn)" }}>{banner[1]}</p> : null}
         <div className="card panel" style={{ marginTop: 18 }}>
