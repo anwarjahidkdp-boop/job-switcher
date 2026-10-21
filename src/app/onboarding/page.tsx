@@ -15,6 +15,7 @@ import { aiConfigured } from "@/lib/ai";
 import { saveAnswersAction, finishOnboardingAction, backToStepAction } from "../actions";
 import { CountryStep, UploadStep, PrefsStep } from "./steps";
 import { CvEditBox } from "@/components/CvEditBox";
+import { CvSuggestions } from "@/components/CvSuggestions";
 import { speechLangs } from "@/lib/speech-langs";
 
 export const metadata = { title: "Get started" };
@@ -107,6 +108,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
           <ol className="imp-list">{(m.improvements || []).map((i, k) => <li key={k}><span className="imp-after">{i.after}</span><span className="imp-before">Before: {i.before}</span></li>)}</ol>
         </div>
       ) : null}
+      <CvSuggestions items={m.suggestions || []} />
       <div style={{ marginTop: 22 }}>
         <p className="eyebrow" style={{ marginBottom: 8 }}>Your new Master CV, {cn} format</p>
         <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc" }} />

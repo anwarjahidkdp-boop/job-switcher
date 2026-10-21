@@ -885,3 +885,11 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .ask small{display:block;color:var(--ink-3);font-size:12.5px}
 .ask-mk{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:var(--good-soft);color:var(--good)}
 .ask-you .ask-mk{background:var(--warn-soft);color:var(--warn)}
+.sugg-item{border-top:1px solid var(--line);padding:10px 0}
+.sugg-item:first-of-type{border-top:0}
+.sugg-cur{margin:0 0 8px;font-size:14px;color:var(--ink-2)}
+.sugg-cur s{text-decoration-color:var(--ink-3)}
+.sugg-opts{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.sugg-opt{font:inherit;font-size:14px;text-align:left;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;max-width:100%}
+.sugg-opt:hover{background:var(--card)}
+.sugg-opt:disabled{opacity:.6;cursor:default}

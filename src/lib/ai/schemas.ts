@@ -38,6 +38,11 @@ export const MasterCvSchema = z.object({
   improvements: z.array(z.object({ before: z.string(), after: z.string() })),
 });
 
+/** The build step also returns changes it recommends but must not make itself (the person confirms each one). */
+export const MasterBuildSchema = MasterCvSchema.extend({
+  suggestions: z.array(z.object({ section: z.string(), current: z.string(), options: z.array(z.string()), reason: z.string() })),
+});
+
 const EditField = z.enum(["title", "company", "start", "end", "location", "degree", "field", "institution", "year", "level", "result", "name", "status", "detail"]);
 /**
  * "Ask AI to change your CV": fact changes plus the whole Master CV after the change.

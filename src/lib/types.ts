@@ -115,7 +115,11 @@ export interface MasterCV {
   languages: string[];
   extra_skills?: string[];
   improvements?: { before: string; after: string }[];
+  /** Changes the CV writer recommends but leaves to the person (status, meaning): applied only when they choose an option. */
+  suggestions?: CvSuggestion[];
 }
+
+export interface CvSuggestion { id: string; section: string; current: string; options: string[]; reason: string }
 
 export type InterviewTopic = "about_you" | "role" | "technical" | "behavioural" | "company" | "salary";
 export interface InterviewPrep {
