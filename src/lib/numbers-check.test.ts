@@ -64,3 +64,10 @@ describe("checkMasterCv", () => {
     expect(flags.join(" ")).toMatch(/30/);
   });
 });
+
+describe("expandAmounts", () => {
+  it("accepts a written-out lakh or k amount", () => {
+    expect(unknownNumbers(["more than 200,000 customers", "50,000 invoices"], "served 2 lacs+ customers, 50k invoices")).toEqual([]);
+    expect(unknownNumbers(["300,000 customers"], "2 lacs+ customers")).toEqual(["300,000"]);
+  });
+});
