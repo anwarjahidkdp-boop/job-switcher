@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "ingest": "tsx scripts/ingest/run.ts",
+    "ingest": "tsx --conditions=react-server scripts/ingest/run.ts",
     "reminders": "tsx scripts/reminders/run.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

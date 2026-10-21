@@ -6,6 +6,7 @@ import { fetchSource, staleIds, type SourceRow } from "./fetch-source";
 import { jobToRow } from "../../src/lib/jobs";
 import { todayStr } from "../../src/lib/dates";
 import { refreshMatches } from "../../src/lib/server/matches";
+import { processNewMatches } from "../../src/lib/server/new-matches";
 
 async function main() {
   const db = scriptAdmin();
@@ -19,11 +20,13 @@ async function main() {
   if (error) throw error;
   console.log(`ingest: ${sources?.length || 0} active source(s)${dry ? " (dry run)" : ""}`);
 
+  // Job-search APIs are queried with what our users are looking for, per target country.
+  const demand = await roleDemand(db);
   const touchedCountries = new Set<string>();
   let total = 0, failed = 0;
   for (const src of (sources || []) as SourceRow[]) {
     try {
-      const jobs = await fetchSource(src, today);
+      const jobs = await fetchSource(src, today, fetch, { queries: demand.get(src.country) || [] });
       total += jobs.length;
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
@@ -57,10 +60,25 @@ async function main() {
       let n = 0;
       for (const u of users || []) { try { await refreshMatches(db, u.id as string); n++; } catch (e) { console.error("  match refresh failed", u.id, e); } }
       console.log(`ingest: refreshed matches for ${n} user(s)`);
+      const nm = await processNewMatches(db, (users || []).map((u) => u.id as string), { appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://jobpao.app", prepare: !hasFlag("no-prepare") });
+      console.log(`ingest: new matches for ${nm.users} user(s): ${nm.notified} job(s), ${nm.prepared} pack(s) prepared, ${nm.emailed} email(s), ${nm.failed} failed`);
     }
   }
   console.log(`ingest: done, ${total} job(s), ${failed} failed source(s)`);
   if (failed && failed === (sources || []).length) process.exitCode = 1;
+}
+
+/** Target roles of onboarded users, grouped by target country, most wanted first. */
+async function roleDemand(db: ReturnType<typeof scriptAdmin>): Promise<Map<string, string[]>> {
+  const { data } = await db.from("profiles").select("target_country, career_meta, preferences").eq("onboarding_step", "done").limit(5000);
+  const counts = new Map<string, Map<string, number>>();
+  for (const p of (data || []) as { target_country: string; career_meta: { target_roles?: string[] } | null; preferences: { roles?: string } | null }[]) {
+    const roles = [...(p.career_meta?.target_roles || []), ...String(p.preferences?.roles || "").split(/[,;\n]/)].map((r) => r.trim().toLowerCase()).filter((r) => r.length > 2 && r.length < 60);
+    const m = counts.get(p.target_country) || new Map<string, number>();
+    for (const r of new Set(roles)) m.set(r, (m.get(r) || 0) + 1);
+    counts.set(p.target_country, m);
+  }
+  return new Map([...counts].map(([c, m]) => [c, [...m].sort((a, b) => b[1] - a[1]).map(([r]) => r)]));
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
