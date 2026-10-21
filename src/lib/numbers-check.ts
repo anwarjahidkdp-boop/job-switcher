@@ -4,8 +4,21 @@
 import { appearsIn, skillGrounded } from "./facts";
 import type { ApplicationPack, MasterCV } from "./types";
 
+const UNIT: Record<string, number> = { k: 1e3, thousand: 1e3, lac: 1e5, lacs: 1e5, lakh: 1e5, lakhs: 1e5, m: 1e6, mn: 1e6, million: 1e6, crore: 1e7, crores: 1e7, cr: 1e7 };
+
+/** "2 lacs" -> "200000 200,000": shorthand amounts written out, so a professional rewrite of them is not flagged. */
+export function expandAmounts(text: string): string {
+  const out: string[] = [];
+  for (const m of text.matchAll(/(\d+(?:\.\d+)?)\s*(k|thousand|lacs?|lakhs?|mn|m|million|crores?|cr)\b/gi)) {
+    const v = Math.round(Number(m[1]) * UNIT[m[2].toLowerCase()]);
+    if (Number.isFinite(v)) out.push(String(v), v.toLocaleString("en-US"), v.toLocaleString("en-IN"));
+  }
+  return out.join(" ");
+}
+
 /** Numbers that appear in `texts` but nowhere in `sources`. */
 export function unknownNumbers(texts: (string | null | undefined)[], sources: string): string[] {
+  sources = sources + " " + expandAmounts(sources);
   const txt = texts.filter(Boolean).join(" ");
   const nums = [...new Set((txt.match(/\d[\d,.]*/g) || []).map((n) => n.replace(/[.,]+$/, "")))].filter(Boolean);
   return nums.filter((n) => !sources.includes(n) && !sources.includes(n.replace(/,/g, "")));
