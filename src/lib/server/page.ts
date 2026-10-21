@@ -43,6 +43,12 @@ export async function requireAppState(next: string): Promise<{ st: UserState & {
   const { supabase, user } = await requireUser(next);
   const st = await loadState(supabase, user.id);
   if (!st) redirect("/login");
-  if (!st.P || !st.master || st.profile.onboarding_step !== "done") redirect("/onboarding");
+  if (!st.P || !st.master) redirect("/onboarding");
+  // On the last step the CV is built, so opening any app page (e.g. "My dashboard") finishes onboarding.
+  if (st.profile.onboarding_step === "reveal") {
+    await supabase.from("profiles").update({ onboarding_step: "done" }).eq("id", user.id);
+    st.profile.onboarding_step = "done";
+  }
+  if (st.profile.onboarding_step !== "done") redirect("/onboarding");
   return { st: st as never, db: supabase, userId: user.id };
 }
