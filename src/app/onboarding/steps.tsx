@@ -66,6 +66,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   const [text, setText] = useState("");
   const [shots, setShots] = useState<{ blob: Blob; url: string }[]>([]);
   const [review, setReview] = useState<Review | null>(null);
+  const [fresh, setFresh] = useState(false);
   const started = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const camInput = useRef<HTMLInputElement>(null);
@@ -162,6 +163,14 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   }
 
   const off = !!busy || !aiReady;
+  if (fresh) return (
+    <>
+      <NoCvForm disabled={off} onSubmit={(cv) => send(READING, () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: cv }) }))} onBack={() => { setFresh(false); setErr(""); }} />
+      {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
+      {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
+      {!aiReady ? <p className="note" style={{ marginTop: 18 }}>Building a CV from your answers opens as soon as our AI is switched on. Meanwhile you can try every step with a sample CV.</p> : null}
+    </>
+  );
   return (
     <>
       {!aiReady ? (
@@ -170,7 +179,12 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
           <button className="btn btn-primary" disabled={!!busy} onClick={demo}>Continue with a sample CV →</button>
         </div>
       ) : null}
-      <div className="drop" style={{ marginTop: 22 }}>
+      <button type="button" className="nocv-cta" onClick={() => { setFresh(true); setErr(""); }}>
+        <span className="nocv-ic" aria-hidden="true">✎</span>
+        <span><b>No CV yet? We will build one for you.</b><span className="small">Answer a few simple questions about your studies, skills and projects. Made for freshers.</span></span>
+        <span className="nocv-go" aria-hidden="true">→</span>
+      </button>
+      <div className="drop" style={{ marginTop: 14 }}>
         <p style={{ fontWeight: 600 }}>Upload your CV (PDF, DOCX, TXT or a photo)</p>
         <p className="small muted" style={{ margin: "4px 0 14px" }}>Your file is read on this device and stored privately; only you can open it. Scanned PDFs and photos are read by our AI and shown to you to check first.</p>
         <input ref={fileInput} type="file" accept=".pdf,.docx,.txt,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple aria-label="CV file" disabled={off} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
@@ -210,6 +224,51 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
       {err ? <p className="err" style={{ marginTop: 14 }}>{err}</p> : null}
       {aiReady ? <div className="row" style={{ marginTop: 22 }}><button className="btn btn-text" disabled={!!busy} onClick={demo}>Try with a sample CV instead</button></div> : null}
     </>
+  );
+}
+
+const NO_CV_FIELDS: { k: string; label: string; hint: string; rows?: number; req?: boolean; head?: string }[] = [
+  { k: "name", label: "Full name", hint: "e.g. Nusrat Jahan", req: true },
+  { k: "contact", label: "Email, phone and city", hint: "e.g. nusrat@gmail.com, 01711-000000, Dhaka", req: true },
+  { k: "goal", label: "What kind of job do you want?", hint: "e.g. Junior accountant or banking officer, full time", rows: 2, req: true, head: "CAREER OBJECTIVE" },
+  { k: "education", label: "Education, latest first", hint: "Degree, subject, institution, year, result. e.g. BBA in Accounting, University of Dhaka, 2025, CGPA 3.45\nHSC, Dhaka College, 2020, GPA 5.00", rows: 4, req: true, head: "EDUCATION" },
+  { k: "skills", label: "Skills", hint: "e.g. MS Excel, Tally, English communication, social media marketing", rows: 2, req: true, head: "SKILLS" },
+  { k: "projects", label: "Projects, internships, part-time work or tuition", hint: "What you did, where and when. e.g. Internship, BRAC Bank, Jun-Aug 2025: helped prepare loan files. Leave empty if none.", rows: 4, head: "EXPERIENCE AND PROJECTS" },
+  { k: "training", label: "Training and certificates", hint: "e.g. Google Digital Marketing certificate, 2024", rows: 2, head: "TRAINING AND CERTIFICATES" },
+  { k: "activities", label: "Clubs, volunteering and achievements", hint: "e.g. Debate club secretary; BNCC; 2nd prize in a business case contest", rows: 2, head: "ACTIVITIES AND ACHIEVEMENTS" },
+  { k: "languages", label: "Languages", hint: "e.g. Bangla (native), English (good)", head: "LANGUAGES" },
+];
+
+/** For people with no CV: a few plain questions, turned into CV text that goes through the normal reading step. Only what they type is used. */
+function NoCvForm({ disabled, onSubmit, onBack }: { disabled: boolean; onSubmit: (cv: string) => void; onBack: () => void }) {
+  const [v, setV] = useState<Record<string, string>>({});
+  const [err, setErr] = useState("");
+  const val = (k: string) => (v[k] || "").trim();
+  return (
+    <form className="card panel stack nocv" style={{ marginTop: 22 }} onSubmit={(e) => {
+      e.preventDefault(); setErr("");
+      const miss = NO_CV_FIELDS.find((f) => f.req && !val(f.k));
+      if (miss) { setErr(`Please fill in: ${miss.label}.`); return; }
+      const cv = [val("name"), val("contact"), ...NO_CV_FIELDS.filter((f) => f.head && val(f.k)).map((f) => `\n${f.head}\n${val(f.k)}`)].join("\n");
+      if (cv.length < 200) { setErr("Add a little more about your education, skills or projects so we can build a good CV."); return; }
+      onSubmit(cv);
+    }}>
+      <div>
+        <h3 style={{ margin: 0 }}>Let&apos;s build your first CV</h3>
+        <p className="small muted" style={{ marginTop: 4 }}>Write in English or Bangla. We only use what you write here and never add anything you did not do. Next, we may ask a few short questions to make it stronger.</p>
+      </div>
+      {NO_CV_FIELDS.map((f) => (
+        <label key={f.k} className="f" htmlFor={`nocv-${f.k}`}>{f.label}{f.req ? null : <span className="muted small"> (optional)</span>}
+          {f.rows ? <textarea id={`nocv-${f.k}`} rows={f.rows} placeholder={f.hint} value={v[f.k] || ""} onChange={(e) => setV({ ...v, [f.k]: e.target.value })} />
+            : <input id={`nocv-${f.k}`} type="text" placeholder={f.hint} value={v[f.k] || ""} onChange={(e) => setV({ ...v, [f.k]: e.target.value })} />}
+        </label>
+      ))}
+      {err ? <p className="err">{err}</p> : null}
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <button type="button" className="btn btn-text" onClick={onBack}>← I have a CV to upload</button>
+        <button className="btn btn-primary" disabled={disabled}>Build my CV</button>
+      </div>
+    </form>
   );
 }
 

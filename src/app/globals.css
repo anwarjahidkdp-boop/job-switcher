@@ -638,3 +638,12 @@ a.lp-btn-ghost{color:var(--ink)}
 .pack-sub{color:var(--muted)}
 .pack-sub b{color:#1B7F4B}
 .lp-packs{color:var(--ink-2);margin-top:2px}
+/* Onboarding: build a CV from questions (freshers) */
+.nocv-cta{display:flex;align-items:center;gap:14px;width:100%;margin-top:22px;padding:16px 18px;text-align:left;border:1px solid var(--g2);border-radius:14px;background:linear-gradient(135deg,#FFFBF2,#FFF6E4);color:#14275A;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.nocv-cta:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(201,150,64,.18)}
+.nocv-cta b{display:block;font-size:16px}
+.nocv-cta .small{display:block;color:var(--ink-2);margin-top:2px}
+.nocv-ic{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#14275A,#1E3A82);color:var(--g);font-size:18px}
+.nocv-go{margin-left:auto;font-size:20px;color:var(--g2)}
+.nocv textarea,.nocv input{margin-top:6px}
+.nocv textarea{min-height:0;height:auto}
