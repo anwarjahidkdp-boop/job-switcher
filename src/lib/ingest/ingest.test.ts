@@ -67,3 +67,14 @@ describe("robots.txt", () => {
     expect(robotsAllows("User-agent: *\nDisallow: /", "/careers")).toBe(false);
   });
 });
+
+describe("countryFromLocation for global boards", () => {
+  it("maps US cities and state codes, and leaves unknown places on the fallback", () => {
+    expect(countryFromLocation("Austin, TX", "XX")).toBe("US");
+    expect(countryFromLocation("San Jose, CA", "XX")).toBe("US");
+    expect(countryFromLocation("Toronto, ON", "XX")).toBe("CA");
+    expect(countryFromLocation("Edinburgh", "XX")).toBe("GB");
+    expect(countryFromLocation("Berlin, Germany", "XX")).toBe("XX");
+    expect(countryFromLocation("Dhaka, Bangladesh", "XX")).toBe("BD");
+  });
+});
