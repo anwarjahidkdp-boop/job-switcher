@@ -242,16 +242,18 @@ export async function buildMasterCv(ctx: Ctx) {
  * the fact changes are checked against what the person typed (planFactEdits) before anything is stored, so the
  * change sticks for later rebuilds and application packs. Facts added or corrected this way have provenance "user".
  */
-export async function editMasterCv(ctx: Ctx, instruction: string) {
+export async function editMasterCv(ctx: Ctx, instruction: string, language: string | null = null) {
   let text = bnDigits(String(instruction || "")).replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
   if (text.length < 3) throw new EditRefused("Tell us what to change in your CV.");
   if (!aiConfigured()) throw new AIError("not_configured");
-  // Written (or spoken) in Bangla: translate it first, then apply the English version with the same checks.
+  // Written (or spoken) in Bangla or the local language: translate it first, then apply the English version with the same checks.
   let readAs = "";
-  if (hasBangla(text)) {
-    const tr = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: TRANSLATE_EDIT_PROMPT(text), schema: TranslateSchema, maxTokens: 800 }));
+  const nonLatin = /[^\u0000-\u024F\s\d.,;:!?'"()&%/+-]/.test(text);
+  if (hasBangla(text) || language || nonLatin) {
+    const from = hasBangla(text) ? "Bangla" : language || "the person's language";
+    const tr = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: TRANSLATE_EDIT_PROMPT(text, from), schema: TranslateSchema, maxTokens: 800 }));
     const en = bnDigits(String((tr.data as { english?: string }).english || "")).replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
-    if (en.length < 3 || hasBangla(en)) throw new EditRefused("We could not read that. Try saying it another way, in Bangla or English.");
+    if (en.length < 3 || hasBangla(en)) throw new EditRefused("We could not read that. Try saying it another way.");
     text = readAs = en;
   }
   const profile = await loadProfile(ctx.db, ctx.userId);

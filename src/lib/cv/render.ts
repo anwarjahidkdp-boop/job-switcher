@@ -7,9 +7,28 @@ import type { ApplicationPack, CvStyle, MasterCV, PersonalDetails } from "../typ
 
 export const esc = (s: unknown) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+/**
+ * The corporate layout is the default everywhere: one ATS-safe column in the restrained style senior finance, legal
+ * and management CVs use. The country rules still decide photo, personal details, headings and length.
+ */
+export const DEFAULT_TPL: CvTemplate = "corporate";
+const NAVY = "#1E3A5F";
+
 export function resolveStyle(style: CvStyle | null | undefined, country: CountryCode | string): { tpl: CvTemplate; accent: string } {
+  void country;
   const st = style || {};
-  return { tpl: isTemplate(st.tpl) ? st.tpl : rule(country).tpl, accent: isAccent(st.accent) ? st.accent : ACCENTS[0][0] };
+  const tpl = isTemplate(st.tpl) ? st.tpl : DEFAULT_TPL;
+  return { tpl, accent: isAccent(st.accent) ? st.accent : tpl === "corporate" ? NAVY : ACCENTS[0][0] };
+}
+
+/** Up to four measurable results already on the CV (a number or %), one per role first, for the highlights block. */
+export function careerHighlights(exp: { bullets: string[] }[], max = 4): string[] {
+  // A real result: a percentage, money, a large figure or a counted outcome (not "Tally ERP 9" or "Mushak 9.1").
+  const measurable = (b: string) => b.length >= 30 && (/\d\s?%|[£$€৳]\s?\d|\b\d{2,}(,\d{3})*\b(?!\.\d)|\b\d+(\.\d+)?\s?(million|lakh|lac|crore|k|m|bn)\b/i.test(b) || /\b\d+\s+(\w+\s)?(staff|people|members|entities|branches|stores|sites|projects|clients|countries|days|weeks|months)\b/i.test(b));
+  const out: string[] = [];
+  for (const e of exp) { const b = e.bullets.find(measurable); if (b && out.length < max) out.push(b); }
+  for (const e of exp) for (const b of e.bullets) if (out.length < max && measurable(b) && !out.includes(b)) out.push(b);
+  return out.length >= 2 ? out : [];
 }
 
 export function initials(n: string) {
@@ -63,6 +82,32 @@ export function renderCvHtml(inp: RenderInput): string {
   const nameBlock = `<h2>${esc(m.name)}</h2><p class="hl">${esc(m.headline || "")}</p>`;
   const acc = esc(accent);
 
+  if (tpl === "corporate") {
+    const hi = careerHighlights(exp);
+    // Results moved into the highlights are not repeated under the role.
+    const expC = hi.length ? exp.map((e) => ({ ...e, bullets: e.bullets.filter((b) => !hi.includes(b)) })) : exp;
+    const roles = expC.map((e) => {
+      const dt = `${fmtYM(e.start)} – ${fmtYM(e.end)}`;
+      const co = esc(e.company) + (e.location ? `, ${esc(e.location)}` : "");
+      const head = forDoc
+        ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td><b class="rtl">${esc(e.title)}</b></td><td align="right" class="dt">${dt}</td></tr></table><p class="co">${co}</p>`
+        : `<div class="rt"><b class="rtl">${esc(e.title)}</b><span class="dt">${dt}</span></div><p class="co">${co}</p>`;
+      return `<div class="role">${head}${e.bullets.length ? `<ul>${e.bullets.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</div>`;
+    }).join("");
+    const expertise = !skills.length ? "" : forDoc
+      ? `<p>${skills.map(esc).join(" &nbsp;|&nbsp; ")}</p>`
+      : `<ul class="aoe">${skills.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+    const head = forDoc
+      ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td valign="top">${nameBlock}<p class="ct">${contact.map(esc).join(" &nbsp;|&nbsp; ")}</p></td>${ph ? `<td align="right" valign="top" width="96">${ph}</td>` : ""}</tr></table>`
+      : `<div class="hd"><div>${nameBlock}<p class="ct">${contact.map((x) => `<span>${esc(x)}</span>`).join("")}</p></div>${ph}</div>`;
+    const tail = `${sec("Languages", langs)}${sec("Personal details", pers)}`;
+    const body = `${sec(r.doc === "Résumé" ? "Executive Summary" : "Executive Profile", `<p>${sumTxt}</p>`)}`
+      + `${hi.length ? sec("Career Highlights", `<ul class="hi">${hi.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`) : ""}`
+      + `${sec("Areas of Expertise", expertise)}${sec(H.exp, roles)}${sec("Education", list(m.education))}${sec("Professional Qualifications", list(m.certifications))}`
+      + (forDoc ? tail : tail ? `<div class="two">${tail}</div>` : "");
+    if (forDoc) return `<div class="corp">${head}<hr>${body}</div>`;
+    return `<article class="cv t-corp" style="--cva:${acc}"><header>${head}</header>${body}</article>`;
+  }
   if (tpl === "modern") {
     const side = `${ph}${sec("Contact", contact.map((x) => `<p>${esc(x)}</p>`).join(""))}${sec("Skills", chips(skills))}${sec("Languages", langs)}${sec("Personal details", pers)}`;
     const main = `<header>${nameBlock}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}`;

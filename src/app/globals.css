@@ -825,9 +825,27 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .chip-chance.low{background:var(--warn-soft);color:var(--warn)}
 
 /* --- "Done for you" card on the dashboard --- */
-.done-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
-.done-list li{display:flex;gap:10px;align-items:center;font-size:15px}
-.done-list li .mk{flex:none}
-.done-list a{color:inherit;text-decoration:none}
-.done-list a:hover{text-decoration:underline}
+/* "Done for you": the work as one joined strip of steps, navy to gold, filling the card's width. */
+.flow{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:0;counter-reset:f}
+.flow-i>a,.flow-i>div{position:relative;display:flex;flex-direction:column;gap:2px;height:100%;padding:14px 26px 14px 30px;color:#EAF0FA;text-decoration:none;background:linear-gradient(160deg,#1B3270,#14275A);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 50%,calc(100% - 16px) 100%,0 100%,16px 50%);transition:filter .2s,transform .2s}
+.flow-i:first-child>a,.flow-i:first-child>div{clip-path:polygon(0 0,calc(100% - 16px) 0,100% 50%,calc(100% - 16px) 100%,0 100%);border-radius:12px 0 0 12px;padding-left:18px}
+.flow-i.last>a,.flow-i.last>div{clip-path:polygon(0 0,100% 0,100% 100%,0 100%,16px 50%);border-radius:0 12px 12px 0;padding-right:18px;background:linear-gradient(160deg,#E2B652,#C99640);color:#14275A}
+.flow-i:nth-child(2)>a{background:linear-gradient(160deg,#1E3A82,#17306B)}
+.flow-i:nth-child(3)>a{background:linear-gradient(160deg,#24468F,#1C3A7A)}
+.flow-i:nth-child(4)>a{background:linear-gradient(160deg,#2B529C,#22468A)}
+.flow-i:nth-child(5):not(.last)>a{background:linear-gradient(160deg,#335EA8,#2A5296)}
+.flow-i+.flow-i{margin-left:-10px}
+.flow-i>a:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.flow-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}
+.flow-ic{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.12);color:var(--g,#E2B652)}
+.flow-i.last .flow-ic{background:rgba(20,39,90,.12);color:#14275A}
+.flow-step{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.6}
+.flow-n{font-family:var(--display);font-size:26px;line-height:1.1;font-weight:800}
+.flow-l{font-weight:700;font-size:14px}
+.flow-s{font-size:12px;opacity:.75;line-height:1.35}
+@media (max-width:900px){
+  .flow{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .flow-i+.flow-i{margin-left:0}
+  .flow-i>a,.flow-i>div,.flow-i:first-child>a,.flow-i.last>a,.flow-i:first-child>div,.flow-i.last>div{clip-path:none;border-radius:12px;padding:12px 14px}
+}
 .seg-group{display:inline-flex;gap:4px}

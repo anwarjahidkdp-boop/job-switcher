@@ -97,7 +97,7 @@ Target roles: ${roles || ""}
 ${editsBlock(edits)}`;
 
 /** "Ask AI to change your CV": apply one instruction to the facts and the Master CV, and nothing else. */
-export const TRANSLATE_EDIT_PROMPT = (instruction: string) => `Translate this instruction, written by a job seeker about changing their own CV, from Bangla (it may mix in English) into plain English.
+export const TRANSLATE_EDIT_PROMPT = (instruction: string, language = "Bangla") => `Translate this instruction, written by a job seeker about changing their own CV, from ${language} (it may mix in English) into plain English.
 Translate faithfully: keep every name, organisation, degree, result, date and number exactly as stated (write names in English letters the way the person would spell them). Add nothing, drop nothing, do not improve or interpret it. Keep English words as they are.
 Return JSON {"english": "..."}.
 

@@ -10,26 +10,30 @@ import { notify } from "./notify";
 
 export const NOTIFY_MIN_SCORE = 70;
 export const PREPARE_MIN_SCORE = 80;
-export const PREPARE_PER_RUN = 3;
+export const PREPARE_PER_RUN = 2;
+/** AI-prepared packs cost money; with this many still waiting unsent, we stop preparing new ones until the person acts. */
+export const PREPARED_WAITING_MAX = 3;
+/** Only jobs our AI check read against the CV and rated a strong fit are prepared ahead; the rest are one tap away. */
+export const aiVerified = (r: { ai_fit?: string | null; ai_score?: number | null }) => r.ai_fit === "strong" || (r.ai_score ?? 0) >= 70;
 const DIGEST_MAX = 8;
 const NOTIFY_PER_RUN = 5;
 
 export interface NewMatchResult { users: number; notified: number; prepared: number; emailed: number; failed: number }
 
-interface Row { job_id: string; score: number; jobs: { title: string; company: string; location: string | null; active: boolean } }
+interface Row { job_id: string; score: number; ai_fit?: string | null; ai_score?: number | null; jobs: { title: string; company: string; location: string | null; active: boolean } }
 
 export async function processNewMatches(admin: SupabaseClient, userIds: string[], opts: { appUrl: string; dryRun?: boolean; prepare?: boolean }): Promise<NewMatchResult> {
   const res: NewMatchResult = { users: 0, notified: 0, prepared: 0, emailed: 0, failed: 0 };
   const base = opts.appUrl.replace(/\/$/, "");
   for (const userId of userIds) {
     try {
-      const { data, error } = await admin.from("matches").select("job_id, score, jobs!inner(title, company, location, active)")
+      const { data, error } = await admin.from("matches").select("job_id, score, ai_fit, ai_score, jobs!inner(title, company, location, active)")
         .eq("user_id", userId).is("notified_at", null).eq("relevant", true).gte("score", NOTIFY_MIN_SCORE).eq("jobs.active", true).or("ai_fit.is.null,ai_fit.neq.no")
         .order("score", { ascending: false }).limit(50);
       if (error) throw error;
       const { data: prof } = await admin.from("profiles").select("email, full_name, email_reminders, dismissed_job_ids").eq("id", userId).maybeSingle();
       const dismissed = new Set<string>((prof?.dismissed_job_ids as string[] | null) || []);
-      const { data: apps } = await admin.from("applications").select("job_id").eq("user_id", userId);
+      const { data: apps } = await admin.from("applications").select("job_id, status").eq("user_id", userId);
       const started = new Set((apps || []).map((a) => a.job_id as string));
       const fresh = ((data || []) as unknown as Row[]).filter((r) => !dismissed.has(r.job_id) && !started.has(r.job_id));
       if (!fresh.length) continue;
@@ -37,7 +41,9 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
 
       const ready = new Set<string>();
       if (opts.prepare !== false && aiConfigured() && !opts.dryRun && (await canSpend(admin, userId))) {
-        for (const r of fresh.filter((x) => x.score >= PREPARE_MIN_SCORE).slice(0, PREPARE_PER_RUN)) {
+        const waiting = (apps || []).filter((a) => a.status === "ready").length;
+        const room = Math.max(0, Math.min(PREPARE_PER_RUN, PREPARED_WAITING_MAX - waiting));
+        for (const r of fresh.filter((x) => x.score >= PREPARE_MIN_SCORE && aiVerified(x)).slice(0, room)) {
           try {
             const out = await preparePack({ db: admin, admin, userId }, r.job_id);
             if (out.ai) ready.add(r.job_id);
