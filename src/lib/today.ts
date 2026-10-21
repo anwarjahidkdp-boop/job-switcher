@@ -1,4 +1,4 @@
-// The 7-day trial plan and the "Today for you" list on the dashboard. Pure functions so they can be tested.
+// The 5-day trial plan and the "Today for you" list on the dashboard. Pure functions so they can be tested.
 const DAY = 86_400_000;
 
 export interface PlanInput {
@@ -8,11 +8,14 @@ export interface PlanInput {
 export interface PlanStep { day: number; title: string; why: string; done: boolean; href: string; cta: string }
 export interface Plan { day: number; ended: boolean; steps: PlanStep[]; next: PlanStep | null; summaryTime: boolean }
 
-/** Which day of the 7-day trial it is (1 to 7), or null outside a trial. */
+/** Days in the free trial (owner decision 2026-10-21: 5 days, one AI-tailored application a day). */
+export const TRIAL_DAYS = 5;
+
+/** Which day of the trial it is (1 to TRIAL_DAYS), or null outside a trial. */
 export function trialDay(i: Pick<PlanInput, "status" | "trialStart" | "trialEnd" | "now">): number | null {
   if (i.status !== "trialing" || !i.trialEnd) return null;
-  const start = i.trialStart ? Date.parse(i.trialStart) : Date.parse(i.trialEnd) - 7 * DAY;
-  return Math.min(7, Math.max(1, Math.floor((i.now - start) / DAY) + 1));
+  const start = i.trialStart ? Date.parse(i.trialStart) : Date.parse(i.trialEnd) - TRIAL_DAYS * DAY;
+  return Math.min(TRIAL_DAYS, Math.max(1, Math.floor((i.now - start) / DAY) + 1));
 }
 
 export function trialPlan(i: PlanInput): Plan | null {
@@ -24,13 +27,13 @@ export function trialPlan(i: PlanInput): Plan | null {
     { day: 1, title: "Look at your best matches", why: "Jobs ranked by how well they fit your verified profile.", done: i.prepared > 0 || i.applied > 0, href: "/inbox#matches", cta: "See matches" },
     { day: 2, title: "Review your ready applications", why: "We tailor your CV and cover letter for each strong match. You check and apply.", done: i.applied > 0, href: "/queue", cta: "Open Apply Queue" },
     { day: 3, title: "Turn on job alerts", why: "New jobs from job sites arrive here on their own every day.", done: i.setupDone, href: "/setup", cta: "Set up alerts" },
-    { day: 4, title: "Apply to 3 jobs", why: `More good applications mean more interview calls. ${Math.min(i.applied, 3)} of 3 done.`, done: i.applied >= 3, href: "/queue", cta: "Apply now" },
-    { day: 5, title: "Tell us about replies", why: "Got a call? Tell us and we prepare your interview answers.", done: i.applied > 0 && i.repliesPending === 0, href: "/applications", cta: "Update applications" },
-    { day: 6, title: "See what JobPao did for you", why: "Your week in numbers, and how to keep your assistant working.", done: i.status === "active", href: "/inbox#trial", cta: "See my week" },
+    { day: 3, title: "Apply to 3 jobs", why: `More good applications mean more interview calls. ${Math.min(i.applied, 3)} of 3 done.`, done: i.applied >= 3, href: "/queue", cta: "Apply now" },
+    { day: 4, title: "Tell us about replies", why: "Got a call? Tell us and we prepare your interview answers.", done: i.applied > 0 && i.repliesPending === 0, href: "/applications", cta: "Update applications" },
+    { day: 5, title: "See what JobPao did for you", why: "Your trial in numbers, and how to keep your assistant working.", done: i.status === "active", href: "/inbox#trial", cta: "See my results" },
   ];
   // The next step is the first undone step that is due by today; if all due steps are done, the first undone one.
   const next = steps.find((s) => !s.done && s.day <= day) || steps.find((s) => !s.done) || null;
-  return { day, ended, steps, next, summaryTime: day >= 6 || ended };
+  return { day, ended, steps, next, summaryTime: day >= TRIAL_DAYS || ended };
 }
 
 /** Course search links for a skill. Search pages only: we never invent a specific course. */

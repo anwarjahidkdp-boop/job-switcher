@@ -6,10 +6,10 @@ const start = Date.parse("2026-10-20T08:00:00Z");
 const base = { status: "trialing", trialStart: new Date(start).toISOString(), trialEnd: new Date(start + 7 * D).toISOString(), hasMaster: true, strong: 4, prepared: 0, applied: 0, interviews: 0, setupDone: false, repliesPending: 0 };
 
 describe("trial plan", () => {
-  it("counts trial days 1 to 7", () => {
+  it("counts trial days 1 to 5", () => {
     expect(trialDay({ ...base, now: start + 1000 })).toBe(1);
     expect(trialDay({ ...base, now: start + 3.5 * D })).toBe(4);
-    expect(trialDay({ ...base, now: start + 20 * D })).toBe(7);
+    expect(trialDay({ ...base, now: start + 20 * D })).toBe(5);
     expect(trialDay({ ...base, status: "active", now: start })).toBeNull();
   });
   it("points at the first undone step due today", () => {

@@ -1,6 +1,7 @@
 import { PageHead } from "@/components/PageHead";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAppState, photoUrl } from "@/lib/server/page";
+import { isPro, requireAppState, photoUrl } from "@/lib/server/page";
 import { loadJob, withAiScores } from "@/lib/server/state";
 import { scoreJob, BAND } from "@/lib/matching";
 import { money, perLabel, rule, cname } from "@/lib/countries";
@@ -20,7 +21,7 @@ import { daysUntil } from "@/lib/dates";
 import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
-import { limitNotice } from "@/lib/pack-limits";
+import { limitNotice, packLimits, trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -47,7 +48,16 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   const allowance = !a?.pack && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  const aiLeft = !allowance ? null : allowance.left ? `${allowance.left} AI-tailored ${allowance.left === 1 ? "application" : "applications"} left today (${Math.max(0, allowance.limits.month - allowance.used.month)} this month)` : `${limitNotice(allowance)} You will get the standard version.`;
+  const trial = allowance?.plan === "trial";
+  // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
+  const apps = Object.values(st.apps);
+  const lockedPack = !!a?.pack && (a.status === "ready" || a.status === "reminder") && !(await isPro(db, st.userId)) && !unlockedReady(apps, trialApplyRoom(apps)).has(job.id);
+  const leftAll = allowance ? Math.max(0, allowance.limits.month - allowance.used.month) : 0;
+  const aiLeft = !allowance ? null : allowance.left
+    ? trial ? `Free trial: 1 AI-tailored application a day (${leftAll} of ${allowance.limits.month} left)` : `${allowance.left} AI-tailored ${allowance.left === 1 ? "application" : "applications"} left today (${leftAll} this month)`
+    : `${limitNotice(allowance)} You will get the standard version.`;
+  // Trial used up for today (or in all): invite the person to Pro, where they can apply to many more.
+  const upsell = trial && allowance && !allowance.left;
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -91,7 +101,14 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
               prep={a.interview_prep ?? null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
           ) : null}
-          {a?.pack ? (
+          {lockedPack ? (
+            <div className="card panel upsell">
+              <p className="eyebrow">Your application is ready</p>
+              <h3 style={{ margin: "4px 0 6px" }}>Tailored CV and cover letter for {job.company}</h3>
+              <p className="small">Your free trial includes one application a day, and today&apos;s is used. Go Pro to open this one now and apply to as many good matches as you like each day.</p>
+              <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade?from=job">Go Pro and apply now</Link>
+            </div>
+          ) : a?.pack ? (
             <div className="card panel">
               <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: 19 }}>Your application pack</h2><span className="small muted">{a.pack_ai ? "Prepared with Claude from your verified profile" : "Template version"}</span></div>
               {a.pack_flags.length ? <p className="note" style={{ marginTop: 10, borderColor: "var(--warn)" }}>Check before sending: {a.pack_flags.join("; ")}.</p> : null}
@@ -109,6 +126,12 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           ) : null}
         </div>
         <aside className="side">
+          {upsell && !lockedPack ? <div className="card panel upsell" role="note">
+            <p className="eyebrow">Want to apply to more jobs?</p>
+            <h3 style={{ margin: "4px 0 6px" }}>{leftAll ? "Today's free application is used" : "Your 5 free applications are used"}</h3>
+            <p className="small">With Pro, JobPao prepares up to {packLimits("pro", st.homeCountry).day} tailored applications every day, each with its own CV and cover letter. {leftAll ? "Your next free one is ready tomorrow." : ""}</p>
+            <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade">Go Pro and apply to more</Link>
+          </div> : null}
           <div className="card panel">
             <p className="eyebrow">Why this job?</p>
             <p style={{ margin: "6px 0 12px" }}><span className={`pill ${BAND[m.band][1]}`}>{BAND[m.band][0]}</span> <b className="num">{m.score}% profile match</b></p>
@@ -117,11 +140,11 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             {m.gaps.length ? <><h3 style={{ marginTop: 14 }}>Potential gaps</h3><GapList gaps={m.gaps.map((g) => ({ t: g.t, skill: g.skill || null, label: g.skill ? skillLabel(g.skill) : null }))} /></> : null}
             <p className="small muted" style={{ marginTop: 14 }}>The score compares your verified profile with this job&apos;s requirements. It is not a chance of being hired.</p>
           </div>
-          <div className="card panel">
+          {lockedPack ? null : <div className="card panel">
             <ActionsPanel jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
               gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} aiLeft={aiLeft} />
-          </div>
+          </div>}
         </aside>
       </div>
     </>

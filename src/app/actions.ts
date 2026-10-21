@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ctx } from "@/lib/server/page";
 import { addUserSkill, reviewFact, saveAnswers, setCountry } from "@/lib/server/onboarding";
-import { confirmApplied, dismissJob, markOpened, setReminder, updateStatus } from "@/lib/server/applications";
+import { confirmApplied, TrialLimit, dismissJob, markOpened, setReminder, updateStatus } from "@/lib/server/applications";
 import { isAccent, isTemplate, rule, cc } from "@/lib/countries";
 import { todayStr } from "@/lib/dates";
 import { loadProfile } from "@/lib/server/state";
@@ -129,7 +129,7 @@ export async function openedAction(jobId: string) {
 
 export async function appliedAction(jobId: string) {
   const c = await ctx();
-  await confirmApplied(c, jobId);
+  try { await confirmApplied(c, jobId); } catch (e) { if (e instanceof TrialLimit) redirect("/upgrade?from=trial"); throw e; }
   revalidatePath("/", "layout");
 }
 

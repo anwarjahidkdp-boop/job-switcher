@@ -863,3 +863,10 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .chat-input textarea{flex:1;min-height:44px;resize:vertical}
 .chat-input .btn{flex:none;height:44px}
 .chat-hint{color:var(--ink-2)}
+.upsell{background:linear-gradient(150deg,#14275A,#1E3A82);color:#EAF0FA;border:1px solid rgba(226,182,82,.55)}
+.upsell .eyebrow{color:var(--g,#E2B652)}
+.upsell h3{color:#fff}
+.upsell-row{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.upsell-row .small{color:#C9D4EA}
+.opp-locked h4{opacity:.75}
+.opp-locked .meta{color:#B8862B}

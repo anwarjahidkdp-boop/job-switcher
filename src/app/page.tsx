@@ -94,7 +94,7 @@ export default async function Landing() {
             <Link className="btn btn-primary lp-btn" href={start}>Upload my CV</Link>
             <Link className="btn lp-btn lp-btn-ghost" href={demo}>Try a sample</Link>
           </div>
-          <p className="lp-fine">7 days free · No card needed</p>
+          <p className="lp-fine">5 days free · No card needed</p>
         </HeroStage>
 
         <div className="wrap">
@@ -191,8 +191,8 @@ export default async function Landing() {
                 })}
               </div>
               <ul>{PRO.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
-              <Link className="btn btn-primary lp-btn lp-full" href={start}>Start 7-day free trial</Link>
-              <p className="lp-nocard"><b>7-day free trial</b> · No credit card required</p>
+              <Link className="btn btn-primary lp-btn lp-full" href={start}>Start 5-day free trial</Link>
+              <p className="lp-nocard"><b>5-day free trial</b> · No credit card required</p>
             </div>
             <p className="lp-global"><Icon name="globe" />Works for any country you want to work in. Pick it, and your CV and jobs follow.</p>
           </section>
