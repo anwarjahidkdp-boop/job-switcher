@@ -10,6 +10,8 @@ const EXAMPLES = "For example: remove the skill Tally · change my end date at A
 
 // The browser's own speech-to-text (Chrome, Edge, Safari). Not every browser has it, so the mic shows only where it works.
 type Rec = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; abort?(): void; onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null; onend: (() => void) | null; onerror: ((e: { error: string }) => void) | null };
+type Msg = { who: "you" | "ai"; text: string; tone?: "ok" | "ask" };
+
 const speechApi = (): (new () => Rec) | null => {
   if (typeof window === "undefined") return null;
   const w = window as unknown as { SpeechRecognition?: new () => Rec; webkitSpeechRecognition?: new () => Rec };
@@ -24,7 +26,13 @@ export function CvEditBox({ aiReady, style, after, langs }: { aiReady: boolean; 
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState("");
+  // The conversation: what the person asked and what the AI answered, one after another (kept for this browser tab).
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = listRef.current; if (el) el.scrollTop = el.scrollHeight;
+  }, [msgs, busy]);
+  const say = (m: Msg) => setMsgs((x) => [...x, m]);
   const canSpeak = useSyncExternalStore(noSub, () => !!speechApi(), () => false);
   const [lang, setLang] = useState(langs[0]?.code || "en-GB");
   const local = langs.find((l) => !l.english);
@@ -97,17 +105,21 @@ export function CvEditBox({ aiReady, style, after, langs }: { aiReady: boolean; 
 
   async function submit() {
     if (!v.trim() || busy) return;
-    setBusy(true); setErr(""); setDone("");
+    const asked = v.trim();
+    // Answering the AI's question: send it together with what the person asked before, so the AI has the whole request.
+    const last = msgs[msgs.length - 1], prev = msgs[msgs.length - 2];
+    const instruction = last?.tone === "ask" && prev?.who === "you" ? `${prev.text}. ${asked}`.slice(0, MAX_EDIT_CHARS) : asked;
+    setBusy(true); setErr("");
+    say({ who: "you", text: asked }); setV("");
     try {
-      const r = await fetch("/api/cv/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction: v.trim(), lang }) });
+      const r = await fetch("/api/cv/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction, lang }) });
       const j = await r.json().catch(() => null);
       // A non-JSON answer means the server stopped mid-way; the change may already be saved.
-      if (!j) { router.refresh(); throw new Error("The server was busy. Check your CV above: if the change is not there, try again."); }
+      if (!j) { router.refresh(); throw new Error("The server was busy. Check your CV: if the change is not there, send it again."); }
       if (!r.ok) throw new Error(j.error || "Your CV could not be updated. Try again.");
-      setDone(j.message || "Your CV was updated.");
-      setV("");
+      say({ who: "ai", text: j.message || "Your CV was updated.", tone: "ok" });
       router.refresh();
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { say({ who: "ai", text: (e as Error).message, tone: "ask" }); }
     setBusy(false);
   }
 
@@ -116,9 +128,23 @@ export function CvEditBox({ aiReady, style, after, langs }: { aiReady: boolean; 
       <h3>Ask AI to change your CV</h3>
       {!aiReady ? <p className="note">AI changes are not set up on this server yet.</p> : (
         <form className="stack" style={{ gap: 10 }} onSubmit={(e) => { e.preventDefault(); submit(); }}>
-          <label className="f" htmlFor="cvedit">Tell us what to change in your CV
-            <textarea id="cvedit" rows={3} value={v} maxLength={MAX_EDIT_CHARS} disabled={busy} placeholder={EXAMPLES} onChange={(e) => setV(e.target.value)} />
-          </label>
+          <div className="chat" ref={listRef} aria-live="polite">
+            <div className="msg ai"><span className="who">JobPao AI</span>Tell me one change to make to your CV and I will write it in professional style. {EXAMPLES.replace("For example: ", "For example: ")}</div>
+            {msgs.map((m, i) => (
+              <div key={i} className={`msg ${m.who}${m.tone ? " " + m.tone : ""}`}>
+                {m.who === "ai" ? <span className="who">JobPao AI</span> : null}
+                {m.tone === "ok" ? <b>✓ Your CV is updated. </b> : null}{m.text}
+                {m.tone === "ok" && after && i === msgs.length - 1 ? <div className="row" style={{ marginTop: 10 }}>{after}</div> : null}
+              </div>
+            ))}
+            {busy ? <div className="msg ai typing"><span className="who">JobPao AI</span><Spinner /> Updating your CV…</div> : null}
+          </div>
+          <label className="sr-only" htmlFor="cvedit">Tell us what to change in your CV</label>
+          <div className="chat-input">
+            <textarea id="cvedit" rows={2} value={v} maxLength={MAX_EDIT_CHARS} disabled={busy} placeholder={msgs.length ? "Type your reply or the next change…" : "Type the change you want…"} onChange={(e) => setV(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }} />
+            <button className="btn btn-primary" disabled={busy || !v.trim()} aria-label="Send">{busy ? <Spinner /> : "Send ➤"}</button>
+          </div>
           {canSpeak ? <div className="row" style={{ gap: 8 }}>
             <button type="button" className={`btn btn-sm ${listening ? "btn-primary" : "btn-ghost"}`} disabled={busy} onClick={speak} aria-pressed={listening}>{listening ? "■ Stop, I'm done" : "🎤 Speak your change"}</button>
             {langs.length > 1 ? <span className="seg-group" role="group" aria-label="Language you speak">
@@ -127,9 +153,7 @@ export function CvEditBox({ aiReady, style, after, langs }: { aiReady: boolean; 
             {finishing ? <span className="small muted">Adding your last words…</span> : listening ? <span className="small muted">Listening… speak now, then press Stop.</span> : null}
           </div> : null}
           <p className="small muted">One change at a time.{local ? ` ${local.label} is fine: we translate it and write it on your CV in professional English.` : ""} We only add what you write here; we never invent qualifications or jobs.</p>
-          {err ? <p className="err">{err}</p> : null}
-          {done ? <div className="note" role="status"><b>✓ Your CV is updated.</b> {done}{after ? <div className="row" style={{ marginTop: 10 }}>{after}</div> : null}</div> : null}
-          <div className="row"><button className="btn btn-primary" disabled={busy || !v.trim()}>{busy ? <><Spinner /> Updating your CV…</> : "Update my CV"}</button></div>
+          {err ? <p className="small chat-hint">{err}</p> : null}
         </form>
       )}
     </div>

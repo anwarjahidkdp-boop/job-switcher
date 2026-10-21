@@ -849,3 +849,17 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
   .flow-i>a,.flow-i>div,.flow-i:first-child>a,.flow-i.last>a,.flow-i:first-child>div,.flow-i.last>div{clip-path:none;border-radius:12px;padding:12px 14px}
 }
 .seg-group{display:inline-flex;gap:4px}
+/* "Ask AI to change your CV" as a chat: the person's messages on the right, the AI's on the left. */
+.chat{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+.msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg .who{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink-3,#7A869A);margin-bottom:2px}
+.msg.ai{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.you{align-self:flex-end;background:#14275A;color:#fff;border-bottom-right-radius:4px}
+.msg.ai.ok{border-color:color-mix(in srgb,var(--ok,#1F9D6B) 45%,var(--line));background:color-mix(in srgb,var(--ok,#1F9D6B) 7%,var(--card))}
+.msg.ai.ask{border-color:color-mix(in srgb,var(--g,#E2B652) 60%,var(--line));background:color-mix(in srgb,var(--g,#E2B652) 9%,var(--card))}
+.msg.typing{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--ink-2)}
+.msg.typing .who{width:100%}
+.chat-input{display:flex;gap:8px;align-items:flex-end}
+.chat-input textarea{flex:1;min-height:44px;resize:vertical}
+.chat-input .btn{flex:none;height:44px}
+.chat-hint{color:var(--ink-2)}
