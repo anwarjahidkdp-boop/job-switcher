@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { bandOf, CAP_SCORE, scoreJob, W, yearsFrom, inboxList, scoreAll, skillImpact } from "./matching";
+import { bandOf, CAP_SCORE, roleRel, scoreJob, W, yearsFrom, inboxList, scoreAll, skillImpact } from "./matching";
 import { buildMatchProfile, groundExtraction } from "./facts";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_PREFS, SAMPLE_JOBS_RAW } from "./demo";
-import { sampleToJob } from "./jobs";
+import { guessCategory, sampleToJob } from "./jobs";
 import type { Job, MatchProfile } from "./types";
 
 const TODAY = "2026-10-17";
@@ -123,5 +123,34 @@ describe("visa sponsorship cap (abroad)", () => {
 describe("yearsFrom", () => {
   it("merges overlapping intervals", () => {
     expect(yearsFrom([{ start: "2020-01", end: "2020-12" }, { start: "2020-06", end: "2021-12" }], NOW)).toBeCloseTo(2, 0);
+  });
+});
+
+describe("role part of the title decides relevance", () => {
+  const P = demoProfile("BD");
+  const rel = (title: string) => roleRel({ title, category: "Finance & Accounting" }, P) >= 0.6;
+  it("drops other professions that only mention finance after a separator", () => {
+    expect(rel("Customer Experience Representative, Trump Accounts")).toBe(false);
+    expect(rel("Software Engineer, Bill Pay & Procurement")).toBe(false);
+    expect(rel("Full Stack Software Engineer - Codex for Finance")).toBe(false);
+    expect(rel("Forward Deployed Engineer (FDE), Financial Services- NYC")).toBe(false);
+    expect(rel("Account Manager | Mid-Market")).toBe(false);
+  });
+  it("keeps finance roles, including level-first titles", () => {
+    expect(rel("Assistant Manager, Accounts")).toBe(true);
+    expect(rel("Director, Strategic Finance")).toBe(true);
+    expect(rel("Senior Accountant - Tax")).toBe(true);
+    expect(rel("Manager (Internal Audit)")).toBe(true);
+  });
+});
+
+describe("guessCategory", () => {
+  it("reads the role, not the team", () => {
+    expect(guessCategory("Software Engineer, Bill Pay & Procurement", ["accounts payable"])).toBe("IT");
+    expect(guessCategory("Customer Experience Representative, Trump Accounts")).toBe("Customer Service");
+    expect(guessCategory("Account Executive | Commercial", ["budgeting"])).toBe("Sales");
+    expect(guessCategory("Director, Strategic Finance")).toBe("Finance & Accounting");
+    expect(guessCategory("Senior Accounts Manager")).toBe("Finance & Accounting");
+    expect(guessCategory("Analyst", ["accounts payable"])).toBe("Finance & Accounting");
   });
 });

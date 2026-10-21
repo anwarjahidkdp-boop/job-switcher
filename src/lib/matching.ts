@@ -5,7 +5,7 @@
 import { money, HOME_COUNTRY, type CountryCode } from "./countries";
 import { daysUntil } from "./dates";
 import {
-  cap1, divOf, EDU, famOf, IND_GROUP, LEVEL, LEVEL_NAME, RELATED, skillLabel, titleTokens,
+  cap1, divOf, EDU, famOf, IND_GROUP, LEVEL, LEVEL_NAME, RELATED, roleHead, skillLabel, titleTokens,
 } from "./taxonomy";
 import type { Band, Gap, Job, MatchProfile, MatchResult } from "./types";
 
@@ -39,12 +39,15 @@ function profileIdx(P: MatchProfile): ProfileIdx {
 
 export function roleRel(job: Pick<Job, "title" | "category">, P: MatchProfile): number {
   const { tokens: pt, fams, roles } = profileIdx(P);
-  const jt = titleTokens(job.title);
+  // Only the role part of the title counts: "Software Engineer, Bill Pay" is an engineering job, not finance.
+  const jt = titleTokens(roleHead(job.title));
   let ts = 0;
   if (jt.some((w) => pt.has(w))) ts = 1;
   else if (jt.some((w) => fams.has(famOf(w)))) ts = 0.7;
   if (roles.has(normTitle(job.title))) ts = 1;
   const catMatch = !!job.category && P.categories.includes(job.category);
+  // The category alone is not enough when the title names a different role; it decides only for titles that say nothing ("Executive").
+  if (catMatch && !ts && jt.length) return 0.4;
   return catMatch ? 0.6 + 0.4 * ts : 0.55 * ts;
 }
 

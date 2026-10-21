@@ -2,7 +2,7 @@
 // used by ingestion (no AI cost) and as a fallback when AI is unavailable.
 import { cc, rule, type CountryCode } from "./countries";
 import { addDaysTo } from "./dates";
-import { CATEGORIES, INDUSTRY_LIST, isEduLevel, isSeniority, normSkill, SKILL_ALIAS, VOCAB, type EduLevel, type Seniority } from "./taxonomy";
+import { CATEGORIES, INDUSTRY_LIST, isEduLevel, isSeniority, normSkill, roleHead, SKILL_ALIAS, VOCAB, type EduLevel, type Seniority } from "./taxonomy";
 import type { ApplyMethod, Job, JobCert } from "./types";
 import type { SampleJobRaw } from "./demo";
 import type { PastedJobOut } from "./ai/schemas";
@@ -152,7 +152,7 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const industry = INDUSTRY_LIST.find((i) => low.includes(i)) || null;
   const deadlineM = !input.deadline ? text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{4}-\d{2}-\d{2})/i) : null;
   return {
-    country: input.country, title: input.title, company: input.company, industry, category: guessCategory(input.title + " " + allSkills.join(" ")),
+    country: input.country, title: input.title, company: input.company, industry, category: guessCategory(input.title, allSkills),
     location: input.location ?? null, type: input.type ?? null, salaryMin: input.salaryMin ?? null, salaryMax: input.salaryMax ?? null,
     minYears, maxYears, seniority: seniorityFromTitle(input.title),
     education: edu ? { level: edu as EduLevel, field: fieldM ? fieldM[1] : "" } : null,
@@ -161,19 +161,31 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   };
 }
 
-const CATEGORY_HINTS: [string, RegExp][] = [
+// Read from the role part of the title first (see roleHead), in this order: "Customer Experience Representative,
+// Trump Accounts" is customer service and "Account Executive" is sales, not finance.
+const TITLE_HINTS: [string, RegExp][] = [
+  ["IT", /\b(software|developer|engineer|engineering|programmer|devops|sre|architect|data scientist|data engineer|machine learning|frontend|backend|full[- ]?stack|qa|tester|it support|sysadmin|web designer)\b/],
+  ["Customer Service", /customer (service|support|experience|success|care)|support (specialist|agent|associate)|call cent|help ?desk/],
+  ["Sales", /\b(sales|account (manager|executive|director|representative|lead)|business development|bdr|sdr|representative|partnerships?|partner (manager|development)|territory|seller)\b/],
+  ["Finance & Accounting", /\b(accountant|accounting|accounts|finance|financial|audit|auditor|tax|treasury|treasurer|fp&a|controller|comptroller|bookkeep\w*|ledger|payable|receivable|billing|cfo|credit analyst)\b/],
+  ["HR", /\b(hr|human resources|talent|recruit\w*|payroll|people (partner|operations)|compensation)\b/],
+  ["Marketing", /marketing|brand|seo|content|communications|digital/],
+  ["Supply Chain", /supply chain|procurement|logistics|merchandis|sourcing|inventory|warehouse/],
+  ["Education", /\b(teacher|lecturer|tutor|instructor|professor|teaching)\b/],
+  ["Administration", /\b(admin|administrator|administrative|facilities|office manager|receptionist)\b/],
+];
+const SKILL_HINTS: [string, RegExp][] = [
   ["Finance & Accounting", /account|finance|financial|audit|tax|treasury|fp&a|controller|ledger|payable|receivable/],
   ["HR", /\bhr\b|human resources|talent|recruit|payroll|people|compensation/],
   ["Marketing", /marketing|brand|seo|content|communications|digital/],
-  ["Sales", /sales|business development|account manager|territory/],
   ["Supply Chain", /supply chain|procurement|logistics|merchandis|sourcing|inventory|warehouse/],
   ["IT", /software|developer|engineer|backend|frontend|devops|data|it\b|sql|node\.js/],
-  ["Administration", /admin|facilities|office manager/],
-  ["Customer Service", /customer service|support|call cent/],
 ];
-export function guessCategory(s: string): string {
-  const t = s.toLowerCase();
-  return CATEGORY_HINTS.find(([, re]) => re.test(t))?.[0] || "Other";
+const hint = (rules: [string, RegExp][], s: string) => rules.find(([, re]) => re.test(s.toLowerCase()))?.[0];
+
+/** Job category from its title (role part first, then the whole title), falling back to the skills it lists. */
+export function guessCategory(title: string, skills: string[] = []): string {
+  return hint(TITLE_HINTS, roleHead(title)) || hint(TITLE_HINTS, title) || (skills.length ? hint(SKILL_HINTS, skills.join(" ")) : undefined) || "Other";
 }
 
 export const currencyLabel = (c: CountryCode) => rule(c).sym.trim() || "local currency";
