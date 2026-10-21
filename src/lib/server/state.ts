@@ -4,11 +4,12 @@ import { cc, type CountryCode } from "../countries";
 import { todayStr } from "../dates";
 import { buildMatchProfile, type CareerFact, type CareerMeta } from "../facts";
 import { rowToJob, type JobRow } from "../jobs";
-import { scoreAll, type Scored } from "../matching";
+import { bandOf, CAP_SCORE, scoreAll, type Scored } from "../matching";
 import { rule } from "../countries";
 import type { AppStatus, ApplicationPack, CvQuestion, InterviewPrep, CvStyle, MasterCV, MatchProfile, PersonalDetails, Preferences } from "../types";
 
 export type AiFit = "strong" | "partial" | "no";
+export interface AiCheck { fit: AiFit; score: number | null; reason: string }
 
 export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
@@ -42,7 +43,7 @@ export interface UserState {
   apps: Record<string, ApplicationRow>;
   dismissed: Set<string>;
   /** AI check of the top matches (see match-check.ts), by job id. */
-  aiCheck: Map<string, { fit: AiFit; reason: string }>;
+  aiCheck: Map<string, AiCheck>;
 }
 
 export const DEFAULT_META: CareerMeta = { industries: [], categories: [], seniority: "mid", target_roles: [], location: null };
@@ -95,7 +96,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("applications").select("*, application_events(event, status, actor, created_at)").eq("user_id", userId),
-    db.from("matches").select("job_id, ai_fit, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
+    db.from("matches").select("job_id, ai_fit, ai_score, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
   const country = cc(profile.target_country);
@@ -111,10 +112,23 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   }
   const homeCountry = cc(profile.home_country);
   // The AI check read the full post next to the CV: "no" means a different profession or clearly unqualified, so it is hidden like a dismissed job.
-  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_reason: string | null }[]).map((r) => [r.job_id, { fit: r.ai_fit, reason: r.ai_reason || "" }]));
+  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_score: number | null; ai_reason: string | null }[]).map((r) => [r.job_id, { fit: r.ai_fit, score: r.ai_score, reason: r.ai_reason || "" }]));
   const dismissed = new Set([...(profile.dismissed_job_ids || []), ...[...aiCheck].filter(([, c]) => c.fit === "no").map(([id]) => id)]);
-  const scored = P ? scoreAll(jobs, P, { today, needVisa: profile.needs_visa, homeCountry }) : [];
+  const scored = P ? withAiScores(scoreAll(jobs, P, { today, needVisa: profile.needs_visa, homeCountry }), aiCheck) : [];
   return { userId, profile, country, homeCountry, today, facts, cvDoc: (cvRes.data as CvDocRow) || null, master, P, scored, analysed, apps, dismissed, aiCheck };
+}
+
+/**
+ * Where the AI read the full post next to the CV (profession, must-haves, experience, industry, level, duties),
+ * its score replaces the rule-based one; the rule score stays as the first pass for jobs not yet checked.
+ */
+export function withAiScores(scored: Scored[], aiCheck: Map<string, AiCheck>): Scored[] {
+  return scored.map((x) => {
+    const c = aiCheck.get(x.job.id);
+    if (!c || c.score == null) return x;
+    const score = x.m.capped ? Math.min(c.score, CAP_SCORE) : c.score;
+    return { job: x.job, m: { ...x.m, score, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
+  });
 }
 
 export async function loadJob(db: SupabaseClient, jobId: string) {

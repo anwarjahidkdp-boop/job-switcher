@@ -1,7 +1,7 @@
 import { PageHead } from "@/components/PageHead";
 import { notFound } from "next/navigation";
 import { requireAppState, photoUrl } from "@/lib/server/page";
-import { loadJob } from "@/lib/server/state";
+import { loadJob, withAiScores } from "@/lib/server/state";
 import { scoreJob, BAND } from "@/lib/matching";
 import { money, perLabel, rule, cname } from "@/lib/countries";
 import { skillLabel } from "@/lib/taxonomy";
@@ -30,7 +30,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const job = st.scored.find((x) => x.job.id === id)?.job || (await loadJob(db, id));
   if (!job) notFound();
-  const m = scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry });
+  const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
+  const ai = st.aiCheck.get(job.id);
   const a = st.apps[job.id];
   // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
   const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
@@ -101,6 +102,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <p className="eyebrow">Why this job?</p>
             <p style={{ margin: "6px 0 12px" }}><span className={`pill ${BAND[m.band][1]}`}>{BAND[m.band][0]}</span> <b className="num">{m.score}% profile match</b></p>
+            {ai?.reason ? <p className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`} style={{ marginBottom: 12 }}><b>AI check:</b> {ai.reason}</p> : <p className="small muted" style={{ marginBottom: 12 }}>First estimate from your profile. Our AI reads the full post next to your CV in the daily check and updates this score.</p>}
             {m.matched.length ? <><h3>Strong matches</h3><ul className="why-list">{m.matched.map((t) => <li key={t}><span className="mk ok">✓</span><span>{t}</span></li>)}</ul></> : null}
             {m.gaps.length ? <><h3 style={{ marginTop: 14 }}>Potential gaps</h3><GapList gaps={m.gaps.map((g) => ({ t: g.t, skill: g.skill || null, label: g.skill ? skillLabel(g.skill) : null }))} /></> : null}
             <p className="small muted" style={{ marginTop: 14 }}>The score compares your verified profile with this job&apos;s requirements. It is not a chance of being hired.</p>
