@@ -105,7 +105,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
         <p className="eyebrow" style={{ marginBottom: 8 }}>Your new Master CV, {cn} format</p>
         <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} />
         <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} />
-        <CvEditBox aiReady={aiConfigured()} style={{ marginTop: 12 }} />
+        <CvEditBox aiReady={aiConfigured()} style={{ marginTop: 12 }} after={<form action={finishOnboardingAction}><button className="btn btn-primary btn-sm">See my {nm.length} opportunities</button></form>} />
       </div>
       <div className="banner" style={{ marginTop: 22 }}><p><b>We found {nm.length} current opportunities in {cn} relevant to your career.</b> {strong} {strong === 1 ? "is a strong match" : "are strong matches"}.</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>
       <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {portals(country).slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>

@@ -8,7 +8,6 @@ import { PASTE_PROMPT, SYSTEM_RULES } from "../prompts";
 import { PastedJobSchema, type PastedJobOut } from "../ai/schemas";
 import { aiConfigured, runAI } from "../ai";
 import { loadProfile } from "./state";
-import { refreshMatches } from "./matches";
 import type { Ctx } from "./applications";
 
 export function safeUrl(u: unknown): string | null {
@@ -36,6 +35,5 @@ export async function pasteJob(ctx: Ctx, text: string, url: string | null): Prom
   }
   const { data, error } = await ctx.db.from("jobs").insert(jobToRow(job, { owner_id: ctx.userId, source_kind: "paste", description: t.slice(0, 20000) })).select("id").single();
   if (error) throw error;
-  await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
   return { id: data.id as string, ai };
 }

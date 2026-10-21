@@ -13,7 +13,6 @@ import { AIError } from "../ai/provider";
 import { detectGmailVerification } from "../inbound/gmail";
 import { parseRawEmail } from "../inbound/parse";
 import { loadProfile } from "./state";
-import { refreshMatches } from "./matches";
 import { safeUrl } from "./jobs";
 import { PORTAL_HELP } from "../portalHelp";
 import { SITE_STEPS, siteKey } from "../setup";
@@ -127,7 +126,6 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
     const site = PORTAL_HELP[det.portal] ? det.portal : null;
     const siteSteps = site ? { ...Object.fromEntries(SITE_STEPS.map((k) => [siteKey(k, site), true])), [`forward:${site}`]: true } : {};
     await admin.from("profiles").update({ setup_steps: { ...(profile.setup_steps || {}), address: true, forward: true, ...siteSteps } }).eq("id", userId);
-    await refreshMatches(admin, userId).catch(() => 0);
   }
   return { status: "processed" as const, created };
 }

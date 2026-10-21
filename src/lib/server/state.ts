@@ -57,10 +57,13 @@ export function profileFrom(profile: ProfileRow, facts: CareerFact[], master: Ma
   return buildMatchProfile({ name: profile.full_name || master.content.name, facts, meta, prefs: profile.preferences, country: profile.target_country });
 }
 
+// Everything rowToJob reads; the long description and raw payload stay out of list loads (job pages fetch the full row).
+const LIST_COLS = "id, owner_id, source_kind, source_label, country, title, company, industry, category, location, employment_type, salary_min, salary_max, min_years, max_years, seniority, education, required_skills, preferred_skills, certs, visa_sponsorship, deadline, published_at, apply_method, apply_target, url, responsibilities, is_sample";
+
 export async function loadVisibleJobs(db: SupabaseClient, userId: string, country: string) {
   // Public jobs + this user's private jobs (paste / alert). RLS enforces the same for user clients;
   // the explicit owner filter makes admin-client calls equally safe.
-  const { data } = await db.from("jobs").select("*").eq("country", country).eq("active", true).or(`owner_id.is.null,owner_id.eq.${userId}`).order("created_at", { ascending: false }).limit(1000);
+  const { data } = await db.from("jobs").select(LIST_COLS).eq("country", country).eq("active", true).or(`owner_id.is.null,owner_id.eq.${userId}`).order("created_at", { ascending: false }).limit(1000);
   return ((data || []) as JobRow[]).map(rowToJob);
 }
 

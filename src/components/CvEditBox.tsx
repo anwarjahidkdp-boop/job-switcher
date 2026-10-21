@@ -7,7 +7,8 @@ import { MAX_EDIT_CHARS } from "@/lib/cv-edit";
 
 const EXAMPLES = "For example: remove the skill Tally · change my end date at ABC Ltd to March 2024 · update my HSC result to GPA 4.00 · add that I passed ACCA F5";
 
-export function CvEditBox({ aiReady, style }: { aiReady: boolean; style?: React.CSSProperties }) {
+/** `after` shows once a change is saved, so the person knows where to go next. */
+export function CvEditBox({ aiReady, style, after }: { aiReady: boolean; style?: React.CSSProperties; after?: React.ReactNode }) {
   const router = useRouter();
   const [v, setV] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,7 +20,9 @@ export function CvEditBox({ aiReady, style }: { aiReady: boolean; style?: React.
     setBusy(true); setErr(""); setDone("");
     try {
       const r = await fetch("/api/cv/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction: v.trim() }) });
-      const j = await r.json().catch(() => ({}));
+      const j = await r.json().catch(() => null);
+      // A non-JSON answer means the server stopped mid-way; the change may already be saved.
+      if (!j) { router.refresh(); throw new Error("The server was busy. Check your CV above: if the change is not there, try again."); }
       if (!r.ok) throw new Error(j.error || "Your CV could not be updated. Try again.");
       setDone(j.message || "Your CV was updated.");
       setV("");
@@ -38,7 +41,7 @@ export function CvEditBox({ aiReady, style }: { aiReady: boolean; style?: React.
           </label>
           <p className="small muted">One change at a time. We only add what you write here; we never invent qualifications or jobs.</p>
           {err ? <p className="err">{err}</p> : null}
-          {done ? <p className="small">Done: {done}</p> : null}
+          {done ? <div className="note" role="status"><b>✓ Your CV is updated.</b> {done}{after ? <div className="row" style={{ marginTop: 10 }}>{after}</div> : null}</div> : null}
           <div className="row"><button className="btn btn-primary" disabled={busy || !v.trim()}>{busy ? <><Spinner /> Updating your CV…</> : "Update my CV"}</button></div>
         </form>
       )}

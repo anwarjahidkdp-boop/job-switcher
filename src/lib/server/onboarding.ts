@@ -15,7 +15,6 @@ import { MAX_CV_TEXT, MIME, MIN_CV_CHARS, CvReadError, sniffImage, sniffKind, ti
 import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill, skillLabel } from "../taxonomy";
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
 import { DEFAULT_META, loadFacts, loadProfile, type CvDocRow, type ProfileRow } from "./state";
-import { refreshMatches } from "./matches";
 import { freshnessQuestions } from "../cv-fresh";
 import { todayStr } from "../dates";
 
@@ -37,7 +36,6 @@ export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean, 
   }
   const { error } = await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
   if (error) throw error;
-  if (prev && (prev.target_country !== code || (homeCountry && prev.home_country !== cc(homeCountry)))) await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
 }
 
 function cleanExtraction(x: Extraction): Extraction {
@@ -158,7 +156,6 @@ export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {
 
 const num = (v: unknown) => (v === "" || v == null || isNaN(Number(v)) ? null : Math.max(0, Number(v)));
 export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null) {
-  const profile = await loadProfile(ctx.db, ctx.userId);
   const p: Preferences = {
     roles: String(prefs.roles || "").slice(0, 500), locations: String(prefs.locations || "").slice(0, 300),
     salaryMin: num(prefs.salaryMin), salaryMax: num(prefs.salaryMax), notice: num(prefs.notice),
@@ -167,7 +164,6 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   const patch: Record<string, unknown> = { preferences: p };
   if (personal) patch.personal = { nationality: String(personal.nationality || "").slice(0, 80), dob: String(personal.dob || "").slice(0, 40), visa: String(personal.visa || "").slice(0, 120) };
   await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
-  if (profile?.onboarding_step === "done") await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
 }
 
 const verifiedFactsFor = (facts: CareerFact[]) => {
@@ -238,7 +234,6 @@ export async function buildMasterCv(ctx: Ctx) {
 
   await saveMaster(ctx, checked.master, checked.flags, ai, model, doc.id);
   await ctx.db.from("profiles").update({ onboarding_step: profile.onboarding_step === "done" ? "done" : "reveal" }).eq("id", ctx.userId);
-  await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
   return { flags: checked.flags, ai };
 }
 
@@ -300,7 +295,6 @@ export async function editMasterCv(ctx: Ctx, instruction: string) {
   const checked = finishMaster(m, verifiedFactsFor(after), after, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed });
   await saveMaster(ctx, checked.master, checked.flags, true, res.usage.model, doc?.id ?? null);
   await ctx.db.from("profiles").update({ career_meta: { ...meta, edits, removed } }).eq("id", ctx.userId);
-  await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
   return { message: String(out.message || "Your CV was updated.").slice(0, 300), flags: checked.flags };
 }
 
@@ -313,12 +307,10 @@ export async function addUserSkill(ctx: Ctx, skill: string) {
   const pending = facts.find((f) => f.kind === "skill" && !f.verified && normSkill((f.data as { name: string }).name) === name);
   if (pending?.id) await ctx.db.from("career_facts").update({ verified: true, provenance: "user" }).eq("id", pending.id);
   else await ctx.db.from("career_facts").insert({ user_id: ctx.userId, kind: "skill", data: { name }, provenance: "user", verified: true });
-  await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
 }
 
 /** The user confirms (or removes) a CV fact we could not find in their CV text. */
 export async function reviewFact(ctx: Ctx, factId: string, keep: boolean) {
   if (keep) await ctx.db.from("career_facts").update({ verified: true }).eq("id", factId).eq("user_id", ctx.userId);
   else await ctx.db.from("career_facts").delete().eq("id", factId).eq("user_id", ctx.userId);
-  await refreshMatches(ctx.db, ctx.userId).catch(() => 0);
 }
