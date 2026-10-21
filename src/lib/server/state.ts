@@ -83,17 +83,18 @@ async function countVisibleJobs(db: SupabaseClient, userId: string, country: str
   return count || 0;
 }
 
-export async function loadState(db: SupabaseClient, userId: string): Promise<UserState | null> {
-  const profile = await loadProfile(db, userId);
-  if (!profile) return null;
-  const country = cc(profile.target_country);
-  const today = todayStr(rule(country).timeZone);
-  const [facts, cvRes, masterRes, appsRes] = await Promise.all([
+export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>): Promise<UserState | null> {
+  // The profile and the person's own rows load together; only the job list waits for the profile (country, categories).
+  const [profile, facts, cvRes, masterRes, appsRes] = await Promise.all([
+    profileP || loadProfile(db, userId),
     loadFacts(db, userId),
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("applications").select("*, application_events(event, status, actor, created_at)").eq("user_id", userId),
   ]);
+  if (!profile) return null;
+  const country = cc(profile.target_country);
+  const today = todayStr(rule(country).timeZone);
   const master = (masterRes.data as MasterRow) || null;
   const P = profileFrom(profile, facts, master);
   const [jobs, analysed] = P ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories), countVisibleJobs(db, userId, country)]) : [[], 0];

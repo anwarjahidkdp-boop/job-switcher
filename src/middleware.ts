@@ -18,9 +18,11 @@ export async function middleware(request: NextRequest) {
       },
     },
   });
-  const { data } = await supabase.auth.getUser();
+  // getClaims refreshes the session like getUser, but verifies the token locally when the project signs with
+  // asymmetric keys (one round trip less per page). Pages still check the user themselves.
+  const { data } = await supabase.auth.getClaims();
   const path = request.nextUrl.pathname;
-  if (!data.user && PROTECTED.some((p) => path === p || path.startsWith(p + "/"))) {
+  if (!data?.claims?.sub && PROTECTED.some((p) => path === p || path.startsWith(p + "/"))) {
     const to = request.nextUrl.clone();
     to.pathname = "/login";
     to.search = `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
