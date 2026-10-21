@@ -39,7 +39,7 @@ export function CvSuggestions({ items }: { items: CvSuggestion[] }) {
           {busy === s.id ? <p className="small"><Spinner /> Updating your CV</p> : null}
         </div>
       ))}
-      {err ? <p className="err">{err}</p> : null}
+      {err ? <p role="alert" className="err">{err}</p> : null}
     </div>
   );
 }

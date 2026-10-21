@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: deploy
+  group: deploy-email
   cancel-in-progress: false
 env:
   APP_URL: https://job-switcher.jobswitcher.workers.dev

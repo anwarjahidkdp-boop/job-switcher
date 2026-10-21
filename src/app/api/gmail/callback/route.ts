@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { apiCtx } from "@/lib/server/api";
 import { connectGmail, gmailConfigured } from "@/lib/server/gmail";
 import { publicEnv } from "@/lib/env";
+import { safeNext } from "@/lib/safe-next";
 
 export async function GET(req: Request) {
   const u = new URL(req.url);
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   let saved: { state?: string; next?: string } = {};
   try { saved = JSON.parse(store.get("gmail_oauth")?.value || "{}"); } catch { /* treated as a mismatch below */ }
   store.delete({ name: "gmail_oauth", path: "/api/gmail" });
-  const next = saved.next || "/profile";
+  const next = safeNext(saved.next, "/profile");
   const back = (status: string) => {
     const to = new URL(next, publicEnv.appUrl);
     to.searchParams.set("gmail", status);

@@ -8,6 +8,10 @@ type Mode = "login" | "signup" | "code" | "forgot";
 type Sent = null | "code" | "signup" | "forgot";
 
 /** Log in with email + password, sign up with a password, or get a one-time email code (older accounts and forgotten passwords). */
+// A network failure is not a wrong password: say so, or people reset a password that was right.
+const OFFLINE = "Can't reach JobPao right now. Check your connection and try again.";
+const offline = (e: { name?: string; status?: number }) => e.name === "AuthRetryableFetchError" || e.status === 0;
+
 export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(initial);
@@ -30,10 +34,12 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
       const { error } = await supabase.auth.signInWithPassword({ email: addr, password });
       setBusy(false);
       if (!error) { router.replace(next); router.refresh(); return; }
+      if (offline(error)) { setErr(OFFLINE); return; }
       setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : /confirm/i.test(error.message) ? "Confirm your email first: open the link we sent you." : "Email or password is wrong. If you used to sign in with an email code, click \"Forgot password?\" to set one.");
     } else if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next) } });
       setBusy(false);
+      if (error && offline(error)) { setErr(OFFLINE); return; }
       if (error) { setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : /password/i.test(error.message) ? "Choose a stronger password: at least 8 characters." : "Could not create the account. Check the email address."); return; }
       if (data.session) { router.replace(next); router.refresh(); } else setSent("signup");
     } else if (mode === "forgot") {
@@ -61,7 +67,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
     <form className="card panel stack" style={{ marginTop: 20 }} onSubmit={verify}>
       <p className="small">We sent a code to <b>{email}</b>. Enter it below, or tap the link in the email.</p>
       <label className="f" htmlFor="code">Sign-in code<input id="code" className="code-input" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} /></label>
-      {err ? <p className="err">{err}</p> : null}
+      {err ? <p role="alert" className="err">{err}</p> : null}
       <button className="btn btn-primary" disabled={busy || code.length < 6}>{busy ? <><Spinner /> Checking</> : "Sign in"}</button>
       <button type="button" className="btn-text" onClick={() => go("login")}>Back to log in</button>
     </form>
@@ -89,7 +95,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
         <label className="f" htmlFor="email">Email address<input id="email" type="text" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>
         {needsPw ? <label className="f" htmlFor="password">{mode === "signup" ? "Choose a password" : "Password"}<input id="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : ""} aria-describedby={mode === "signup" ? "pw-hint" : undefined} /></label> : null}
         {needsPw && mode === "signup" ? <p id="pw-hint" className="small" style={{ marginTop: -4, color: password.length >= 8 ? "var(--good)" : "var(--ink-2)" }}>{password.length >= 8 ? "✓ Password is long enough" : `Password must be at least 8 characters (${password.length}/8)`}</p> : null}
-        {err ? <p className="err">{err}</p> : null}
+        {err ? <p role="alert" className="err">{err}</p> : null}
         <button className="btn btn-primary" disabled={busy || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1))}>
           {busy ? <><Spinner /> Please wait</> : mode === "login" ? "Log in" : mode === "signup" ? "Create my account" : mode === "forgot" ? "Send me the link" : "Send me a code"}
         </button>

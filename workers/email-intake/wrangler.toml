@@ -6,6 +6,9 @@ name = "job-switcher-email-intake"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
+[observability]
+enabled = true
+
 [vars]
 # Public URL of the deployed app (no trailing slash).
 APP_URL = "https://job-switcher.jobswitcher.workers.dev"

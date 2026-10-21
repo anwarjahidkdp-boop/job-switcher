@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/app/admin/payments/actions";
 import { SiteHeader } from "@/components/SiteHeader";
 
 // Owner-only photo picker for the hero story (not linked anywhere). Free Unsplash photos, hotlinked with credit.
@@ -65,7 +66,8 @@ const GROUPS: { step: string; note: string; picks: Pick[] }[] = [
 // Numbers run on across the groups so the owner can reply with them.
 const START = GROUPS.map((_, i) => GROUPS.slice(0, i).reduce((t, g) => t + g.picks.length, 0));
 
-export default function HeroPreview() {
+export default async function HeroPreview() {
+  await requireAdmin(); // owner tool: admins only
   return (
     <>
       <SiteHeader inApp={false} />

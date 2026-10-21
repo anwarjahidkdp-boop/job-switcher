@@ -44,7 +44,10 @@ export async function backToStepAction(step: "country" | "upload" | "prefs") {
 
 export async function finishOnboardingAction(target?: unknown) {
   const c = await ctx("/onboarding");
-  await c.db.from("profiles").update({ onboarding_step: "done" }).eq("id", c.userId);
+  const { data: master } = await c.db.from("master_cvs").select("id").eq("user_id", c.userId).eq("is_current", true).limit(1).maybeSingle();
+  if (!master) redirect("/onboarding");
+  const { error } = await c.db.from("profiles").update({ onboarding_step: "done" }).eq("id", c.userId);
+  if (error) throw error;
   redirect(target === "/setup" ? "/setup" : "/inbox");
 }
 

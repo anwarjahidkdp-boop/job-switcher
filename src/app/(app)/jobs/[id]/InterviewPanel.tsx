@@ -73,7 +73,7 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
         <button className="btn btn-primary btn-sm" disabled={!!busy} onClick={save}>{busy ? <Spinner /> : null} Save interview</button>
         <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
       </div>
-      {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
     </div>
   );
 
@@ -133,7 +133,7 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
           </>
         )}
         {notice ? <p className="note" style={{ marginTop: 10 }}>{notice}</p> : null}
-        {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+        {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
       </div>
     </div>
   );

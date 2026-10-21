@@ -50,12 +50,14 @@ export interface UserState {
 export const DEFAULT_META: CareerMeta = { industries: [], categories: [], seniority: "mid", target_roles: [], location: null };
 
 export async function loadProfile(db: SupabaseClient, userId: string): Promise<ProfileRow | null> {
-  const { data } = await db.from("profiles").select("*").eq("id", userId).maybeSingle();
+  const { data, error } = await db.from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (error) throw error;
   return (data as ProfileRow) || null;
 }
 
 export async function loadFacts(db: SupabaseClient, userId: string): Promise<CareerFact[]> {
-  const { data } = await db.from("career_facts").select("id, kind, data, provenance, verified, evidence").eq("user_id", userId).order("created_at");
+  const { data, error } = await db.from("career_facts").select("id, kind, data, provenance, verified, evidence").eq("user_id", userId).order("created_at");
+  if (error) throw error;
   return (data || []) as CareerFact[];
 }
 
@@ -75,12 +77,32 @@ const pgQuote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
  * owner rule for user clients; the explicit filter makes admin-client calls equally safe.
  * Only a job in one of the person's categories can be relevant (roleRel scores below 0.6 otherwise), so
  * scoring the rest on every page view only burns Worker CPU.
+ *
+ * Page views score at most ~300 jobs (the free Worker plan allows 10 ms of CPU): the newest ones plus the best
+ * matches the daily refresh stored in `matches`. The daily refresh itself (all: true) scores every job, so a
+ * strong match is never missed; a person with no stored matches yet also gets the full list.
  */
-export async function loadVisibleJobs(db: SupabaseClient, userId: string, country: string, categories: string[]) {
+export const PAGE_NEWEST = 150, PAGE_BEST = 150, ALL_LIMIT = 1000;
+export async function loadVisibleJobs(db: SupabaseClient, userId: string, country: string, categories: string[], opts: { all?: boolean } = {}) {
   const cats = categories.filter(Boolean).map(pgQuote).join(",");
   const visible = cats ? `and(owner_id.is.null,category.in.(${cats})),owner_id.eq.${userId}` : `owner_id.eq.${userId}`;
-  const { data } = await db.from("jobs").select(LIST_COLS).eq("country", country).eq("active", true).or(visible).order("created_at", { ascending: false }).limit(1000);
-  return ((data || []) as JobRow[]).map(rowToJob);
+  const base = () => db.from("jobs").select(LIST_COLS).eq("country", country).eq("active", true).or(visible);
+  const rows = (r: { data: unknown; error: unknown }) => { if (r.error) throw r.error; return (r.data || []) as JobRow[]; };
+  if (!opts.all) {
+    const best = await db.from("matches").select("job_id").eq("user_id", userId).eq("relevant", true).order("score", { ascending: false }).limit(PAGE_BEST);
+    const ids = ((best.data || []) as { job_id: string }[]).map((r) => r.job_id);
+    if (!best.error && ids.length) {
+      const [newest, own, top] = await Promise.all([
+        base().order("created_at", { ascending: false }).limit(PAGE_NEWEST),
+        db.from("jobs").select(LIST_COLS).eq("owner_id", userId).eq("country", country).eq("active", true).order("created_at", { ascending: false }).limit(200),
+        base().in("id", ids),
+      ]);
+      const seen = new Map<string, JobRow>();
+      for (const j of [...rows(newest), ...rows(own), ...rows(top)]) seen.set(j.id, j);
+      return [...seen.values()].map(rowToJob);
+    }
+  }
+  return rows(await base().order("created_at", { ascending: false }).limit(ALL_LIMIT)).map(rowToJob);
 }
 
 /** How many open jobs we checked in this country (the dashboard's "Jobs analysed"). */
@@ -89,7 +111,7 @@ async function countVisibleJobs(db: SupabaseClient, userId: string, country: str
   return count || 0;
 }
 
-export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>): Promise<UserState | null> {
+export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>, opts: { allJobs?: boolean } = {}): Promise<UserState | null> {
   // The profile and the person's own rows load together; only the job list waits for the profile (country, categories).
   const [profile, facts, cvRes, masterRes, appsRes, checkRes] = await Promise.all([
     profileP || loadProfile(db, userId),
@@ -100,11 +122,13 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
     db.from("matches").select("job_id, ai_fit, ai_score, ai_chance, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
+  // A failed read must show the error page, never look like "no CV" (which sends people back to onboarding) or "no jobs".
+  for (const r of [cvRes, masterRes, appsRes, checkRes]) if (r.error) throw r.error;
   const country = cc(profile.target_country);
   const today = todayStr(rule(country).timeZone);
   const master = (masterRes.data as MasterRow) || null;
   const P = profileFrom(profile, facts, master);
-  const [jobs, analysed] = P ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories), countVisibleJobs(db, userId, country)]) : [[], 0];
+  const [jobs, analysed] = P ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
   // Jobs referenced by applications may be in another country (after a country change); load them too.
   const apps: Record<string, ApplicationRow> = {};
   for (const a of (appsRes.data || []) as ApplicationRow[]) {

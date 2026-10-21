@@ -139,7 +139,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
         {dl != null && dl > 2 ? <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => act(() => snoozeAction(p.jobId, addDaysTo(p.today, dl - 2)))}>Remind 2 days before the deadline ({fmtDate(addDaysTo(p.today, dl - 2))})</button> : null}
         <button className="btn btn-ghost btn-sm" onClick={() => setMode("later")}>Choose another date</button>
       </div>
-      {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
     </>
   );
   if (mode === "later") return (
@@ -152,7 +152,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
         <button className="btn btn-primary btn-sm" onClick={() => saveReminder(date)}>Set reminder</button>
         <button className="btn btn-ghost btn-sm" onClick={() => setMode("main")}>Cancel</button>
       </div>
-      {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
       <p className="small muted" style={{ marginTop: 10 }}>We prepare the application now, so it is ready when the reminder arrives.</p>
     </>
   );
@@ -163,7 +163,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
         <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => act(() => appliedAction(p.jobId))}>Yes, Applied</button>
         <button className="btn btn-ghost btn-sm" onClick={() => setMode("notyet")}>Not yet</button>
       </div>
-      {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
     </>
   );
   const remind = p.status === "reminder" ? <p className="small" style={{ marginBottom: 10 }}>Reminder: <b>{fmtDate(p.reminderDate)}</b> · Deadline: <b>{fmtDate(p.deadline)}</b></p> : null;
@@ -192,7 +192,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
         <button className="btn btn-ghost btn-sm" onClick={() => setMode("later")}>{p.status === "reminder" ? "Change reminder" : "Apply later"}</button>
       </div>
       {notice ? <p className="note" style={{ marginTop: 10 }}>{notice}</p> : null}
-      {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
     </>
   );
   if (dl != null && dl < 0) return <><h3>This vacancy has closed</h3><p className="small muted">The deadline was {fmtDate(p.deadline)}.</p></>;
@@ -206,7 +206,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
         <button className="btn btn-ghost" onClick={() => setMode("later")}>Apply Later</button>
         <button className="btn btn-text" disabled={pending} onClick={() => start(async () => { try { await dismissAction(p.jobId); } catch { /* still leave the page */ } router.push("/inbox"); })}>Not interested</button>
       </div>
-      {err ? <p className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
     </>
   );
 }

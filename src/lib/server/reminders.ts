@@ -23,6 +23,7 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     .select("id, user_id, due_date, job_id, application_id, applications!inner(status, pack), jobs!inner(title, company, deadline)")
     .is("sent_at", null)
     .lte("due_date", maxToday)
+    .order("due_date")
     .limit(opts.limit ?? 200);
   if (error) throw error;
   type Row = { id: string; user_id: string; due_date: string; job_id: string; applications: { status: string; pack: unknown }; jobs: { title: string; company: string; deadline: string | null }; profiles: { email: string | null; full_name: string | null; target_country: string; email_reminders: boolean } | null };
@@ -51,7 +52,9 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     if (opts.dryRun) { res.sent++; continue; }
     try {
       await sendEmail({ to: p.email, ...msg });
-      await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: null }).eq("id", r.id);
+      // The email went out: if this record fails, say so loudly, because the next run would send it again.
+      const { error: ue } = await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: null }).eq("id", r.id);
+      if (ue) console.error("reminder sent but not recorded", r.id, ue);
       await notify(admin, r.user_id, [{ kind: "reminder", title: `Reminder: apply to ${r.jobs.company}`, body: `${r.jobs.title}. ${r.applications.pack ? "Your application is ready." : "Open it to prepare your application."}`, link: `/jobs/${r.job_id}`, key: `reminder:${r.id}` }]).catch(() => 0);
       res.sent++;
     } catch (e) {

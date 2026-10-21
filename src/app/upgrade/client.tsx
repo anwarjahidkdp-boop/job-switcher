@@ -17,7 +17,7 @@ export function CheckoutButton({ label, pack, endpoint = "/api/billing/checkout"
           window.location.assign(j.url);
         } catch (e) { setErr((e as Error).message); setBusy(false); }
       }}>{busy ? <><Spinner /> {opening}</> : label}</button>
-      {err ? <p className="err" style={{ marginTop: 8 }}>{err}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 8 }}>{err}</p> : null}
     </div>
   );
 }
@@ -46,7 +46,7 @@ export function ManualPaymentForm({ pack }: { pack: string }) {
         <label className="f" htmlFor="trx" style={{ flex: 1, minWidth: 160 }}>Transaction ID (TrxID)<input id="trx" type="text" required maxLength={20} autoComplete="off" value={trxId} onChange={(e) => setTrx(e.target.value)} placeholder="e.g. 9JK7ABC1XY" /></label>
         <label className="f" htmlFor="msisdn" style={{ flex: 1, minWidth: 160 }}>bKash number you paid from<input id="msisdn" type="tel" required maxLength={16} inputMode="tel" value={msisdn} onChange={(e) => setMsisdn(e.target.value)} placeholder="01XXXXXXXXX" /></label>
       </div>
-      {err ? <p className="err">{err}</p> : null}
+      {err ? <p role="alert" className="err">{err}</p> : null}
       <div><button className="btn btn-primary" disabled={busy}>{busy ? <><Spinner /> Saving</> : "Submit payment for review"}</button></div>
     </form>
   );
