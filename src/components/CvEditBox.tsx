@@ -30,40 +30,69 @@ export function CvEditBox({ aiReady, style, after, langs }: { aiReady: boolean; 
   const local = langs.find((l) => !l.english);
   const [listening, setListening] = useState(false);
   const rec = useRef<Rec | null>(null);
-  useEffect(() => () => { try { rec.current?.abort?.(); } catch { /* ignore */ } }, []);
+  const wantOn = useRef(false);
+  const [finishing, setFinishing] = useState(false);
+  useEffect(() => () => { wantOn.current = false; try { rec.current?.abort?.(); } catch { /* ignore */ } }, []);
 
-  // Stop: ask the browser to finish (it sends the last words), and end it ourselves if it does not.
+  // Voice: the browser's recogniser can end on its own mid-sentence (pauses, ~1 minute limits), so while the person
+  // has not pressed Stop we start it again and keep what was already heard. Stop waits for the last words.
+
   function stopListening() {
     const r = rec.current;
-    setListening(false);
-    if (!r) return;
+    wantOn.current = false;
+    setFinishing(true);
+    if (!r) { setListening(false); setFinishing(false); return; }
     try { r.stop(); } catch { /* already stopped */ }
-    setTimeout(() => { if (rec.current === r) { try { r.abort?.(); } catch { /* ignore */ } rec.current = null; } }, 1500);
+    // The last words arrive just before the recogniser ends; only give up on it after a generous wait.
+    setTimeout(() => { if (rec.current === r) { try { r.abort?.(); } catch { /* ignore */ } rec.current = null; setListening(false); setFinishing(false); } }, 5000);
   }
+
+  /** Joins one session's results. Some phones send each result as the whole sentence so far, so overlaps are merged. */
+  const joinResults = (results: ArrayLike<ArrayLike<{ transcript: string }>>) => {
+    let acc = "";
+    for (let i = 0; i < results.length; i++) {
+      const t = results[i][0].transcript.trim();
+      if (!t) continue;
+      if (acc && t.toLowerCase().startsWith(acc.toLowerCase())) acc = t;
+      else if (!acc.toLowerCase().endsWith(t.toLowerCase())) acc = acc ? `${acc} ${t}` : t;
+    }
+    return acc;
+  };
 
   function speak() {
     if (listening) { stopListening(); return; }
     const Api = speechApi();
     if (!Api) return;
-    const r = new Api();
-    // Words show in the box while the person speaks (interim), and keep coming until they press Stop.
-    r.lang = lang; r.interimResults = true; r.continuous = true;
-    const start = v.trim();
+    const before = v.trim();
+    let kept = ""; // finished sessions' text
     let heard = false;
-    r.onresult = (e) => {
-      let said = "";
-      for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
-      if (said.trim()) { heard = true; setV(`${start ? start + " " : ""}${said.trim()}`.slice(0, MAX_EDIT_CHARS)); }
+    wantOn.current = true;
+    const startSession = () => {
+      const r = new Api();
+      r.lang = lang; r.interimResults = true; r.continuous = true;
+      let current = "";
+      r.onresult = (e) => {
+        current = joinResults(e.results);
+        const all = [before, kept, current].filter(Boolean).join(" ");
+        if (current) { heard = true; setV(all.slice(0, MAX_EDIT_CHARS)); }
+      };
+      r.onerror = (e) => {
+        if (e.error === "aborted" || (e.error === "no-speech" && heard)) return;
+        wantOn.current = false;
+        setErr(e.error === "not-allowed" || e.error === "service-not-allowed" ? "Allow the microphone for jobpao.app in your browser (the icon in the address bar), then tap the mic again." : e.error === "no-speech" ? "We did not hear anything. Tap the mic and speak again." : e.error === "network" ? "Voice needs an internet connection to your browser's speech service. Try again, or type your change." : e.error === "language-not-supported" ? "Your browser cannot listen in that language. Type your change instead." : "Voice input stopped. Try again or type your change.");
+      };
+      r.onend = () => {
+        kept = [kept, current].filter(Boolean).join(" ");
+        if (wantOn.current) { try { startSession(); return; } catch { /* fall through and stop */ } }
+        if (rec.current === r) rec.current = null;
+        setListening(false); setFinishing(false);
+        if (!heard) setErr((x) => x || "We could not turn your voice into text in this browser. Try Chrome, or type your change.");
+      };
+      rec.current = r;
+      r.start();
     };
-    r.onerror = (e) => { if (e.error === "aborted") return; setErr(e.error === "not-allowed" || e.error === "service-not-allowed" ? "Allow the microphone for jobpao.app in your browser (the icon in the address bar), then tap the mic again." : e.error === "no-speech" ? "We did not hear anything. Tap the mic and speak again." : e.error === "network" ? "Voice needs an internet connection to your browser's speech service. Try again, or type your change." : e.error === "language-not-supported" ? "Your browser cannot listen in that language. Type your change instead." : "Voice input stopped. Try again or type your change."); };
-    r.onend = () => {
-      if (rec.current === r) rec.current = null;
-      setListening(false);
-      if (!heard) setErr((x) => x || "We could not turn your voice into text in this browser. Try Chrome, or type your change.");
-    };
-    rec.current = r;
     setErr(""); setListening(true);
-    try { r.start(); } catch { rec.current = null; setListening(false); setErr("Voice input could not start in this browser. Type your change instead."); }
+    try { startSession(); } catch { wantOn.current = false; rec.current = null; setListening(false); setErr("Voice input could not start in this browser. Type your change instead."); }
   }
 
   async function submit() {
@@ -95,7 +124,7 @@ export function CvEditBox({ aiReady, style, after, langs }: { aiReady: boolean; 
             {langs.length > 1 ? <span className="seg-group" role="group" aria-label="Language you speak">
               {langs.map((l) => <button key={l.code} type="button" className={`seg ${lang === l.code ? "on" : ""}`} aria-pressed={lang === l.code} disabled={listening} onClick={() => setLang(l.code)}>{l.label}</button>)}
             </span> : null}
-            {listening ? <span className="small muted">Listening… speak now, then press Stop.</span> : null}
+            {finishing ? <span className="small muted">Adding your last words…</span> : listening ? <span className="small muted">Listening… speak now, then press Stop.</span> : null}
           </div> : null}
           <p className="small muted">One change at a time.{local ? ` ${local.label} is fine: we translate it and write it on your CV in professional English.` : ""} We only add what you write here; we never invent qualifications or jobs.</p>
           {err ? <p className="err">{err}</p> : null}
