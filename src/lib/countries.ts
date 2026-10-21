@@ -77,8 +77,13 @@ export const COUNTRIES = {
 
 /** ISO 3166 alpha-2 code of any country in world.ts, or "XX" for "another / unknown country". */
 export type CountryCode = string;
-/** Popular targets shown first in pickers (owner's order: Bangladesh and the UK are the launch markets), then every other country A to Z. */
-export const COUNTRY_CODES: CountryCode[] = ["BD", "GB", "US", "CA", "AU", "NZ", "DE", "IT", "AE", "SA", "MY"];
+/** Popular targets shown first in pickers, then every other country A to Z. Pickers put the visitor's own country first (popularFor). */
+export const COUNTRY_CODES: CountryCode[] = ["GB", "US", "CA", "AU", "NZ", "DE", "IT", "AE", "SA", "MY", "BD"];
+/** The popular list with the visitor's own country (from their IP or profile) moved to the front: a UK visitor sees the UK first, a Bangladeshi visitor Bangladesh. */
+export function popularFor(first?: string | null): CountryCode[] {
+  const f = first && first !== "XX" && isCountry(first) ? first : null;
+  return f ? [f, ...COUNTRY_CODES.filter((c) => c !== f)] : COUNTRY_CODES;
+}
 export const HOME_COUNTRY: CountryCode = "BD";
 const HAND = COUNTRIES as Record<string, CountryRule>;
 

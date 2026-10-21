@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ALL_COUNTRIES } from "@/lib/countries";
 
-export function CountrySelect({ value, onChange, id, disabled, label }: { value: string; onChange: (code: string) => void; id?: string; disabled?: boolean; label?: string }) {
+export function CountrySelect({ value, onChange, id, disabled, label, first }: { value: string; onChange: (code: string) => void; id?: string; disabled?: boolean; label?: string; first?: string }) {
   const auto = useId();
   const listId = (id || auto) + "-list";
   const [open, setOpen] = useState(false);
@@ -11,14 +11,16 @@ export function CountrySelect({ value, onChange, id, disabled, label }: { value:
   const [hi, setHi] = useState(0);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const current = ALL_COUNTRIES.find((c) => c.code === value);
+  // The visitor's own country goes to the very top of the list.
+  const all = useMemo(() => { const f = first && ALL_COUNTRIES.find((c) => c.code === first); return f ? [{ ...f, popular: true }, ...ALL_COUNTRIES.filter((c) => c !== f)] : ALL_COUNTRIES; }, [first]);
+  const current = all.find((c) => c.code === value);
 
   const items = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return ALL_COUNTRIES;
-    return ALL_COUNTRIES.filter((c) => c.name.toLowerCase().includes(s) || c.code.toLowerCase() === s)
+    if (!s) return all;
+    return all.filter((c) => c.name.toLowerCase().includes(s) || c.code.toLowerCase() === s)
       .sort((a, b) => Number(!a.name.toLowerCase().startsWith(s)) - Number(!b.name.toLowerCase().startsWith(s)));
-  }, [q]);
+  }, [q, all]);
 
   useEffect(() => {
     if (!open) return;
