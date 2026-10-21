@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSave } from "@/components/useSave";
 import { ACCENTS, TEMPLATES, type CvTemplate } from "@/lib/countries";
-import { removePhotoAction, setCvStyleAction } from "@/app/actions";
+import { removePhotoAction } from "@/app/actions";
 
 async function shrinkPhoto(file: File): Promise<Blob> {
   const url = URL.createObjectURL(file);
@@ -21,9 +21,13 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
   const router = useRouter();
   const { pending, err, save } = useSave();
   const [msg, setMsg] = useState("");
-  const set = (patch: { tpl?: CvTemplate; accent?: string }) => save(() => setCvStyleAction(patch));
+  const set = (patch: { tpl?: CvTemplate; accent?: string }) => save(async () => {
+    const r = await fetch("/api/cv/style", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error("save failed");
+  });
   return (
     <>
+      <div className="cvbar-card">
       <div className="cvbar" aria-busy={pending}>
         <div className="row" style={{ gap: 6 }}>
           {TEMPLATES.map(([k, l]) => (
@@ -57,10 +61,11 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
           ) : null}
         </div>
       </div>
-      <p className="small muted" style={{ marginBottom: 10 }}>
+      <p className="small muted" style={{ margin: 0 }}>
         {props.countryLabel} format: {props.rules.join(" · ")}.{!props.photoAllowed && props.hasPhoto ? " Your photo is hidden for this country." : ""}
         {err ? ` ${err}` : msg ? ` ${msg}` : ""}
       </p>
+      </div>
     </>
   );
 }

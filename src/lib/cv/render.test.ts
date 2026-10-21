@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderCvHtml } from "./render";
-import { cvDocHtml, cvPrintHtml } from "./doc";
+import { proAmounts, renderCvHtml } from "./render";
+import { cvDocHtml, cvPrintHtml, pageCss } from "./doc";
 import { DEMO_MASTER } from "../demo";
 
 describe("CV templates", () => {
@@ -57,5 +57,32 @@ describe("CV templates", () => {
     expect(h).toContain("Executive Profile");
     for (const b of careerHighlights(DEMO_MASTER.experience)) expect(h.split(b.replace(/&/g, "&amp;")).length - 1).toBeLessThanOrEqual(1);
     expect(cvDocHtml({ master: DEMO_MASTER, country: "GB" })).toContain('class="corp"');
+  });
+});
+
+describe("CV print polish", () => {
+  it("writes lakh/crore shorthand out in full without changing the figure", () => {
+    expect(proAmounts("Managed 2 lacs+ transactions")).toBe("Managed more than 200,000 transactions");
+    expect(proAmounts("Budget of 1.5 crore")).toBe("Budget of 15,000,000");
+    expect(proAmounts("Tally ERP 9")).toBe("Tally ERP 9");
+  });
+  it("groups promotions at the same company under one company header in the corporate layout", () => {
+    const m = { ...DEMO_MASTER, experience: [
+      { title: "Senior Officer", company: "Acme Ltd", start: "2020-01", end: null, bullets: ["Led closing"] },
+      { title: "Officer", company: "Acme Ltd", start: "2017-01", end: "2019-12", bullets: ["Booked journals"] },
+    ] } as never;
+    const h = renderCvHtml({ master: m, country: "GB" });
+    expect(h).toContain("role grp");
+    expect(h.match(/Acme Ltd/g)!.length).toBe(1);
+  });
+  it("uses Letter paper in the US and Canada, A4 elsewhere, with margins except on full-bleed layouts", () => {
+    expect(pageCss({ master: DEMO_MASTER, country: "US" })).toContain("size:Letter;margin:15mm");
+    expect(pageCss({ master: DEMO_MASTER, country: "CA" })).toContain("size:Letter");
+    expect(pageCss({ master: DEMO_MASTER, country: "GB" })).toContain("size:A4;margin:15mm");
+    expect(pageCss({ master: DEMO_MASTER, country: "GB", style: { tpl: "modern" } })).toContain("margin:0");
+  });
+  it("adds referees for Australia and the GDPR consent line for Italy", () => {
+    expect(renderCvHtml({ master: DEMO_MASTER, country: "AU" })).toContain("Referees");
+    expect(renderCvHtml({ master: DEMO_MASTER, country: "IT" })).toContain("GDPR");
   });
 });

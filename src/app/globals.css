@@ -870,3 +870,6 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .upsell-row .small{color:#C9D4EA}
 .opp-locked h4{opacity:.75}
 .opp-locked .meta{color:#B8862B}
+/* The CV style bar sits on its own white card, so it reads clearly where it overlaps the page's navy band. */
+.cvbar-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px;box-shadow:0 1px 2px rgba(15,27,45,.05),0 10px 30px rgba(15,27,45,.07)}
+.cvbar-card .cvbar{margin-bottom:8px}

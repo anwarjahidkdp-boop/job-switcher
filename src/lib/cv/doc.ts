@@ -10,10 +10,21 @@ export function cvDocHtml(inp: Omit<RenderInput, "forDoc">): string {
 /** Standalone printable page; the browser's "Save as PDF" produces the PDF (no server-side PDF engine needed on free tiers). */
 export function cvPrintHtml(inp: Omit<RenderInput, "forDoc">, opts: { autoPrint?: boolean } = {}): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(inp.master.name)} – CV</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
-<style>:root{--display:"Manrope",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif}${CV_SCREEN_CSS}${CV_PRINT_CSS}</style></head>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,600;0,700;1,400&display=swap">
+<style>:root{--display:"Manrope",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif}${CV_SCREEN_CSS}${CV_PRINT_CSS}${pageCss(inp)}</style></head>
 <body><div class="print-bar">Choose "Save as PDF" in the print dialog. <button type="button" onclick="window.print()">Print / Save as PDF</button></div>
 <div class="sheet">${renderCvHtml({ ...inp, forDoc: false, photoUrl: inp.photoUrl })}</div>${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),400))</script>` : ""}</body></html>`;
+}
+
+/**
+ * Paper and margins: Letter in the US and Canada, A4 elsewhere. Layouts with a full-bleed colour band or sidebar print
+ * edge to edge; the others get real page margins, so the second page does not start at the paper's edge.
+ */
+export function pageCss(inp: Omit<RenderInput, "forDoc">): string {
+  const size = ["US", "CA"].includes(String(inp.country)) ? "Letter" : "A4";
+  const { tpl } = resolveStyle(inp.style, inp.country);
+  const bleed = tpl === "modern" || tpl === "executive";
+  return `@page{size:${size};margin:${bleed ? "0" : "15mm 17mm 14mm"}}@media print{.sheet .cv{min-height:0}${bleed ? "" : ".sheet .t-classic{padding:0}"}}`;
 }
 
 export function safeFileName(s: string): string {
