@@ -44,3 +44,13 @@ export function newMatchesEmail(p: { name: string; link: string; total: number; 
 <p style="color:#4A5568;font-size:13px">JobPao never applies for you without your press. You can turn these emails off in your profile.</p></div>`;
   return { subject, text, html };
 }
+
+/** A short nudge email that mirrors an in-app notification (reply check, trial ending, interview tomorrow). */
+export function nudgeEmail(p: { name: string; subject: string; body: string; button: string; link: string }) {
+  const first = (p.name || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(" ")[0] || "there";
+  const text = `Hi ${first},\n\n${p.body}\n\n${p.button}: ${p.link}\n`;
+  const html = `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#0F1B2D;max-width:520px">
+<p>Hi ${esc(first)},</p><p>${esc(p.body)}</p>
+<p><a href="${esc(p.link)}" style="display:inline-block;background:#14275A;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">${esc(p.button)}</a></p></div>`;
+  return { subject: p.subject, text, html };
+}

@@ -2,12 +2,15 @@
 //   npm run reminders [-- --dry-run]
 import { scriptAdmin, hasFlag } from "../lib/admin";
 import { sendDueReminders } from "../../src/lib/server/reminders";
+import { sendNudges } from "../../src/lib/server/nudges";
 
 async function main() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (!appUrl) throw new Error("Set NEXT_PUBLIC_APP_URL");
   const r = await sendDueReminders(scriptAdmin(), { appUrl, dryRun: hasFlag("dry-run") });
   console.log(`reminders: checked ${r.checked}, sent ${r.sent}, skipped ${r.skipped}, failed ${r.failed}`);
+  const n = await sendNudges(scriptAdmin(), { appUrl, dryRun: hasFlag("dry-run") });
+  console.log(`nudges: ${n.notified} notification(s), ${n.emailed} email(s), ${n.failed} failed`);
   if (r.failed && !r.sent) process.exitCode = 1;
 }
 

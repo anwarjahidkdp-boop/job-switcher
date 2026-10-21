@@ -6,11 +6,13 @@ import { aiConfigured, checkBudget, getBudget } from "../ai";
 import { emailProvider, sendEmail } from "../email/send";
 import { newMatchesEmail } from "../email/templates";
 import { preparePack } from "./applications";
+import { notify } from "./notify";
 
 export const NOTIFY_MIN_SCORE = 70;
 export const PREPARE_MIN_SCORE = 80;
 export const PREPARE_PER_RUN = 3;
 const DIGEST_MAX = 8;
+const NOTIFY_PER_RUN = 5;
 
 export interface NewMatchResult { users: number; notified: number; prepared: number; emailed: number; failed: number }
 
@@ -46,6 +48,10 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
       }
 
       if (!opts.dryRun) {
+        // In the app: one notification per strong new match (best few), so the bell and the email say the same thing.
+        await notify(admin, userId, fresh.slice(0, NOTIFY_PER_RUN).map((r) => ready.has(r.job_id)
+          ? { kind: "ready" as const, title: `Application ready: ${r.jobs.title} at ${r.jobs.company}`, body: `${r.score}% match. We prepared your CV and cover letter. Review it and apply?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` }
+          : { kind: "match" as const, title: `New ${r.score}% match: ${r.jobs.title}`, body: `${r.jobs.company}${r.jobs.location ? ` · ${r.jobs.location}` : ""}. Want us to prepare your application?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` })).catch((e) => console.error("  notify failed", userId, e));
         if (prof?.email && prof.email_reminders !== false && emailProvider()) {
           const msg = newMatchesEmail({ name: prof.full_name || "", link: `${base}/inbox`, jobs: fresh.slice(0, DIGEST_MAX).map((r) => ({ title: r.jobs.title, company: r.jobs.company, location: r.jobs.location, score: r.score, link: `${base}/jobs/${r.job_id}`, ready: ready.has(r.job_id) })), total: fresh.length });
           await sendEmail({ to: prof.email, ...msg });
