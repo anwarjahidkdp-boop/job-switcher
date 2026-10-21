@@ -3,7 +3,7 @@
 //   npm run ingest -- --source <id> --dry-run
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
 import { fetchSource, staleIds, type SourceRow } from "./fetch-source";
-import { jobToRow } from "../../src/lib/jobs";
+import { guessCategory, jobToRow } from "../../src/lib/jobs";
 import { todayStr } from "../../src/lib/dates";
 import { refreshMatches } from "../../src/lib/server/matches";
 import { processNewMatches } from "../../src/lib/server/new-matches";
@@ -61,6 +61,7 @@ async function main() {
     // Expire public listings whose deadline has passed.
     await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).is("owner_id", null).eq("active", true).lt("deadline", today);
     console.log(`ingest: pruned ${await pruneOldJobs(db)} closed job(s)`);
+    console.log(`ingest: re-categorised ${await recategorise(db)} job(s)`);
     if (touchedCountries.size) {
       const { data: users } = await db.from("profiles").select("id").in("target_country", [...touchedCountries]).eq("onboarding_step", "done");
       let n = 0;
@@ -75,6 +76,28 @@ async function main() {
 }
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);
+
+/** Board jobs keep the category their title gives under the current rules (rules improve; rows written earlier do not). */
+async function recategorise(db: ReturnType<typeof scriptAdmin>): Promise<number> {
+  const moves = new Map<string, string[]>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from("jobs").select("id, title, category, required_skills, preferred_skills").is("owner_id", null).eq("active", true)
+      .not("source_kind", "in", "(paste,email_alert,curated,sample)").order("id").range(from, from + 999);
+    if (error) throw error;
+    for (const j of data || []) {
+      const cat = guessCategory(j.title as string, [...((j.required_skills as string[]) || []), ...((j.preferred_skills as string[]) || [])]);
+      if (cat !== j.category) moves.set(cat, [...(moves.get(cat) || []), j.id as string]);
+    }
+    if (!data || data.length < 1000) break;
+  }
+  let n = 0;
+  for (const [cat, ids] of moves) for (let i = 0; i < ids.length; i += 200) {
+    const { error } = await db.from("jobs").update({ category: cat }).in("id", ids.slice(i, i + 200));
+    if (error) throw error;
+    n += Math.min(200, ids.length - i);
+  }
+  return n;
+}
 
 const LAUNCH_MARKETS = ["GB", "BD"];
 

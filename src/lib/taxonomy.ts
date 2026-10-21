@@ -18,7 +18,7 @@ export const RELATED: Record<string, string[]> = { erp: ["tally erp", "sap", "or
 export const VOCAB = ["financial reporting", "management reporting", "bank reconciliation", "vat & tax", "advanced excel", "team management", "budgeting", "financial modelling", "power bi", "erp", "sap", "tally erp", "ifrs", "internal audit", "risk management", "general ledger", "accounts payable", "accounts receivable", "cost accounting", "treasury management", "cash flow forecasting", "sql", "talent acquisition", "employee relations", "bangladesh labour law", "hris", "payroll", "brand management", "market research", "digital marketing", "procurement", "inventory management", "merchandising", "node.js", "rest apis", "sales management", "territory planning", "key account management", "facilities management", "vendor management", "ms office"];
 
 export const FAMILIES = [
-  ["accounts", "accounting", "accountant", "finance", "financial", "tax", "vat", "audit", "treasury", "fp&a", "planning", "analysis", "costing", "management"],
+  ["accounts", "accounting", "accountant", "finance", "financial", "tax", "vat", "audit", "auditor", "treasury", "fp&a", "costing", "controller", "bookkeeper"],
   ["hr", "human", "resources", "people", "talent", "recruitment", "payroll", "compensation", "learning", "partner"],
   ["marketing", "brand", "digital", "communications", "content", "product"],
   ["sales", "business", "development", "territory", "area", "key", "account"],
@@ -29,6 +29,20 @@ export const FAMILIES = [
 export const TITLE_STOP = new Set(["senior", "sr", "sr.", "assistant", "asst", "asst.", "manager", "executive", "officer", "head", "of", "and", "&", "lead", "junior", "jr", "deputy", "general", "specialist", "associate", "principal", "-", ",", "/", "(", ")"]);
 export const titleTokens = (t: unknown) => String(t || "").toLowerCase().replace(/[(),/]/g, " ").split(/\s+/).filter((w) => w && !TITLE_STOP.has(w));
 export const famOf = (w: string) => FAMILIES.findIndex((f) => f.includes(w));
+
+// Words that say how senior a role is but not what it is ("Director, Strategic Finance").
+const TITLE_GENERIC = new Set(["director", "vp", "svp", "evp", "president", "chief", "team", "global", "regional", "staff", "intern", "trainee", "graduate"]);
+/**
+ * The part of a job title that names the role. Titles often add a team or product after a separator:
+ * "Software Engineer, Bill Pay & Procurement", "Account Manager | Commercial", "Engineer - Codex for Finance".
+ * Those trailing words say where the role sits, not what it is, so matching and categories read the head.
+ * When the head is only a level ("Director, Strategic Finance"), the next part names the role.
+ */
+export function roleHead(title: unknown): string {
+  const parts = String(title || "").split(/\s*(?:[,|(\u2013\u2014]|\s-\s|:)\s*/).map((x) => x.replace(/\)/g, " ").trim()).filter(Boolean);
+  for (const p of parts) if (titleTokens(p).some((w) => !TITLE_GENERIC.has(w))) return p;
+  return String(title || "");
+}
 
 export const LEVEL = { entry: 0, mid: 1, senior: 2, manager: 3, head: 4 } as const;
 export type Seniority = keyof typeof LEVEL;
