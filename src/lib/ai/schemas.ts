@@ -104,6 +104,7 @@ export type AlertFillOut = z.infer<typeof AlertFillSchema>;
 export const MatchCheckSchema = z.object({
   fit: z.enum(["strong", "partial", "no"]),
   score: z.number().int(),
+  chance: z.enum(["high", "medium", "low"]),
   reason: z.string(),
 });
 export type MatchCheckOut = z.infer<typeof MatchCheckSchema>;

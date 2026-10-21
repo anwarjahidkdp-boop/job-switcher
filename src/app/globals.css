@@ -810,3 +810,16 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .ai-check{margin-top:6px;font-size:13px;line-height:1.4;padding:5px 9px;border-radius:8px;display:inline-block}
 .ai-check.ok{background:var(--good-soft);color:var(--good)}
 .ai-check.warn{background:var(--warn-soft);color:var(--warn)}
+
+/* --- Job description behind a button on the job page --- */
+.jd-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;margin-top:16px}
+.jd{flex:1 1 100%;order:2}
+.jd:not([open]){flex:0 0 auto;order:0}
+.jd summary{list-style:none;display:inline-flex}
+.jd summary::-webkit-details-marker{display:none}
+.jd[open] summary::after{content:" ▴"}
+.jd:not([open]) summary::after{content:" ▾"}
+.jd-text{margin-top:10px;padding:14px;border:1px solid var(--line,#E6E9F0);border-radius:12px;white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-height:480px;overflow:auto}
+.chip-chance{display:inline-block;margin-top:6px;margin-right:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+.chip-chance.high{background:var(--good-soft);color:var(--good)}
+.chip-chance.low{background:var(--warn-soft);color:var(--warn)}
