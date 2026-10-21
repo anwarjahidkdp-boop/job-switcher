@@ -129,13 +129,17 @@ ${instruction}
 
 export const MATCH_CHECK_PROMPT = (m: MasterCV, job: Job, description: string, needVisa: boolean) => `You are the match-checking step of JobPao. A rule-based score says this job may suit this person. Read the whole job post and the person's Master CV, and decide whether a recruiter would see this person as a genuine candidate for this role.
 
-Check, in order:
-1. Profession: is the job the same line of work as the person's experience and target roles? A software engineer, sales or account executive, customer-service or product role is NOT an accounting role just because it mentions finance, accounts, a finance team or financial products. If the profession differs, the answer is "no".
-2. Must-have requirements in the post (years, degree, professional qualification, specific systems, language, licence, location or right to work${needVisa ? ", visa sponsorship (this person needs it)" : ""}): does the CV show them? Treat only what the CV states as true.
-3. Level: is the seniority roughly right (not an intern role for a manager, not a director role for a junior)?
+Assess every point below against the job post, using only what the CV states (never assume a skill, year or qualification the CV does not show):
+1. Profession: is the job the same line of work as the person's experience and target roles? A software engineer, sales or account executive, customer-service or product role is NOT an accounting role just because it mentions finance, accounts, a finance team or financial products. If the profession differs, fit is "no".
+2. Must-have requirements in the post (years of experience, degree, professional qualification, specific systems or tools, language, licence, location or right to work${needVisa ? ", visa sponsorship (this person needs it)" : ""}): which does the CV show, and which are missing?
+3. Experience: total relevant years in this kind of work against what the post asks.
+4. Industry: which industries is the person's experience in (from the employers and roles in the CV), and which industry is this job in? Same industry, a related one (for example manufacturing and FMCG, banking and financial services), or unrelated.
+5. Level: is the seniority right (not an intern role for a manager, not a director role for a junior)?
+6. Duties: how many of the main responsibilities has the person actually done, by the CV?
 
-fit: "strong" = same profession and the CV meets the main must-haves; "partial" = same profession but one or two must-haves are missing or unclear; "no" = different profession, or clearly unqualified.
-reason: one short plain-English sentence for the person, naming the deciding point (for example "Same work as your Accounts Manager roles; asks for ACCA, which you are part-way through" or "This is a software engineering role, not accounting").
+score: 0-100, how well this person fits this job overall, as a careful recruiter would rate it from points 1-6. Different profession: below 30. Same profession: start from how many must-haves are met, then adjust for experience, industry, level and duties. 85+ only when the profession, must-haves, level and most duties match and the industry is the same or related.
+fit: "strong" = same profession and the CV meets the main must-haves (score 70+); "partial" = same profession but one or two must-haves are missing or unclear; "no" = different profession, or clearly unqualified.
+reason: one short plain-English sentence for the person, naming the deciding point (for example "Same work as your Accounts Manager roles in manufacturing; asks for ACCA, which you are part-way through" or "This is a software engineering role, not accounting").
 
 Job: ${job.title} at ${job.company}${job.location ? `, ${job.location}` : ""}
 Job post (data):

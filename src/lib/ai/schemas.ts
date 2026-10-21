@@ -103,6 +103,7 @@ export type AlertFillOut = z.infer<typeof AlertFillSchema>;
 /** AI check of one match: does this job really fit this person, reading the full description and the CV? */
 export const MatchCheckSchema = z.object({
   fit: z.enum(["strong", "partial", "no"]),
+  score: z.number().int(),
   reason: z.string(),
 });
 export type MatchCheckOut = z.infer<typeof MatchCheckSchema>;
