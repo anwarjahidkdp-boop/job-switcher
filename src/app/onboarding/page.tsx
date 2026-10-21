@@ -7,7 +7,7 @@ import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
 import { requireUser, photoUrl, trialLabel } from "@/lib/server/page";
 import { loadState } from "@/lib/server/state";
-import { COUNTRIES, COUNTRY_CODES, type CountryRule, cname, PORTALS, rule, perLabel } from "@/lib/countries";
+import { cname, portals, rule, perLabel } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { inboxList } from "@/lib/matching";
 import { aiConfigured } from "@/lib/ai";
@@ -54,7 +54,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   if (step === "country") {
     head = <Head cur="country" kicker="Your 7-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
     body = <div className="ob">
-      <CountryStep current={country} home={home} needsVisa={st.profile.needs_visa} demo={demo} countries={COUNTRY_CODES.map((k) => { const c: CountryRule = COUNTRIES[k]; return { code: k, name: c.name, doc: c.doc, pages: c.pages, photo: c.photo, rules: c.rules }; })} />
+      <CountryStep current={country} home={home} needsVisa={st.profile.needs_visa} demo={demo} />
     </div>;
   } else if (step === "upload") {
     head = <Head cur="upload" back="country" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;
@@ -102,7 +102,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
           <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} /></div>
       </div>
       <div className="banner" style={{ marginTop: 22 }}><p><b>We found {nm.length} current opportunities in {cn} relevant to your career.</b> {strong} {strong === 1 ? "is a strong match" : "are strong matches"}.</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>
-      <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {PORTALS[country].slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>
+      <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {portals(country).slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>
     </>;
   } else {
     body = <div className="ob"><p className="muted">Let&apos;s pick up where you left off.</p><form action={backToStepAction.bind(null, "upload")}><button className="btn btn-primary" style={{ marginTop: 12 }}>Upload my CV</button></form></div>;

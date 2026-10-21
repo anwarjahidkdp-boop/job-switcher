@@ -4,7 +4,7 @@
 // US dollars (usd below, about the local price) while the local price is shown next to it.
 // Outside Bangladesh no pack costs under US$9. Benchmarks (Oct 2026): Teal $13/week, $29/month, $79/3 months;
 // Simplify $39.99/month; Kickresume $24/month; Rezi $29/month. This table is the source of truth.
-import { cc, type CountryCode } from "../countries";
+import { cc, isCountry, type CountryCode } from "../countries";
 
 export type PackId = "15d" | "30d" | "90d" | "365d";
 export const PACKS: { id: PackId; days: number; name: string }[] = [
@@ -22,6 +22,7 @@ export interface PackPrice extends Price { pack: PackId; days: number; name: str
 
 type Quad = [number, number, number, number];
 type Row = { currency: string; local: Quad; usd: Quad };
+// Countries without a row pay the international price (XX).
 // Minor units for [15 days, 30 days, 3 months, 1 year]. Bangladesh and the card prices ($15, $25, $55) set by the owner
 // 2026-10-20; the year is $99. Local amounts are about the card price at Oct 2026 exchange rates.
 export const PACK_PRICES: Record<CountryCode, Row> = {
@@ -41,7 +42,7 @@ export const PAYABLE_CURRENCIES = ["BDT"];
 export const MIN_CARD_USD = 900;
 
 export function packPrice(country: unknown, pack: unknown = DEFAULT_PACK): PackPrice {
-  const c = cc(country), p = packOf(pack), i = PACKS.indexOf(p), r = PACK_PRICES[c];
+  const c = cc(country), p = packOf(pack), i = PACKS.indexOf(p), r = PACK_PRICES[c] || PACK_PRICES.XX;
   return { country: c, currency: r.currency, minor: r.local[i], usd: r.usd[i], pack: p.id, days: p.days, name: p.name };
 }
 
@@ -65,6 +66,7 @@ export function perDay(p: { minor: number; currency: string }): string {
 
 /** Country from Cloudflare's CF-IPCountry header, mapped to a supported price country (others fall back to XX). */
 export function countryFromHeader(v: string | null | undefined): CountryCode {
-  const c = String(v || "").toUpperCase();
-  return c in PACK_PRICES && c !== "XX" ? (c as CountryCode) : c ? "XX" : "BD";
+  const c = String(v || "").trim().toUpperCase();
+  // Any real country is kept as where they live (its price falls back to the international one); Tor/unknown -> XX.
+  return !c ? "BD" : c === "UK" ? "GB" : isCountry(c) && c !== "XX" ? c : "XX";
 }

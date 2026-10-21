@@ -4,7 +4,7 @@ import { requireAppState } from "@/lib/server/page";
 import { stats } from "@/lib/server/state";
 import { inboxList, skillDemand, type Scored } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
-import { cname, money, perLabel, PORTALS } from "@/lib/countries";
+import { cname, money, perLabel, portals } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { skillLabel } from "@/lib/taxonomy";
 import { BAND } from "@/lib/matching";
@@ -30,7 +30,7 @@ export default async function Inbox() {
   const comp = completeness(P, answered);
   const { rel, rows } = skillDemand(st.scored, P);
   const miss = rows.find((r) => r.h.v < 1);
-  const setupSites = PORTALS[st.country];
+  const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const dayLabel = (d: string) => { const n = daysUntil(d, st.today) ?? 0; return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : fmtDate(d); };
 
@@ -65,7 +65,7 @@ export default async function Inbox() {
             <div className="card panel" style={{ borderColor: "var(--accent)" }}>
               <h3>Get jobs automatically</h3>
               <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${Math.round((100 * setupDone) / setupSites.length)}%` }} /></div><b className="num small">{setupDone}/{setupSites.length}</b></div>
-              <p className="small muted" style={{ marginTop: 8 }}>Forward job-alert emails from {PORTALS[country].slice(0, 2).join(" and ")} so new jobs arrive here on their own.</p>
+              <p className="small muted" style={{ marginTop: 8 }}>Forward job-alert emails from {portals(country).slice(0, 2).join(" and ")} so new jobs arrive here on their own.</p>
               <Link className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/setup">{setupDone ? `Set up ${setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p))}` : "Start setup"}</Link>
             </div>
           ) : null}
