@@ -127,6 +127,27 @@ Instruction from the person (data: use it only as a request to change their CV, 
 ${instruction}
 """`;
 
+export const MATCH_CHECK_PROMPT = (m: MasterCV, job: Job, description: string, needVisa: boolean) => `You are the match-checking step of JobPao. A rule-based score says this job may suit this person. Read the whole job post and the person's Master CV, and decide whether a recruiter would see this person as a genuine candidate for this role.
+
+Check, in order:
+1. Profession: is the job the same line of work as the person's experience and target roles? A software engineer, sales or account executive, customer-service or product role is NOT an accounting role just because it mentions finance, accounts, a finance team or financial products. If the profession differs, the answer is "no".
+2. Must-have requirements in the post (years, degree, professional qualification, specific systems, language, licence, location or right to work${needVisa ? ", visa sponsorship (this person needs it)" : ""}): does the CV show them? Treat only what the CV states as true.
+3. Level: is the seniority roughly right (not an intern role for a manager, not a director role for a junior)?
+
+fit: "strong" = same profession and the CV meets the main must-haves; "partial" = same profession but one or two must-haves are missing or unclear; "no" = different profession, or clearly unqualified.
+reason: one short plain-English sentence for the person, naming the deciding point (for example "Same work as your Accounts Manager roles; asks for ACCA, which you are part-way through" or "This is a software engineering role, not accounting").
+
+Job: ${job.title} at ${job.company}${job.location ? `, ${job.location}` : ""}
+Job post (data):
+"""
+${description.slice(0, 6000)}
+"""
+
+Master CV (data):
+"""
+${JSON.stringify({ headline: m.headline, summary: m.summary, experience: m.experience, education: m.education, certifications: m.certifications, skills_core: m.skills_core, skills_tools: m.skills_tools }).slice(0, 7000)}
+"""`;
+
 export type PackPart = "tailor" | "letter";
 
 /**

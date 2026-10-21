@@ -24,7 +24,7 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
   for (const userId of userIds) {
     try {
       const { data, error } = await admin.from("matches").select("job_id, score, jobs!inner(title, company, location, active)")
-        .eq("user_id", userId).is("notified_at", null).eq("relevant", true).gte("score", NOTIFY_MIN_SCORE).eq("jobs.active", true)
+        .eq("user_id", userId).is("notified_at", null).eq("relevant", true).gte("score", NOTIFY_MIN_SCORE).eq("jobs.active", true).or("ai_fit.is.null,ai_fit.neq.no")
         .order("score", { ascending: false }).limit(50);
       if (error) throw error;
       const { data: prof } = await admin.from("profiles").select("email, full_name, email_reminders, dismissed_job_ids").eq("id", userId).maybeSingle();
