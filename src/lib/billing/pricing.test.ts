@@ -29,7 +29,9 @@ describe("country pricing", () => {
   });
   it("maps Cloudflare country headers", () => {
     expect(countryFromHeader("ae")).toBe("AE");
-    expect(countryFromHeader("IN")).toBe("XX");
+    expect(countryFromHeader("IN")).toBe("IN");
+    expect(packPrice("IN", "30d")).toMatchObject({ currency: "USD", minor: 2500 });
+    expect(countryFromHeader("T1")).toBe("XX");
     expect(countryFromHeader("XX")).toBe("XX");
     expect(countryFromHeader(null)).toBe("BD");
   });

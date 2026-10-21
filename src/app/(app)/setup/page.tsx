@@ -1,7 +1,7 @@
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
-import { cname, PORTALS } from "@/lib/countries";
+import { cname, portals } from "@/lib/countries";
 import { publicEnv } from "@/lib/env";
 import { completeSetupStepAction, resetSiteSetupAction, toggleSetupStepAction } from "@/app/actions";
 import { CopyButton } from "@/components/CopyButton";
@@ -43,7 +43,7 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
   const inboundReady = !/(^|\.)example\.com$/.test(publicEnv.inboundDomain);
   const { count } = await db.from("inbound_emails").select("id", { count: "exact", head: true }).eq("user_id", st.userId).eq("kind", "job_alert").eq("status", "processed");
   const steps = st.profile.setup_steps || {};
-  const ports = PORTALS[st.country];
+  const ports = portals(st.country);
   const done = sitesDone(steps, ports);
   // One job site at a time: the one asked for, else the first one not set up yet.
   const asked = (await searchParams).site;

@@ -5,7 +5,7 @@
 //  - remotive / arbeitnow: free public job APIs. adzuna / jooble: job-search APIs with a free key (env), queried with
 //    the roles our users are looking for (`queries`).
 import { extractJobPostings, postingToJob } from "../../src/lib/ingest/jsonld";
-import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, JOOBLE_LOCATION, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
+import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
 import { greenhouseUrl, leverUrl, parseGreenhouse, parseLever, type IngestedJob } from "../../src/lib/ingest/ats";
 import { BOT_UA, robotsAllows } from "../../src/lib/ingest/robots";
 import { cc } from "../../src/lib/countries";
@@ -14,7 +14,7 @@ export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrec
 export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null }
 export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
-const MAX_PAGE_BYTES = 3_000_000;
+const MAX_PAGE_BYTES = 15_000_000; // big boards (hundreds of jobs with full descriptions) run to several MB
 
 async function get(fetcher: Fetcher, url: string, accept: string): Promise<Response> {
   const ctl = new AbortController();
@@ -90,7 +90,7 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
       const key = env.JOOBLE_API_KEY;
       if (!key) throw new Error("JOOBLE_API_KEY not set");
       const out: IngestedJob[] = [];
-      for (const q of queries.length ? queries : [""]) out.push(...parseJooble(await json(`https://jooble.org/api/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ keywords: q, location: JOOBLE_LOCATION[country], page: 1 }) }), ctx));
+      for (const q of queries.length ? queries : [""]) out.push(...parseJooble(await json(`https://jooble.org/api/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ keywords: q, location: joobleLocation(country), page: 1 }) }), ctx));
       return dedupe(out);
     }
     default: throw new Error(`Unknown source kind ${src.kind}`);

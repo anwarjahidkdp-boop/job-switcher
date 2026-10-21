@@ -74,7 +74,11 @@ describe("countryFromLocation for global boards", () => {
     expect(countryFromLocation("San Jose, CA", "XX")).toBe("US");
     expect(countryFromLocation("Toronto, ON", "XX")).toBe("CA");
     expect(countryFromLocation("Edinburgh", "XX")).toBe("GB");
-    expect(countryFromLocation("Berlin, Germany", "XX")).toBe("XX");
+    expect(countryFromLocation("Berlin, Germany", "XX")).toBe("DE");
+    expect(countryFromLocation("Remote - Estonia", "XX")).toBe("EE");
+    expect(countryFromLocation("Atlanta, Georgia", "XX")).toBe("US");
+    expect(countryFromLocation("Bangalore", "XX")).toBe("IN");
+    expect(countryFromLocation("Worldwide", "XX")).toBe("XX");
     expect(countryFromLocation("Dhaka, Bangladesh", "XX")).toBe("BD");
   });
 });

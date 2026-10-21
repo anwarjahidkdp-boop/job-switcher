@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
+import { CountrySelect } from "@/components/CountrySelect";
+import { COUNTRY_CODES, rule } from "@/lib/countries";
 import { setCountryAction } from "../actions";
 import type { PersonalDetails, Preferences } from "@/lib/types";
 
@@ -14,30 +16,35 @@ async function post(url: string, body: unknown) {
   return j;
 }
 
-export function CountryStep(props: { current: string; home: string; needsVisa: boolean; demo: boolean; countries: { code: string; name: string; doc: string; pages: string; photo: boolean; rules: string[] }[] }) {
+export function CountryStep(props: { current: string; home: string; needsVisa: boolean; demo: boolean }) {
   const router = useRouter();
   const [cur, setCur] = useState(props.current);
   const [visa, setVisa] = useState(props.needsVisa);
   const [home, setHome] = useState(props.home);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const c = props.countries.find((x) => x.code === cur)!;
+  const c = rule(cur);
+  const popular = COUNTRY_CODES.includes(cur);
   return (
     <>
-      <div className="cgrid" role="radiogroup" aria-label="Target country">
-        {props.countries.map((k) => (
-          <button key={k.code} type="button" className={`ccard ${cur === k.code ? "on" : ""}`} role="radio" aria-checked={cur === k.code} onClick={() => setCur(k.code)}>
-            <span className="cc-code" aria-hidden="true">{k.code === "XX" ? "🌐" : k.code}</span><span className="cc-txt"><b>{k.name}</b><span className="small muted">{k.doc} · {k.pages} · {k.photo ? "with photo" : "no photo"}</span></span><span className="cc-tick" aria-hidden="true">✓</span>
+      <div className="cgrid" role="radiogroup" aria-label="Popular target countries">
+        {COUNTRY_CODES.map((code) => { const k = rule(code); return (
+          <button key={code} type="button" className={`ccard ${cur === code ? "on" : ""}`} role="radio" aria-checked={cur === code} onClick={() => setCur(code)}>
+            <span className="cc-code" aria-hidden="true">{code}</span><span className="cc-txt"><b>{k.name}</b><span className="small muted">{k.doc} · {k.pages} · {k.photo ? "with photo" : "no photo"}</span></span><span className="cc-tick" aria-hidden="true">✓</span>
           </button>
-        ))}
+        ); })}
+      </div>
+      <div className="card panel" style={{ marginTop: 12, borderColor: popular ? undefined : "var(--accent)" }}>
+        <label className="f" htmlFor="obany">Or pick any country in the world
+          <CountrySelect id="obany" value={cur} onChange={setCur} label="Target country" />
+        </label>
       </div>
       <div className="card panel" style={{ marginTop: 16 }}>
         <h3>{c.name} conventions we will apply</h3>
+        <p className="small muted" style={{ marginTop: -4 }}>{c.doc} · {c.pages} · {c.photo ? "with photo" : "no photo"} · salary per {c.per}</p>
         <ul className="why-list">{c.rules.map((x) => <li key={x}><span className="mk ok">✓</span><span>{x}</span></li>)}</ul>
         <label className="f" htmlFor="obhome" style={{ marginTop: 14 }}>I live in
-          <select id="obhome" value={home} onChange={(e) => setHome(e.target.value)}>
-            {props.countries.map((k) => <option key={k.code} value={k.code}>{k.code === "XX" ? "Another country" : k.name}</option>)}
-          </select>
+          <CountrySelect id="obhome" value={home} onChange={setHome} label="Country you live in" />
         </label>
         <p className="small muted" style={{ marginTop: 4 }}>Your Pro price and how you pay follow the country you live in.</p>
         {cur !== home ? <label className="row small" style={{ marginTop: 12, gap: 8, flexWrap: "nowrap", fontWeight: 500 }}><input type="checkbox" checked={visa} onChange={(e) => setVisa(e.target.checked)} /> I will need the employer to sponsor my work visa</label> : null}

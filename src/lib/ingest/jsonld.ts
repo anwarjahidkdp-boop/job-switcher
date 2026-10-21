@@ -1,6 +1,7 @@
 // schema.org JobPosting extraction from public career pages (JSON-LD in <script type="application/ld+json">).
 import { normaliseJobText, stripHtml } from "../jobs";
 import { cc, type CountryCode } from "../countries";
+import { WORLD } from "../world";
 import type { Job } from "../types";
 
 export interface JobPosting {
@@ -50,9 +51,35 @@ const COUNTRY_HINTS: [CountryCode, RegExp][] = [
   // US state codes are upper case ("Austin, TX"); case-sensitive so a word like "in" or "or" never matches.
   ["US", /,\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/],
 ];
+// Big job-market cities for countries outside the hand-tuned list above.
+const CITY_HINTS: [CountryCode, RegExp][] = ([
+  ["IN", "india|bangalore|bengaluru|mumbai|new delhi|delhi|hyderabad|pune|chennai|gurgaon|gurugram|noida|kolkata|ahmedabad"],
+  ["PK", "pakistan|karachi|lahore|islamabad"], ["DE", "germany|berlin|munich|münchen|hamburg|frankfurt|cologne|köln|stuttgart"],
+  ["FR", "france|paris|lyon"], ["NL", "netherlands|amsterdam|rotterdam|utrecht|the hague"], ["IE", "ireland|dublin|cork"],
+  ["SG", "singapore"], ["ES", "spain|madrid|barcelona|valencia"], ["PL", "poland|warsaw|kraków|krakow|wrocław|wroclaw|gdańsk"],
+  ["JP", "japan|tokyo|osaka"], ["QA", "qatar|doha"], ["KW", "kuwait"], ["BH", "bahrain|manama"], ["OM", "oman|muscat"],
+  ["BR", "brazil|são paulo|sao paulo|rio de janeiro"], ["MX", "mexico|mexico city|ciudad de méxico|guadalajara|monterrey"],
+  ["PH", "philippines|manila|makati|cebu|taguig"], ["ID", "indonesia|jakarta"], ["NG", "nigeria|lagos|abuja"], ["KE", "kenya|nairobi"],
+  ["EG", "egypt|cairo"], ["IL", "israel|tel aviv"], ["SE", "sweden|stockholm"], ["PT", "portugal|lisbon|porto"],
+  ["CH", "switzerland|zurich|zürich|geneva|basel"], ["NZ", "new zealand|auckland|wellington"], ["AT", "austria|vienna|wien"],
+  ["DK", "denmark|copenhagen"], ["NO", "norway|oslo"], ["FI", "finland|helsinki"], ["BE", "belgium|brussels|antwerp"],
+  ["IT", "italy|milan|milano|rome|roma"], ["CZ", "czech republic|czechia|prague"], ["RO", "romania|bucharest"], ["TR", "turkey|türkiye|istanbul|ankara"],
+  ["ZA", "south africa|johannesburg|cape town"], ["VN", "vietnam|ho chi minh|hanoi"], ["TH", "thailand|bangkok"], ["KR", "south korea|korea|seoul"],
+  ["CN", "china|shanghai|beijing|shenzhen"], ["HK", "hong kong"], ["TW", "taiwan|taipei"], ["LK", "sri lanka|colombo"], ["NP", "nepal|kathmandu"],
+  ["AR", "argentina|buenos aires"], ["CO", "colombia|bogotá|bogota|medellín|medellin"], ["CL", "chile|santiago"], ["PE", "peru|lima"],
+] as [CountryCode, string][]).map(([c, words]) => [c, new RegExp(`\\b(${words})\\b`, "i")]);
+const escapeRe = (x: string) => x.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
+let worldRe: [CountryCode, RegExp][] | null = null;
+function worldHints(): [CountryCode, RegExp][] {
+  // Any other country by its English name ("Remote - Estonia"). Georgia is left out: it is usually the US state.
+  return (worldRe ||= WORLD.filter((w) => w.code !== "GE").map((w) => [w.code, new RegExp(`\\b${escapeRe(w.name)}\\b`, "i")]));
+}
 export function countryFromLocation(loc: string | null | undefined, fallback: CountryCode): CountryCode {
   if (!loc) return fallback;
-  return COUNTRY_HINTS.find(([, re]) => re.test(loc))?.[0] ?? fallback;
+  return COUNTRY_HINTS.find(([, re]) => re.test(loc))?.[0]
+    ?? CITY_HINTS.find(([, re]) => re.test(loc))?.[0]
+    ?? worldHints().find(([, re]) => re.test(loc))?.[0]
+    ?? fallback;
 }
 
 function locationText(jl: unknown): string | null {

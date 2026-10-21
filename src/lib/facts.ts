@@ -3,6 +3,7 @@
 import { yearsFrom } from "./matching";
 import { cc, type CountryCode } from "./countries";
 import { isEduLevel, isSeniority, normSkill, SKILL_ALIAS, type Seniority } from "./taxonomy";
+import { LANGUAGES } from "./jobs";
 import type { Extraction, ExtractedCert, ExtractedEducation, ExtractedExperience, MatchProfile, Preferences, Provenance } from "./types";
 
 export type FactKind = "experience" | "education" | "certification" | "skill" | "language" | "answer";
@@ -109,6 +110,11 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
   for (const f of v.filter((x) => x.kind === "skill")) {
     const name = normSkill((f.data as { name: string }).name);
     if (!skills.find((s) => s.name === name)) skills.push({ name, src: f.provenance });
+  }
+  // Languages count as skills so a job asking for "fluent German" can match ("German (B2)" -> "german").
+  for (const f of v.filter((x) => x.kind === "language")) {
+    const name = LANGUAGES.find((l) => String((f.data as { name: string }).name).toLowerCase().includes(l));
+    if (name && !skills.find((s) => s.name === name)) skills.push({ name, src: f.provenance });
   }
   const p = input.prefs;
   const split = (s: string | undefined) => String(s || "").split(",").map((x) => x.trim()).filter(Boolean);

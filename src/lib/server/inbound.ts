@@ -2,7 +2,7 @@
 // Runs with the service role: the email belongs to the alias owner, and everything is stored under their user id.
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cc, PORTALS, rule } from "../countries";
+import { cc, portals, rule } from "../countries";
 import { todayStr } from "../dates";
 import { jobToRow, normaliseJobText } from "../jobs";
 import { ALERT_FILL_PROMPT, ALERT_PROMPT, SYSTEM_RULES } from "../prompts";
@@ -132,4 +132,4 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   return { status: "processed" as const, created };
 }
 
-export const portalsFor = (country: string) => PORTALS[cc(country)];
+export const portalsFor = (country: string) => portals(cc(country));

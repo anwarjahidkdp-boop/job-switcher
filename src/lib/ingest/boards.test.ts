@@ -7,7 +7,8 @@ describe("isoToCountry", () => {
   it("maps codes and names to our countries, others to XX", () => {
     expect(isoToCountry("bd")).toBe("BD");
     expect(isoToCountry("UK")).toBe("GB");
-    expect(isoToCountry("DE")).toBe("XX");
+    expect(isoToCountry("DE")).toBe("DE");
+    expect(isoToCountry("ZZ")).toBe("XX");
     expect(isoToCountry("United Arab Emirates")).toBe("AE");
     expect(isoToCountry(null, "Riyadh")).toBe("SA");
   });

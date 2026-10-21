@@ -1,7 +1,8 @@
 // More public job sources: ATS job-board APIs that companies publish for job boards to read, and job-search APIs
 // that invite third-party apps (free keys where needed). No login, no scraping of sites that forbid it, no Bdjobs.
 import { normaliseJobText, stripHtml } from "../jobs";
-import { cc, COUNTRY_CODES, type CountryCode } from "../countries";
+import { cc, isCountry, type CountryCode } from "../countries";
+import { WORLD_BY_CODE } from "../world";
 import { countryFromLocation } from "./jsonld";
 import type { IngestedJob } from "./ats";
 
@@ -9,11 +10,11 @@ type Ctx = { country: CountryCode; company: string; sourceLabel: string; today: 
 const day = (s: unknown) => (typeof s === "string" && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null);
 const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
 
-/** ISO 3166 alpha-2 (any case) or a country name to one of our countries; anything else is "Other" (XX). */
+/** ISO 3166 alpha-2 (any case) or a country name to a country code; anything unrecognised is "Other" (XX). */
 export function isoToCountry(code: unknown, loc?: string | null, fallback: CountryCode = "XX"): CountryCode {
   const c = str(code).trim().toUpperCase();
   if (c === "UK") return "GB";
-  if (c.length === 2 && (COUNTRY_CODES as string[]).includes(c) && c !== "XX") return c as CountryCode;
+  if (c.length === 2 && c !== "XX" && isCountry(c)) return c;
   const byText = countryFromLocation([str(code), loc || ""].filter(Boolean).join(", ") || null, "XX");
   if (byText !== "XX") return byText;
   return c.length === 2 ? "XX" : fallback;
@@ -95,7 +96,7 @@ export function parseArbeitnow(json: unknown, ctx: Ctx): IngestedJob[] {
 }
 
 // --- Adzuna: https://developer.adzuna.com (free app id + key; US, UK, Canada, Australia and more; not BD or the Gulf) --
-export const ADZUNA_COUNTRIES: Partial<Record<CountryCode, string>> = { US: "us", GB: "gb", CA: "ca", AU: "au" };
+export const ADZUNA_COUNTRIES: Partial<Record<CountryCode, string>> = Object.fromEntries(["US", "GB", "CA", "AU", "AT", "BE", "BR", "CH", "DE", "ES", "FR", "IN", "IT", "MX", "NL", "NZ", "PL", "SG", "ZA"].map((c) => [c, c.toLowerCase()]));
 export const adzunaUrl = (country: string, appId: string, appKey: string, page: number, what: string) =>
   `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?app_id=${encodeURIComponent(appId)}&app_key=${encodeURIComponent(appKey)}&results_per_page=50&max_days_old=3&content-type=application/json${what ? `&what=${encodeURIComponent(what)}` : ""}`;
 interface AdzunaJob { id: string; title: string; description?: string; redirect_url?: string; created?: string; company?: { display_name?: string }; location?: { display_name?: string }; salary_min?: number; salary_max?: number; contract_time?: string }
@@ -107,7 +108,7 @@ export function parseAdzuna(json: unknown, ctx: Ctx): IngestedJob[] {
 }
 
 // --- Jooble: https://jooble.org/api/about (free key; covers Bangladesh, the Gulf, Malaysia and more) -------------------
-export const JOOBLE_LOCATION: Record<CountryCode, string> = { BD: "Bangladesh", AE: "United Arab Emirates", SA: "Saudi Arabia", MY: "Malaysia", GB: "United Kingdom", CA: "Canada", AU: "Australia", US: "United States", XX: "" };
+export const joobleLocation = (c: CountryCode) => WORLD_BY_CODE[c]?.name || "";
 interface JoobleJob { id: string | number; title: string; location?: string; snippet?: string; salary?: string; source?: string; type?: string; link?: string; company?: string; updated?: string }
 export function parseJooble(json: unknown, ctx: Ctx): IngestedJob[] {
   return ((json as { jobs?: JoobleJob[] })?.jobs || []).filter((j) => j && j.title).map((j) => job(ctx, {

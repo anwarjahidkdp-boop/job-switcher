@@ -180,7 +180,7 @@ export default async function Landing() {
               <ul>{PRO.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
               <Link className="btn btn-primary lp-btn lp-full" href={start}>Start 7-day free trial</Link>
             </div>
-            <p className="lp-global"><Icon name="globe" />Bangladesh, USA, UK, Canada, Australia, UAE, Saudi Arabia and Malaysia.</p>
+            <p className="lp-global"><Icon name="globe" />Works for any country you want to work in. Pick it, and your CV and jobs follow.</p>
           </section>
         </div>
       </main>

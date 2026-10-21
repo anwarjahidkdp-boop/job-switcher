@@ -95,6 +95,26 @@ export function skillsInText(text: string): string[] {
   return [...found];
 }
 
+/** Spoken languages a job can ask for; skill names are lower case like the rest of the vocabulary. */
+export const LANGUAGES = ["german", "french", "italian", "spanish", "dutch", "portuguese", "polish", "swedish", "danish", "norwegian", "finnish", "arabic", "japanese", "korean", "mandarin", "turkish", "czech", "greek", "hebrew"];
+const NATIVE_NAME: Record<string, string> = { deutsch: "german", "français": "french", francais: "french", italiano: "italian", "español": "spanish", nederlands: "dutch" };
+const LANG_RE = `(${[...LANGUAGES, ...Object.keys(NATIVE_NAME)].join("|")})`;
+const LEVEL = "(fluent|fluency|native|proficient|proficiency|business[- ]level|business[- ]fluent|excellent|strong|very good|good|working knowledge|verhandlungssicher|fließend|c1|c2|b2)";
+/** Languages a job requires: "fluent German", "Italian (C1) required", or an ad written in German itself. English is assumed. */
+export function languagesRequired(text: string): string[] {
+  const low = text.toLowerCase();
+  const out = new Set<string>();
+  const add = (w: string) => out.add(NATIVE_NAME[w] || w);
+  for (const m of low.matchAll(new RegExp(`\\b${LEVEL}\\b[^.\\n]{0,40}?\\b${LANG_RE}\\b`, "g"))) add(m[2]);
+  for (const m of low.matchAll(new RegExp(`\\b${LANG_RE}\\b[^.\\n]{0,30}?\\b(required|is a must|mandatory|essential|${LEVEL.slice(1, -1)}|speaking|skills)\\b`, "g"))) add(m[1]);
+  // An ad written in German or Italian expects that language even when it does not say so.
+  const words = low.split(/[^a-zäöüßàèéìòù]+/);
+  const share = (list: string[]) => words.filter((w) => list.includes(w)).length / Math.max(words.length, 1);
+  if (share(["und", "wir", "für", "mit", "sie", "die", "der", "das", "ihre", "bei"]) > 0.06) out.add("german");
+  if (share(["e", "il", "di", "per", "con", "che", "la", "dei", "della", "nel"]) > 0.08) out.add("italian");
+  return [...out];
+}
+
 export function seniorityFromTitle(title: string): Seniority | null {
   const t = title.toLowerCase();
   if (/\b(head|director|chief|vp|vice president|cfo|cto|gm|general manager)\b/.test(t)) return "head";
@@ -127,7 +147,7 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const preferredBlock = low.split(/preferred|nice to have|desirable|bonus|advantage/)[1] || "";
   const allSkills = skillsInText(text);
   const preferred = preferredBlock ? skillsInText(preferredBlock).filter((s) => !skillsInText(low.split(/preferred|nice to have|desirable|bonus|advantage/)[0]).includes(s)) : [];
-  const required = allSkills.filter((s) => !preferred.includes(s));
+  const required = [...allSkills.filter((s) => !preferred.includes(s)), ...languagesRequired(text).filter((l) => !allSkills.includes(l))];
   const resp = text.split(/\n/).map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter((l) => l.length > 25 && l.length < 180).slice(0, 3);
   const industry = INDUSTRY_LIST.find((i) => low.includes(i)) || null;
   const deadlineM = !input.deadline ? text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{4}-\d{2}-\d{2})/i) : null;

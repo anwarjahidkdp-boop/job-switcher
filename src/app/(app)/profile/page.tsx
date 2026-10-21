@@ -1,7 +1,7 @@
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState, photoUrl } from "@/lib/server/page";
-import { COUNTRIES, COUNTRY_CODES, cname, money, perLabel, PORTALS, rule } from "@/lib/countries";
+import { cname, money, perLabel, portals, rule } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
@@ -29,7 +29,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const P = st.P, country = st.country, r = rule(country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
   const photo = await photoUrl(db, st.profile.photo_path);
-  const setupSites = PORTALS[st.country];
+  const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const pending = st.facts.filter((f) => !f.verified && f.kind !== "answer" && f.id).map((f) => ({ id: f.id!, kind: f.kind, text: describeFact(f.kind, f.data) }));
   const srcTitle = (s: string) => (s === "cv" ? "From your CV" : s === "answer" ? "From your answers" : "Added by you");
@@ -47,7 +47,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side">
-          <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} countries={COUNTRY_CODES.map((k) => ({ code: k, name: COUNTRIES[k].name }))} />
+          <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} />
           <div className="card panel"><h3>Verified skills</h3>
             <div className="skchips">{P.skills.map((s) => <span key={s.name} className={`sk ${s.src === "user" ? "u" : ""}`} title={srcTitle(s.src)}>{skillLabel(s.name)}</span>)}</div>
             <SkillAdder />

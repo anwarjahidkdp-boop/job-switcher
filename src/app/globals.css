@@ -647,3 +647,14 @@ a.lp-btn-ghost{color:var(--ink)}
 .nocv-go{margin-left:auto;font-size:20px;color:var(--g2)}
 .nocv textarea,.nocv input{margin-top:6px}
 .nocv textarea{min-height:0;height:auto}
+/* Searchable country dropdown (src/components/CountrySelect.tsx) */
+.csel{position:relative;width:100%;margin-top:4px}
+.csel-btn{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;text-align:left;font-weight:500}
+.csel-btn:disabled{opacity:.6;cursor:default}
+.csel-car{color:var(--muted,#6b7280);margin-left:8px}
+.csel-pop{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(10,20,50,.18);padding:8px}
+.csel-list{list-style:none;margin:6px 0 0;padding:0;max-height:260px;overflow-y:auto}
+.csel-list li{padding:8px 10px;border-radius:6px;cursor:pointer;font-weight:400}
+.csel-list li.hi{background:var(--accent-soft)}
+.csel-list li.on{font-weight:600}
+.csel-list li.sep{border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;margin-bottom:4px}

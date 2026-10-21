@@ -2,22 +2,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addSkillAction, reviewFactAction, setCountryAction, setHomeCountryAction, setNeedsVisaAction } from "@/app/actions";
+import { CountrySelect } from "@/components/CountrySelect";
+import { rule } from "@/lib/countries";
 
-export function CountryPanel({ current, needsVisa, homeCountry, countries }: { current: string; needsVisa: boolean; homeCountry: string; countries: { code: string; name: string }[] }) {
+export function CountryPanel({ current, needsVisa, homeCountry }: { current: string; needsVisa: boolean; homeCountry: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState("");
   return (
     <div className="card panel"><h3>Target country</h3>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
-        <select id="countrysel" value={current} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${countries.find((x) => x.code === c)?.name}. CV format, currency and matches updated.`); router.refresh(); }); }}>
-          {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-        </select>
+        <CountrySelect id="countrysel" value={current} disabled={pending} label="Target country" onChange={(c) => { start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${rule(c).name}. CV format, currency and matches updated.`); router.refresh(); }); }} />
       </label>
       <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
-        <select id="homesel" value={homeCountry} disabled={pending} onChange={(e) => { const c = e.target.value; start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }}>
-          {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-        </select>
+        <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" onChange={(c) => { start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }} />
       </label>
       {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; start(async () => { await setNeedsVisaAction(v); router.refresh(); }); }} /> I need visa sponsorship</label> : null}
       <p className="small muted" style={{ marginTop: 8 }}>{msg || "Changing it reformats your CV, switches the salary currency and checklist, and shows jobs in that country."}</p>
