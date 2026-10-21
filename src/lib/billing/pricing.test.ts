@@ -3,9 +3,9 @@ import { countryFromHeader, formatPrice, MIN_CARD_USD, PACK_PRICES, PACKS, packP
 
 describe("country pricing", () => {
   it("prices the four Bangladesh packs set by the owner", () => {
-    expect(PACKS.map((p) => packPrice("BD", p.id).minor)).toEqual([29000, 70000, 150000, 190000]);
-    expect(PACKS.map((p) => p.days)).toEqual([10, 30, 90, 365]);
-    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 70000 });
+    expect(PACKS.map((p) => packPrice("BD", p.id).minor)).toEqual([29000, 49000, 129000, 190000]);
+    expect(PACKS.map((p) => p.days)).toEqual([15, 30, 90, 365]);
+    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 49000 });
     expect(proPrice("nope").country).toBe("BD");
   });
   it("falls back to 30 days for an unknown pack", () => {
@@ -39,8 +39,8 @@ describe("country pricing", () => {
 });
 
 describe("perDay", () => {
-  it("turns ৳700 a month into ৳24 a day", () => {
-    expect(perDay(proPrice("BD"))).toBe("৳24");
+  it("turns ৳490 a month into ৳17 a day", () => {
+    expect(perDay(proPrice("BD"))).toBe("৳17");
   });
   it("rounds other currencies up to the cent", () => {
     expect(perDay(proPrice("US"))).toBe("$0.84");

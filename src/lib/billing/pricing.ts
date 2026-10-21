@@ -1,14 +1,14 @@
 // Pro packs and prices per country the user lives in (profiles.home_country, owner decisions 2026-10-20, as competitors do).
-// Four packs, each a one-off payment with no auto-renewal: 10 days, 30 days, 3 months and 1 year.
+// Four packs, each a one-off payment with no auto-renewal: 15 days, 30 days, 3 months and 1 year.
 // People living in Bangladesh pay in taka with bKash; every other country pays by card through Lemon Squeezy, charged in
 // US dollars (usd below, about the local price) while the local price is shown next to it.
 // Outside Bangladesh no pack costs under US$9. Benchmarks (Oct 2026): Teal $13/week, $29/month, $79/3 months;
 // Simplify $39.99/month; Kickresume $24/month; Rezi $29/month. This table is the source of truth.
 import { cc, type CountryCode } from "../countries";
 
-export type PackId = "10d" | "30d" | "90d" | "365d";
+export type PackId = "15d" | "30d" | "90d" | "365d";
 export const PACKS: { id: PackId; days: number; name: string }[] = [
-  { id: "10d", days: 10, name: "10 days" },
+  { id: "15d", days: 15, name: "15 days" },
   { id: "30d", days: 30, name: "30 days" },
   { id: "90d", days: 90, name: "3 months" },
   { id: "365d", days: 365, name: "1 year" },
@@ -22,10 +22,10 @@ export interface PackPrice extends Price { pack: PackId; days: number; name: str
 
 type Quad = [number, number, number, number];
 type Row = { currency: string; local: Quad; usd: Quad };
-// Minor units for [10 days, 30 days, 3 months, 1 year]. Bangladesh and the card prices ($15, $25, $55) set by the owner
+// Minor units for [15 days, 30 days, 3 months, 1 year]. Bangladesh and the card prices ($15, $25, $55) set by the owner
 // 2026-10-20; the year is $99. Local amounts are about the card price at Oct 2026 exchange rates.
 export const PACK_PRICES: Record<CountryCode, Row> = {
-  BD: { currency: "BDT", local: [29000, 70000, 150000, 190000], usd: [0, 0, 0, 0] },
+  BD: { currency: "BDT", local: [29000, 49000, 129000, 190000], usd: [0, 0, 0, 0] },
   US: { currency: "USD", local: [1500, 2500, 5500, 9900], usd: [1500, 2500, 5500, 9900] },
   GB: { currency: "GBP", local: [1149, 1899, 4199, 7499], usd: [1500, 2500, 5500, 9900] },
   CA: { currency: "CAD", local: [2099, 3499, 7699, 13700], usd: [1500, 2500, 5500, 9900] },
@@ -57,7 +57,7 @@ export function formatPrice(minor: number, currency: string): string {
   return `${SYMBOL[currency] ?? `${currency} `}${n}`;
 }
 
-/** The monthly price as a daily amount, rounded up: whole taka in Bangladesh (৳700 → ৳24), cents elsewhere. */
+/** The monthly price as a daily amount, rounded up: whole taka in Bangladesh (৳490 → ৳17), cents elsewhere. */
 export function perDay(p: { minor: number; currency: string }): string {
   const day = p.currency === "BDT" ? Math.ceil(p.minor / 30 / 100) * 100 : Math.ceil(p.minor / 30);
   return formatPrice(day, p.currency);

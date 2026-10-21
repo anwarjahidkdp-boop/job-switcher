@@ -69,7 +69,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
                 {tag ? <span className="pack-tag">{tag}</span> : null}
                 <span className="pack-name">{k.name}</span>
                 <span className="pack-amt num">{formatPrice(p.minor, p.currency)}</span>
-                <span className="pack-sub small">{k.days > 30 ? <>{formatPrice(Math.round(p.minor / (k.days / 30) / (p.currency === "BDT" ? 100 : 1)) * (p.currency === "BDT" ? 100 : 1), p.currency)} a month{save > 0 ? <b> · save {save}%</b> : null}</> : k.days === 10 ? "Try it for a short search" : "Pay month by month"}</span>
+                <span className="pack-sub small">{k.days > 30 ? <>{formatPrice(Math.round(p.minor / (k.days / 30) / (p.currency === "BDT" ? 100 : 1)) * (p.currency === "BDT" ? 100 : 1), p.currency)} a month{save > 0 ? <b> · save {save}%</b> : null}</> : k.days === 15 ? "Try it for a short search" : "Pay month by month"}</span>
               </Link>
             );
           })}
