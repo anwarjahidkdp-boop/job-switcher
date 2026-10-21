@@ -32,8 +32,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!job) notFound();
   const m = scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry });
   const a = st.apps[job.id];
-  // UK jobs: is the employer on the GOV.UK register of licensed visa sponsors? Display only, never changes the score.
-  const sponsor = job.country === "GB" && normCompany(job.company)
+  // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
+  const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
     ? (await db.from("uk_sponsors").select("name").eq("name_norm", normCompany(job.company)).maybeSingle()).data : null;
   const r = rule(job.country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, job.country);

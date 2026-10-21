@@ -54,7 +54,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   if (step === "country") {
     head = <Head cur="country" kicker="Your 7-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
     body = <div className="ob">
-      <CountryStep current={country} home={home} needsVisa={st.profile.needs_visa} demo={demo} />
+      <CountryStep current={country === "BD" && home !== "BD" && home !== "XX" && st.profile.onboarding_step === "country" ? home : country} home={home} needsVisa={st.profile.needs_visa} demo={demo} />
     </div>;
   } else if (step === "upload") {
     head = <Head cur="upload" back="country" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;

@@ -12,10 +12,10 @@ export function CountryPanel({ current, needsVisa, homeCountry }: { current: str
   return (
     <div className="card panel"><h3>Target country</h3>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
-        <CountrySelect id="countrysel" value={current} disabled={pending} label="Target country" onChange={(c) => { start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${rule(c).name}. CV format, currency and matches updated.`); router.refresh(); }); }} />
+        <CountrySelect id="countrysel" value={current} disabled={pending} label="Target country" first={homeCountry} onChange={(c) => { start(async () => { await setCountryAction(c, needsVisa); setMsg(`Now applying in ${rule(c).name}. CV format, currency and matches updated.`); router.refresh(); }); }} />
       </label>
       <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
-        <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" onChange={(c) => { start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }} />
+        <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" first={homeCountry} onChange={(c) => { start(async () => { await setHomeCountryAction(c); setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."); router.refresh(); }); }} />
       </label>
       {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; start(async () => { await setNeedsVisaAction(v); router.refresh(); }); }} /> I need visa sponsorship</label> : null}
       <p className="small muted" style={{ marginTop: 8 }}>{msg || "Changing it reformats your CV, switches the salary currency and checklist, and shows jobs in that country."}</p>

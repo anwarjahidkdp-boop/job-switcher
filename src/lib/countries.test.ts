@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_COUNTRIES, cc, cname, COUNTRY_CODES, money, portals, rule } from "./countries";
+import { ALL_COUNTRIES, cc, cname, COUNTRY_CODES, money, popularFor, portals, rule } from "./countries";
 import { WORLD } from "./world";
 import { languagesRequired } from "./jobs";
 
@@ -8,6 +8,10 @@ describe("every country", () => {
     expect(WORLD.length).toBeGreaterThan(190);
     expect(new Set(ALL_COUNTRIES.map((c) => c.code)).size).toBe(ALL_COUNTRIES.length);
     expect(ALL_COUNTRIES.slice(0, COUNTRY_CODES.length).map((c) => c.code)).toEqual(COUNTRY_CODES);
+    expect(popularFor("BD")[0]).toBe("BD");
+    expect(popularFor("GB").slice(0, 2)).toEqual(["GB", "US"]);
+    expect(popularFor("FR")[0]).toBe("FR");
+    expect(popularFor("XX")).toEqual(COUNTRY_CODES);
   });
   it("gives any country region rules with its own name, currency and time zone", () => {
     const pl = rule("PL");

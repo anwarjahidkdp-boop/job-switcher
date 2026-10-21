@@ -62,7 +62,7 @@ const STEPS: [string, string][] = [
   ["Apply with confidence", "Everything prepared. You approve and send."],
 ];
 const TRUST: [string, string, string][] = [
-  ["lock", "No passwords", "We never ask for your Bdjobs or LinkedIn login."],
+  ["lock", "No passwords", "We never ask for your job-site or LinkedIn password."],
   ["hand", "You stay in control", "Nothing is sent without your approval."],
   ["shield", "Private by default", "Your CV is never public. Delete it any time."],
 ];
