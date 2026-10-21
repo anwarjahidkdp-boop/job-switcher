@@ -34,11 +34,12 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   };
 
   // 1. Applied 5+ days ago and we have not asked yet: "Any reply?"
-  const { data: applied } = await admin.from("applications").select("id, user_id, job_id, applied_at, jobs!inner(title, company)")
+  const { data: applied } = await admin.from("applications").select("id, user_id, job_id, applied_at, jobs!inner(title, company, country)")
     .eq("status", "applied").is("reply_checked_at", null).lte("applied_at", new Date(now.getTime() - REPLY_CHECK_DAYS * DAY).toISOString()).limit(500);
-  for (const a of (applied || []) as unknown as { id: string; user_id: string; job_id: string; jobs: { title: string; company: string } }[]) {
+  for (const a of (applied || []) as unknown as { id: string; user_id: string; job_id: string; jobs: { title: string; company: string; country: string } }[]) {
+    const followUp = a.jobs.country !== "BD" ? " No reply yet? We have a short follow-up email ready for you to send." : "";
     add(a.user_id, { kind: "reply", title: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title}. Tell us if you got an interview call, and we will prepare you for it.`, link: `/jobs/${a.job_id}#reply`, key: `reply:${a.id}` },
-      { subject: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title} at ${a.jobs.company} a few days ago. Got an interview call? Tell us in one tap and we will prepare your interview answers. No reply yet? We have a short follow-up email ready for you to send.`, button: "Update my application" });
+      { subject: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title} at ${a.jobs.company} a few days ago. Got an interview call? Tell us in one tap and we will prepare your interview answers.${followUp}`, button: "Update my application" });
   }
 
   // 2. Interview in the next 24 hours.

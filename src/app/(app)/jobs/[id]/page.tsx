@@ -65,9 +65,11 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           </div>
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;
-            const to = job.apply.method === "email" ? job.apply.target : null;
+            // Follow-up emails to employers are not the custom in Bangladesh (owner's call), so they are offered elsewhere only.
+            const followUps = job.country !== "BD";
+            const to = followUps && job.apply.method === "email" ? job.apply.target : null;
             const fu = to ? followUpDraft({ jobTitle: job.title, company: job.company, appliedOn: a.applied_at, name: st.profile.full_name || st.master.content.name, currentTitle: st.P.currentTitle || null, email: st.profile.email, phone: st.profile.phone }) : null;
-            return <ReplyPanel jobId={job.id} company={job.company} daysSince={since} followUp={fu} to={to} canFollowUp={since >= FOLLOWUP_DAYS} />;
+            return <ReplyPanel jobId={job.id} company={job.company} daysSince={since} followUp={fu} to={to} canFollowUp={since >= FOLLOWUP_DAYS} followUps={followUps} />;
           })() : null}
           {a && ["applied", "interview", "offer"].includes(a.status) ? (
             <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}

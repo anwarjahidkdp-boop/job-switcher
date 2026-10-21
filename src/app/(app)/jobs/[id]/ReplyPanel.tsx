@@ -5,7 +5,7 @@ import { noReplyYetAction, statusAction } from "@/app/actions";
 import { CopyButton } from "@/components/CopyButton";
 
 /** After applying: "Any reply?" in one tap, and a ready follow-up email when there is no reply yet. */
-export function ReplyPanel(p: { jobId: string; company: string; daysSince: number; followUp: { subject: string; body: string } | null; to: string | null; canFollowUp: boolean }) {
+export function ReplyPanel(p: { jobId: string; company: string; daysSince: number; followUp: { subject: string; body: string } | null; to: string | null; canFollowUp: boolean; followUps: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [none, setNone] = useState(false);
@@ -30,7 +30,7 @@ export function ReplyPanel(p: { jobId: string; company: string; daysSince: numbe
             </div>
           </div>
         ) : (
-          <p className="small muted" style={{ marginTop: 12 }}>{p.canFollowUp ? "This job was applied for on the company's site, so there is no recruiter email to follow up with. Most employers reply within two to three weeks; we will ask you again." : "It is a bit early: most employers take at least a week. We will ask you again in a few days, and have a follow-up email ready if you need one."}</p>
+          <p className="small muted" style={{ marginTop: 12 }}>{!p.followUps ? "Most employers take two to three weeks to reply. We will ask you again in a few days, and keep showing you new matches meanwhile." : p.canFollowUp ? "This job was applied for on the company's site, so there is no recruiter email to follow up with. Most employers reply within two to three weeks; we will ask you again." : "It is a bit early: most employers take at least a week. We will ask you again in a few days, and have a follow-up email ready if you need one."}</p>
         )
       ) : null}
     </div>
