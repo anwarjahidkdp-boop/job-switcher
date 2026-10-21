@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
 import { checkPack } from "../numbers-check";
 import { PACK_PROMPT, SYSTEM_RULES } from "../prompts";
+import { postAsks } from "../job-asks";
 import { PackLetterSchema, PackTailorSchema } from "../ai/schemas";
 import { aiConfigured, getBudget, runAI } from "../ai";
 import { limitNotice, packAllowance, packLimits, trialApplyRoom } from "../pack-limits";
@@ -59,13 +60,17 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
 
   const master = st.master.content;
   const needVisa = st.profile.needs_visa;
+  // The full post: what it asks applicants to send drives the pack and its checklist.
+  const { data: jd } = await ctx.db.from("jobs").select("description").eq("id", jobId).maybeSingle();
+  const description = (jd?.description as string | null) || null;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
   const allowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
   if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.${allowance.plan === "trial" ? " Go Pro to get more AI-tailored applications." : ""}`;
   if (allowance?.left) {
     try {
-      const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry), schema: PackTailorSchema }));
-      const letter = await runAI(ctx.admin, ctx.userId, "pack_letter", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry), schema: PackLetterSchema }));
+      const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry, { description }), schema: PackTailorSchema }));
+      const td = tailor.data as { asks?: string[]; instructions?: string | null };
+      const letter = await runAI(ctx.admin, ctx.userId, "pack_letter", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry, { asks: td.asks, instructions: td.instructions }), schema: PackLetterSchema }));
       pack = { ...(tailor.data as Omit<ApplicationPack, "cover_letter" | "email_subject" | "email_body">), ...(letter.data as Pick<ApplicationPack, "cover_letter" | "email_subject" | "email_body">) };
       ai = true; model = `${tailor.usage.model} + ${letter.usage.model}`;
     } catch (e) {
@@ -73,6 +78,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
     }
   }
   if (!pack || !pack.cover_letter) { pack = templatePack(job, master, st.P, { needVisa, homeCountry: st.homeCountry }); ai = false; }
+  if (!pack.asks?.length) pack.asks = postAsks(description);
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";

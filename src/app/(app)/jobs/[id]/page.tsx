@@ -22,6 +22,7 @@ import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { limitNotice, packLimits, trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
+import { askRows, postAsks } from "@/lib/job-asks";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -112,9 +113,19 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <div className="card panel">
               <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: 19 }}>Your application pack</h2><span className="small muted">{a.pack_ai ? "Prepared with Claude from your verified profile" : "Template version"}</span></div>
               {a.pack_flags.length ? <p className="note" style={{ marginTop: 10, borderColor: "var(--warn)" }}>Check before sending: {a.pack_flags.join("; ")}.</p> : null}
+              {(() => {
+                const rows = askRows(a.pack.asks?.length ? a.pack.asks : postAsks(description), { hasPhoto: !!st.profile.photo_path, photoAllowed: r.photo, notice: st.profile.preferences?.notice ?? null, salaryMin: st.profile.preferences?.salaryMin ?? null });
+                return rows.length || a.pack.instructions ? (
+                  <div className="asks">
+                    <h3>What this job post asks for</h3>
+                    {rows.length ? <ul>{rows.map((x) => <li key={x.item} className={`ask ask-${x.status}`}><span className="ask-mk" aria-hidden>{x.status === "you" ? "!" : "✓"}</span><span><b>{x.item}</b><small>{x.note}</small></span></li>)}</ul> : null}
+                    {a.pack.instructions ? <p className="small" style={{ marginTop: 8 }}><b>Instructions in the post:</b> {a.pack.instructions}</p> : null}
+                  </div>
+                ) : <p className="small muted" style={{ marginTop: 10 }}>The post does not list documents, so your tailored CV and cover letter are ready to send.</p>;
+              })()}
               <PackTabs
                 emphasis={a.pack.emphasis || []}
-                cv={<><CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(job.country)} rules={r.rules} /><CvPreview master={st.master.content} tailored={a.pack} country={job.country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} /></>}
+                cv={<><CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(job.country)} rules={r.rules} downloads={{ pdf: `/api/cv/download?format=print&jobId=${job.id}`, doc: `/api/cv/download?format=doc&jobId=${job.id}`, label: "CV tailored for this job" }} /><CvPreview master={st.master.content} tailored={a.pack} country={job.country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} /></>}
                 jobId={job.id}
                 cover={a.pack.cover_letter}
                 subject={a.pack.email_subject}

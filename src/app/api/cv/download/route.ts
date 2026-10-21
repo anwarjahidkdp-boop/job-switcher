@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     const { data } = await c.db.storage.from("cv-files").download(st.profile.photo_path);
     if (data) photoUrl = "data:image/jpeg;base64," + Buffer.from(await data.arrayBuffer()).toString("base64");
   }
-  const input = { master: st.master.content, tailored: app?.pack ?? null, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, photoUrl };
+  const input = { master: st.master.content, tailored: app?.pack ?? null, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, noticeDays: st.profile.preferences?.notice ?? null, photoUrl };
   const headers = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex" };
   if (format === "print") return new NextResponse(cvPrintHtml(input, { autoPrint: u.searchParams.get("auto") === "1" }), { headers: { ...headers, "Content-Type": "text/html; charset=utf-8" } });
   let company = "";

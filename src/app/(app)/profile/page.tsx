@@ -2,6 +2,7 @@ import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState, photoUrl } from "@/lib/server/page";
 import { cname, money, perLabel, portals, rule } from "@/lib/countries";
+import { convention } from "@/lib/cv/conventions";
 import { resolveStyle } from "@/lib/cv/render";
 import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
@@ -41,14 +42,15 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
       <PageHead kicker="Your profile" title={<>Master career <span>profile</span></>} sub="Every application is built from this verified information." />
       <div className="dash" style={{ marginTop: 18 }}>
         <div>
-          <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} />
-          <CvPreview master={st.master.content} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} />
+          <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc", label: "Your Master CV" }} />
+          <CvPreview master={st.master.content} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} />
           <div className="row" style={{ marginTop: 12 }}>
             <a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download Master CV (Word)</a>
             <a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">Save as PDF</a>
             <form action={backToStepAction.bind(null, "upload")}><button className="btn btn-ghost btn-sm">Upload a new CV</button></form>
           </div>
           <CvEditBox aiReady={aiConfigured()} langs={speechLangs(st.homeCountry)} style={{ marginTop: 12 }} after={<><Link className="btn btn-primary btn-sm" href="/inbox">Go to my dashboard</Link><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">Save as PDF</a></>} />
+          {convention(country).refs === "list" && !(st.profile.personal?.references || []).length ? <p className="note" style={{ marginTop: 12 }}>{cname(country)} CVs list {convention(country).refCount} references who are not relatives. Your CV says &quot;Available on request&quot; until you add them. <Link href="/onboarding?step=prefs">Add references</Link></p> : null}
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side">

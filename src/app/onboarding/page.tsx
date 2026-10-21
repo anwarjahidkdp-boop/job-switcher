@@ -9,6 +9,7 @@ import { requireUser, photoUrl, trialLabel, profileOf } from "@/lib/server/page"
 import { loadState } from "@/lib/server/state";
 import { cname, portals, rule, perLabel } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
+import { convention, personalFields } from "@/lib/cv/conventions";
 import { inboxList } from "@/lib/matching";
 import { aiConfigured } from "@/lib/ai";
 import { saveAnswersAction, finishOnboardingAction, backToStepAction } from "../actions";
@@ -85,7 +86,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
     head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub="We use this to choose which opportunities to bring you. Any category works; we suggested roles from your CV." />;
     body = <div className="ob">
-      <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} showPersonal={r.personal} visaField={!!r.visaField} isBD={country === "BD"} />
+      <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} />
     </div>;
   } else if (step === "reveal" && st.master && st.P) {
     const m = st.master.content;
@@ -108,8 +109,8 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       ) : null}
       <div style={{ marginTop: 22 }}>
         <p className="eyebrow" style={{ marginBottom: 8 }}>Your new Master CV, {cn} format</p>
-        <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} />
-        <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} photoUrl={photo} />
+        <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc" }} />
+        <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} />
         <CvEditBox aiReady={aiConfigured()} langs={speechLangs(st.homeCountry)} style={{ marginTop: 12 }} after={<form action={finishOnboardingAction}><button className="btn btn-primary btn-sm">See my {nm.length} opportunities</button></form>} />
       </div>
       <div className="banner" style={{ marginTop: 22 }}><p><b>We found {nm.length} current opportunities in {cn} relevant to your career.</b> {strong} {strong === 1 ? "is a strong match" : "are strong matches"}.</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>

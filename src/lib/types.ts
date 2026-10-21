@@ -133,9 +133,19 @@ export interface ApplicationPack {
   email_subject: string;
   email_body: string;
   checklist: string[];
+  /** What the job post asks applicants to send, in its own terms (older packs have none). */
+  asks?: string[];
+  /** Special instructions from the post, such as the required email subject. */
+  instructions?: string | null;
 }
 
-export interface PersonalDetails { nationality?: string; dob?: string; visa?: string }
+export interface Referee { name: string; title?: string; org?: string; phone?: string; email?: string; relation?: string }
+/** What the person typed for their CV's personal-details and references sections. Shown only where the country expects each item. */
+export interface PersonalDetails {
+  nationality?: string; dob?: string; visa?: string;
+  fatherName?: string; motherName?: string; marital?: string; religion?: string; address?: string; licence?: string;
+  references?: Referee[];
+}
 export interface CvStyle { tpl?: CvTemplate; accent?: string }
 
 export interface Preferences {
