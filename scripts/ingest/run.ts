@@ -18,7 +18,8 @@ async function main() {
 
   // Job-search APIs are queried with what our users are looking for, per target country.
   const demand = await roleDemand(db);
-  if (!only && !dry) await ensureSearchSources(db, [...demand.keys()]);
+  // The launch markets get search sources even before anyone there signs up, so their first users find jobs waiting.
+  if (!only && !dry) await ensureSearchSources(db, [...new Set([...LAUNCH_MARKETS, ...demand.keys()])]);
 
   let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company").eq("active", true);
   if (only) q = q.eq("id", only);
@@ -74,6 +75,8 @@ async function main() {
 }
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);
+
+const LAUNCH_MARKETS = ["GB", "BD"];
 
 /** Every country a user targets gets a Jooble (and, where covered, Adzuna; Reed for the UK) search source once that API key exists. */
 async function ensureSearchSources(db: ReturnType<typeof scriptAdmin>, countries: string[]) {
