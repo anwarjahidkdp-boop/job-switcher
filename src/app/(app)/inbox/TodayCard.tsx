@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Plan } from "@/lib/today";
+import { TRIAL_DAYS, type Plan } from "@/lib/today";
 import type { NotificationRow } from "@/lib/server/notify";
 
 /** One step of the work JobPao did: a big figure, what it is, and a short detail line. */
@@ -15,7 +15,7 @@ export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; i
     <div className="card panel today" id="trial">
       <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
         <h3 style={{ margin: 0 }}>{days > 1 ? `Done for you in the last ${days} days` : days === 1 ? "Done for you today" : "Done for you"}</h3>
-        {plan ? <span className="small muted">{plan.ended ? "Your free week is over" : `Day ${plan.day} of your 7-day free trial`}</span> : null}
+        {plan ? <span className="small muted">{plan.ended ? "Your free trial is over" : `Day ${plan.day} of your ${TRIAL_DAYS}-day free trial`}</span> : null}
       </div>
       {done.length ? <ol className="flow" aria-label="What JobPao did for you">{done.map((d, i) => {
         const body = <><span className="flow-top"><span className="flow-ic"><Ic d={d.icon} /></span><span className="flow-step">Step {i + 1}</span></span><b className="flow-n num">{d.n}</b><span className="flow-l">{d.label}</span>{d.sub ? <span className="flow-s">{d.sub}</span> : null}</>;
@@ -23,7 +23,7 @@ export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; i
       })}</ol> : null}
       {plan?.summaryTime ? (
         <div className="today-next" style={{ display: "block" }}>
-          <b>Your week with JobPao</b>
+          <b>Your trial with JobPao</b>
           <div className="tiles" style={{ marginTop: 10 }}>{summary.map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}</div>
           <div className="row" style={{ marginTop: 12 }}>
             <Link className="btn btn-primary btn-sm" href="/upgrade">Keep my assistant working</Link>

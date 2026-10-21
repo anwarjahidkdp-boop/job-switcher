@@ -8,7 +8,7 @@ import { checkPack } from "../numbers-check";
 import { PACK_PROMPT, SYSTEM_RULES } from "../prompts";
 import { PackLetterSchema, PackTailorSchema } from "../ai/schemas";
 import { aiConfigured, getBudget, runAI } from "../ai";
-import { limitNotice, packAllowance, packLimits } from "../pack-limits";
+import { limitNotice, packAllowance, packLimits, trialApplyRoom } from "../pack-limits";
 import { aiErrCopy } from "../ai/provider";
 import { templatePack } from "../template-pack";
 import type { AppStatus, ApplicationPack, Job } from "../types";
@@ -45,7 +45,8 @@ export async function packAllowanceFor(admin: Ctx["admin"], userId: string) {
     admin.from("profiles").select("home_country").eq("id", userId).maybeSingle(),
     admin.from("ai_usage").select("created_at").eq("user_id", userId).eq("feature", "pack_letter").gte("created_at", new Date(Date.now() - 31 * 86_400_000).toISOString()),
   ]);
-  return packAllowance((rows || []).map((r) => r.created_at as string), packLimits(budget?.plan, prof?.home_country as string | undefined));
+  const plan = budget?.plan === "pro" ? "pro" : "trial";
+  return { ...packAllowance((rows || []).map((r) => r.created_at as string), packLimits(plan, prof?.home_country as string | undefined)), plan };
 }
 
 export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: string[]; ai: boolean; notice?: string }> {
@@ -60,7 +61,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const needVisa = st.profile.needs_visa;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
   const allowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
-  if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.`;
+  if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.${allowance.plan === "trial" ? " Go Pro to get more AI-tailored applications." : ""}`;
   if (allowance?.left) {
     try {
       const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry), schema: PackTailorSchema }));
@@ -101,8 +102,19 @@ export async function markOpened(ctx: Ctx, jobId: string) {
 }
 
 /** The user tells us they submitted. This is the only path to "applied". */
+/** The free trial's daily application is used; callers send the person to the Pro page. */
+export class TrialLimit extends Error {}
+
 export async function confirmApplied(ctx: Ctx, jobId: string) {
   const app = await ensureApp(ctx, jobId);
+  if (!["applied", "interview", "offer"].includes(app.status)) {
+    // Free trial: one application a day, 5 in all (the Apply Queue shows the rest behind Pro).
+    const { data: sub } = await ctx.db.from("subscriptions").select("plan_code, status").eq("user_id", ctx.userId).maybeSingle();
+    if (!(sub?.plan_code === "pro" && sub.status === "active")) {
+      const { data: sent } = await ctx.db.from("applications").select("applied_at").eq("user_id", ctx.userId).not("applied_at", "is", null);
+      if (!trialApplyRoom((sent || []) as { applied_at: string | null }[])) throw new TrialLimit("Your free trial includes one application a day. Go Pro to apply to more jobs today.");
+    }
+  }
   const { error } = await ctx.db.from("applications").update({ status: "applied" }).eq("id", app.id);
   if (error) throw error;
   await ctx.db.from("reminders").delete().eq("application_id", app.id).is("sent_at", null);

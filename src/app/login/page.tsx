@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <>
       <SiteHeader inApp={false} />
       <main><div className="wrap">
-        <PageHead kicker={signup ? "7 days free · No card needed" : "JobPao"} title={signup ? <>Create your <span>account</span></> : <>Welcome <span>back</span></>} sub={signup ? "Your own job assistant, ready in a minute." : "Log in with your email and password."} />
+        <PageHead kicker={signup ? "5 days free · No card needed" : "JobPao"} title={signup ? <>Create your <span>account</span></> : <>Welcome <span>back</span></>} sub={signup ? "Your own job assistant, ready in a minute." : "Log in with your email and password."} />
         <div className="ob card panel pg-form">
           {sp.error ? <p className="err" style={{ marginBottom: 12 }}>That link has expired. Log in, or ask for a new link.</p> : null}
           <LoginForm next={next} initial={signup ? "signup" : "login"} />

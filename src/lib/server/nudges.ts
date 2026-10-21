@@ -56,7 +56,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   for (const t of (trials || []) as { user_id: string; trial_ends_at: string }[]) {
     if (Date.parse(t.trial_ends_at) > now.getTime()) {
       add(t.user_id, { kind: "trial", title: "Your free trial ends tomorrow", body: "See what JobPao did for you this week, and keep your assistant working.", link: "/inbox#trial", key: "trial:ending" },
-        { subject: "Your JobPao trial ends tomorrow", body: "Your 7-day Pro trial ends tomorrow. Open JobPao to see the jobs we matched and the applications we prepared for you this week. Keep Pro to keep getting new matches and ready applications every day.", button: "See my week" });
+        { subject: "Your JobPao trial ends tomorrow", body: "Your 5-day Pro trial ends tomorrow. Open JobPao to see the jobs we matched and the applications we prepared for you this week. Keep Pro to keep getting new matches and ready applications every day.", button: "See my week" });
     } else {
       add(t.user_id, { kind: "trial", title: "Your trial has ended", body: "Your matches are still here. Go Pro to keep new applications coming.", link: "/upgrade", key: "trial:ended" });
     }

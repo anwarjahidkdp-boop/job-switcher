@@ -56,7 +56,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   let head: React.ReactNode = null;
   let body: React.ReactNode = null;
   if (step === "country") {
-    head = <Head cur="country" kicker="Your 7-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
+    head = <Head cur="country" kicker="Your 5-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
     body = <div className="ob">
       <CountryStep current={country === "BD" && home !== "BD" && home !== "XX" && st.profile.onboarding_step === "country" ? home : country} home={home} needsVisa={st.profile.needs_visa} demo={demo} />
     </div>;

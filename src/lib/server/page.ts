@@ -26,6 +26,12 @@ export async function ctx(next = "/inbox") {
   return { db: supabase, admin: createAdminClient(), userId: user.id, user };
 }
 
+/** Is the person on paid Pro (not the trial)? Cached per request. */
+export const isPro = cache(async (db: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<boolean> => {
+  const { data } = await db.from("subscriptions").select("plan_code, status, current_period_end").eq("user_id", userId).maybeSingle();
+  return !!data && data.plan_code === "pro" && data.status === "active" && (!data.current_period_end || Date.parse(data.current_period_end) > Date.now());
+});
+
 export async function trialLabel(db: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<string | null> {
   const { data } = await db.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", userId).maybeSingle();
   if (!data) return null;

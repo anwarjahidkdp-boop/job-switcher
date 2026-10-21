@@ -94,7 +94,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
           {busy ? <><Spinner /> Please wait</> : mode === "login" ? "Log in" : mode === "signup" ? "Create my account" : mode === "forgot" ? "Send me the link" : "Send me a code"}
         </button>
         {mode === "login" ? <div className="row" style={{ justifyContent: "space-between" }}><button type="button" className="btn-text small" onClick={() => go("forgot")}>Forgot password?</button><button type="button" className="btn-text small" onClick={() => go("code")}>Email me a code instead</button></div> : null}
-        {mode === "signup" ? <p className="small muted">Starts your 7-day Pro trial. We never ask for your job-site passwords.</p> : null}
+        {mode === "signup" ? <p className="small muted">Starts your 5-day Pro trial. We never ask for your job-site passwords.</p> : null}
         {mode === "forgot" || mode === "code" ? <button type="button" className="btn-text" onClick={() => go("login")}>Back to log in</button> : null}
       </form>
     </div>
