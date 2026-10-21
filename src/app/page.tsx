@@ -175,10 +175,24 @@ export default async function Landing() {
                 <span className="lp-cup"><Icon name="cup" /></span>
                 <div><b>{local.currency === "BDT" ? "The price of one cup of tea a day" : "Less than a coffee a day"}</b><span>That is all your personal job assistant costs, and it works for you all day.</span></div>
               </div>
-              <p className="lp-amt num">{formatPrice(local.minor, local.currency)}<span> / month</span></p>
-              <p className="small lp-packs">{PACKS.filter((k) => k.id !== "30d").map((k) => { const p = packPrice(local.country, k.id); return `${k.name} ${formatPrice(p.minor, p.currency)}`; }).join(" · ")}</p>
+              <div className="packs lp-packgrid">
+                {PACKS.map((k) => {
+                  const p = packPrice(local.country, k.id), full = packPrice(local.country, "30d").minor * (k.days / 30);
+                  const save = k.days > 30 ? Math.round((1 - p.minor / full) * 100) : 0;
+                  const tag = k.id === "30d" ? "Most popular" : k.id === "365d" ? "Best value" : "";
+                  return (
+                    <Link key={k.id} href={start} className={`pack ${k.id === "30d" ? "on" : ""}`}>
+                      {tag ? <span className="pack-tag">{tag}</span> : null}
+                      <span className="pack-name">{k.name}</span>
+                      <span className="pack-amt num">{formatPrice(p.minor, p.currency)}</span>
+                      <span className="pack-sub small">{save > 0 ? <b>Save {save}%</b> : k.days === 15 ? "For a short search" : "Month by month"}</span>
+                    </Link>
+                  );
+                })}
+              </div>
               <ul>{PRO.map((x) => <li key={x}><Icon name="match" />{x}</li>)}</ul>
               <Link className="btn btn-primary lp-btn lp-full" href={start}>Start 7-day free trial</Link>
+              <p className="lp-nocard"><b>7-day free trial</b> · No credit card required</p>
             </div>
             <p className="lp-global"><Icon name="globe" />Works for any country you want to work in. Pick it, and your CV and jobs follow.</p>
           </section>

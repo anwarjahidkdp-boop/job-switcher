@@ -680,3 +680,9 @@ a.lp-btn-ghost{color:var(--ink)}
 .today-items{margin-top:12px}
 .guide-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
 .guide-links a{font-size:13px}
+/* Home pricing: all packs as cards */
+.lp-price:has(.lp-packgrid){max-width:760px}
+.lp-packgrid{margin-top:22px}
+.lp-nocard{text-align:center;margin-top:10px;font-size:14px;color:var(--ink-2)}
+.lp-nocard b{color:#1B7F4B}
+@media (max-width:640px){.lp-packgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
