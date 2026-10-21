@@ -32,6 +32,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!job) notFound();
   const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
   const ai = st.aiCheck.get(job.id);
+  // The full post, so the person can judge the job themselves before applying (list loads leave it out).
+  const { data: descRow } = await db.from("jobs").select("description").eq("id", job.id).maybeSingle();
+  const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
   const a = st.apps[job.id];
   // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
   const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
@@ -67,7 +70,10 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {job.certs.map((c, i) => <span key={"c" + i} className="sk">{c.names.join(" or ")}{c.required ? "" : " · preferred"}</span>)}
               {!job.required.length && !job.preferred.length && !job.certs.length ? <span className="small muted">The post does not list specific skills.</span> : null}
             </div>
-            {job.url ? <p className="small" style={{ marginTop: 14 }}><a href={job.url} target="_blank" rel="noopener noreferrer nofollow">View the original post ↗</a></p> : null}
+            {description || job.url ? <div className="jd-actions">
+              {description ? <details className="jd"><summary className="btn btn-ghost btn-sm">View job description</summary><div className="jd-text">{description}</div></details> : null}
+              {job.url ? <a className="btn btn-ghost btn-sm" href={job.url} target="_blank" rel="noopener noreferrer nofollow">Open the original post ↗</a> : null}
+            </div> : null}
           </div>
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;

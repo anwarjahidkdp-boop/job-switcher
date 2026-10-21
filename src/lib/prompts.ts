@@ -139,6 +139,7 @@ Assess every point below against the job post, using only what the CV states (ne
 
 score: 0-100, how well this person fits this job overall, as a careful recruiter would rate it from points 1-6. Different profession: below 30. Same profession: start from how many must-haves are met, then adjust for experience, industry, level and duties. 85+ only when the profession, must-haves, level and most duties match and the industry is the same or related.
 fit: "strong" = same profession and the CV meets the main must-haves (score 70+); "partial" = same profession but one or two must-haves are missing or unclear; "no" = different profession, or clearly unqualified.
+chance: how likely this person is to be shortlisted, as a recruiter would judge it: "high" when they meet the must-haves, the level is at or slightly below theirs and the employer is not unusually competitive; "low" when it is a stretch (a level above theirs, must-haves missing) or the employer is a famous global brand or top tech firm that draws very many applicants for each role; otherwise "medium". A good, reachable job with a local or mid-size employer is worth as much to the person as a famous name.
 reason: one short plain-English sentence for the person, naming the deciding point (for example "Same work as your Accounts Manager roles in manufacturing; asks for ACCA, which you are part-way through" or "This is a software engineering role, not accounting").
 
 Job: ${job.title} at ${job.company}${job.location ? `, ${job.location}` : ""}
