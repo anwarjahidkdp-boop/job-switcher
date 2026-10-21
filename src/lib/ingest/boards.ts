@@ -107,6 +107,21 @@ export function parseAdzuna(json: unknown, ctx: Ctx): IngestedJob[] {
   }));
 }
 
+// --- Reed: https://www.reed.co.uk/developers/jobseeker (free key, basic auth; UK jobs only) --------------------------
+export const reedUrl = (keywords: string, skip: number) => `https://www.reed.co.uk/api/1.0/search?resultsToTake=100&resultsToSkip=${skip}${keywords ? `&keywords=${encodeURIComponent(keywords)}` : ""}`;
+interface ReedJob { jobId: number | string; jobTitle: string; employerName?: string; locationName?: string; minimumSalary?: number | null; maximumSalary?: number | null; date?: string; expirationDate?: string; jobDescription?: string; jobUrl?: string }
+/** Reed dates are dd/mm/yyyy. */
+const ukDay = (s: unknown) => { const m = typeof s === "string" ? s.match(/^(\d{2})\/(\d{2})\/(\d{4})/) : null; return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
+export function parseReed(json: unknown, ctx: Ctx): IngestedJob[] {
+  return ((json as { results?: ReedJob[] })?.results || []).filter((j) => j && j.jobTitle).map((j) => {
+    const out = job(ctx, {
+      id: "reed:" + j.jobId, title: stripHtml(j.jobTitle), company: j.employerName || "Company not named", text: stripHtml(j.jobDescription || "") || j.jobTitle, country: "GB",
+      location: j.locationName || null, url: j.jobUrl || `https://www.reed.co.uk/jobs/${j.jobId}`, published: ukDay(j.date), salaryMin: j.minimumSalary ?? null, salaryMax: j.maximumSalary ?? null,
+    });
+    return { ...out, deadline: ukDay(j.expirationDate) ?? out.deadline };
+  });
+}
+
 // --- Jooble: https://jooble.org/api/about (free key; covers Bangladesh, the Gulf, Malaysia and more) -------------------
 export const joobleLocation = (c: CountryCode) => WORLD_BY_CODE[c]?.name || "";
 interface JoobleJob { id: string | number; title: string; location?: string; snippet?: string; salary?: string; source?: string; type?: string; link?: string; company?: string; updated?: string }

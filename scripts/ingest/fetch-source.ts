@@ -2,15 +2,15 @@
 //  - jsonld: a public careers page; robots.txt is checked first, our UA is identified, no cookies/login.
 //  - greenhouse / lever / ashby / smartrecruiters / workable / recruitee: public job-board JSON that companies
 //    publish for job boards to read.
-//  - remotive / arbeitnow: free public job APIs. adzuna / jooble: job-search APIs with a free key (env), queried with
+//  - remotive / arbeitnow: free public job APIs. adzuna / jooble / reed (UK): job-search APIs with a free key (env), queried with
 //    the roles our users are looking for (`queries`).
 import { extractJobPostings, postingToJob } from "../../src/lib/ingest/jsonld";
-import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
+import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseReed, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, reedUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
 import { greenhouseUrl, leverUrl, parseGreenhouse, parseLever, type IngestedJob } from "../../src/lib/ingest/ats";
 import { BOT_UA, robotsAllows } from "../../src/lib/ingest/robots";
 import { cc } from "../../src/lib/countries";
 
-export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee" | "remotive" | "arbeitnow" | "adzuna" | "jooble";
+export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee" | "remotive" | "arbeitnow" | "adzuna" | "jooble" | "reed";
 export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null }
 export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -91,6 +91,22 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
       if (!key) throw new Error("JOOBLE_API_KEY not set");
       const out: IngestedJob[] = [];
       for (const q of queries.length ? queries : [""]) out.push(...parseJooble(await json(`https://jooble.org/api/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ keywords: q, location: joobleLocation(country), page: 1 }) }), ctx));
+      return dedupe(out);
+    }
+    case "reed": {
+      const key = env.REED_API_KEY;
+      if (!key) throw new Error("REED_API_KEY not set");
+      const auth = { headers: { authorization: "Basic " + Buffer.from(key + ":").toString("base64"), "user-agent": BOT_UA, accept: "application/json" } };
+      const out: IngestedJob[] = [];
+      for (const q of queries.length ? queries : [""]) {
+        for (let skip = 0; skip < (q ? 100 : 300); skip += 100) {
+          const res = await fetcher(reedUrl(q, skip), auth);
+          if (!res.ok) throw new Error(`reed returned ${res.status}`);
+          const page = parseReed(JSON.parse(await readCapped(res)), ctx);
+          out.push(...page);
+          if (page.length < 100) break;
+        }
+      }
       return dedupe(out);
     }
     default: throw new Error(`Unknown source kind ${src.kind}`);

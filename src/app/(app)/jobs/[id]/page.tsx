@@ -18,6 +18,7 @@ import { ReplyPanel } from "./ReplyPanel";
 import { followUpDraft } from "@/lib/followup";
 import { daysUntil } from "@/lib/dates";
 import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
+import { normCompany } from "@/lib/ingest/sponsors";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -31,6 +32,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!job) notFound();
   const m = scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry });
   const a = st.apps[job.id];
+  // UK jobs: is the employer on the GOV.UK register of licensed visa sponsors? Display only, never changes the score.
+  const sponsor = job.country === "GB" && normCompany(job.company)
+    ? (await db.from("uk_sponsors").select("name").eq("name_norm", normCompany(job.company)).maybeSingle()).data : null;
   const r = rule(job.country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, job.country);
   const photo = a?.pack ? await photoUrl(db, st.profile.photo_path) : null;
@@ -49,6 +53,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
               {job.salaryMax ? <span className="pill p-neutral">{money(job.salaryMin, job.country)}–{money(job.salaryMax, job.country)}{perLabel(job.country)}</span> : <span className="pill p-neutral">Salary not disclosed</span>}
+              {sponsor ? <span className="pill p-st" title={`${sponsor.name} is on the GOV.UK register of licensed sponsors`}>✓ Licensed UK visa sponsor</span> : null}
               {job.visa === true ? <span className="pill p-st">Visa sponsorship</span> : job.visa === false && job.country !== st.homeCountry ? <span className="pill p-warn">No sponsorship</span> : null}
               {job.minYears != null ? <span className="pill p-neutral">{job.minYears}+ years</span> : null}
               <span className="pill p-neutral">{job.source}{job.isSample ? " · fictional sample" : ""}</span>
