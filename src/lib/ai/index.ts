@@ -18,13 +18,22 @@ export function getProvider(): AIProvider | null {
 }
 export const aiConfigured = () => getProvider() !== null;
 
+/** Monthly AI allowance for Pro users living outside Bangladesh: US$2. */
+export const INTL_PRO_CAP_MICRO_USD = 2_000_000;
+
 export interface Budget { spent: number; cap: number; plan: string; status: string; trialEndsAt: string | null; periodEnd?: string | null }
 
 export async function getBudget(admin: SupabaseClient, userId: string): Promise<Budget | null> {
   const { data, error } = await admin.rpc("ai_budget", { p_user: userId });
   if (error || !data || !data[0]) return null;
   const r = data[0] as { spent_micro_usd: number; cap_micro_usd: number; plan_code: string; status: string; trial_ends_at: string | null; current_period_end?: string | null };
-  return { spent: Number(r.spent_micro_usd), cap: Number(r.cap_micro_usd), plan: r.plan_code, status: r.status, trialEndsAt: r.trial_ends_at, periodEnd: r.current_period_end ?? null };
+  let cap = Number(r.cap_micro_usd);
+  // Pro outside Bangladesh pays more, so it gets twice the monthly AI allowance (owner decision 2026-10-21).
+  if (r.plan_code === "pro") {
+    const { data: prof } = await admin.from("profiles").select("home_country").eq("id", userId).maybeSingle();
+    if (prof && prof.home_country !== "BD") cap = Math.max(cap, INTL_PRO_CAP_MICRO_USD);
+  }
+  return { spent: Number(r.spent_micro_usd), cap, plan: r.plan_code, status: r.status, trialEndsAt: r.trial_ends_at, periodEnd: r.current_period_end ?? null };
 }
 
 export function checkBudget(b: Budget | null, now = Date.now()) {
