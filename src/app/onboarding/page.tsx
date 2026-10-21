@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
-import { requireUser, photoUrl, trialLabel } from "@/lib/server/page";
+import { requireUser, photoUrl, trialLabel, profileOf } from "@/lib/server/page";
 import { loadState } from "@/lib/server/state";
 import { cname, portals, rule, perLabel } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
@@ -40,7 +40,7 @@ function Head({ cur, kicker, title, sub, back, action }: { cur: string; kicker: 
 export default async function Onboarding({ searchParams }: { searchParams: Promise<{ demo?: string; step?: string }> }) {
   const sp = await searchParams;
   const { supabase, user } = await requireUser("/onboarding");
-  const st = await loadState(supabase, user.id);
+  const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
   if (!st) redirect("/login");
   const editing = st.profile.onboarding_step === "done" && sp.step === "prefs";
   if (st.profile.onboarding_step === "done" && !editing) redirect("/inbox");

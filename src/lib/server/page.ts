@@ -1,16 +1,24 @@
 // Helpers for server components: auth gate, state, trial label, signed photo URL.
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "../supabase/server";
 import { createAdminClient } from "../supabase/admin";
-import { loadState, type UserState } from "./state";
+import { loadProfile, loadState, type UserState } from "./state";
 import { DAY } from "../dates";
 
-export async function requireUser(next = "/inbox") {
+// Once per request: the layout and the page both need the user and profile, and each lookup is a round trip.
+const currentUser = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect(`/login?next=${encodeURIComponent(next)}`);
   return { supabase, user: data.user };
+});
+export const profileOf = cache((db: Awaited<ReturnType<typeof createClient>>, userId: string) => loadProfile(db, userId));
+
+export async function requireUser(next = "/inbox") {
+  const { supabase, user } = await currentUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return { supabase, user };
 }
 
 export async function ctx(next = "/inbox") {
@@ -41,7 +49,7 @@ export async function photoUrl(db: Awaited<ReturnType<typeof createClient>>, pat
 /** For app pages: signed-in, onboarded user with a Master CV. */
 export async function requireAppState(next: string): Promise<{ st: UserState & { P: NonNullable<UserState["P"]>; master: NonNullable<UserState["master"]> }; db: Awaited<ReturnType<typeof createClient>>; userId: string }> {
   const { supabase, user } = await requireUser(next);
-  const st = await loadState(supabase, user.id);
+  const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
   if (!st) redirect("/login");
   if (!st.P || !st.master) redirect("/onboarding");
   // On the last step the CV is built, so opening any app page (e.g. "My dashboard") finishes onboarding.
