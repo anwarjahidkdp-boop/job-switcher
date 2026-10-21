@@ -5,6 +5,7 @@ import { cc, rule } from "../countries";
 import { todayStr } from "../dates";
 import { sendEmail } from "../email/send";
 import { reminderEmail } from "../email/templates";
+import { notify } from "./notify";
 
 const SEND_FROM_HOUR = 8;
 export function localHour(timeZone: string, now: Date): number {
@@ -51,6 +52,7 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     try {
       await sendEmail({ to: p.email, ...msg });
       await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: null }).eq("id", r.id);
+      await notify(admin, r.user_id, [{ kind: "reminder", title: `Reminder: apply to ${r.jobs.company}`, body: `${r.jobs.title}. ${r.applications.pack ? "Your application is ready." : "Open it to prepare your application."}`, link: `/jobs/${r.job_id}`, key: `reminder:${r.id}` }]).catch(() => 0);
       res.sent++;
     } catch (e) {
       await admin.from("reminders").update({ send_error: String(e).slice(0, 300) }).eq("id", r.id);

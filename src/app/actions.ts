@@ -159,3 +159,9 @@ export async function setReminderPrefAction(on: boolean) {
   await c.db.from("profiles").update({ email_reminders: on }).eq("id", c.userId);
   revalidatePath("/profile");
 }
+
+export async function noReplyYetAction(jobId: string) {
+  const c = await ctx();
+  await c.db.from("applications").update({ reply_checked_at: new Date().toISOString() }).eq("user_id", c.userId).eq("job_id", jobId);
+  revalidatePath(`/jobs/${jobId}`);
+}

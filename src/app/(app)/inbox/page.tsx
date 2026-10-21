@@ -13,11 +13,16 @@ import { Ring, DeadlineChip, BandPill } from "@/components/ui";
 import { appliedAction } from "@/app/actions";
 import { PastePanel } from "./PastePanel";
 import { siteDone, sitesDone } from "@/lib/setup";
+import { courseLinks, nowMs, trialPlan } from "@/lib/today";
+import { skillImpact } from "@/lib/matching";
+import { listNotifications } from "@/lib/server/notify";
+import { REPLY_CHECK_DAYS } from "@/lib/server/nudges";
+import { TodayCard } from "./TodayCard";
 
 export const metadata = { title: "Opportunities" };
 
 export default async function Inbox() {
-  const { st } = await requireAppState("/inbox");
+  const { st, db } = await requireAppState("/inbox");
   const P = st.P, s = stats(st), country = st.country;
   const list = inboxList(st.scored, st.dismissed);
   const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
@@ -29,9 +34,21 @@ export default async function Inbox() {
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
   const { rel, rows } = skillDemand(st.scored, P);
-  const miss = rows.find((r) => r.h.v < 1);
   const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
+  const [{ data: sub }, notes] = await Promise.all([
+    db.from("subscriptions").select("status, trial_started_at, trial_ends_at").eq("user_id", st.userId).maybeSingle(),
+    listNotifications(db, st.userId, 10),
+  ]);
+  const now = nowMs();
+  const apps = Object.values(st.apps);
+  const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= REPLY_CHECK_DAYS * 86_400_000).length;
+  const plan = trialPlan({ status: sub?.status ?? null, trialStart: sub?.trial_started_at ?? null, trialEnd: sub?.trial_ends_at ?? null, now, hasMaster: !!st.master, strong: s.strong, prepared: s.prepared, applied: s.applied, interviews: s.interviews, setupDone: setupDone >= setupSites.length, repliesPending });
+  const summary: [string, number][] = [["Jobs analysed", s.analysed], ["Strong matches", s.strong], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
+  // Career guide: the missing skills that would lift the most matches to Strong.
+  const opts = { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry };
+  const guide = rows.filter((r) => r.h.v < 1).slice(0, 6).map((r) => { const imp = skillImpact(st.scored, P, r.s, opts); return { s: r.s, n: r.n, gain: imp.after - imp.before }; })
+    .sort((a, b) => b.gain - a.gain || b.n - a.n).slice(0, 3);
   const dayLabel = (d: string) => { const n = daysUntil(d, st.today) ?? 0; return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : fmtDate(d); };
 
   return (
@@ -46,7 +63,8 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <div className="dash">
+      <TodayCard plan={plan} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
+      <div className="dash" id="matches">
         <div>
           <div className="card">
             <PastePanel />
@@ -80,8 +98,18 @@ export default async function Inbox() {
             <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${comp}%` }} /></div><b className="num small">{comp}%</b></div>
             <p className="small muted" style={{ marginTop: 8 }}>{comp < 100 ? "Add confirmed skills or answer the skipped questions to sharpen your matches." : "Your profile is complete."}</p>
           </div>
-          <div className="card panel"><h3>Career insight</h3>
-            {miss ? <><p className="small"><b>{skillLabel(miss.s)}</b> appeared in {miss.n} of {rel.length} relevant jobs analysed and is {miss.h.v > 0 ? "not confirmed" : "not listed"} in your profile.</p><Link className="btn btn-text" href="/insights">See impact</Link></> : <p className="small muted">Your profile covers the most requested skills.</p>}
+          <div className="card panel"><h3>Career guide</h3>
+            {guide.length ? <>
+              <p className="small muted">Skills employers in {cname(country)} ask for that your profile does not show yet:</p>
+              {guide.map((g) => (
+                <div key={g.s} className="qitem" style={{ display: "block" }}>
+                  <div className="small"><b>{skillLabel(g.s)}</b> · in {g.n} of {rel.length} relevant jobs{g.gain > 0 ? <> · <span style={{ color: "var(--ok, #2E9E6B)" }}>+{g.gain} strong {g.gain === 1 ? "match" : "matches"}</span></> : null}</div>
+                  <div className="guide-links">{courseLinks(skillLabel(g.s)).map((l) => <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer nofollow">{l.label} ↗</a>)}</div>
+                </div>
+              ))}
+              <p className="small muted" style={{ marginTop: 8 }}>Learned one? Add it in your profile and your scores update.</p>
+              <Link className="btn btn-text" href="/insights">See all skills</Link>
+            </> : <p className="small muted">Your profile covers the most requested skills.</p>}
           </div>
           <div className="card panel"><h3>Your JobPao trial so far</h3>
             <div className="stack small" style={{ gap: 4 }}>

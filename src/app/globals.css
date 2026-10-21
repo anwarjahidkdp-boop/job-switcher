@@ -658,3 +658,25 @@ a.lp-btn-ghost{color:var(--ink)}
 .csel-list li.hi{background:var(--accent-soft)}
 .csel-list li.on{font-weight:600}
 .csel-list li.sep{border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;margin-bottom:4px}
+/* Notification bell (SiteHeader) and list (/notifications) */
+.bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;color:inherit}
+.bell:hover{background:rgba(255,255,255,.08)}
+.bell-n{position:absolute;top:2px;right:0;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#D4A537;color:#14275A;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.ntf{display:flex;gap:12px;align-items:flex-start;padding:14px 4px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.ntf:last-child{border-bottom:0}
+.ntf.new b{color:var(--accent)}
+.ntf-ic{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);font-size:16px}
+.ntf-dot{flex:none;width:8px;height:8px;border-radius:50%;background:#D4A537;margin-top:8px}
+/* Today for you + 7-day plan (inbox) */
+.today{border:1px solid var(--accent);margin-bottom:16px}
+.plan{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:12px 0 4px}
+.plan i{display:block;height:6px;border-radius:3px;background:var(--line)}
+.plan i.done{background:#2E9E6B}
+.plan i.cur{background:#D4A537}
+.today-next{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--accent-soft);margin-top:12px}
+.today-steps{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.today-steps li{display:flex;gap:8px;align-items:center;font-size:14px}
+.today-steps li .mk{flex:none}
+.today-items{margin-top:12px}
+.guide-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.guide-links a{font-size:13px}
