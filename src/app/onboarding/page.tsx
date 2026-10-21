@@ -25,13 +25,15 @@ function Steps({ cur }: { cur: string }) {
 }
 
 /** Navy band at the top of every setup step, in the same look as the home page hero. */
-function Head({ cur, kicker, title, sub, back }: { cur: string; kicker: string; title: React.ReactNode; sub?: React.ReactNode; back?: "country" | "upload" | "prefs" }) {
+function Head({ cur, kicker, title, sub, back, action }: { cur: string; kicker: string; title: React.ReactNode; sub?: React.ReactNode; back?: "country" | "upload" | "prefs"; action?: React.ReactNode }) {
   return <section className="ob-hero"><div className="wrap"><div className="ob-in">
     <Steps cur={cur} />
     {back ? <form action={backToStepAction.bind(null, back)}><button className="ob-back">← Back</button></form> : null}
     <p className="ob-kicker">{kicker}</p>
-    <h1>{title}</h1>
-    {sub ? <p className="ob-sub">{sub}</p> : null}
+    {action ? <div className="ob-headrow"><div><h1>{title}</h1>{sub ? <p className="ob-sub">{sub}</p> : null}</div><div className="ob-action">{action}</div></div> : <>
+      <h1>{title}</h1>
+      {sub ? <p className="ob-sub">{sub}</p> : null}
+    </>}
   </div></div></section>;
 }
 
@@ -90,7 +92,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const strong = nm.filter((x) => x.m.score >= 70).length;
     const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
     const photo = await photoUrl(supabase, st.profile.photo_path);
-    head = <Head cur="reveal" back="prefs" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>} />;
+    head = <Head cur="reveal" back="prefs" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>}
+      sub={<>Next step: check your CV below, then open your dashboard. Your {nm.length} matched jobs are waiting there, best matches first.</>}
+      action={<form action={finishOnboardingAction}><button className="btn btn-gold">Go to my dashboard →</button></form>} />;
     body = <>
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {nm.length} opportunities</button></form></div></div>
