@@ -8,6 +8,8 @@ import { scoreAll, type Scored } from "../matching";
 import { rule } from "../countries";
 import type { AppStatus, ApplicationPack, CvQuestion, InterviewPrep, CvStyle, MasterCV, MatchProfile, PersonalDetails, Preferences } from "../types";
 
+export type AiFit = "strong" | "partial" | "no";
+
 export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
   target_country: string; home_country: string; needs_visa: boolean; personal: PersonalDetails; preferences: Preferences | null;
@@ -39,6 +41,8 @@ export interface UserState {
   analysed: number;
   apps: Record<string, ApplicationRow>;
   dismissed: Set<string>;
+  /** AI check of the top matches (see match-check.ts), by job id. */
+  aiCheck: Map<string, { fit: AiFit; reason: string }>;
 }
 
 export const DEFAULT_META: CareerMeta = { industries: [], categories: [], seniority: "mid", target_roles: [], location: null };
@@ -85,12 +89,13 @@ async function countVisibleJobs(db: SupabaseClient, userId: string, country: str
 
 export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>): Promise<UserState | null> {
   // The profile and the person's own rows load together; only the job list waits for the profile (country, categories).
-  const [profile, facts, cvRes, masterRes, appsRes] = await Promise.all([
+  const [profile, facts, cvRes, masterRes, appsRes, checkRes] = await Promise.all([
     profileP || loadProfile(db, userId),
     loadFacts(db, userId),
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("applications").select("*, application_events(event, status, actor, created_at)").eq("user_id", userId),
+    db.from("matches").select("job_id, ai_fit, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
   const country = cc(profile.target_country);
@@ -105,8 +110,11 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
     apps[a.job_id] = a;
   }
   const homeCountry = cc(profile.home_country);
+  // The AI check read the full post next to the CV: "no" means a different profession or clearly unqualified, so it is hidden like a dismissed job.
+  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_reason: string | null }[]).map((r) => [r.job_id, { fit: r.ai_fit, reason: r.ai_reason || "" }]));
+  const dismissed = new Set([...(profile.dismissed_job_ids || []), ...[...aiCheck].filter(([, c]) => c.fit === "no").map(([id]) => id)]);
   const scored = P ? scoreAll(jobs, P, { today, needVisa: profile.needs_visa, homeCountry }) : [];
-  return { userId, profile, country, homeCountry, today, facts, cvDoc: (cvRes.data as CvDocRow) || null, master, P, scored, analysed, apps, dismissed: new Set(profile.dismissed_job_ids || []) };
+  return { userId, profile, country, homeCountry, today, facts, cvDoc: (cvRes.data as CvDocRow) || null, master, P, scored, analysed, apps, dismissed, aiCheck };
 }
 
 export async function loadJob(db: SupabaseClient, jobId: string) {

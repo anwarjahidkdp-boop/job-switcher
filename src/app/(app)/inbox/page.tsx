@@ -94,7 +94,7 @@ export default async function Inbox() {
             {groups.length ? groups.map(([b, items]) => (
               <div key={b}>
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>
-                {items.map((x) => <OppRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} />)}
+                {items.map((x) => <OppRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
               </div>
             )) : s.analysed
               ? <p className="muted" style={{ padding: 16 }}>No strong matches right now. We checked {s.analysed} jobs; try adding target roles or skills in your profile.</p>
@@ -146,7 +146,7 @@ export default async function Inbox() {
   );
 }
 
-function OppRow({ x, today, status }: { x: Scored; today: string; status?: keyof typeof STATUS_LABEL }) {
+function OppRow({ x, today, status, ai }: { x: Scored; today: string; status?: keyof typeof STATUS_LABEL; ai?: { fit: string; reason: string } }) {
   const { job, m } = x;
   return (
     <Link className="opp" href={`/jobs/${job.id}`}>
@@ -155,6 +155,7 @@ function OppRow({ x, today, status }: { x: Scored; today: string; status?: keyof
         <h4>{job.title}</h4>
         <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{job.salaryMax ? ` · ${money(job.salaryMin, job.country)}–${money(job.salaryMax, job.country)}${perLabel(job.country)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
         <div className="why">{m.matched.slice(0, 3).map((t) => "✓ " + t).join(" · ")}{m.gaps[0] ? <> · <span style={{ color: "var(--warn)" }}>⚠ {m.gaps[0].t.split(";")[0]}</span></> : null}</div>
+        {ai?.reason ? <div className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`}><b>AI check:</b> {ai.reason}</div> : null}
       </div>
       <div className="dlc stack" style={{ gap: 6, alignItems: "flex-end" }}><DeadlineChip deadline={job.deadline} today={today} />{status ? <span className="pill p-neutral">{STATUS_LABEL[status]}</span> : null}<span className="hide">{BAND[m.band][0]}</span></div>
     </Link>
