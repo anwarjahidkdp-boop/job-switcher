@@ -7,7 +7,8 @@ import { daysUntil, fmtDate } from "../dates";
 import { checkPack } from "../numbers-check";
 import { PACK_PROMPT, SYSTEM_RULES } from "../prompts";
 import { PackLetterSchema, PackTailorSchema } from "../ai/schemas";
-import { aiConfigured, runAI } from "../ai";
+import { aiConfigured, getBudget, runAI } from "../ai";
+import { limitNotice, packAllowance, packLimits } from "../pack-limits";
 import { aiErrCopy } from "../ai/provider";
 import { templatePack } from "../template-pack";
 import type { AppStatus, ApplicationPack, Job } from "../types";
@@ -37,6 +38,16 @@ async function requireJob(ctx: Ctx, jobId: string): Promise<Job> {
 }
 
 /** Prepare the application pack: AI (tailoring on the fast tier, letter on the quality tier) or the deterministic template. */
+/** How many more AI-tailored applications this person can have now (each pack's cover-letter call marks one). */
+export async function packAllowanceFor(admin: Ctx["admin"], userId: string) {
+  const [budget, { data: prof }, { data: rows }] = await Promise.all([
+    getBudget(admin, userId),
+    admin.from("profiles").select("home_country").eq("id", userId).maybeSingle(),
+    admin.from("ai_usage").select("created_at").eq("user_id", userId).eq("feature", "pack_letter").gte("created_at", new Date(Date.now() - 31 * 86_400_000).toISOString()),
+  ]);
+  return packAllowance((rows || []).map((r) => r.created_at as string), packLimits(budget?.plan, prof?.home_country as string | undefined));
+}
+
 export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: string[]; ai: boolean; notice?: string }> {
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
@@ -48,10 +59,12 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const master = st.master.content;
   const needVisa = st.profile.needs_visa;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
-  if (aiConfigured()) {
+  const allowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
+  if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.`;
+  if (allowance?.left) {
     try {
       const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry), schema: PackTailorSchema }));
-      const letter = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry), schema: PackLetterSchema }));
+      const letter = await runAI(ctx.admin, ctx.userId, "pack_letter", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry), schema: PackLetterSchema }));
       pack = { ...(tailor.data as Omit<ApplicationPack, "cover_letter" | "email_subject" | "email_body">), ...(letter.data as Pick<ApplicationPack, "cover_letter" | "email_subject" | "email_body">) };
       ai = true; model = `${tailor.usage.model} + ${letter.usage.model}`;
     } catch (e) {

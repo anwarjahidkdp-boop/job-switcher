@@ -68,7 +68,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
 
-export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null }) {
+export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; aiLeft?: string | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<"main" | "later" | "notyet" | "send">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
   const [busy, setBusy] = useState("");
@@ -202,6 +202,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       <h3>What would you like to do?</h3>
       <div className="stack" style={{ marginTop: 10, gap: 8 }}>
         <button className="btn btn-primary" onClick={prepare}>Prepare Application</button>
+        {p.aiLeft ? <p className="small muted" style={{ margin: "-2px 0 2px", textAlign: "center" }}>{p.aiLeft}</p> : null}
         <button className="btn btn-ghost" onClick={() => setMode("later")}>Apply Later</button>
         <button className="btn btn-text" disabled={pending} onClick={() => start(async () => { try { await dismissAction(p.jobId); } catch { /* still leave the page */ } router.push("/inbox"); })}>Not interested</button>
       </div>
