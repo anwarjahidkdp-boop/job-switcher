@@ -67,21 +67,30 @@ export const MASTER_PROMPT = (cv: string, facts: VerifiedFactsForPrompt, questio
 Country conventions to follow: ${rule(country).prompt}
 Never add a photo, date of birth, marital status or nationality yourself; the app adds personal details only when the person enters them and the country expects them.
 
-Strict rules:
-- Use ONLY facts from the original CV and the confirmed answers below. Never invent employers, dates, numbers, achievements, tools or skills.
+Facts (never change these):
+- Use ONLY facts from the original CV and the confirmed answers below. Never invent employers, job titles, dates, numbers, results, achievements, tools, skills, scope or responsibilities.
 - Only include employers, education and qualifications listed in the verified data below.
 - Where the verified data differs from the original CV (dates, results, titles), the verified data is the person's correction and wins.
-- Improve weak wording into clear, achievement-oriented, concise bullets that start with a verb. Present tense for the current job, past tense for earlier jobs.
-- Use a number only if that exact number appears in the CV or the answers.
-- Replace any generic "career objective" with a 2-3 sentence profile summary.
-- English, recruiter-friendly, no first person.
+- Use a number only if that exact figure appears in the CV or the answers. Write South Asian amounts with digits for an international reader ("2 lacs+" becomes "more than 200,000"), never changing the value.
+
+Presentation (do this for EVERY line, not only weak ones): you are a senior corporate CV writer. Rewrite each sentence of the original CV so it keeps exactly the same meaning but reads like a top-tier corporate CV:
+- Every bullet starts with a strong, specific action verb (Prepared, Led, Managed, Reconciled, Delivered, Implemented, Oversaw...). Never "Responsible for", "Worked on", "Duties included", "Helped", "I", "my".
+- One idea per bullet, 12-28 words, concise and parallel in structure. Present tense for the current role, past tense for earlier roles.
+- State the object and purpose the original line implies (what was done, for whom or what, why), but only what the line already says or directly implies; for example "Taught ACCA and BBA courses" may become "Delivered ACCA and BBA courses, preparing students for professional and university examinations", never adding class sizes, pass rates or subjects not stated.
+- Correct grammar, spelling, capitalisation and punctuation; expand shorthand; write organisation, degree, qualification and software names in their official form (ACCA, CAT, Tally ERP 9, Microsoft Excel).
+- Merge duplicate bullets; order each role's bullets from most senior or impactful to routine.
+- Summary: 3-4 sentences in the third person without pronouns: professional identity and years of experience (only if the verified dates show it), core areas of expertise, sectors, and qualifications, all from the CV.
+- Headline: current or target professional title, then 2-3 areas of expertise, separated by " · ".
+- Education lines: "Degree in Field, Institution, Year (Result)"; certifications in their standard form with their real status.
+- Replace any generic "career objective" with the profile summary. English, recruiter-friendly.
 
 Reply with ONLY one JSON object:
 {"name":string,"headline":string (role + 2-3 strengths, separated by " · "),"contact":string (email · phone · city),"summary":string,
 "experience":[{"title":string,"company":string,"location":string|null,"start":"YYYY-MM"|null,"end":"YYYY-MM"|null,"bullets":[string]}],
 "education":[string],"certifications":[string],"skills_core":[string],"skills_tools":[string],"languages":[string],
 "extra_skills":[string] (lowercase skills newly confirmed by the answers, using these names when they apply: ${VOCAB.join(", ")}),
-"improvements":[{"before":string (original weak line, quoted from the CV),"after":string}] (3-4 clearest examples)}
+"improvements":[{"before":string (original line, quoted from the CV),"after":string}] (4-6 clearest examples of your rewriting),
+"suggestions":[{"section":string (e.g. "Summary", "Qualifications", "Experience: <company>", "Languages"),"current":string (the exact text as it appears in YOUR output above, copied character for character),"options":[string] (1-3 complete replacement texts for that text),"reason":string (one short line on why, in plain English)}] (0-5 changes you recommend but must NOT make yourself because they could change a fact, status or meaning and only the person can confirm them: a qualification status that may be out of date ("in progress" for years), a job title that reads unusually, a language level that could be stated in a standard scale (e.g. "Fluent", "Native", CEFR), a vague line whose wording forces a choice between meanings. Never suggest adding facts the CV does not contain.)}
 
 Original CV:
 """

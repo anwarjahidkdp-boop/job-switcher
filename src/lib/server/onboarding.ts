@@ -7,13 +7,14 @@ import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type Caree
 import { bnDigits, dropRemoved, EditRefused, factRefs, hasBangla, FIELDS, MAX_EDIT_CHARS, MAX_EDITS_KEPT, nextRemoved, planFactEdits, type FactOp } from "../cv-edit";
 import { checkMasterCv } from "../numbers-check";
 import { CV_EDIT_PROMPT, TRANSLATE_EDIT_PROMPT, EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
-import { CvEditSchema, ExtractionSchema, MasterCvSchema, TranslateSchema, type CvEditOut } from "../ai/schemas";
+import { CvEditSchema, ExtractionSchema, MasterBuildSchema, TranslateSchema, type CvEditOut } from "../ai/schemas";
 import { aiConfigured, checkBudget, getBudget, runAI } from "../ai";
 import { AIError } from "../ai/provider";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_MASTER } from "../demo";
 import { MAX_CV_TEXT, MIME, MIN_CV_CHARS, CvReadError, sniffImage, sniffKind, tidy } from "../cv/sniff";
 import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill, skillLabel } from "../taxonomy";
 import { mergePersonal } from "../cv/conventions";
+import { applySuggestion, cleanSuggestions, dismissSuggestion } from "../cv/suggestions";
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
 import { DEFAULT_META, loadFacts, loadProfile, type CvDocRow, type ProfileRow } from "./state";
 import { freshnessQuestions } from "../cv-fresh";
@@ -226,10 +227,14 @@ export async function buildMasterCv(ctx: Ctx) {
   let m: MasterCV, ai = false, model: string | null = null;
   if (doc.is_demo && !aiConfigured()) m = JSON.parse(JSON.stringify(DEMO_MASTER));
   else {
-    const res = await runAI(ctx.admin, ctx.userId, "master_cv", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: MASTER_PROMPT(doc.text_content, verifiedFacts, doc.questions || [], answers, profile.preferences?.roles || "", country, { edits, removed: removed.map((r) => `${r.kind}: ${r.label}`) }), schema: MasterCvSchema }));
+    const res = await runAI(ctx.admin, ctx.userId, "master_cv", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: MASTER_PROMPT(doc.text_content, verifiedFacts, doc.questions || [], answers, profile.preferences?.roles || "", country, { edits, removed: removed.map((r) => `${r.kind}: ${r.label}`) }), schema: MasterBuildSchema }));
     m = res.data as MasterCV; ai = true; model = res.usage.model;
   }
+  // Recommendations are kept apart from the checked CV and offered to the person (cleanSuggestions keeps only ones still on it).
+  const rawSuggestions = m.suggestions;
+  m = { ...m, suggestions: undefined };
   const checked = finishMaster(m, verifiedFacts, facts, { cvText: doc.text_content, answersText, prefs: profile.preferences, edits, removed });
+  checked.master.suggestions = cleanSuggestions(checked.master, rawSuggestions);
 
   // Skills the generator says the answers confirmed: keep only those the answers really mention.
   const existing = new Set(verifiedFacts.skills.map(normSkill));
@@ -272,7 +277,7 @@ export async function editMasterCv(ctx: Ctx, instruction: string, language: stri
   const doc = docRow as Pick<CvDocRow, "id" | "text_content" | "answers"> | null;
 
   const refs = factRefs(facts).map(({ ref, fact }) => ({ ref, kind: fact.kind, data: fact.data, confirmed: fact.verified }));
-  const res = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: CV_EDIT_PROMPT(before, refs, text), schema: CvEditSchema, maxTokens: 12000 }));
+  const res = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: CV_EDIT_PROMPT({ ...before, suggestions: undefined }, refs, text), schema: CvEditSchema, maxTokens: 12000 }));
   const out = res.data as CvEditOut;
   if (!out.ok || !out.master) throw new EditRefused(String(out.message || "").slice(0, 300) || "We could not tell what to change. Try saying it another way, for example \"remove the skill Tally\".");
 
@@ -283,6 +288,7 @@ export async function editMasterCv(ctx: Ctx, instruction: string, language: stri
   }));
   const plan = planFactEdits(facts, ops, text, meta.removed || []);
   const m: MasterCV = { ...(out.master as MasterCV), improvements: before.improvements, extra_skills: before.extra_skills };
+  m.suggestions = cleanSuggestions(m, before.suggestions);
   // A skill the person added is on the CV even if the model left it out.
   const listed = new Set([...(m.skills_core || []), ...(m.skills_tools || [])].map(normSkill));
   for (const f of plan.add) if (f.kind === "skill" && !listed.has(normSkill(f.data.name))) m.skills_core = [...(m.skills_core || []), skillLabel(normSkill(f.data.name))];
@@ -311,6 +317,35 @@ export async function editMasterCv(ctx: Ctx, instruction: string, language: stri
   await ctx.db.from("profiles").update({ career_meta: { ...meta, edits, removed } }).eq("id", ctx.userId);
   const message = String(out.message || "Your CV was updated.").slice(0, 300);
   return { message: readAs ? `We read your request as: "${readAs}". ${message}` : message, flags: checked.flags };
+}
+
+/** The person chose an option for a recommended change (or dismissed it). The change is kept for later rebuilds as their own edit. */
+export async function resolveSuggestion(ctx: Ctx, id: string, option: number | null) {
+  const profile = await loadProfile(ctx.db, ctx.userId);
+  if (!profile) throw new Error("profile missing");
+  const [{ data: masterRow }, { data: docRow }, facts] = await Promise.all([
+    ctx.db.from("master_cvs").select("content, flags, ai, model, source_cv_document_id").eq("user_id", ctx.userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    ctx.db.from("cv_documents").select("id, text_content, answers").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle(),
+    loadFacts(ctx.db, ctx.userId),
+  ]);
+  const before = (masterRow?.content as MasterCV | undefined) || null;
+  if (!before) throw new EditRefused("Create your CV first.");
+  if (option === null) {
+    await ctx.db.from("master_cvs").update({ content: dismissSuggestion(before, id) }).eq("user_id", ctx.userId).eq("is_current", true);
+    return { message: "Kept as it is." };
+  }
+  const applied = applySuggestion(before, id, option);
+  if (!applied) throw new EditRefused("That line has changed since. Refresh the page to see the latest suggestions.");
+  const meta = metaOf(profile);
+  const edits = [...(meta.edits || []), applied.edit].slice(-MAX_EDITS_KEPT);
+  const doc = docRow as Pick<CvDocRow, "id" | "text_content" | "answers"> | null;
+  const answersText = Object.values(doc?.answers || {}).filter(Boolean).join("\n");
+  const rest = applied.master.suggestions;
+  const checked = finishMaster({ ...applied.master, suggestions: undefined }, verifiedFactsFor(facts), facts, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed: meta.removed || [] });
+  checked.master.suggestions = cleanSuggestions(checked.master, rest);
+  await saveMaster(ctx, checked.master, checked.flags, !!masterRow?.ai, (masterRow?.model as string | null) ?? null, doc?.id ?? null);
+  await ctx.db.from("profiles").update({ career_meta: { ...meta, edits } }).eq("id", ctx.userId);
+  return { message: "Changed on your CV." };
 }
 
 /** Skills the user confirms they have (prototype addSkill). Provenance "user", verified by the user's explicit confirmation. */
