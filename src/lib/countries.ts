@@ -77,8 +77,8 @@ export const COUNTRIES = {
 
 /** ISO 3166 alpha-2 code of any country in world.ts, or "XX" for "another / unknown country". */
 export type CountryCode = string;
-/** Popular targets shown first in pickers (owner's order), then every other country A to Z. */
-export const COUNTRY_CODES: CountryCode[] = ["BD", "US", "GB", "CA", "AU", "NZ", "DE", "IT", "AE", "SA", "MY"];
+/** Popular targets shown first in pickers (owner's order: Bangladesh and the UK are the launch markets), then every other country A to Z. */
+export const COUNTRY_CODES: CountryCode[] = ["BD", "GB", "US", "CA", "AU", "NZ", "DE", "IT", "AE", "SA", "MY"];
 export const HOME_COUNTRY: CountryCode = "BD";
 const HAND = COUNTRIES as Record<string, CountryRule>;
 

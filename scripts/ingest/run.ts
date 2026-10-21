@@ -75,17 +75,18 @@ async function main() {
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);
 
-/** Every country a user targets gets a Jooble (and, where covered, Adzuna) search source once that API key exists. */
+/** Every country a user targets gets a Jooble (and, where covered, Adzuna; Reed for the UK) search source once that API key exists. */
 async function ensureSearchSources(db: ReturnType<typeof scriptAdmin>, countries: string[]) {
   const rows: Record<string, unknown>[] = [];
   for (const c of countries.filter((x) => x && x !== "XX")) {
     if (process.env.JOOBLE_API_KEY) rows.push({ kind: "jooble", name: `Jooble ${cname(c)}`, board_token: `jooble-${c.toLowerCase()}`, country: c, active: true });
+    if (process.env.REED_API_KEY && c === "GB") rows.push({ kind: "reed", name: "Reed UK", board_token: "reed-gb", country: "GB", active: true });
     if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY && ADZUNA_COUNTRIES[c]) rows.push({ kind: "adzuna", name: `Adzuna ${cname(c)}`, board_token: c, country: c, active: true });
   }
   if (!rows.length) return;
   // The (kind, board_token) unique index is partial, so PostgREST cannot upsert on it: insert the missing rows instead.
   // Existing rows are left as they are (an admin may have switched one off on purpose).
-  const { data: have } = await db.from("ingestion_sources").select("kind, board_token").in("kind", ["jooble", "adzuna"]);
+  const { data: have } = await db.from("ingestion_sources").select("kind, board_token").in("kind", ["jooble", "adzuna", "reed"]);
   const known = new Set((have || []).map((r) => `${r.kind}:${r.board_token}`));
   const missing = rows.filter((r) => !known.has(`${r.kind}:${r.board_token}`));
   if (!missing.length) return;

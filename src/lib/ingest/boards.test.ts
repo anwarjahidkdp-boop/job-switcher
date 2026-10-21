@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isoToCountry, parseAdzuna, parseAshby, parseJooble, parseRecruitee, parseRemotive, parseSmartRecruiters, parseWorkable } from "./boards";
+import { isoToCountry, parseAdzuna, parseAshby, parseJooble, parseRecruitee, parseReed, parseRemotive, parseSmartRecruiters, parseWorkable } from "./boards";
 
 const ctx = { country: "XX" as const, company: "Acme", sourceLabel: "Acme careers", today: "2026-10-21" };
 
@@ -32,6 +32,7 @@ describe("board parsers", () => {
   it("reads job APIs", () => {
     expect(parseRemotive({ jobs: [{ id: 9, url: "https://remotive.com/remote-jobs/9", title: "Support Agent", company_name: "Foo", candidate_required_location: "USA", description: "<b>Help</b>", publication_date: "2026-10-20T00:00:00" }] }, ctx)[0]).toMatchObject({ externalId: "remotive:9", country: "US", location: "Remote (USA)" });
     expect(parseAdzuna({ results: [{ id: "123", title: "<strong>Data</strong> Analyst", company: { display_name: "Bar" }, location: { display_name: "Leeds" }, redirect_url: "https://adzuna.example/123", created: "2026-10-20T00:00:00Z", salary_min: 30000 }] }, { ...ctx, country: "GB" })[0]).toMatchObject({ externalId: "adzuna:123", title: "Data Analyst", country: "GB", salaryMin: 30000 });
+    expect(parseReed({ results: [{ jobId: 7, jobTitle: "Care Assistant", employerName: "Acme Care", locationName: "Leeds", minimumSalary: 24000, maximumSalary: 26000, date: "15/10/2026", expirationDate: "26/11/2026", jobUrl: "https://www.reed.co.uk/jobs/7", jobDescription: "<p>Care</p>" }] }, ctx)[0]).toMatchObject({ externalId: "reed:7", country: "GB", company: "Acme Care", deadline: "2026-11-26" });
     expect(parseJooble({ jobs: [{ id: 1, title: "Marketing Officer", location: "Dhaka", snippet: "Digital marketing", link: "https://jooble.org/desc/1", company: "Baz" }] }, { ...ctx, country: "BD" })[0]).toMatchObject({ externalId: "jooble:1", country: "BD", company: "Baz" });
   });
 });
