@@ -197,9 +197,8 @@ export function scoreAll(jobs: Job[], P: MatchProfile, opts: ScoreOptions): Scor
 
 /** Opportunity inbox list: relevant, open, not dismissed, at least Possible, best first. */
 export function inboxList(scored: Scored[], dismissed: Set<string>): Scored[] {
-  // Reachable jobs come before long shots of the same quality, so the list mixes famous names with jobs the person is likely to get.
-  const rank = (m: MatchResult) => m.score + (m.chance === "high" ? 6 : m.chance === "low" ? -8 : 0);
-  return scored.filter((x) => x.m.relevant && !x.m.expired && !dismissed.has(x.job.id) && x.m.score >= 55).sort((a, b) => rank(b.m) - rank(a.m));
+  // Rank only by profile fit. We deliberately do not guess recruiter behaviour, applicant volume or shortlist probability.
+  return scored.filter((x) => x.m.relevant && !x.m.expired && !dismissed.has(x.job.id) && x.m.score >= 55).sort((a, b) => b.m.score - a.m.score);
 }
 
 export function skillDemand(scored: Scored[], P: MatchProfile) {

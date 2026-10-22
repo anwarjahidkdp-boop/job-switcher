@@ -23,13 +23,11 @@ export function trialPlan(i: PlanInput): Plan | null {
   if (day == null) return null;
   const ended = !!i.trialEnd && Date.parse(i.trialEnd) <= i.now;
   const steps: PlanStep[] = [
-    { day: 1, title: "Get your new CV", why: "Rebuilt in your target country's format from your real experience.", done: i.hasMaster, href: "/profile", cta: "See my CV" },
-    { day: 1, title: "Look at your best matches", why: "Jobs ranked by how well they fit your verified profile.", done: i.prepared > 0 || i.applied > 0, href: "/inbox#matches", cta: "See matches" },
-    { day: 2, title: "Review your ready applications", why: "We tailor your CV and cover letter for each strong match. You check and apply.", done: i.applied > 0, href: "/queue", cta: "Open Apply Queue" },
-    { day: 3, title: "Turn on job alerts", why: "New jobs from job sites arrive here on their own every day.", done: i.setupDone, href: "/setup", cta: "Set up alerts" },
-    { day: 3, title: "Apply to 3 jobs", why: `More good applications mean more interview calls. ${Math.min(i.applied, 3)} of 3 done.`, done: i.applied >= 3, href: "/queue", cta: "Apply now" },
-    { day: 4, title: "Tell us about replies", why: "Got a call? Tell us and we prepare your interview answers.", done: i.applied > 0 && i.repliesPending === 0, href: "/applications", cta: "Update applications" },
-    { day: 5, title: "See what JobPao did for you", why: "Your trial in numbers, and how to keep your assistant working.", done: i.status === "active", href: "/inbox#trial", cta: "See my results" },
+    { day: 1, title: "Build your Career Agent", why: "Your Master CV and verified career profile become the safe source for every match and application.", done: i.hasMaster, href: "/profile", cta: "See my profile" },
+    { day: 2, title: "Discover relevant opportunities", why: "JobPao keeps analysing current jobs against your role, skills and preferences.", done: i.strong > 0, href: "/inbox#matches", cta: "See opportunities" },
+    { day: 3, title: "Prove the fit", why: "Open Why This Job to see evidence, requirements and gaps instead of a black-box score.", done: i.strong > 0, href: "/inbox#matches", cta: "See why they fit" },
+    { day: 4, title: "Act on the best opportunity", why: "Review a tailored CV, cover letter and application safety check before you submit.", done: i.prepared > 0 || i.applied > 0, href: "/queue", cta: "Open Apply Queue" },
+    { day: 5, title: "Your First 5 Days with JobPao", why: "See jobs analysed, relevant opportunities, strong matches and applications prepared or confirmed sent.", done: i.status === "active", href: "/inbox#trial", cta: "See my 5-day results" },
   ];
   // The next step is the first undone step that is due by today; if all due steps are done, the first undone one.
   const next = steps.find((s) => !s.done && s.day <= day) || steps.find((s) => !s.done) || null;

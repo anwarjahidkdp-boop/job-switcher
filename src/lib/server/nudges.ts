@@ -50,22 +50,49 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
       { subject: `Your ${a.jobs.company} interview is coming up`, body: `Your interview for ${a.jobs.title} at ${a.jobs.company} is within the next day. Open JobPao to practise the likely questions and your answers.`, button: "Practise now" });
   }
 
-  // 3. Trial ending in the next 36 hours, and trial just ended.
-  const { data: trials } = await admin.from("subscriptions").select("user_id, trial_ends_at").eq("status", "trialing")
-    .gte("trial_ends_at", new Date(now.getTime() - 3 * DAY).toISOString()).lte("trial_ends_at", new Date(now.getTime() + 1.5 * DAY).toISOString()).limit(1000);
-  for (const t of (trials || []) as { user_id: string; trial_ends_at: string }[]) {
-    if (Date.parse(t.trial_ends_at) > now.getTime()) {
-      add(t.user_id, { kind: "trial", title: "Your free trial ends tomorrow", body: "See what JobPao did for you this week, and keep your assistant working.", link: "/inbox#trial", key: "trial:ending" },
-        { subject: "Your JobPao trial ends tomorrow", body: "Your 5-day Pro trial ends tomorrow. Open JobPao to see the jobs we matched and the applications we prepared for you this week. Keep Pro to keep getting new matches and ready applications every day.", button: "See my week" });
-    } else {
-      add(t.user_id, { kind: "trial", title: "Your trial has ended", body: "Your matches are still here. Go Pro to keep new applications coming.", link: "/upgrade", key: "trial:ended" });
-    }
+  // 3. Trial value journey: one progress notification per trial day, with Day 5 as the formal value report.
+  const { data: trials } = await admin.from("subscriptions").select("user_id, trial_started_at, trial_ends_at").eq("status", "trialing")
+    .gte("trial_ends_at", new Date(now.getTime() - DAY).toISOString()).lte("trial_ends_at", new Date(now.getTime() + 6 * DAY).toISOString()).limit(1000);
+  for (const t of (trials || []) as { user_id: string; trial_started_at: string | null; trial_ends_at: string }[]) {
+    const startAt = t.trial_started_at ? Date.parse(t.trial_started_at) : Date.parse(t.trial_ends_at) - 5 * DAY;
+    const day = Math.min(5, Math.max(1, Math.floor((now.getTime() - startAt) / DAY) + 1));
+    const [{ data: prof }, { count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
+      admin.from("profiles").select("onboarding_step").eq("id", t.user_id).maybeSingle(),
+      admin.from("jobs").select("id", { count: "exact", head: true }).eq("active", true),
+      admin.from("matches").select("score, relevant").eq("user_id", t.user_id).eq("relevant", true),
+      admin.from("applications").select("pack, status").eq("user_id", t.user_id),
+    ]);
+    if (prof?.onboarding_step !== "done") continue;
+    const relevant = (matches || []).length, strong = (matches || []).filter((m) => Number(m.score) >= 70).length;
+    const prepared = (apps || []).filter((a) => !!a.pack).length, appliedCount = (apps || []).filter((a) => ["applied","interview","offer","closed"].includes(a.status)).length;
+    const copy = day === 1
+      ? { title: "Day 1 · Your Career Agent is ready", body: "Your Master CV and verified career profile are ready. JobPao can now match opportunities against your real experience.", link: "/profile" }
+      : day === 2
+      ? { title: "Day 2 · We are searching for you", body: `We have analysed ${analysed || 0} current jobs and found ${relevant} relevant opportunities for your profile.`, link: "/inbox#matches" }
+      : day === 3
+      ? { title: "Day 3 · Your strongest opportunities", body: `${strong} strong match${strong === 1 ? "" : "es"} are currently on your radar. Open Why This Job to see the evidence and gaps.`, link: "/inbox#matches" }
+      : day === 4
+      ? { title: "Day 4 · Turn the best match into an application", body: `${prepared} tailored application${prepared === 1 ? "" : "s"} prepared so far. Review the CV, cover letter and safety checks before you submit.`, link: "/queue" }
+      : { title: "Your First 5 Days with JobPao", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong matches: ${strong} · Applications prepared: ${prepared} · Applied (confirmed): ${appliedCount}. Your Career Agent doesn't have to stop here.`, link: "/inbox#trial" };
+    add(t.user_id, { kind: "trial", ...copy, key: `trial:day:${day}` }, day === 5
+      ? { subject: "Your First 5 Days with JobPao", body: copy.body, button: "See my 5-day results" }
+      : undefined);
   }
 
-  // 4. Weekly career tip for onboarded users.
+  // 4. Paid Pro users get a real weekly career report. Trial users do not receive this.
   const week = isoWeek(now);
-  const { data: users } = await admin.from("profiles").select("id").eq("onboarding_step", "done").limit(5000);
-  for (const u of (users || []) as { id: string }[]) add(u.id, { kind: "guide", title: "Your career tip this week", body: "See which skills and courses would raise your match scores the most.", link: "/insights", key: `guide:${week}` });
+  const { data: paid } = await admin.from("subscriptions").select("user_id, current_period_end").eq("status", "active").limit(5000);
+  for (const s of (paid || []) as { user_id: string; current_period_end: string | null }[]) {
+    if (s.current_period_end && Date.parse(s.current_period_end) <= now.getTime()) continue;
+    const [{ count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
+      admin.from("jobs").select("id", { count: "exact", head: true }).eq("active", true),
+      admin.from("matches").select("score, relevant").eq("user_id", s.user_id).eq("relevant", true),
+      admin.from("applications").select("pack, status").eq("user_id", s.user_id),
+    ]);
+    const relevant = (matches || []).length, strong = (matches || []).filter((m) => Number(m.score) >= 70).length;
+    const prepared = (apps || []).filter((a) => !!a.pack).length, appliedCount = (apps || []).filter((a) => ["applied","interview","offer","closed"].includes(a.status)).length;
+    add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong: ${strong} · Prepared: ${prepared} · Applied: ${appliedCount}. See your skill gaps and next opportunities.`, link: "/insights", key: `career-report:${week}` });
+  }
 
   if (opts.dryRun) { res.notified = [...queue.values()].reduce((s, l) => s + l.length, 0); return res; }
   const ids = [...queue.keys()];

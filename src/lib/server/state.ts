@@ -9,14 +9,13 @@ import { rule } from "../countries";
 import type { AppStatus, ApplicationPack, CvQuestion, InterviewPrep, CvStyle, MasterCV, MatchProfile, PersonalDetails, Preferences } from "../types";
 
 export type AiFit = "strong" | "partial" | "no";
-export type AiChance = "high" | "medium" | "low";
-export interface AiCheck { fit: AiFit; score: number | null; chance?: AiChance | null; reason: string }
+export interface AiCheck { fit: AiFit; score: number | null; reason: string }
 
 export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
   target_country: string; home_country: string; needs_visa: boolean; personal: PersonalDetails; preferences: Preferences | null;
   career_meta: Partial<CareerMeta>; cv_style: CvStyle; photo_path: string | null; onboarding_step: string;
-  setup_steps: Record<string, boolean | string>; dismissed_job_ids: string[]; email_reminders: boolean; created_at: string;
+  setup_steps: Record<string, boolean | string>; dismissed_job_ids: string[]; email_reminders: boolean; deal_breakers: Record<string, unknown>; answer_library: Record<string, unknown>; created_at: string;
 }
 export interface ApplicationRow {
   id: string; user_id: string; job_id: string; status: AppStatus; pack: ApplicationPack | null; pack_flags: string[]; pack_ai: boolean; pack_model: string | null;
@@ -119,7 +118,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("applications").select("*, application_events(event, status, actor, created_at)").eq("user_id", userId),
-    db.from("matches").select("job_id, ai_fit, ai_score, ai_chance, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
+    db.from("matches").select("job_id, ai_fit, ai_score, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
   // A failed read must show the error page, never look like "no CV" (which sends people back to onboarding) or "no jobs".
@@ -137,7 +136,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   }
   const homeCountry = cc(profile.home_country);
   // The AI check read the full post next to the CV: "no" means a different profession or clearly unqualified, so it is hidden like a dismissed job.
-  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_score: number | null; ai_chance: AiChance | null; ai_reason: string | null }[]).map((r) => [r.job_id, { fit: r.ai_fit, score: r.ai_score, chance: r.ai_chance, reason: r.ai_reason || "" }]));
+  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_score: number | null; ai_reason: string | null }[]).map((r) => [r.job_id, { fit: r.ai_fit, score: r.ai_score, reason: r.ai_reason || "" }]));
   const dismissed = new Set([...(profile.dismissed_job_ids || []), ...[...aiCheck].filter(([, c]) => c.fit === "no").map(([id]) => id)]);
   const scored = P ? withAiScores(scoreAll(jobs, P, { today, needVisa: profile.needs_visa, homeCountry }), aiCheck) : [];
   return { userId, profile, country, homeCountry, today, facts, cvDoc: (cvRes.data as CvDocRow) || null, master, P, scored, analysed, apps, dismissed, aiCheck };
@@ -152,7 +151,7 @@ export function withAiScores(scored: Scored[], aiCheck: Map<string, AiCheck>): S
     const c = aiCheck.get(x.job.id);
     if (!c || c.score == null) return x;
     const score = x.m.capped ? Math.min(c.score, CAP_SCORE) : c.score;
-    return { job: x.job, m: { ...x.m, score, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no", chance: c.chance || undefined } };
+    return { job: x.job, m: { ...x.m, score, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
   });
 }
 

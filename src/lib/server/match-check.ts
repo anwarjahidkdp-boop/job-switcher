@@ -36,7 +36,7 @@ export async function checkTopMatches(admin: SupabaseClient, userId: string, lim
       if (e instanceof AIError) break; // out of budget or not set up: the rest stay unchecked and show as before
       throw e;
     }
-    await admin.from("matches").update({ ai_fit: out.fit, ai_score: Math.max(0, Math.min(100, Math.round(Number(out.score) || 0))), ai_chance: out.chance, ai_reason: String(out.reason || "").slice(0, 300), ai_checked_at: new Date().toISOString() }).eq("user_id", userId).eq("job_id", r.id);
+    await admin.from("matches").update({ ai_fit: out.fit, ai_score: Math.max(0, Math.min(100, Math.round(Number(out.score) || 0))), ai_reason: String(out.reason || "").slice(0, 300), ai_checked_at: new Date().toISOString() }).eq("user_id", userId).eq("job_id", r.id);
     n++;
   }
   return n;
