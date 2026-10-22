@@ -6,7 +6,7 @@
 :root{
   --ink:#0F1B2D; --ink-2:#4A5568; --ink-3:#6B7685; --line:#DADFE8; --bg:#F2F4F8; --card:#FFFFFF;
   --accent:#14275A; --accent-ink:#FFFFFF; --accent-soft:#E4E9F3;
-  --gold:#9C6F1C; --gold-bright:#C99640; --gold-soft:#F6EEDD;
+  --gold:#9C6F1C; --gold-bright:#C99640; --gold-soft:#F6EEDD; --gold-text:#86600F;
   /* Gold on navy: main tone, gradient ends, and its rgb for tints. */
   --g:#E3B55B; --g1:#EBC67C; --g2:#C99640; --g-rgb:227,181,91;
   --good:#2E7D32; --good-soft:#E6F2E7; --warn:#A35F00; --warn-soft:#FBF0DD; --bad:#B42318; --bad-soft:#FBE7E5;
@@ -16,13 +16,13 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --ink:#E7ECF1; --ink-2:#AAB5C0; --ink-3:#8793A0; --line:#27323D; --bg:#0C1319; --card:#121B23;
   --accent:#8EA7EC; --accent-ink:#0A1533; --accent-soft:#17213A;
-  --gold:var(--g); --gold-bright:var(--g); --gold-soft:#2E2410;
+  --gold:var(--g); --gold-bright:var(--g); --gold-soft:#2E2410; --gold-text:var(--g);
   --good:#63BC67; --good-soft:#15291A; --warn:#E3A847; --warn-soft:#2E2412; --bad:#F27A6F; --bad-soft:#331A18;
   --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
 :root[data-theme="dark"]{
   --ink:#E7ECF1; --ink-2:#AAB5C0; --ink-3:#8793A0; --line:#27323D; --bg:#0C1319; --card:#121B23;
   --accent:#8EA7EC; --accent-ink:#0A1533; --accent-soft:#17213A;
-  --gold:var(--g); --gold-bright:var(--g); --gold-soft:#2E2410;
+  --gold:var(--g); --gold-bright:var(--g); --gold-soft:#2E2410; --gold-text:var(--g);
   --good:#63BC67; --good-soft:#15291A; --warn:#E3A847; --warn-soft:#2E2412; --bad:#F27A6F; --bad-soft:#331A18;
   --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
 *{box-sizing:border-box}
@@ -379,7 +379,7 @@ a.lp-btn-ghost{color:var(--ink)}
 .lp-tea{display:flex;gap:12px;align-items:center;margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--gold-soft)}
 .lp-cup{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--card);color:var(--gold)}
 .lp-cup .lp-ic{width:26px;height:26px}
-.lp-tea b{display:block;font-family:var(--display);font-size:18px;color:var(--gold)}
+.lp-tea b{display:block;font-family:var(--display);font-size:18px;color:var(--gold-text)}
 .lp-tea div>span{font-size:13.5px;color:var(--ink-2)}
 .lp-amt{font-family:var(--display);font-size:42px;font-weight:800;margin-top:6px}
 .lp-amt span{font-family:var(--body);font-size:15px;font-weight:400;color:var(--ink-2)}

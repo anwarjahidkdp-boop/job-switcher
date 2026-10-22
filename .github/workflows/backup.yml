@@ -1,0 +1,53 @@
+name: Weekly database backup
+# Copies every table, encrypts the copy (AES-256) with the Supabase service role key as the password, and keeps it
+# as a workflow artifact for 90 days. The repository is public, so the copy is never stored unencrypted.
+# Restore: download the artifact, then
+#   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in jobpao-backup.tar.gz.enc -pass env:KEY | tar xz
+on:
+  schedule:
+    - cron: "0 22 * * 6"    # Sunday 04:00 Asia/Dhaka
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run backup -- --out "$RUNNER_TEMP/backup"
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Encrypt
+        env:
+          KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          tar czf "$RUNNER_TEMP/b.tar.gz" -C "$RUNNER_TEMP" backup
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$RUNNER_TEMP/b.tar.gz" -out jobpao-backup.tar.gz.enc -pass env:KEY
+          rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/b.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jobpao-backup-${{ github.run_id }}
+          path: jobpao-backup.tar.gz.enc
+          retention-days: 90
+      - name: Tell the owner it failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # One open issue per problem: an hourly job that keeps failing does not open a new issue every hour.
+          t="Weekly database backup failed"
+          if [ "$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$t\"" --json number --jq length)" = "0" ]; then
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$t" --body "See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi
