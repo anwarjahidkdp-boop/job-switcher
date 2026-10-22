@@ -8,7 +8,9 @@ import { base64url, buildMime, cleanAddress, fromHeader } from "../gmail/mime";
 import { cvDocHtml, safeFileName } from "../cv/doc";
 import { esc } from "../cv/render";
 import { loadState } from "./state";
-import { assertCanApply, SUBMITTED, type Ctx } from "./applications";
+import { rowToJob, type JobRow } from "../jobs";
+import { applicationSafety, type AnswerLibrary } from "../career-safety";
+import { ApplicationSafetyError, assertCanApply, SUBMITTED, type Ctx } from "./applications";
 
 export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const SCOPES = ["openid", "email", GMAIL_SCOPE].join(" ");
@@ -86,9 +88,11 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   const app = st?.apps[jobId];
   if (!st?.master || !app?.pack) throw new Error("Prepare the application first.");
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) throw new Error("This application was already sent.");
-  const { data: job } = await ctx.db.from("jobs").select("company, title, apply_method, apply_target, deadline").eq("id", jobId).maybeSingle();
+  const { data: job } = await ctx.db.from("jobs").select("*").eq("id", jobId).maybeSingle();
   if (!job || job.apply_method !== "email" || !job.apply_target) throw new Error("This job does not take applications by email. Apply on the employer's page instead.");
   if (job.deadline && job.deadline < st.today) throw new Error("The deadline for this job has passed.");
+  const safety = applicationSafety(rowToJob(job as JobRow), st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library as AnswerLibrary, st.profile.needs_visa);
+  if (!safety.safe) throw new ApplicationSafetyError(safety);
   const to = cleanAddress(job.apply_target);
   await assertCanApply(ctx);
 
@@ -110,37 +114,46 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
 
   // Claim the application before sending, so a double press or a second tab cannot email the employer twice.
   // Never automatically retry an ambiguous send: Gmail may have accepted it before a crash.
-  const { data: claim, error: ce } = await ctx.db.from("applications").update({ sending_at: new Date().toISOString() })
-    .eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
+  const claimAt = new Date().toISOString();
+  const { data: claim, error: ce } = await ctx.db.from("applications").update({ sending_at: claimAt })
+    .eq("id", app.id).eq("user_id", ctx.userId).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
   if (ce) throw ce;
   if (!claim) throw new Error("A previous send attempt is unresolved. Check Gmail Sent and reconcile the application before retrying to avoid a duplicate email.");
-  const release = () => ctx.db.from("applications").update({ sending_at: null }).eq("id", app.id).then(() => undefined, () => undefined);
+  const release = () => ctx.db.from("applications").update({ sending_at: null }).eq("id", app.id).eq("user_id", ctx.userId).eq("sending_at", claimAt).then(() => undefined, () => undefined);
 
   let sent: { id?: string; error?: { message?: string } };
+  let mayHaveSent = false;
   try {
     let refresh: string;
     try { refresh = await openToken(conn.refresh_token_enc, process.env.GMAIL_TOKEN_KEY!, ctx.userId); }
     catch { throw new GmailError("reconnect", "Please connect your Gmail again."); }
     const t = await tokenRequest({ refresh_token: refresh, grant_type: "refresh_token" });
+    // From this point a timeout or transport failure may hide an accepted message.
+    mayHaveSent = true;
     const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-      method: "POST", headers: { Authorization: `Bearer ${t.access_token}`, "Content-Type": "application/json" }, body: JSON.stringify({ raw: base64url(raw) }),
+      method: "POST", headers: { Authorization: `Bearer ${t.access_token}`, "Content-Type": "application/json" }, body: JSON.stringify({ raw: base64url(raw) }), signal: AbortSignal.timeout(30_000),
     });
+    // Explicit client rejections are safe to retry; 408 and server failures are ambiguous.
+    if (r.status >= 400 && r.status < 500 && r.status !== 408) mayHaveSent = false;
     sent = (await r.json().catch(() => ({}))) as typeof sent;
     if (!r.ok || !sent.id) {
       if (r.status === 401 || r.status === 403) throw new GmailError("reconnect", "Gmail refused to send. Please connect your Gmail again.");
       throw new GmailError("google", "Gmail could not send the email: " + (sent.error?.message || `error ${r.status}`));
     }
   } catch (e) {
-    await release();
-    throw e;
+    if (!mayHaveSent) { await release(); throw e; }
+    console.error("gmail send unresolved", app.id);
+    throw new GmailError("google", "Send result is unresolved. Check Gmail Sent before retrying; JobPao has blocked another send to avoid duplicates.");
   }
 
   // Gmail accepted the message (it has an id), so the application really went out. The user's own session records it.
-  await ctx.admin.from("gmail_connections").update({ last_sent_at: new Date().toISOString() }).eq("user_id", ctx.userId);
+  // Record the provider receipt before auxiliary writes, for manual reconciliation.
+  const { error: receiptError } = await ctx.db.from("application_events").insert({ application_id: app.id, user_id: ctx.userId, event: `Sent from ${conn.google_email} to ${to} (Gmail message ${sent.id})`, status: "applied", actor: "user" });
+  if (receiptError) console.error("gmail receipt not recorded", app.id, sent.id, receiptError);
   // The claim stays set: the email went out, so this row is never sent again even if the update below fails.
   const { error } = await ctx.db.from("applications").update({ status: "applied" }).eq("id", app.id);
   if (error) { console.error("gmail sent but status update failed", app.id, sent.id, error); throw new Error("Your application was sent, but we could not record it. Mark it as applied on the job page."); }
   await ctx.db.from("reminders").delete().eq("application_id", app.id).is("sent_at", null);
-  await ctx.db.from("application_events").insert({ application_id: app.id, user_id: ctx.userId, event: `Sent from ${conn.google_email} to ${to} (Gmail message ${sent.id})`, status: "applied", actor: "user" });
+  await ctx.admin.from("gmail_connections").update({ last_sent_at: new Date().toISOString() }).eq("user_id", ctx.userId);
   return { to, from: conn.google_email };
 }
