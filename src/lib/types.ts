@@ -74,8 +74,6 @@ export interface MatchResult {
   capped: boolean;
   reason: string;
   reasonDetail: string;
-  /** AI estimate of the chance of an interview (see match-check.ts); unset until checked. */
-  chance?: "high" | "medium" | "low";
 }
 
 // ---------- CV extraction ----------
