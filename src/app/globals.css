@@ -171,6 +171,7 @@ main .btn-primary{background:linear-gradient(135deg,#14275A,#1E3A82);box-shadow:
 .sf{margin-top:auto;color:#B8C4DB;background:linear-gradient(160deg,#0A1533,#14275A 80%);border-top:1px solid rgba(var(--g-rgb),.35);font-size:14px}
 .sf-in{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:32px;padding-block:40px 28px}
 .sf .brand{color:#fff}
+.sf-parent{color:#C3CDE3;text-decoration:none;font-weight:600}.sf-parent:hover{color:var(--g2);text-decoration:underline}
 .sf-brand p{margin-top:12px;max-width:380px;color:#9FB0CE}
 .sf-col{display:flex;flex-direction:column;gap:9px;align-items:flex-start}
 .sf-col b{color:var(--g);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
