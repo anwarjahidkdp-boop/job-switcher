@@ -114,3 +114,16 @@ describe("database transactions and RLS on a disposable PostgreSQL engine",()=>{
     await role("postgres");
   });
  });
+
+ it("reserves the free Gmail allowance across distinct jobs without sending anything",async()=>{
+  await role("postgres");
+  await db.query("update subscriptions set plan_code='trial',status='trialing',trial_ends_at=now()+interval '1 day' where user_id=$1",[V]);
+  const jobs=(await db.query<{id:string}>("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method,apply_target) values($1,'paste','synthetic','BD','test one','test','email','hr@example.invalid'),($1,'paste','synthetic','BD','test two','test','email','hr@example.invalid') returning id",[V])).rows;
+  const apps=(await db.query<{id:string}>("insert into applications(user_id,job_id,status) values($1,$2,'ready'),($1,$3,'ready') returning id",[V,jobs[0].id,jobs[1].id])).rows;
+  await role("authenticated",V);
+  await db.query("select claim_gmail_application($1)",[apps[0].id]);
+  await expect(db.query("select claim_gmail_application($1)",[apps[1].id])).rejects.toThrow("unresolved");
+  await db.query("update applications set sending_at=null where id=$1",[apps[0].id]);
+  expect(await scalar<string>("select claim_gmail_application($1)",[apps[1].id])).toBeTruthy();
+  await role("postgres");
+ });

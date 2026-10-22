@@ -42,5 +42,6 @@ New migrations have exact production version/name parity:
 - `20261022221836_atomic_cv_replacement.sql`
 - `20261022221837_email_delivery_outbox.sql`
 - `20261022221839_atomic_ai_reservation.sql`
+- `20261022222537_gmail_allowance_claim.sql`
 
-All four were applied additively and checked in production. Synthetic transaction checks rolled back signup, profile persistence, CV, Master CV, payment and AI reservation data; no employer mail or provider payment was initiated. Trial remained `Pro trial (5 days)`, `trial_days=5` afterward. A disposable database also replays the full repository chain; this does not authorize replaying it on production.
+All five were applied additively and checked in production. Synthetic transaction checks rolled back signup, profile persistence, CV, Master CV, payment and AI reservation data; no employer mail or provider payment was initiated. Trial remained `Pro trial (5 days)`, `trial_days=5` afterward. A disposable database also replays the full repository chain; this does not authorize replaying it on production.

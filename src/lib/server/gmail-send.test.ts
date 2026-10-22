@@ -18,7 +18,12 @@ function fixture(opts: { claimError?: string; statusError?: boolean; receiptErro
   const row = { sending_at: null as string | null, status: "ready" };
   const events: unknown[] = [];
   const job = { id: "job", company: "Synthetic Employer", title: "Accountant", apply_method: "email", apply_target: "hr@example.invalid", deadline: null };
-  const db = { from(table: string) {
+  const db = { rpc: async () => {
+    if (opts.claimError) return { data: null, error: { code: opts.claimError } };
+    if (row.sending_at) return { data: null, error: new Error("A previous send attempt is unresolved") };
+    row.sending_at = new Date().toISOString();
+    return { data: row.sending_at, error: null };
+  }, from(table: string) {
     let patch: Record<string, unknown> | undefined;
     const filters: [string, unknown][] = [];
     const q = {
