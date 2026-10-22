@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
 import { headers } from "next/headers";
-import { countryFromHeader, formatPrice, packPrice, PACKS, proPrice } from "@/lib/billing/pricing";
+import { chargedPrice, countryFromHeader, formatPrice, localHint, packPrice, PACKS, proPrice } from "@/lib/billing/pricing";
 import { AutoFlow } from "./AutoFlow";
 import { HeroStage } from "./HeroStage";
 
@@ -177,14 +177,15 @@ export default async function Landing() {
               </div>
               <div className="packs lp-packgrid">
                 {PACKS.map((k) => {
-                  const p = packPrice(local.country, k.id), full = packPrice(local.country, "30d").minor * (k.days / 30);
-                  const save = k.days > 30 ? Math.round((1 - p.minor / full) * 100) : 0;
+                  const p = packPrice(local.country, k.id), c = chargedPrice(p), hint = localHint(p), full = chargedPrice(packPrice(local.country, "30d")).minor * (k.days / 30);
+                  const save = k.days > 30 ? Math.round((1 - c.minor / full) * 100) : 0;
                   const tag = k.id === "30d" ? "Most popular" : k.id === "365d" ? "Best value" : "";
                   return (
                     <Link key={k.id} href={start} className={`pack ${k.id === "30d" ? "on" : ""}`}>
                       {tag ? <span className="pack-tag">{tag}</span> : null}
                       <span className="pack-name">{k.name}</span>
-                      <span className="pack-amt num">{formatPrice(p.minor, p.currency)}</span>
+                      <span className="pack-amt num">{formatPrice(c.minor, c.currency)}</span>
+                      {hint ? <span className="pack-local small">{hint}</span> : null}
                       <span className="pack-sub small">{save > 0 ? <b>Save {save}%</b> : k.days === 15 ? "For a short search" : "Month by month"}</span>
                     </Link>
                   );

@@ -3,7 +3,7 @@ import { PageHead } from "@/components/PageHead";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
-import { formatPrice, isPack, packPrice, PACKS, PAYABLE_CURRENCIES, DEFAULT_PACK } from "@/lib/billing/pricing";
+import { chargedPrice, formatPrice, isPack, localHint, packPrice, PACKS, PAYABLE_CURRENCIES, DEFAULT_PACK } from "@/lib/billing/pricing";
 import { lemonConfig } from "@/lib/billing/lemonsqueezy";
 import { cname } from "@/lib/countries";
 import Link from "next/link";
@@ -62,16 +62,17 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
         {(() => { const l = packLimits("pro", home); return <p className="small muted" style={{ marginTop: 10 }}>Pro includes up to <b>{l.day} AI-tailored applications a day</b> (CV + cover letter for one job), up to {l.week} a week and {l.month} a month. After that you still get the standard version, free.</p>; })()}
         <div className="packs" role="radiogroup" aria-label="Choose your Pro pack">
           {PACKS.map((k) => {
-            const p = packPrice(home, k.id);
-            const full = month.minor * (k.days / 30);
-            const save = k.days > 30 ? Math.round((1 - p.minor / full) * 100) : 0;
+            const p = packPrice(home, k.id), c = chargedPrice(p), hint = localHint(p);
+            const full = chargedPrice(month).minor * (k.days / 30);
+            const save = k.days > 30 ? Math.round((1 - c.minor / full) * 100) : 0;
             const tag = k.id === "30d" ? "Most popular" : k.id === "365d" ? "Best value" : "";
             return (
               <Link key={k.id} href={`/upgrade?pack=${k.id}`} scroll={false} replace role="radio" aria-checked={k.id === pack} className={`pack ${k.id === pack ? "on" : ""}`}>
                 {tag ? <span className="pack-tag">{tag}</span> : null}
                 <span className="pack-name">{k.name}</span>
-                <span className="pack-amt num">{formatPrice(p.minor, p.currency)}</span>
-                <span className="pack-sub small">{k.days > 30 ? <>{formatPrice(Math.round(p.minor / (k.days / 30) / (p.currency === "BDT" ? 100 : 1)) * (p.currency === "BDT" ? 100 : 1), p.currency)} a month{save > 0 ? <b> · save {save}%</b> : null}</> : k.days === 15 ? "Try it for a short search" : "Pay month by month"}</span>
+                <span className="pack-amt num">{formatPrice(c.minor, c.currency)}</span>
+                {hint ? <span className="pack-local small">{hint}</span> : null}
+                <span className="pack-sub small">{k.days > 30 ? <>{formatPrice(Math.round(c.minor / (k.days / 30) / (c.currency === "BDT" ? 100 : 1)) * (c.currency === "BDT" ? 100 : 1), c.currency)} a month{save > 0 ? <b> · save {save}%</b> : null}</> : k.days === 15 ? "Try it for a short search" : "Pay month by month"}</span>
               </Link>
             );
           })}
@@ -79,7 +80,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
         {!payable ? (
           <div className="card panel stack" style={{ marginTop: 14 }}>
             <h3 style={{ margin: 0 }}>Pay by card</h3>
-            <p className="small muted">Living in {where}: <b>{formatPrice(local.minor, local.currency)}</b>{local.currency === "USD" ? null : <>, charged as <b>{usd}</b></>} for {span}. Secure checkout by Lemon Squeezy, our payment partner: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
+            <p className="small muted">Living in {where}: <b>{usd}</b> for {span}{localHint(local) ? <>, {localHint(local)}. Your card is charged in US dollars and your bank converts it, so the amount on your statement can differ slightly</> : null}. Secure checkout by Lemon Squeezy, our payment partner: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
             {card ? <CardCheckoutButton label={`Pay ${usd} by card`} pack={pack} /> : <p className="note">Card payment opens very soon. Your trial features keep working until the trial ends.</p>}
           </div>
         ) : null}
