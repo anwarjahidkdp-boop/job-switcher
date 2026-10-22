@@ -109,13 +109,14 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   });
 
   // Claim the application before sending, so a double press or a second tab cannot email the employer twice.
-  // A claim older than 2 minutes is from a send that crashed and may be retried.
-  const stale = new Date(Date.now() - 120_000).toISOString();
+  // Do not automatically reclaim a send claim: Gmail may have accepted the email
+  // before the server crashed, so a timeout-based retry could send a duplicate.
+  // An ambiguous claim must be reconciled against Gmail Sent before retrying.
   const { data: claim, error: ce } = await ctx.db.from("applications").update({ sending_at: new Date().toISOString() })
-    .eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).or(`sending_at.is.null,sending_at.lt.${stale}`).select("id").maybeSingle();
+    .eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
   const noColumn = ce?.code === "PGRST204" || ce?.code === "42703"; // migration 20261021000024 not installed yet
   if (ce && !noColumn) throw ce;
-  if (!claim && !noColumn) throw new Error("This application is already being sent.");
+  if (!claim && !noColumn) throw new Error("This application has an existing send attempt. Check Gmail Sent and reconcile the status before retrying to avoid emailing the employer twice.");
   const release = () => ctx.db.from("applications").update({ sending_at: null }).eq("id", app.id).then(() => undefined, () => undefined);
 
   let sent: { id?: string; error?: { message?: string } };
