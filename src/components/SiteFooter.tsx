@@ -26,7 +26,7 @@ export function SiteFooter({ signedIn }: { signedIn?: boolean }) {
         </nav>
       </div>
       <div className="wrap sf-bot">
-        <span>© {new Date().getFullYear()} JobPao</span>
+        <span>© {new Date().getFullYear()} JobPao · A product of <a className="sf-parent" href="https://yourtechai.com/" target="_blank" rel="noopener">YourTech AI</a></span>
         <span>We never ask for your job-site passwords, and nothing is sent without your OK. Your data is yours: export or delete it any time.</span>
       </div>
     </footer>
