@@ -27,6 +27,9 @@ jobs:
       - name: Install PostgreSQL 17 client
         run: |
           sudo apt-get update -qq
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update -qq
           sudo apt-get install -y postgresql-client-17
       - run: npm run backup -- --out "$RUNNER_TEMP/backup"
         env:

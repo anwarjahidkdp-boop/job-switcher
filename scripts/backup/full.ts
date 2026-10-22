@@ -1,13 +1,18 @@
 // Database + Auth + private Storage bytes. CLI only; credentials never enter argv/logs.
 import {spawn} from "node:child_process";
 import {createHash} from "node:crypto";
-import {mkdirSync,writeFileSync,readFileSync,existsSync} from "node:fs";
+import {mkdirSync,writeFileSync,readFileSync,existsSync,chmodSync} from "node:fs";
 import {join,resolve} from "node:path";
 import type {SupabaseClient} from "@supabase/supabase-js";
 export const sha256=(b:Uint8Array)=>createHash("sha256").update(b).digest("hex");
 export function postgresEnv(uri:string){
  const u=new URL(uri);if(!['postgres:','postgresql:'].includes(u.protocol))throw new Error('PostgreSQL URL required');
  return {...process.env,PGHOST:u.hostname,PGPORT:u.port||'5432',PGUSER:decodeURIComponent(u.username),PGPASSWORD:decodeURIComponent(u.password),PGDATABASE:u.pathname.slice(1)||'postgres',PGSSLMODE:'require'};
+}
+export function assertDatabaseProject(uri:string,project:string){
+ const u=new URL(uri);const direct=u.hostname===`db.${project}.supabase.co`;
+ const pooler=u.hostname.endsWith('.pooler.supabase.com')&&decodeURIComponent(u.username)===`postgres.${project}`;
+ if(!direct&&!pooler)throw new Error('Database URL does not identify the expected Supabase project');
 }
 export function pg(command:string,args:string[],uri:string,input?:string){return new Promise<void>((ok,fail)=>{
  const child=spawn(command,args,{env:postgresEnv(uri),stdio:['pipe','ignore','pipe']});
@@ -21,13 +26,13 @@ function pgOutput(command:string,args:string[],uri:string){return new Promise<st
 interface ObjectCopy {bucket:string;name:string;file:string;sha256:string;size:number;metadata:Record<string,unknown>}
 export interface FullManifest {format:1;complete:true;project:string;at:string;database:{file:string;sha256:string};objects:ObjectCopy[];buckets:unknown[]}
 export async function fullBackup(db:SupabaseClient,out:string,dbUrl:string,project:string){
- mkdirSync(out,{recursive:true,mode:0o700});const dump='database.dump';
+ assertDatabaseProject(dbUrl,project);mkdirSync(out,{recursive:true,mode:0o700});chmodSync(out,0o700);const dump='database.dump';
  const {data:buckets,error}=await db.storage.listBuckets();if(error)throw error;
  const objects:ObjectCopy[]=[];
  // Storage schema is deliberately not exposed via REST. Export metadata over the private DB connection.
  const metadataSql="select coalesce(json_agg(t order by id),'[]'::json) from storage.objects t";
  const rows=JSON.parse(await pgOutput('psql',['-X','-v','ON_ERROR_STOP=1','--tuples-only','--no-align','--command',metadataSql],dbUrl));
- await pg('pg_dump',['--format=custom','--no-owner','--file',join(out,dump),'--schema=public','--schema=auth','--schema=storage'],dbUrl);
+ await pg('pg_dump',['--format=custom','--no-owner','--file',join(out,dump),'--schema=public','--schema=auth','--schema=storage'],dbUrl);chmodSync(join(out,dump),0o600);
  for(const row of rows){
   const {data:blob,error:download}=await db.storage.from(row.bucket_id).download(row.name);if(download||!blob)throw new Error('Storage download failed: full backup incomplete');
   const bytes=Buffer.from(await blob.arrayBuffer());const file=`objects/${sha256(Buffer.from(`${row.bucket_id}/${row.name}`))}`;
@@ -54,12 +59,14 @@ export function requireRecoveryTarget(source:string,target:string,ack:string|und
 }
 export async function restoreBackup(db:SupabaseClient,folder:string,uri:string,target:string){
  const m=verifyBackup(folder);requireRecoveryTarget(m.project,target,process.env.RESTORE_EMPTY_PROJECT_ACK);
- const u=new URL(uri);const identity=`${u.hostname}/${decodeURIComponent(u.username)}`;
- if(!identity.includes(target))throw new Error('Database URL does not identify the isolated target project');
+ assertDatabaseProject(uri,target);
  await pg('psql',['-X','-v','ON_ERROR_STOP=1'],uri,`do $$ begin if exists(select 1 from auth.users) or exists(select 1 from storage.objects) or exists(select 1 from information_schema.tables where table_schema='public' and table_name in ('profiles','applications','jobs')) then raise exception 'Recovery project must be empty'; end if; end $$;`);
  // Platform-managed Auth/Storage schema already exists. Restore public schema and all data without replaying platform DDL.
  await pg('pg_restore',['--exit-on-error','--no-owner','--schema-only','--schema=public',join(folder,m.database.file)],uri);
  const toc=await pgOutput('pg_restore',['--list',join(folder,m.database.file)],uri);
+ const policies=join(folder,'restore-storage-policies.list');
+ writeFileSync(policies,toc.split('\n').filter(line=>line.includes(' POLICY storage ')||/ ACL storage TABLE (objects|buckets) /.test(line)).join('\n'),{mode:0o600});
+ await pg('pg_restore',['--exit-on-error','--no-owner','--schema-only','--use-list',policies,join(folder,m.database.file)],uri);
  const listFile=join(folder,'restore-data.list');writeFileSync(listFile,toc.split('\n').filter(line=>!(/TABLE DATA (auth schema_migrations|storage migrations) /.test(line))).join('\n'),{mode:0o600});
  await pg('pg_restore',['--exit-on-error','--no-owner','--no-privileges','--data-only','--disable-triggers','--use-list',listFile,join(folder,m.database.file)],uri);
  for(const o of m.objects){const {error}=await db.storage.from(o.bucket).upload(o.name,readFileSync(join(folder,o.file)),{upsert:true,contentType:String((o.metadata.metadata as Record<string,unknown>)?.mimetype||'application/octet-stream')});if(error)throw new Error('Recovery object upload failed');}
