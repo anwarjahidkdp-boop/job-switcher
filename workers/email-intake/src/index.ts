@@ -2,12 +2,14 @@
 // Receives forwarded job-alert emails (Gmail filter -> alias@inbound domain), optionally stores the raw
 // message in a private R2 bucket, and POSTs it, HMAC-signed, to the app. It never reads or stores passwords
 // and never replies to the sender.
-import { buildForward, validRecipient, type IntakeEnv } from "./handler";
+import { buildForward, isSupportAddress, validRecipient, type IntakeEnv } from "./handler";
 
 interface Env extends IntakeEnv {
   RAW?: R2Bucket;
   // Service binding to the app Worker: one workers.dev Worker cannot fetch another of the same account directly.
   APP?: Fetcher;
+  // Owner's inbox for the public support addresses; it must be a verified Email Routing destination address.
+  SUPPORT_FORWARD_TO?: string;
 }
 
 const worker = {
@@ -15,6 +17,11 @@ const worker = {
     const max = Number(env.MAX_BYTES || 5_000_000);
     if (message.rawSize > max) { message.setReject("Message too large"); return; }
     if (!validRecipient(message.to)) { message.setReject("Unknown address"); return; }
+    if (isSupportAddress(message.to)) {
+      if (!env.SUPPORT_FORWARD_TO) { message.setReject("Mailbox not available"); return; }
+      await message.forward(env.SUPPORT_FORWARD_TO);
+      return;
+    }
     if (!env.INBOUND_SHARED_SECRET || !env.APP_URL) throw new Error("Worker is not configured");
 
     const raw = new Uint8Array(await new Response(message.raw).arrayBuffer());

@@ -168,7 +168,7 @@ export default async function Landing() {
             </div>
           </section>
 
-          <section className="lp-sec lp-price-wrap">
+          <section className="lp-sec lp-price-wrap" id="pricing">
             <div className="lp-price">
               <p className="lp-kicker">JobPao Pro</p>
               <div className="lp-tea">
