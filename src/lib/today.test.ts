@@ -15,7 +15,7 @@ describe("trial plan", () => {
   it("points at the first undone step due today", () => {
     const p = trialPlan({ ...base, strong: 0, now: start + 1000 })!;
     expect(p.next?.title).toBe("Discover relevant opportunities");
-    const p4 = trialPlan({ ...base, now: start + 3.5 * D, prepared: 3, applied: 1, setupDone: true })!;
+    const p4 = trialPlan({ ...base, now: start + 3.5 * D, prepared: 0, applied: 0, setupDone: true })!;
     expect(p4.next?.title).toBe("Act on the best opportunity");
     expect(p4.summaryTime).toBe(false);
     expect(trialPlan({ ...base, now: start + 6.5 * D })!.summaryTime).toBe(true);
