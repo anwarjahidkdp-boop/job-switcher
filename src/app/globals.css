@@ -893,3 +893,11 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .sugg-opt{font:inherit;font-size:14px;text-align:left;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;max-width:100%}
 .sugg-opt:hover{background:var(--card)}
 .sugg-opt:disabled{opacity:.6;cursor:default}
+/* Terms, Privacy and Refund pages */
+.legal{max-width:760px;padding:22px 24px;line-height:1.65}
+.legal h2{font-size:17px;margin:22px 0 8px;color:var(--ink,inherit)}
+.legal p,.legal li{font-size:15px}
+.legal p+p{margin-top:10px}
+.legal ul{list-style:disc;padding-left:22px;margin:6px 0 10px;display:flex;flex-direction:column;gap:5px}
+.legal hr{border:0;border-top:1px solid var(--line);margin:24px 0 14px}
+@media (max-width:600px){.legal{padding:18px 16px}}

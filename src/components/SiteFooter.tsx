@@ -13,12 +13,15 @@ export function SiteFooter({ signedIn }: { signedIn?: boolean }) {
         <nav className="sf-col" aria-label="JobPao">
           <b>JobPao</b>
           <Link href={signedIn ? "/inbox" : "/login?mode=signup&next=/onboarding"}>{signedIn ? "My jobs" : "Start free"}</Link>
-          <Link href="/upgrade">Pricing</Link>
+          <Link href={signedIn ? "/upgrade" : "/#pricing"}>Pricing</Link>
           <Link href="/setup">Setup guide</Link>
         </nav>
         <nav className="sf-col" aria-label="Help">
           <b>Help</b>
           <a href="mailto:hello@jobpao.app">hello@jobpao.app</a>
+          <Link href="/terms">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/refund">Refunds</Link>
           {signedIn ? <form action="/auth/signout" method="post"><button className="sf-link">Sign out</button></form> : <Link href="/login?next=/inbox">Log in</Link>}
         </nav>
       </div>

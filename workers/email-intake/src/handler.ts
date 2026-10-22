@@ -29,3 +29,9 @@ export async function buildForward(env: IntakeEnv, to: string, raw: Uint8Array, 
 export function validRecipient(to: string): boolean {
   return /^[a-z0-9][a-z0-9.\-]{1,62}@[a-z0-9.\-]+$/i.test(to.trim());
 }
+
+// Public addresses on the site (hello@ in the footer and legal pages) go to a person, not the job-alert parser.
+const SUPPORT_LOCALS = new Set(["hello", "support", "help", "billing", "privacy", "legal"]);
+export function isSupportAddress(to: string): boolean {
+  return SUPPORT_LOCALS.has(to.trim().toLowerCase().split("@")[0]);
+}

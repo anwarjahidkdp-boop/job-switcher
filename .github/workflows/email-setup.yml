@@ -32,6 +32,12 @@ jobs:
           if ! npx wrangler deploy -c wrangler.toml --var "APP_URL:$APP_URL" 2>&1 | tee "$RUNNER_TEMP/out.txt"; then
             sed "s/\x1b\[[0-9;]*m//g" "$RUNNER_TEMP/out.txt" | grep -v "^\s*$" | tail -12 | sed 's/^/::error::/'; exit 1
           fi
+      - name: Forward the support addresses to the owner
+        env:
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+        run: |
+          to=$(printf '%s' "$ADMIN_EMAILS" | cut -d, -f1 | tr -d ' ')
+          if [ -n "$to" ]; then printf '%s' "$to" | npx wrangler secret put SUPPORT_FORWARD_TO -c wrangler.toml; fi
       - name: Set the shared signing secret on both Workers
         run: |
           s=$(openssl rand -hex 32)

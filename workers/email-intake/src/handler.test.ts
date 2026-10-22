@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildForward, toBase64, validRecipient } from "./handler";
+import { buildForward, isSupportAddress, toBase64, validRecipient } from "./handler";
 import { verify } from "../../../src/lib/inbound/signature";
 
 describe("email-intake worker", () => {
@@ -26,5 +26,10 @@ describe("email-intake worker", () => {
     const app = readFileSync(new URL("../../../src/lib/inbound/signature.ts", import.meta.url), "utf8");
     const mine = readFileSync(new URL("./signature.ts", import.meta.url), "utf8").split("\n").slice(1).join("\n");
     expect(mine).toBe(app);
+  });
+  it("sends the public support addresses to a person", () => {
+    expect(isSupportAddress("hello@jobpao.app")).toBe(true);
+    expect(isSupportAddress(" Support@JobPao.app")).toBe(true);
+    expect(isSupportAddress("rahim-7k2q@jobpao.app")).toBe(false);
   });
 });
