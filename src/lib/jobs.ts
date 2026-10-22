@@ -83,6 +83,7 @@ export function stripHtml(html: string): string {
     .replace(/<li[^>]*>/gi, "\n- ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(x[0-9a-f]+|\d+);/gi,(all,n:string)=>{const code=n[0].toLowerCase()==="x"?parseInt(n.slice(1),16):Number(n);return code>0&&code<=0x10ffff?String.fromCodePoint(code):all;})
     .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 }
 
@@ -150,13 +151,17 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const required = [...allSkills.filter((s) => !preferred.includes(s)), ...languagesRequired(text).filter((l) => !allSkills.includes(l))];
   const resp = text.split(/\n/).map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter((l) => l.length > 25 && l.length < 180).slice(0, 3);
   const industry = INDUSTRY_LIST.find((i) => low.includes(i)) || null;
+  // A literal labelled date is source evidence, including common employer dates such as 31 Oct 2026.
+  const humanDeadline=text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{1,2})[\s-]+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[\s,-]+(\d{4})\b/i);
+  let labelledDate:string|null=null;
+  if(humanDeadline){const day=Number(humanDeadline[1]),month=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(humanDeadline[2].slice(0,3).toLowerCase()),year=Number(humanDeadline[3]);const d=new Date(Date.UTC(year,month,day));if(d.getUTCDate()===day&&d.getUTCMonth()===month)labelledDate=d.toISOString().slice(0,10);}
   const deadlineM = !input.deadline ? text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{4}-\d{2}-\d{2})/i) : null;
   return {
     country: input.country, title: input.title, company: input.company, industry, category: guessCategory(input.title, allSkills),
     location: input.location ?? null, type: input.type ?? null, salaryMin: input.salaryMin ?? null, salaryMax: input.salaryMax ?? null,
     minYears, maxYears, seniority: seniorityFromTitle(input.title),
     education: edu ? { level: edu as EduLevel, field: fieldM ? fieldM[1] : "" } : null,
-    required, preferred, certs, visa, deadline: input.deadline ?? (deadlineM ? deadlineM[1] : null), publishedAt: input.publishedAt ?? input.today,
+    required, preferred, certs, visa, deadline: input.deadline ?? (deadlineM ? deadlineM[1] : labelledDate), publishedAt: input.publishedAt ?? input.today,
     apply: email ? { method: "email", target: email } : { method: input.url ? "portal" : "unknown", target: null }, url: input.url ?? null, source: input.source, resp,
   };
 }

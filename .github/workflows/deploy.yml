@@ -39,6 +39,7 @@ jobs:
       - run: npx opennextjs-cloudflare build
         env:
           NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://jobpao.app' }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
       - name: Copy Worker settings from repository secrets
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

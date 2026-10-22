@@ -8,28 +8,40 @@ import { extractJobPostings, postingToJob } from "../../src/lib/ingest/jsonld";
 import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseReed, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, reedUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
 import { greenhouseUrl, leverUrl, parseGreenhouse, parseLever, type IngestedJob } from "../../src/lib/ingest/ats";
 import { BOT_UA, robotsAllows } from "../../src/lib/ingest/robots";
+import {BRAC_API,parseBrac} from "../../src/lib/ingest/brac";
 import { cc } from "../../src/lib/countries";
 
-export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee" | "remotive" | "arbeitnow" | "adzuna" | "jooble" | "reed";
-export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null }
+export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee" | "remotive" | "arbeitnow" | "adzuna" | "jooble" | "reed" | "brac";
+export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null; detail_path?: string | null }
 export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
 const MAX_PAGE_BYTES = 15_000_000; // big boards (hundreds of jobs with full descriptions) run to several MB
 
 async function get(fetcher: Fetcher, url: string, accept: string): Promise<Response> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 20_000);
-  try {
-    return await fetcher(url, { headers: { "user-agent": BOT_UA, accept }, redirect: "follow", signal: ctl.signal });
-  } finally { clearTimeout(t); }
+  return fetcher(url, { headers: { "user-agent": BOT_UA, accept }, redirect: "follow", signal: AbortSignal.timeout(20_000) });
 }
 
 async function readCapped(res: Response): Promise<string> {
-  const len = Number(res.headers.get("content-length") || 0);
-  if (len > MAX_PAGE_BYTES) throw new Error(`Response too large (${len} bytes)`);
-  const text = await res.text();
-  if (text.length > MAX_PAGE_BYTES) throw new Error("Response too large");
-  return text;
+ const len=Number(res.headers.get("content-length")||0);
+ if(len>MAX_PAGE_BYTES)throw new Error("Response too large");
+ if(!res.body)return "";
+ const reader=res.body.getReader();const chunks:Uint8Array[]=[];let size=0;
+ try {for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;
+  if(size>MAX_PAGE_BYTES){await reader.cancel();throw new Error("Response too large");}chunks.push(value);
+ }}finally{reader.releaseLock();}
+ return Buffer.concat(chunks).toString("utf8");
+}
+
+/** Only configured, same-origin job links; no guessing tokens or following arbitrary links. */
+export function detailLinks(html:string,pageUrl:string,path:string) {
+ const page=new URL(pageUrl);const urls=new Set<string>();
+ for(const m of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/gi)){
+  try {const u=new URL(m[1].replace(/&amp;/g,"&"),page);u.hash="";
+   if(u.protocol==="https:"&&u.origin===page.origin&&u.pathname.startsWith(path)&&u.href!==page.href&&!u.username&&!u.password)urls.add(u.href);
+  }catch{/* not a URL */}
+ }
+ if(urls.size>MAX_DETAILS)throw new Error(`Listing exceeds ${MAX_DETAILS} detail pages; configure a paginated adapter`);
+ return [...urls];
 }
 
 export async function fetchSource(src: SourceRow, today: string, fetcher: Fetcher = fetch, opts: { queries?: string[]; env?: Record<string, string | undefined> } = {}): Promise<IngestedJob[]> {
@@ -39,15 +51,34 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
     if (!src.url || !/^https:\/\//i.test(src.url)) throw new Error("jsonld source needs an https URL");
     const u = new URL(src.url);
     const robots = await get(fetcher, `${u.origin}/robots.txt`, "text/plain");
-    if (robots.ok) {
-      if (!robotsAllows(await readCapped(robots), u.pathname + u.search)) throw new Error("robots.txt disallows this page");
-    } else if (robots.status !== 404 && robots.status !== 410) throw new Error(`robots.txt returned ${robots.status}; skipping to be safe`);
-    const res = await get(fetcher, src.url, "text/html");
-    if (!res.ok) throw new Error(`Page returned ${res.status}`);
-    const html = await readCapped(res);
-    return extractJobPostings(html)
-      .map((p) => postingToJob(p, { country, companyFallback: src.company, sourceLabel, pageUrl: src.url!, today }))
-      .filter((j): j is NonNullable<typeof j> => !!j);
+    let rules="";
+    if(robots.ok)rules=await readCapped(robots);
+    else if(robots.status!==404&&robots.status!==410)throw new Error(`robots.txt returned ${robots.status}; skipping to be safe`);
+    const readPage=async(url:string)=>{
+      const target=new URL(url);
+      if(!robotsAllows(rules,target.pathname+target.search))throw new Error("robots.txt disallows this page");
+      const res=await get(fetcher,url,"text/html");
+      if(!res.ok)throw new Error(`Page returned ${res.status}`);
+      if(res.url&&new URL(res.url).origin!==u.origin)throw new Error("Career page redirected off origin");
+      return readCapped(res);
+    };
+    const html=await readPage(src.url);
+    const pages=[{url:src.url,html}];
+    if(src.detail_path)for(const url of detailLinks(html,src.url,src.detail_path))pages.push({url,html:await readPage(url)});
+    const jobs=pages.flatMap(p=>extractJobPostings(p.html).map(posting=>postingToJob(posting,{country,companyFallback:src.company,sourceLabel,pageUrl:p.url,today}))).filter((j):j is NonNullable<typeof j>=>!!j);
+    return dedupe(jobs.filter(j=>!j.deadline||j.deadline>=today));
+  }
+
+  if(src.kind==="brac"){
+    const out:IngestedJob[]=[];let next:string|null=`${BRAC_API}?limit=100&offset=0`;
+    for(let page=0;next;page++){
+      if(page>=20)throw new Error("BRAC listing exceeds safe page limit");
+      if(!next.startsWith(BRAC_API))throw new Error("BRAC pagination left the public listing API");
+      const res=await get(fetcher,next,"application/json");if(!res.ok)throw new Error(`BRAC returned ${res.status}`);
+      const data=JSON.parse(await readCapped(res));out.push(...parseBrac(data,today));
+      next=data.next?String(data.next):null;
+    }
+    return dedupe(out);
   }
   const token = src.board_token || "";
   if (!token) throw new Error("board_token is required");
@@ -55,7 +86,11 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
   const json = async (url: string, init?: RequestInit) => {
     const res = init ? await fetcher(url, { ...init, headers: { "user-agent": BOT_UA, accept: "application/json", "content-type": "application/json" } }) : await get(fetcher, url, "application/json");
     if (!res.ok) throw new Error(`${src.kind} returned ${res.status}`);
-    return JSON.parse(await readCapped(res));
+    const data=JSON.parse(await readCapped(res));
+    const field=({greenhouse:"jobs",ashby:"jobs",workable:"jobs",recruitee:"offers",smartrecruiters:"content",remotive:"jobs",arbeitnow:"data",adzuna:"results",jooble:"jobs"} as Record<string,string>)[src.kind];
+    if(src.kind==="lever"&&!Array.isArray(data))throw new Error("Invalid lever payload");
+    if(field&&!Array.isArray(data?.[field])&&!(src.kind==="smartrecruiters"&&url.includes("/postings/")))throw new Error(`Invalid ${src.kind} payload: missing ${field}`);
+    return data;
   };
   const env = opts.env || process.env;
   const queries = [...new Set((opts.queries || []).map((q) => q.trim()).filter(Boolean))].slice(0, MAX_QUERIES);

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import { AuthCaptcha } from "@/components/AuthCaptcha";
 import { Spinner } from "@/components/ui";
 
 type Mode = "login" | "signup" | "code" | "forgot";
@@ -21,35 +22,40 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const [sent, setSent] = useState<Sent>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const siteKey=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY||"";
+  const [captchaToken,setCaptchaToken]=useState("");
+  const [captchaAttempt,setCaptchaAttempt]=useState(0);
   const confirmUrl = (to: string) => `${window.location.origin}/auth/confirm?next=${encodeURIComponent(to)}`;
-  const go = (m: Mode) => { setMode(m); setErr(""); setSent(null); };
+  const go = (m: Mode) => { setMode(m); setErr(""); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
   const rate = (m: string) => /rate|too many/i.test(m);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if(siteKey&&!captchaToken){setErr("Complete the security check first.");return;}
     setBusy(true); setErr("");
+    const token=captchaToken;setCaptchaToken("");
     const supabase = createClient();
     const addr = email.trim();
     if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email: addr, password });
-      setBusy(false);
+      const { error } = await supabase.auth.signInWithPassword({ email: addr, password, options:{captchaToken:token} });
+      setBusy(false);setCaptchaAttempt(x=>x+1);
       if (!error) { router.replace(next); router.refresh(); return; }
       if (offline(error)) { setErr(OFFLINE); return; }
       setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : /confirm/i.test(error.message) ? "Confirm your email first: open the link we sent you." : "Email or password is wrong. If you used to sign in with an email code, click \"Forgot password?\" to set one.");
     } else if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next) } });
-      setBusy(false);
+      const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next), captchaToken:token } });
+      setBusy(false);setCaptchaAttempt(x=>x+1);
       if (error && offline(error)) { setErr(OFFLINE); return; }
       if (error) { setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : /password/i.test(error.message) ? "Choose a stronger password: at least 8 characters." : "Could not create the account. Check the email address."); return; }
       if (data.session) { router.replace(next); router.refresh(); } else setSent("signup");
     } else if (mode === "forgot") {
-      const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo: confirmUrl("/account/password") });
-      setBusy(false);
+      const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo: confirmUrl("/account/password"),captchaToken:token });
+      setBusy(false);setCaptchaAttempt(x=>x+1);
       if (error) setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : "Could not send the email. Check the address.");
       else setSent("forgot");
     } else {
-      const { error } = await supabase.auth.signInWithOtp({ email: addr, options: { emailRedirectTo: confirmUrl(next), shouldCreateUser: true } });
-      setBusy(false);
+      const { error } = await supabase.auth.signInWithOtp({ email: addr, options: { emailRedirectTo: confirmUrl(next), shouldCreateUser: true,captchaToken:token } });
+      setBusy(false);setCaptchaAttempt(x=>x+1);
       if (error) setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : "Could not send the code. Check the email address.");
       else setSent("code");
     }
@@ -95,8 +101,9 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
         <label className="f" htmlFor="email">Email address<input id="email" type="text" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>
         {needsPw ? <label className="f" htmlFor="password">{mode === "signup" ? "Choose a password" : "Password"}<input id="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : ""} aria-describedby={mode === "signup" ? "pw-hint" : undefined} /></label> : null}
         {needsPw && mode === "signup" ? <p id="pw-hint" className="small" style={{ marginTop: -4, color: password.length >= 8 ? "var(--good)" : "var(--ink-2)" }}>{password.length >= 8 ? "✓ Password is long enough" : `Password must be at least 8 characters (${password.length}/8)`}</p> : null}
+        {siteKey?<AuthCaptcha key={captchaAttempt} siteKey={siteKey} onToken={setCaptchaToken}/>:null}
         {err ? <p role="alert" className="err">{err}</p> : null}
-        <button className="btn btn-primary" disabled={busy || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1))}>
+        <button className="btn btn-primary" disabled={busy || (!!siteKey&&!captchaToken) || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1))}>
           {busy ? <><Spinner /> Please wait</> : mode === "login" ? "Log in" : mode === "signup" ? "Create my account" : mode === "forgot" ? "Send me the link" : "Send me a code"}
         </button>
         {mode === "login" ? <div className="row" style={{ justifyContent: "space-between" }}><button type="button" className="btn-text small" onClick={() => go("forgot")}>Forgot password?</button><button type="button" className="btn-text small" onClick={() => go("code")}>Email me a code instead</button></div> : null}

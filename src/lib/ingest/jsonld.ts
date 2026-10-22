@@ -98,7 +98,7 @@ const dateOnly = (s: unknown) => (typeof s === "string" && /^\d{4}-\d{2}-\d{2}/.
 const numOrNull = (v: unknown) => (v == null || v === "" || isNaN(Number(v)) ? null : Number(v));
 
 export function postingToJob(p: JobPosting, ctx: { country: CountryCode; companyFallback?: string | null; sourceLabel: string; pageUrl: string; today: string }): (Omit<Job, "id"> & { externalId: string; description: string }) | null {
-  const title = String(p.title || p.name || "").trim();
+  const title = stripHtml(String(p.title || p.name || "")).trim();
   if (!title) return null;
   const company = (typeof p.hiringOrganization === "string" ? p.hiringOrganization : p.hiringOrganization?.name) || ctx.companyFallback || "";
   const description = stripHtml(String(p.description || ""));

@@ -4,6 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailProvider } from "../email/send";
 import { nudgeEmail } from "../email/templates";
+import { careerMetrics, reportBody, reportWeek, saveCareerReport } from "./career-reports";
 import { deliverEmail } from "./email-outbox";
 import { notify, type NewNotification } from "./notify";
 
@@ -57,47 +58,42 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   for (const t of (trials || []) as { user_id: string; trial_started_at: string | null; trial_ends_at: string }[]) {
     const startAt = t.trial_started_at ? Date.parse(t.trial_started_at) : Date.parse(t.trial_ends_at) - 5 * DAY;
     const day = Math.min(5, Math.max(1, Math.floor((now.getTime() - startAt) / DAY) + 1));
-    const [{ data: prof }, { count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
-      admin.from("profiles").select("onboarding_step").eq("id", t.user_id).maybeSingle(),
-      admin.from("jobs").select("id", { count: "exact", head: true }).eq("active", true),
-      admin.from("matches").select("score, relevant").eq("user_id", t.user_id).eq("relevant", true),
-      admin.from("applications").select("pack, status, jobs(deadline)").eq("user_id", t.user_id),
-    ]);
+    const { data: prof, error: profileError } = await admin.from("profiles").select("onboarding_step").eq("id", t.user_id).maybeSingle();
+    if (profileError) throw profileError;
     if (prof?.onboarding_step !== "done") continue;
-    const relevant = (matches || []).length, strong = (matches || []).filter((m) => Number(m.score) >= 70).length;
-    const prepared = (apps || []).filter((a) => !!a.pack).length, appliedCount = (apps || []).filter((a) => ["applied","interview","offer","closed"].includes(a.status)).length;
+    const periodEnd = new Date(Math.min(now.getTime(), Date.parse(t.trial_ends_at)));
+    const start = new Date(startAt);
+    if (periodEnd <= start) continue;
+    const metrics = day === 5
+      ? (opts.dryRun ? await careerMetrics(admin,t.user_id,start,periodEnd) : (await saveCareerReport(admin,t.user_id,"trial",start,periodEnd)).metrics)
+      : await careerMetrics(admin,t.user_id,start,periodEnd);
+    const { jobs_analysed: analysed, relevant, strong, prepared } = metrics;
     const copy = day === 1
       ? { title: "Day 1 · Your Career Agent is ready", body: "Your Master CV and verified career profile are ready. JobPao can now match opportunities against your real experience.", link: "/profile" }
       : day === 2
-      ? { title: "Day 2 · We are searching for you", body: `We have analysed ${analysed || 0} current jobs and found ${relevant} relevant opportunities for your profile.`, link: "/inbox#matches" }
+      ? { title: "Day 2 · We are searching for you", body: `We have checked ${analysed || 0} jobs for you and found ${relevant} relevant opportunities for your profile.`, link: "/inbox#matches" }
       : day === 3
-      ? { title: "Day 3 · Your strongest opportunities", body: `${strong} strong match${strong === 1 ? "" : "es"} are currently on your radar. Open Why This Job to see the evidence and gaps.`, link: "/inbox#matches" }
+      ? { title: "Day 3 · Your strongest opportunities", body: `${strong} Strong Fit opportunit${strong === 1 ? "y" : "ies"} are currently on your radar. Open Why This Job to see the evidence and gaps.`, link: "/inbox#matches" }
       : day === 4
       ? { title: "Day 4 · Turn the best match into an application", body: `${prepared} tailored application${prepared === 1 ? "" : "s"} prepared so far. Review the CV, cover letter and safety checks before you submit.`, link: "/queue" }
-      : { title: "Your First 5 Days with JobPao", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong matches: ${strong} · Applications prepared: ${prepared} · Applied (confirmed): ${appliedCount}. Your Career Agent doesn't have to stop here.`, link: "/inbox#trial" };
+      : { title: "Your First 5 Days with JobPao", body: `${reportBody(metrics)} Your Career Agent doesn't have to stop here.`, link: "/inbox#trial" };
     add(t.user_id, { kind: "trial", ...copy, key: `trial:day:${day}` }, day === 5
       ? { subject: "Your First 5 Days with JobPao", body: copy.body, button: "See my 5-day results" }
       : undefined);
   }
 
   // 4. Paid Pro users get a real weekly career report. Trial users do not receive this.
-  const week = isoWeek(now);
-  const { data: paid } = await admin.from("subscriptions").select("user_id, current_period_end").eq("status", "active").eq("plan_code", "pro").limit(5000);
-  for (const s of (paid || []) as { user_id: string; current_period_end: string | null }[]) {
+  const window = reportWeek(now);
+  const { data: paid, error: paidError } = await admin.from("subscriptions").select("user_id, current_period_end, created_at").eq("status", "active").eq("plan_code", "pro").limit(5000);
+  if (paidError) throw paidError;
+  for (const s of (paid || []) as { user_id: string; current_period_end: string | null; created_at?: string }[]) {
     if (s.current_period_end && Date.parse(s.current_period_end) <= now.getTime()) continue;
-    const [{ count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
-      admin.from("jobs").select("id", { count: "exact", head: true }).eq("active", true),
-      admin.from("matches").select("score, relevant").eq("user_id", s.user_id).eq("relevant", true),
-      admin.from("applications").select("pack, status, jobs(deadline)").eq("user_id", s.user_id),
-    ]);
-    const relevant = (matches || []).length, strong = (matches || []).filter((m) => Number(m.score) >= 70).length;
-    const prepared = (apps || []).filter((a) => !!a.pack).length, appliedCount = (apps || []).filter((a) => ["applied","interview","offer","closed"].includes(a.status)).length;
-    const deadlines = (apps || []).flatMap((a) => { const j = a.jobs as unknown as { deadline?: string | null } | { deadline?: string | null }[] | null; const d = Array.isArray(j) ? j[0]?.deadline : j?.deadline; return d && d >= now.toISOString().slice(0,10) ? [d] : []; }).sort();
-    const { data: gapRows } = await admin.from("matches").select("gaps").eq("user_id", s.user_id).eq("relevant", true).order("score", { ascending: false }).limit(20);
-    const freq = new Map<string, number>(); for (const r of gapRows || []) for (const g of ((r.gaps as ({ t?: string } | string)[] | null) || [])) { const text = typeof g === "string" ? g : g.t; if (text) freq.set(text, (freq.get(text) || 0) + 1); }
-    const topGap = [...freq.entries()].sort((a,b) => b[1]-a[1])[0]?.[0] || null;
-    const extra = `${topGap ? ` · Most common gap: ${topGap}` : ""}${deadlines[0] ? ` · Next deadline: ${deadlines[0]}` : ""}`;
-    add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong: ${strong} · Prepared: ${prepared} · Applied: ${appliedCount}${extra}.`, link: "/insights", key: `career-report:${week}` });
+    if (s.created_at && Date.parse(s.created_at) >= window.end.getTime()) continue;
+    const r = opts.dryRun ? {period_start:window.start.toISOString(),period_end:window.end.toISOString(),metrics:await careerMetrics(admin,s.user_id,window.start,window.end)} : await saveCareerReport(admin,s.user_id,"weekly",window.start,window.end);
+    const body = reportBody(r.metrics);
+    const period = `${r.period_start.slice(0,10)} to ${r.period_end.slice(0,10)} (UTC, end exclusive)`;
+    add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `${period} · ${body}`, link: "/insights#career-reports", key: `career-report:${isoWeek(window.start)}` },
+      {subject:"Your Weekly Career Report",body:`${period} · ${body}`,button:"Read my career report"});
   }
 
   if (opts.dryRun) { res.notified = [...queue.values()].reduce((s, l) => s + l.length, 0); return res; }

@@ -22,7 +22,7 @@ async function main() {
   // The launch markets get search sources even before anyone there signs up, so their first users find jobs waiting.
   if (!only && !dry) await ensureSearchSources(db, [...new Set([...LAUNCH_MARKETS, ...demand.keys()])]);
 
-  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company").eq("active", true);
+  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path").eq("active", true);
   if (only) q = q.eq("id", only);
   const { data: sources, error } = await q;
   if (error) throw error;

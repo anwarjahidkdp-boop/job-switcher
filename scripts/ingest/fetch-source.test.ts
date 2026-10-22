@@ -42,3 +42,17 @@ describe("fetchSource", () => {
     expect(staleIds(["a", "b", "c"], ["b"])).toEqual(["a", "c"]);
   });
 });
+
+it("discovers only configured same-origin job pages and drops expired postings",async()=>{
+ const {f,seen}=fakeFetch({"https://example.com/robots.txt":[404,""],"https://example.com/careers":[200,'<a href="/jobs/one">one</a><a href="https://other.invalid/jobs/two">two</a><a href="/admin">admin</a><a href="/jobs/old">old</a>'],"https://example.com/jobs/one":[200,page],"https://example.com/jobs/old":[200,page.replace('2026-11-01','2026-10-01')]});
+ const jobs=await fetchSource({...src,detail_path:"/jobs/"},"2026-10-22",f);
+ expect(jobs).toHaveLength(1);expect(jobs[0].url).toBe("https://example.com/jobs/one");expect(seen).toHaveLength(4);
+});
+it("fails closed on a malformed success payload",async()=>{
+ const {f}=fakeFetch({"https://boards-api.greenhouse.io/v1/boards/x/jobs?content=true":[200,'{"error":"unknown company"}']});
+ await expect(fetchSource({...src,kind:"greenhouse",board_token:"x"},"2026-10-22",f)).rejects.toThrow("Invalid greenhouse payload");
+});
+it("does not publish a partial listing when one detail page fails",async()=>{
+ const {f}=fakeFetch({"https://example.com/robots.txt":[404,""],"https://example.com/careers":[200,'<a href="/jobs/broken">broken</a>'],"https://example.com/jobs/broken":[503,""]});
+ await expect(fetchSource({...src,detail_path:"/jobs/"},"2026-10-22",f)).rejects.toThrow("503");
+});
