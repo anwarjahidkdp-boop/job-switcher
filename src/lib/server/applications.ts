@@ -143,6 +143,11 @@ export async function markOpened(ctx: Ctx, jobId: string) {
 /** The user tells us they submitted. This is the only path to "applied". */
 
 export async function confirmApplied(ctx: Ctx, jobId: string) {
+  const st = await loadState(ctx.db, ctx.userId);
+  if (!st || !st.P) throw new Error("Finish your profile first.");
+  const job = await requireJob(ctx, jobId);
+  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa);
+  if (!safety.safe) throw new ApplicationSafetyError(safety);
   const app = await ensureApp(ctx, jobId);
   // Free trial: one application a day, 5 in all (the Apply Queue shows the rest behind Pro).
   if (!["applied", "interview", "offer"].includes(app.status)) await assertCanApply(ctx);
