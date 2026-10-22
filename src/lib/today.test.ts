@@ -3,7 +3,7 @@ import { courseLinks, trialDay, trialPlan } from "./today";
 
 const D = 86_400_000;
 const start = Date.parse("2026-10-20T08:00:00Z");
-const base = { status: "trialing", trialStart: new Date(start).toISOString(), trialEnd: new Date(start + 7 * D).toISOString(), hasMaster: true, strong: 4, prepared: 0, applied: 0, interviews: 0, setupDone: false, repliesPending: 0 };
+const base = { status: "trialing", trialStart: new Date(start).toISOString(), trialEnd: new Date(start + 5 * D).toISOString(), hasMaster: true, strong: 4, prepared: 0, applied: 0, interviews: 0, setupDone: false, repliesPending: 0 };
 
 describe("trial plan", () => {
   it("counts trial days 1 to 5", () => {
@@ -14,9 +14,9 @@ describe("trial plan", () => {
   });
   it("points at the first undone step due today", () => {
     const p = trialPlan({ ...base, now: start + 1000 })!;
-    expect(p.next?.title).toBe("Look at your best matches");
+    expect(p.next?.title).toBe("Discover relevant opportunities");
     const p4 = trialPlan({ ...base, now: start + 3.5 * D, prepared: 3, applied: 1, setupDone: true })!;
-    expect(p4.next?.title).toBe("Apply to 3 jobs");
+    expect(p4.next?.title).toBe("Act on the best opportunity");
     expect(p4.summaryTime).toBe(false);
     expect(trialPlan({ ...base, now: start + 6.5 * D })!.summaryTime).toBe(true);
   });
