@@ -157,3 +157,37 @@ export async function noReplyYetAction(jobId: string) {
   const c = await ctx();
   await c.db.from("applications").update({ reply_checked_at: new Date().toISOString() }).eq("user_id", c.userId).eq("job_id", jobId);
 }
+
+export async function saveCareerSafetyAction(formData: FormData) {
+  const c = await ctx("/profile");
+  const csv = (k: string) => String(formData.get(k) || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).slice(0, 50);
+  const num = (k: string) => { const v = String(formData.get(k) || "").trim(); return v && Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : null; };
+  const dealBreakers = {
+    minSalary: num("minSalary"),
+    remoteOnly: formData.get("remoteOnly") === "on",
+    noRelocation: formData.get("noRelocation") === "on",
+    noContract: formData.get("noContract") === "on",
+    sponsorshipRequired: formData.get("sponsorshipRequired") === "on",
+    workAuthorizationRequired: formData.get("workAuthorizationRequired") === "on",
+    excludedIndustries: csv("excludedIndustries"),
+    excludedCompanies: csv("excludedCompanies"),
+    excludedRoleTypes: csv("excludedRoleTypes"),
+  };
+  const wa = String(formData.get("workAuthorization") || "unknown");
+  const tri = (k: string) => { const v = String(formData.get(k) || ""); return v === "yes" ? true : v === "no" ? false : null; };
+  const answerLibrary = {
+    expectedSalary: num("expectedSalary"),
+    noticeDays: num("noticeDays"),
+    workAuthorization: wa === "yes" || wa === "no" ? wa : "unknown",
+    sponsorshipRequired: tri("answerSponsorship"),
+    willingToRelocate: tri("willingToRelocate"),
+    currentSalary: num("currentSalary"),
+    managementYears: num("managementYears"),
+    teamSize: num("teamSize"),
+    willingToTravel: tri("willingToTravel"),
+  };
+  const { error } = await c.db.from("profiles").update({ deal_breakers: dealBreakers, answer_library: answerLibrary }).eq("id", c.userId);
+  if (error) throw error;
+  revalidatePath("/profile");
+  revalidatePath("/inbox");
+}
