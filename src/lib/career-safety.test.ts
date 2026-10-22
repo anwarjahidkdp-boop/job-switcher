@@ -18,7 +18,11 @@ describe("applicationSafety", () => {
     const r=applicationSafety({...job,visa:false},prefs,{sponsorshipRequired:true},{},true);
     expect(r.safe).toBe(false); expect(r.issues.some(x=>x.code==="sponsorship")).toBe(true);
   });
-  it("blocks excluded companies and contract work", () => {\n    const r=applicationSafety({...job,type:"contract"},prefs,{excludedCompanies:["acme"],noContract:true},{workAuthorization:"yes"},false);\n    expect(r.issues.map(x=>x.code)).toEqual(expect.arrayContaining(["company","contract"]));\n  });\n  it("normalises user lists and numbers", () => {
+  it("blocks excluded companies and contract work", () => {
+    const r=applicationSafety({...job,type:"contract"},prefs,{excludedCompanies:["acme"],noContract:true},{workAuthorization:"yes"},false);
+    expect(r.issues.map(x=>x.code)).toEqual(expect.arrayContaining(["company","contract"]));
+  });
+  it("normalises user lists and numbers", () => {
     expect(normaliseDealBreakers({minSalary:"50000",excludedCompanies:[" ACME "]})).toMatchObject({minSalary:50000,excludedCompanies:["acme"]});
   });
 });
