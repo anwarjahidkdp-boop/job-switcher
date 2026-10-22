@@ -60,7 +60,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
       admin.from("profiles").select("onboarding_step").eq("id", t.user_id).maybeSingle(),
       admin.from("jobs").select("id", { count: "exact", head: true }).eq("active", true),
       admin.from("matches").select("score, relevant").eq("user_id", t.user_id).eq("relevant", true),
-      admin.from("applications").select("pack, status").eq("user_id", t.user_id),
+      admin.from("applications").select("pack, status, jobs(deadline)").eq("user_id", t.user_id),
     ]);
     if (prof?.onboarding_step !== "done") continue;
     const relevant = (matches || []).length, strong = (matches || []).filter((m) => Number(m.score) >= 70).length;
@@ -87,11 +87,16 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
     const [{ count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
       admin.from("jobs").select("id", { count: "exact", head: true }).eq("active", true),
       admin.from("matches").select("score, relevant").eq("user_id", s.user_id).eq("relevant", true),
-      admin.from("applications").select("pack, status").eq("user_id", s.user_id),
+      admin.from("applications").select("pack, status, jobs(deadline)").eq("user_id", s.user_id),
     ]);
     const relevant = (matches || []).length, strong = (matches || []).filter((m) => Number(m.score) >= 70).length;
     const prepared = (apps || []).filter((a) => !!a.pack).length, appliedCount = (apps || []).filter((a) => ["applied","interview","offer","closed"].includes(a.status)).length;
-    add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong: ${strong} · Prepared: ${prepared} · Applied: ${appliedCount}. See your skill gaps and next opportunities.`, link: "/insights", key: `career-report:${week}` });
+    const deadlines = (apps || []).flatMap((a) => { const j = a.jobs as unknown as { deadline?: string | null } | { deadline?: string | null }[] | null; const d = Array.isArray(j) ? j[0]?.deadline : j?.deadline; return d && d >= now.toISOString().slice(0,10) ? [d] : []; }).sort();
+    const { data: gapRows } = await admin.from("matches").select("gaps").eq("user_id", s.user_id).eq("relevant", true).order("score", { ascending: false }).limit(20);
+    const freq = new Map<string, number>(); for (const r of gapRows || []) for (const g of ((r.gaps as string[] | null) || [])) freq.set(g, (freq.get(g) || 0) + 1);
+    const topGap = [...freq.entries()].sort((a,b) => b[1]-a[1])[0]?.[0] || null;
+    const extra = `${topGap ? ` · Most common gap: ${topGap}` : ""}${deadlines[0] ? ` · Next deadline: ${deadlines[0]}` : ""}`;
+    add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong: ${strong} · Prepared: ${prepared} · Applied: ${appliedCount}${extra}.`, link: "/insights", key: `career-report:${week}` });
   }
 
   if (opts.dryRun) { res.notified = [...queue.values()].reduce((s, l) => s + l.length, 0); return res; }
