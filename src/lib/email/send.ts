@@ -10,25 +10,31 @@ export function emailProvider(): "resend" | "brevo" | null {
   return null;
 }
 
-export async function sendEmail(msg: OutboundEmail): Promise<{ id: string | null }> {
+export class EmailDeliveryError extends Error {
+  constructor(message: string, public safeToRetry: boolean) { super(message); }
+}
+
+export async function sendEmail(msg: OutboundEmail, idempotencyKey?: string): Promise<{ id: string | null }> {
   const provider = emailProvider();
   const from = process.env.EMAIL_FROM || "JobPao <reminders@example.com>";
   if (!provider) throw new Error("No email provider configured (set RESEND_API_KEY or BREVO_API_KEY)");
   if (provider === "resend") {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
     });
-    if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    if (!r.ok) throw new EmailDeliveryError(`Resend ${r.status}: ${(await r.text()).slice(0, 200)}`, r.status >= 400 && r.status < 500 && r.status !== 408);
     return { id: ((await r.json()) as { id?: string }).id ?? null };
   }
   const m = from.match(/^(.*)<(.+)>$/);
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { "api-key": process.env.BREVO_API_KEY!, "Content-Type": "application/json", accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
     body: JSON.stringify({ sender: { name: (m?.[1] || "JobPao").trim(), email: (m?.[2] || from).trim() }, to: [{ email: msg.to }], subject: msg.subject, htmlContent: msg.html, textContent: msg.text }),
   });
-  if (!r.ok) throw new Error(`Brevo ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new EmailDeliveryError(`Brevo ${r.status}: ${(await r.text()).slice(0, 200)}`, r.status >= 400 && r.status < 500 && r.status !== 408);
   return { id: ((await r.json()) as { messageId?: string }).messageId ?? null };
 }

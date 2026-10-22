@@ -43,8 +43,8 @@ export async function getBudget(admin: SupabaseClient, userId: string): Promise<
 
 export function checkBudget(b: Budget | null, now = Date.now()) {
   if (!b) throw new AIError("over_cap", "no subscription");
-  if (b.status === "trialing" && b.trialEndsAt && Date.parse(b.trialEndsAt) < now) throw new AIError("trial_expired");
-  if (b.status === "active" && b.periodEnd && Date.parse(b.periodEnd) < now) throw new AIError("plan_expired");
+  if (b.status === "trialing" && b.trialEndsAt && Date.parse(b.trialEndsAt) <= now) throw new AIError("trial_expired");
+  if (b.status === "active" && b.periodEnd && Date.parse(b.periodEnd) <= now) throw new AIError("plan_expired");
   if (b.status === "expired" || b.status === "canceled" || b.status === "past_due") throw new AIError(b.plan === "pro" ? "plan_expired" : "trial_expired");
   if (b.spent >= b.cap) throw new AIError("over_cap");
 }
@@ -60,15 +60,36 @@ export async function runAI<T extends { usage: AIUsage }>(admin: SupabaseClient,
     getBudget(admin, userId),
     admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(Date.now() - RATE_WINDOW_MS).toISOString()),
   ]);
+  if (recent.error) throw new AIError("upstream", "Could not verify rate allowance");
   checkBudget(budget);
   // A person working normally makes a few AI calls a minute; a script hammering the API is stopped here.
   if (!BACKGROUND.has(feature) && (recent.count ?? 0) >= RATE_MAX_CALLS) throw new AIError("rate_limited");
-  const res = await fn(p);
-  const { error } = await admin.from("ai_usage").insert({
-    user_id: userId, feature, provider: p.name, model: res.usage.model,
-    input_tokens: res.usage.inputTokens, output_tokens: res.usage.outputTokens, cost_micro_usd: res.usage.costMicroUsd,
-  });
-  // Unrecorded spend would slip past the cap: never silent.
-  if (error) console.error("ai_usage insert failed", userId, feature, res.usage.costMicroUsd, error);
+  const { data: reservation, error: reserveError } = await admin.rpc("reserve_ai_call", { p_user: userId, p_feature: feature, p_provider: p.name });
+  if (reserveError || reservation == null) {
+    const code = reserveError?.message;
+    if (["over_cap", "trial_expired", "plan_expired", "rate_limited", "unresolved"].includes(code || "")) throw new AIError(code as "over_cap" | "trial_expired" | "plan_expired" | "rate_limited" | "unresolved");
+    throw new AIError("upstream", "Could not reserve AI allowance");
+  }
+  let res: T;
+  try { res = await fn(p); }
+  catch (e) {
+    // Explicit authentication/rate refusals did not generate content. Other errors may conceal billable work.
+    if (e instanceof AIError && e.usage) {
+      const { error } = await admin.from("ai_usage").update({ feature, model: e.usage.model, input_tokens: e.usage.inputTokens, output_tokens: e.usage.outputTokens, cost_micro_usd: e.usage.costMicroUsd, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
+      if (error) console.error("AI failed usage reconciliation failed", reservation, error);
+    } else if (e instanceof AIError && (e.code === "not_configured" || e.code === "rate_limited")) {
+      const { error } = await admin.from("ai_usage").update({ feature, model: "__rejected__", cost_micro_usd: 0, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
+      if (error) console.error("AI rejected reservation reconciliation failed", reservation, error);
+    } else console.error("AI result unresolved; reconcile reservation with provider usage", reservation, userId, feature);
+    throw e;
+  }
+  const { data: settled, error } = await admin.from("ai_usage").update({
+    feature, model: res.usage.model, input_tokens: res.usage.inputTokens, output_tokens: res.usage.outputTokens,
+    cost_micro_usd: res.usage.costMicroUsd, ok: true,
+  }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__").select("id").maybeSingle();
+  if (error || !settled) {
+    console.error("AI usage settlement failed; keep reservation", reservation, error);
+    throw new AIError("upstream", "Could not record AI usage");
+  }
   return res;
 }

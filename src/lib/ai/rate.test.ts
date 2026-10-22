@@ -14,8 +14,8 @@ function admin(recent: number) {
     return b;
   };
   const db = {
-    rpc: async () => ({ data: [{ spent_micro_usd: 0, cap_micro_usd: 1_000_000, plan_code: "trial", status: "trialing", trial_ends_at: new Date(Date.now() + 86_400_000).toISOString() }], error: null }),
-    from: (t: string) => (t === "ai_usage" ? { ...chain({ count: recent, error: null }), insert: async (r: unknown) => { inserts.push(r); return { error: null }; } } : chain({ data: null, error: null })),
+    rpc: async (name: string) => name === "reserve_ai_call" ? ({ data: 1, error: null }) : ({ data: [{ spent_micro_usd: 0, cap_micro_usd: 1_000_000, plan_code: "trial", status: "trialing", trial_ends_at: new Date(Date.now() + 86_400_000).toISOString() }], error: null }),
+    from: (t: string) => (t === "ai_usage" ? { ...chain({ count: recent, error: null }), update: (r: unknown) => { inserts.push(r); return chain({ data: { id: 1 }, error: null }); } } : chain({ data: null, error: null })),
   };
   return { db: db as unknown as SupabaseClient, inserts };
 }
@@ -36,3 +36,9 @@ describe("runAI rate limit", () => {
     await expect(runAI(admin(RATE_MAX_CALLS + 5).db, "u1", "match_check", call)).resolves.toMatchObject({ data: 1 });
   });
 });
+
+ it("does not call AI if its atomic reservation is unavailable", async()=>{
+   const a=admin(0),fn=vi.fn(call);const old=a.db.rpc;
+   a.db.rpc=vi.fn(async(name:string,...args:unknown[])=>name === "reserve_ai_call" ? {data:null,error:{message:"rate_limited"}} : old(name,...args)) as unknown as typeof a.db.rpc;
+   await expect(runAI(a.db,"u1","cv_edit",fn)).rejects.toMatchObject({code:"rate_limited"});expect(fn).not.toHaveBeenCalled();
+ });

@@ -25,7 +25,7 @@ export class AnthropicProvider implements AIProvider {
   readonly name = "anthropic";
   private client: Anthropic;
   constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000 });
+    this.client = new Anthropic({ apiKey, maxRetries: 0, timeout: 120_000 });
   }
 
   private base(tier: AITier, maxTokens: number | undefined) {
@@ -46,9 +46,9 @@ export class AnthropicProvider implements AIProvider {
         messages: [{ role: "user", content: req.prompt }],
         output_config: { effort: req.tier === "fast" ? "low" : "medium", format: betaZodOutputFormat(req.schema) },
       });
-      if (res.stop_reason === "refusal") throw new AIError("refused");
-      if (res.stop_reason === "max_tokens" || res.parsed_output == null) throw new AIError("invalid_json");
       const usage = { model: res.model || b.model, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, costMicroUsd: costMicroUsd(b.model, res.usage.input_tokens, res.usage.output_tokens) };
+      if (res.stop_reason === "refusal") throw new AIError("refused", undefined, usage);
+      if (res.stop_reason === "max_tokens" || res.parsed_output == null) throw new AIError("invalid_json", undefined, usage);
       return { data: res.parsed_output as z.infer<S>, usage };
     } catch (e) {
       mapError(e);

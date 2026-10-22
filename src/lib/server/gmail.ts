@@ -10,7 +10,7 @@ import { esc } from "../cv/render";
 import { loadState } from "./state";
 import { rowToJob, type JobRow } from "../jobs";
 import { applicationSafety, type AnswerLibrary } from "../career-safety";
-import { ApplicationSafetyError, assertCanApply, SUBMITTED, type Ctx } from "./applications";
+import { ApplicationSafetyError, assertCanApply, type Ctx } from "./applications";
 
 export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const SCOPES = ["openid", "email", GMAIL_SCOPE].join(" ");
@@ -114,11 +114,9 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
 
   // Claim the application before sending, so a double press or a second tab cannot email the employer twice.
   // Never automatically retry an ambiguous send: Gmail may have accepted it before a crash.
-  const claimAt = new Date().toISOString();
-  const { data: claim, error: ce } = await ctx.db.from("applications").update({ sending_at: claimAt })
-    .eq("id", app.id).eq("user_id", ctx.userId).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
+  const { data: claimAt, error: ce } = await ctx.db.rpc("claim_gmail_application", { p_application: app.id });
   if (ce) throw ce;
-  if (!claim) throw new Error("A previous send attempt is unresolved. Check Gmail Sent and reconcile the application before retrying to avoid a duplicate email.");
+  if (!claimAt) throw new Error("A previous send attempt is unresolved. Check Gmail Sent before retrying to avoid a duplicate email.");
   const release = () => ctx.db.from("applications").update({ sending_at: null }).eq("id", app.id).eq("user_id", ctx.userId).eq("sending_at", claimAt).then(() => undefined, () => undefined);
 
   let sent: { id?: string; error?: { message?: string } };

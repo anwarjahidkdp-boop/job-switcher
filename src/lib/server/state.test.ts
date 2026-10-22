@@ -10,7 +10,7 @@ function fakeDb(answer: (table: string, calls: [string, unknown[]][]) => unknown
       const q = { table, calls: [] as [string, unknown[]][] };
       log.push(q);
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "or", "order", "limit", "in", "not", "is"]) b[m] = (...a: unknown[]) => { q.calls.push([m, a]); return b; };
+      for (const m of ["select", "eq", "or", "order", "limit", "in", "not", "is", "range"]) b[m] = (...a: unknown[]) => { q.calls.push([m, a]); return b; };
       b.then = (res: (v: unknown) => unknown) => res({ data: answer(table, q.calls), error: null });
       return b;
     },
@@ -39,7 +39,18 @@ describe("loadVisibleJobs", () => {
       await loadVisibleJobs(db, "u1", "US", ["IT"], { all });
       const q = log.filter((x) => x.table === "jobs");
       expect(q).toHaveLength(1);
-      expect(has(q[0].calls, "limit", 1000)).toBe(true);
+      expect(has(q[0].calls, all ? "range" : "limit", all ? 999 : 1000)).toBe(true);
     }
   });
 });
+
+ it("daily refresh reads beyond the first PostgREST page", async () => {
+   const { db, log } = fakeDb((table, calls) => {
+     if (table !== "jobs") return [];
+     const from = calls.find(([m])=>m === "range")?.[1][0];
+     return from === 0 ? Array.from({length:1000},(_,i)=>job(`j${i}`)) : [job("last")];
+   });
+   const rows = await loadVisibleJobs(db,"u1","US",["IT"],{all:true});
+   expect(rows).toHaveLength(1001); expect(rows.at(-1)?.id).toBe("last");
+   expect(log.filter(q=>q.table === "jobs")).toHaveLength(2);
+ });

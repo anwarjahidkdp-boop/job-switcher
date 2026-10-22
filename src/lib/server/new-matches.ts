@@ -3,9 +3,10 @@
 // Preparing is not applying: nothing is ever sent to an employer without the user's own press (see applications.ts).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { aiConfigured, checkBudget, getBudget } from "../ai";
-import { emailProvider, sendEmail } from "../email/send";
+import { emailProvider } from "../email/send";
 import { newMatchesEmail } from "../email/templates";
 import { ApplicationSafetyError, preparePack } from "./applications";
+import { deliverEmail } from "./email-outbox";
 import { notify } from "./notify";
 
 export const NOTIFY_MIN_SCORE = 70;
@@ -60,8 +61,8 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
           : { kind: "match" as const, title: `New ${r.score}% match: ${r.jobs.title}`, body: `${r.jobs.company}${r.jobs.location ? ` · ${r.jobs.location}` : ""}. Want us to prepare your application?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` })).catch((e) => console.error("  notify failed", userId, e));
         if (prof?.email && prof.email_reminders !== false && emailProvider()) {
           const msg = newMatchesEmail({ name: prof.full_name || "", link: `${base}/inbox`, jobs: fresh.slice(0, DIGEST_MAX).map((r) => ({ title: r.jobs.title, company: r.jobs.company, location: r.jobs.location, score: r.score, link: `${base}/jobs/${r.job_id}`, ready: ready.has(r.job_id) })), total: fresh.length });
-          await sendEmail({ to: prof.email, ...msg });
-          res.emailed++;
+          const delivery = await deliverEmail(admin, userId, `matches:${fresh.map(r => r.job_id).sort().join(",")}`, { to: prof.email, ...msg });
+          if (delivery === "sent") res.emailed++; else res.failed++;
         }
         const now = new Date().toISOString();
         await admin.from("matches").update({ notified_at: now }).eq("user_id", userId).in("job_id", fresh.map((r) => r.job_id));

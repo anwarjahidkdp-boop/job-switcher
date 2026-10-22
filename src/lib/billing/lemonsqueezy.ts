@@ -18,7 +18,7 @@ export function verifySignature(rawBody: string, signature: string | null, secre
   return timingSafeEqual(want, Buffer.from(signature, "hex"));
 }
 
-export interface LemonOrderEvent { event: string; paymentId: string | null; orderId: string; storeId: string; status: string; currency: string; subtotal: number; email: string | null }
+export interface LemonOrderEvent { event: string; paymentId: string | null; orderId: string; storeId: string; status: string; currency: string; subtotal: number; email: string | null; testMode: boolean }
 
 /** The fields we rely on from an order webhook; anything missing makes the event unusable. */
 export function parseOrderEvent(body: unknown): LemonOrderEvent | null {
@@ -28,7 +28,7 @@ export function parseOrderEvent(body: unknown): LemonOrderEvent | null {
   const pid = b.meta.custom_data?.payment_id;
   return {
     event: b.meta.event_name, paymentId: typeof pid === "string" ? pid : null, orderId: String(b.data.id), storeId: String(a.store_id ?? ""),
-    status: String(a.status ?? ""), currency: String(a.currency ?? ""), subtotal: Number(a.subtotal ?? NaN), email: typeof a.user_email === "string" ? a.user_email : null,
+    testMode: a.test_mode === true, status: String(a.status ?? ""), currency: String(a.currency ?? ""), subtotal: Number(a.subtotal ?? NaN), email: typeof a.user_email === "string" ? a.user_email : null,
   };
 }
 
