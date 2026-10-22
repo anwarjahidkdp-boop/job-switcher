@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadVisibleJobs, PAGE_NEWEST } from "./state";
+import { loadVisibleJobs, PAGE_NEWEST,stats,countVisibleJobs,type UserState } from "./state";
 
 /** A tiny stand-in for the Supabase query builder: records each query's calls and answers from `answer`. */
 function fakeDb(answer: (table: string, calls: [string, unknown[]][]) => unknown[]) {
@@ -54,3 +54,11 @@ describe("loadVisibleJobs", () => {
    expect(rows).toHaveLength(1001); expect(rows.at(-1)?.id).toBe("last");
    expect(log.filter(q=>q.table === "jobs")).toHaveLength(2);
  });
+
+it('does not count an unsent closed draft as a submitted application',()=>{
+ const st={analysed:0,scored:[],apps:{draft:{status:'closed',applied_at:null},sent:{status:'withdrawn',applied_at:'2026-10-20'}}} as unknown as UserState;
+ expect(stats(st).applied).toBe(1);
+});
+it('personal analysis counts query only the user assessments, not the whole job inventory',async()=>{
+ const {db,log}=fakeDb(()=>[]);await countVisibleJobs(db,'u1','BD');expect(log[0].table).toBe('matches');expect(has(log[0].calls,'eq','u1')).toBe(true);expect(has(log[0].calls,'eq','jobs.country')).toBe(true);
+});
