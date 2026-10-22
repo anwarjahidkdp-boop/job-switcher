@@ -57,6 +57,10 @@ export function verifyBackup(folder:string):FullManifest {
 export function requireRecoveryTarget(source:string,target:string,ack:string|undefined){
  if(!target||target===source||target==='hplxsueitluutdbkbupi'||ack!==target)throw new Error('Restore requires a distinct isolated project and RESTORE_EMPTY_PROJECT_ACK matching its ref');
 }
+/** Restore app-owned platform objects, not Supabase's managed schema migrations/triggers. */
+export function recoveryPlatformEntries(toc:string){
+ return toc.split('\n').filter(line=>line.includes(' POLICY storage ')||/ ACL storage TABLE (objects|buckets) /.test(line)||/ TRIGGER auth users on_auth_user_created /.test(line)).join('\n');
+}
 export async function restoreBackup(db:SupabaseClient,folder:string,uri:string,target:string){
  const m=verifyBackup(folder);requireRecoveryTarget(m.project,target,process.env.RESTORE_EMPTY_PROJECT_ACK);
  assertDatabaseProject(uri,target);
@@ -65,13 +69,13 @@ export async function restoreBackup(db:SupabaseClient,folder:string,uri:string,t
  await pg('pg_restore',['--exit-on-error','--no-owner','--schema-only','--schema=public',join(folder,m.database.file)],uri);
  const toc=await pgOutput('pg_restore',['--list',join(folder,m.database.file)],uri);
  const policies=join(folder,'restore-storage-policies.list');
- writeFileSync(policies,toc.split('\n').filter(line=>line.includes(' POLICY storage ')||/ ACL storage TABLE (objects|buckets) /.test(line)).join('\n'),{mode:0o600});
+ writeFileSync(policies,recoveryPlatformEntries(toc),{mode:0o600});
  await pg('pg_restore',['--exit-on-error','--no-owner','--schema-only','--use-list',policies,join(folder,m.database.file)],uri);
  const listFile=join(folder,'restore-data.list');writeFileSync(listFile,toc.split('\n').filter(line=>!(/TABLE DATA (auth schema_migrations|storage migrations) /.test(line))).join('\n'),{mode:0o600});
  await pg('pg_restore',['--exit-on-error','--no-owner','--no-privileges','--data-only','--disable-triggers','--use-list',listFile,join(folder,m.database.file)],uri);
  for(const o of m.objects){const {error}=await db.storage.from(o.bucket).upload(o.name,readFileSync(join(folder,o.file)),{upsert:true,contentType:String((o.metadata.metadata as Record<string,unknown>)?.mimetype||'application/octet-stream')});if(error)throw new Error('Recovery object upload failed');}
  // Uploads may alter owner/metadata. Restore those fields from the original rows using JSON, not interpolated identifiers.
  const rows=JSON.stringify(m.objects.map(o=>o.metadata));const literal="'"+rows.replaceAll("'","''")+"'";
- await pg('psql',['-X','-v','ON_ERROR_STOP=1'],uri,`update storage.objects o set owner=x.owner,owner_id=x.owner_id,metadata=x.metadata,created_at=x.created_at,updated_at=x.updated_at from jsonb_populate_recordset(null::storage.objects,${literal}::jsonb) x where o.id=x.id;`);
+ await pg('psql',['-X','-v','ON_ERROR_STOP=1'],uri,`update storage.objects o set id=x.id,owner=x.owner,owner_id=x.owner_id,metadata=x.metadata,created_at=x.created_at,updated_at=x.updated_at from jsonb_populate_recordset(null::storage.objects,${literal}::jsonb) x where o.bucket_id=x.bucket_id and o.name=x.name;`);
  for(const o of m.objects){const {data,error}=await db.storage.from(o.bucket).download(o.name);if(error||!data||sha256(Buffer.from(await data.arrayBuffer()))!==o.sha256)throw new Error('Recovered object checksum mismatch');}
 }
