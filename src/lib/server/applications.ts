@@ -13,6 +13,7 @@ import { limitNotice, packAllowance, packLimits, trialApplyRoom } from "../pack-
 import { aiErrCopy } from "../ai/provider";
 import { templatePack } from "../template-pack";
 import type { AppStatus, ApplicationPack, Job } from "../types";
+import { applicationSafety, type SafetyCheck } from "../career-safety";
 import { loadJob, loadState, type ApplicationRow } from "./state";
 
 export interface Ctx { db: SupabaseClient; admin: SupabaseClient; userId: string }
@@ -47,6 +48,7 @@ export async function hasPro(ctx: Pick<Ctx, "db" | "userId">): Promise<boolean> 
 
 /** The free trial's daily application is used; callers send the person to the Pro page. */
 export class TrialLimit extends Error {}
+export class ApplicationSafetyError extends Error { constructor(public check: SafetyCheck) { super(check.issues.map((x) => x.message).join(" ")); } }
 
 /** Free plan: one application a day, 5 in all. Every path to "applied" checks this (the database checks it again). */
 export async function assertCanApply(ctx: Pick<Ctx, "db" | "userId">) {
@@ -81,6 +83,8 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
+  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa);
+  if (!safety.safe) throw new ApplicationSafetyError(safety);
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
   await event(ctx, app.id, "Preparing application");
