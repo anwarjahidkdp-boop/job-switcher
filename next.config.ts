@@ -1,15 +1,16 @@
 import type { NextConfig } from "next";
 
-// A second line of defence: scripts only from this site, data only to this site and Supabase, never framed.
+// Restrict third-party scripts/frames to the configured CAPTCHA provider; the app itself cannot be framed.
+const captcha=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?" https://challenges.cloudflare.com":"";
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${captcha}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co${captcha}`,
   "worker-src 'self' blob:",
-  "frame-src 'none'",
+  captcha?`frame-src https://challenges.cloudflare.com`:"frame-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
