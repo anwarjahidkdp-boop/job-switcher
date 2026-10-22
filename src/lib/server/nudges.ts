@@ -81,7 +81,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
 
   // 4. Paid Pro users get a real weekly career report. Trial users do not receive this.
   const week = isoWeek(now);
-  const { data: paid } = await admin.from("subscriptions").select("user_id, current_period_end").eq("plan_code", "pro").eq("status", "active").limit(5000);
+  const { data: paid } = await admin.from("subscriptions").select("user_id, current_period_end").eq("status", "active").limit(5000);
   for (const s of (paid || []) as { user_id: string; current_period_end: string | null }[]) {
     if (s.current_period_end && Date.parse(s.current_period_end) <= now.getTime()) continue;
     const [{ count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
