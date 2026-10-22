@@ -102,7 +102,7 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
           <Step k={k.alerts} isDone={!!steps[k.alerts]} active={current === "alerts"} n={1} title={`Turn on job alerts on ${site}`}>
             <p className="small muted">Which email does your {site} account use?</p>
             <AccountChoice site={site} value={acct} options={[
-              { v: "new", label: `I don't have a ${site} account` },
+              { v: "new", label: `I don't have ${/^[aeiou]/i.test(site) ? "an" : "a"} ${site} account` },
               { v: "same", label: `The same email I use here (${email || "my JobPao email"})` },
               { v: "gmail2", label: "A different Gmail" },
               { v: "other", label: "Outlook, Yahoo or another email" },
