@@ -46,6 +46,12 @@ export function packPrice(country: unknown, pack: unknown = DEFAULT_PACK): PackP
   return { country: c, currency: r.currency, minor: r.local[i], usd: r.usd[i], pack: p.id, days: p.days, name: p.name };
 }
 
+/** What is actually charged: taka with bKash in Bangladesh, US dollars by card everywhere else. Show this as the price. */
+export const chargedPrice = (p: PackPrice): { minor: number; currency: string } => (p.currency === "BDT" ? { minor: p.minor, currency: "BDT" } : { minor: p.usd, currency: "USD" });
+
+/** "about £18.99": the charged dollar price in the local currency, or null where the local currency is the one charged. */
+export const localHint = (p: PackPrice): string | null => (p.currency === "BDT" || p.currency === "USD" ? null : `about ${formatPrice(p.minor, p.currency)}`);
+
 /** The 30-day price, shown wherever one headline price is needed. */
 export const proPrice = (country: unknown): Price => { const { country: c, currency, minor } = packPrice(country); return { country: c, currency, minor }; };
 

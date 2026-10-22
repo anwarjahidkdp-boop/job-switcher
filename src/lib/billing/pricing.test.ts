@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countryFromHeader, formatPrice, MIN_CARD_USD, PACK_PRICES, PACKS, packPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
+import { chargedPrice, countryFromHeader, formatPrice, localHint, MIN_CARD_USD, PACK_PRICES, PACKS, packPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
 
 describe("country pricing", () => {
   it("prices the four Bangladesh packs set by the owner", () => {
@@ -46,5 +46,19 @@ describe("perDay", () => {
   });
   it("rounds other currencies up to the cent", () => {
     expect(perDay(proPrice("US"))).toBe("$0.84");
+  });
+});
+
+describe("charged price", () => {
+  it("shows the dollar amount a UK card is charged, with pounds only as a guide", () => {
+    const p = packPrice("GB", "30d");
+    expect(chargedPrice(p)).toEqual({ minor: 2500, currency: "USD" });
+    expect(localHint(p)).toBe("about £18.99");
+  });
+  it("needs no guide where the local currency is the one charged", () => {
+    expect(chargedPrice(packPrice("BD", "30d"))).toEqual({ minor: 49000, currency: "BDT" });
+    expect(localHint(packPrice("BD", "30d"))).toBeNull();
+    expect(localHint(packPrice("US", "30d"))).toBeNull();
+    expect(localHint(packPrice("XX", "30d"))).toBeNull();
   });
 });
