@@ -204,9 +204,15 @@ function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: 
 
 async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null) {
   const { data: prev } = await ctx.db.from("master_cvs").select("version").eq("user_id", ctx.userId).order("version", { ascending: false }).limit(1).maybeSingle();
-  await ctx.db.from("master_cvs").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true);
+  // Only one CV can be current (unique index), so retire the old one first; if the new one cannot be saved, put the old one back.
+  const { data: retired, error: re } = await ctx.db.from("master_cvs").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true).select("id");
+  if (re) throw re;
   const { error } = await ctx.db.from("master_cvs").insert({ user_id: ctx.userId, version: (prev?.version || 0) + 1, content, flags, ai, model, source_cv_document_id: docId });
-  if (error) throw error;
+  if (error) {
+    const ids = (retired || []).map((r) => r.id as string);
+    if (ids.length) await ctx.db.from("master_cvs").update({ is_current: true }).in("id", ids);
+    throw error;
+  }
 }
 
 /** Generate the Master CV from verified facts only, then run the deterministic post-checks. */

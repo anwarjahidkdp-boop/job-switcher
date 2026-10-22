@@ -18,6 +18,11 @@ export function getProvider(): AIProvider | null {
 }
 export const aiConfigured = () => getProvider() !== null;
 
+/** At most this many AI calls per person in any 10 minutes (a CV build plus edits and a few packs fit easily). */
+export const RATE_MAX_CALLS = 30, RATE_WINDOW_MS = 10 * 60_000;
+/** Calls the daily jobs make for the person (capped there), never blocked by the per-person rate limit. */
+const BACKGROUND = new Set<AIFeature>(["match_check", "alert_parse"]);
+
 /** Monthly AI allowance for Pro users living outside Bangladesh: US$2. */
 export const INTL_PRO_CAP_MICRO_USD = 2_000_000;
 
@@ -51,11 +56,19 @@ export function checkBudget(b: Budget | null, now = Date.now()) {
 export async function runAI<T extends { usage: AIUsage }>(admin: SupabaseClient, userId: string, feature: AIFeature, fn: (p: AIProvider) => Promise<T>): Promise<T> {
   const p = getProvider();
   if (!p) throw new AIError("not_configured");
-  checkBudget(await getBudget(admin, userId));
+  const [budget, recent] = await Promise.all([
+    getBudget(admin, userId),
+    admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(Date.now() - RATE_WINDOW_MS).toISOString()),
+  ]);
+  checkBudget(budget);
+  // A person working normally makes a few AI calls a minute; a script hammering the API is stopped here.
+  if (!BACKGROUND.has(feature) && (recent.count ?? 0) >= RATE_MAX_CALLS) throw new AIError("rate_limited");
   const res = await fn(p);
-  await admin.from("ai_usage").insert({
+  const { error } = await admin.from("ai_usage").insert({
     user_id: userId, feature, provider: p.name, model: res.usage.model,
     input_tokens: res.usage.inputTokens, output_tokens: res.usage.outputTokens, cost_micro_usd: res.usage.costMicroUsd,
   });
+  // Unrecorded spend would slip past the cap: never silent.
+  if (error) console.error("ai_usage insert failed", userId, feature, res.usage.costMicroUsd, error);
   return res;
 }

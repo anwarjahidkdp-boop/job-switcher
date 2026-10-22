@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: write
 concurrency:
   group: deploy-app
   cancel-in-progress: false
@@ -71,3 +72,13 @@ jobs:
           fi
       # Settings first, so the new code never starts with old settings. Roll back a bad release with: npx wrangler rollback
       - run: npx wrangler deploy
+      - name: Tell the owner it failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # One open issue per problem: an hourly job that keeps failing does not open a new issue every hour.
+          t="Deploy to jobpao.app failed"
+          if [ "$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$t\"" --json number --jq length)" = "0" ]; then
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$t" --body "See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi

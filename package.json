@@ -13,6 +13,7 @@
     "ingest": "tsx --conditions=react-server scripts/ingest/run.ts",
     "reminders": "tsx scripts/reminders/run.ts",
     "sponsors": "tsx scripts/sponsors/run.ts",
+    "backup": "tsx scripts/backup/run.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-build": "opennextjs-cloudflare build"
