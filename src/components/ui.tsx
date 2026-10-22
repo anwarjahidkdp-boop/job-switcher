@@ -3,18 +3,26 @@ import { daysUntil, fmtDate } from "@/lib/dates";
 import type { Band } from "@/lib/types";
 
 export function Logo({ size = 28 }: { size?: number }) {
-  // JobPao mark: a gold briefcase on navy with a tick cut out of it.
+  // JobPao mark: a metallic gold briefcase with a navy tick, on navy with a thin gold rim.
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
       <defs>
-        <linearGradient id="jp-navy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#14275A" /><stop offset="1" stopColor="#0A1533" /></linearGradient>
-        <linearGradient id="jp-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFD36A" /><stop offset="1" stopColor="#F29A0B" /></linearGradient>
+        <radialGradient id="jp-bg" cx=".3" cy=".2" r="1"><stop offset="0" stopColor="#1F3A7A" /><stop offset=".55" stopColor="#14275A" /><stop offset="1" stopColor="#091430" /></radialGradient>
+        <linearGradient id="jp-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#F7DC94" /><stop offset=".5" stopColor="#B98A35" /><stop offset="1" stopColor="#F0CF7E" /></linearGradient>
+        <linearGradient id="jp-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FCE7A8" /><stop offset=".38" stopColor="#E9B954" /><stop offset=".72" stopColor="#C8922F" /><stop offset="1" stopColor="#A8741E" /></linearGradient>
+        <linearGradient id="jp-handle" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#C8922F" /><stop offset=".5" stopColor="#F6D98C" /><stop offset="1" stopColor="#C8922F" /></linearGradient>
+        <linearGradient id="jp-tick" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0B1838" /><stop offset="1" stopColor="#14275A" /></linearGradient>
+        <filter id="jp-shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1.6" stdDeviation="1.4" floodColor="#000" floodOpacity=".45" /></filter>
       </defs>
-      <rect width="64" height="64" rx="14.5" fill="url(#jp-navy)" />
-      <path d="M24.5 21v-3.4a3.4 3.4 0 013.4-3.4h8.2a3.4 3.4 0 013.4 3.4V21" fill="none" stroke="url(#jp-gold)" strokeWidth="3.6" />
-      <rect x="11" y="21" width="42" height="30" rx="7" fill="url(#jp-gold)" />
-      <path d="M13 25.5c0-1.9 1.4-2.8 3-2.8h32" stroke="#fff" strokeOpacity=".45" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-      <path d="M22 36.2l7.2 7.2L44 28.6" fill="none" stroke="#0D1B3E" strokeWidth="6.2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect width="64" height="64" rx="14.5" fill="url(#jp-bg)" />
+      <rect x="1.6" y="1.6" width="60.8" height="60.8" rx="13" fill="none" stroke="url(#jp-rim)" strokeOpacity=".55" strokeWidth=".9" />
+      <g filter="url(#jp-shadow)">
+        <path d="M24.6 21.5v-3.6a3.3 3.3 0 0 1 3.3-3.3h8.2a3.3 3.3 0 0 1 3.3 3.3v3.6" fill="none" stroke="url(#jp-handle)" strokeWidth="3.4" strokeLinecap="round" />
+        <rect x="11" y="21" width="42" height="30" rx="7.2" fill="url(#jp-gold)" />
+      </g>
+      <path d="M14.5 23.6h35" stroke="#FFF6D8" strokeOpacity=".7" strokeWidth="1" strokeLinecap="round" />
+      <path d="M11.4 31.2h11.2M41.4 31.2h11.2" stroke="#9C6A1A" strokeOpacity=".55" strokeWidth=".9" />
+      <path d="M22 36.4l7.1 7.1L44 28.7" fill="none" stroke="url(#jp-tick)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
