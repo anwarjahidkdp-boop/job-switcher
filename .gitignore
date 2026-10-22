@@ -14,3 +14,5 @@ workers/**/node_modules/
 coverage/
 .open-next/
 .dev.vars
+
+supabase/.temp/

@@ -101,12 +101,22 @@ export async function loadVisibleJobs(db: SupabaseClient, userId: string, countr
       return [...seen.values()].map(rowToJob);
     }
   }
+  if (opts.all) {
+    const all: JobRow[] = [];
+    for (let from = 0; ; from += ALL_LIMIT) {
+      const page = rows(await base().order("id").range(from, from + ALL_LIMIT - 1));
+      all.push(...page);
+      if (page.length < ALL_LIMIT) break;
+    }
+    return all.map(rowToJob);
+  }
   return rows(await base().order("created_at", { ascending: false }).limit(ALL_LIMIT)).map(rowToJob);
 }
 
 /** How many open jobs we checked in this country (the dashboard's "Jobs analysed"). */
 async function countVisibleJobs(db: SupabaseClient, userId: string, country: string): Promise<number> {
-  const { count } = await db.from("jobs").select("id", { count: "exact", head: true }).eq("country", country).eq("active", true).or(`owner_id.is.null,owner_id.eq.${userId}`);
+  const { count, error } = await db.from("jobs").select("id", { count: "exact", head: true }).eq("country", country).eq("active", true).or(`owner_id.is.null,owner_id.eq.${userId}`);
+  if (error) throw error;
   return count || 0;
 }
 

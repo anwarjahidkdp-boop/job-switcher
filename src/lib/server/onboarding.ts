@@ -96,27 +96,22 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
   const fresh = input.demo ? [] : freshnessQuestions(extraction, todayStr(rule(country).timeZone));
   const questions: (CvQuestion & { demo?: string })[] = [...fresh, ...extraction.questions].slice(0, 6);
 
-  await ctx.db.from("cv_documents").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true);
-  const { data: doc, error } = await ctx.db.from("cv_documents").insert({
-    user_id: ctx.userId, storage_path: storagePath, file_name: fileName, mime_type: mime, size_bytes: size, text_content: text, text_source: source,
-    extraction, questions: questions.map(({ id, question, placeholder }) => ({ id, question, placeholder })), is_demo: !!input.demo,
-    answers: input.demo ? Object.fromEntries(questions.map((q) => [q.id, q.demo || ""])) : {},
-  }).select("id").single();
+  const facts = groundExtraction(extraction, text);
+  const { data: docId, error } = await ctx.db.rpc("replace_cv", {
+    p_document: {
+      storage_path: storagePath, file_name: fileName, mime_type: mime, size_bytes: size, text_content: text, text_source: source,
+      extraction, questions: questions.map(({ id, question, placeholder }) => ({ id, question, placeholder })), is_demo: !!input.demo,
+      answers: input.demo ? Object.fromEntries(questions.map((q) => [q.id, q.demo || ""])) : {},
+    },
+    p_facts: facts,
+    p_profile: {
+      full_name: extraction.name || profile.full_name, phone: extraction.phone, city: extraction.location,
+      career_meta: { industries: extraction.industries, categories: extraction.categories, seniority: extraction.seniority, target_roles: extraction.target_roles, location: extraction.location },
+    },
+  });
   if (error) throw error;
 
-  // A new CV replaces facts from the previous CV and its answers; skills the user added themselves are kept.
-  await ctx.db.from("career_facts").delete().eq("user_id", ctx.userId).in("provenance", ["cv", "answer"]);
-  const facts = groundExtraction(extraction, text);
-  if (facts.length) {
-    const { error: fe } = await ctx.db.from("career_facts").insert(facts.map((f) => ({ ...f, user_id: ctx.userId, cv_document_id: doc.id })));
-    if (fe) throw fe;
-  }
-  await ctx.db.from("profiles").update({
-    full_name: extraction.name || profile.full_name, phone: extraction.phone, city: extraction.location,
-    career_meta: { industries: extraction.industries, categories: extraction.categories, seniority: extraction.seniority, target_roles: extraction.target_roles, location: extraction.location },
-    onboarding_step: "questions",
-  }).eq("id", ctx.userId);
-  return { cvDocumentId: doc.id as string, questions, found: { roles: extraction.experiences.length, degrees: extraction.education.length, skills: extraction.skills.length }, unverified: facts.filter((f) => !f.verified).length, name: extraction.name };
+  return { cvDocumentId: docId as string, questions, found: { roles: extraction.experiences.length, degrees: extraction.education.length, skills: extraction.skills.length }, unverified: facts.filter((f) => !f.verified).length, name: extraction.name };
 }
 
 export const MAX_SCAN_PAGES = 4;
@@ -203,16 +198,8 @@ function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: 
 }
 
 async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null) {
-  const { data: prev } = await ctx.db.from("master_cvs").select("version").eq("user_id", ctx.userId).order("version", { ascending: false }).limit(1).maybeSingle();
-  // Only one CV can be current (unique index), so retire the old one first; if the new one cannot be saved, put the old one back.
-  const { data: retired, error: re } = await ctx.db.from("master_cvs").update({ is_current: false }).eq("user_id", ctx.userId).eq("is_current", true).select("id");
-  if (re) throw re;
-  const { error } = await ctx.db.from("master_cvs").insert({ user_id: ctx.userId, version: (prev?.version || 0) + 1, content, flags, ai, model, source_cv_document_id: docId });
-  if (error) {
-    const ids = (retired || []).map((r) => r.id as string);
-    if (ids.length) await ctx.db.from("master_cvs").update({ is_current: true }).in("id", ids);
-    throw error;
-  }
+  const { error } = await ctx.db.rpc("replace_master_cv", { p_content: content, p_flags: flags, p_ai: ai, p_model: model, p_document_id: docId });
+  if (error) throw error;
 }
 
 /** Generate the Master CV from verified facts only, then run the deterministic post-checks. */

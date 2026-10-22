@@ -5,7 +5,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { BkashClient, BkashError, bkashCredentialsFromEnv, verifyCompleted, type BkashPaymentState } from "../billing/bkash";
-import { billingConfig, bkashAmount, extendPeriod, formatTaka, normaliseMsisdn, normaliseTrxId } from "../billing/manual";
+import { billingConfig, bkashAmount, formatTaka, normaliseMsisdn, normaliseTrxId } from "../billing/manual";
 import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
@@ -74,33 +74,11 @@ export async function listPayments(admin: SupabaseClient, status: "pending" | "r
   return rows.map((r) => ({ ...r, email: who.get(r.user_id)?.email ?? null, name: who.get(r.user_id)?.full_name ?? null }));
 }
 
-/** Extend the user's Pro period by the pack's days and record it on the payment. */
-// One SQL statement (extend_pro) reads and moves the period end, so two approvals at the same time never lose a period.
-// It extends an active period from its end, otherwise starts from now (same rule as extendPeriod).
-async function activate(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_id" | "plan_code" | "trx_id" | "method" | "period_days">) {
-  const provider = p.method === "lemonsqueezy" ? "lemonsqueezy" : p.method === "bkash_checkout" ? "bkash_checkout" : "bkash";
-  const { data, error } = await admin.rpc("extend_pro", { p_user: p.user_id, p_days: p.period_days || 30, p_provider: provider, p_ref: p.trx_id });
-  let periodEnd: string;
-  if (error?.code === "PGRST202") {
-    // The database function is not installed yet (migration 20261021000024): use the older two-step update.
-    const { data: sub } = await admin.from("subscriptions").select("status, current_period_end").eq("user_id", p.user_id).maybeSingle();
-    periodEnd = extendPeriod(sub?.current_period_end, sub?.status, Date.now(), p.period_days || 30);
-    const { error: ue } = await admin.from("subscriptions").update({ plan_code: p.plan_code, status: "active", current_period_end: periodEnd, payment_provider: provider, payment_ref: p.trx_id }).eq("user_id", p.user_id);
-    if (ue) throw ue;
-  } else if (error) throw error;
-  else periodEnd = new Date(String(data)).toISOString();
-  const { error: pe } = await admin.from("payments").update({ period_end: periodEnd }).eq("id", p.id);
-  if (pe) console.error("payment period_end", p.id, pe);
-  return periodEnd;
-}
-
-/** A provider-confirmed payment was claimed; extend Pro, and if that fails put the row back so a retry (or the admin) can finish it. */
-async function activateClaimed(admin: SupabaseClient, p: Pick<PaymentRow, "id" | "user_id" | "plan_code" | "trx_id" | "method" | "period_days">) {
-  try { return await activate(admin, p); }
-  catch (e) {
-    await admin.from("payments").update({ status: "initiated", reviewed_by: null, reviewed_at: null }).eq("id", p.id).eq("status", "approved");
-    throw e;
-  }
+/** Atomic and replay-safe: a committed approval always includes its entitlement. */
+async function settle(admin: SupabaseClient, id: string, method: string, from: string[], review: Record<string, unknown>, refund = false) {
+  const { data, error } = await admin.rpc("settle_payment", { p_id: id, p_method: method, p_from: from, p_review: review, p_refund: refund });
+  if (error) throw error; // fail closed if migration is unavailable; never use a two-step fallback
+  return data as { changed: boolean; status: string; period_end: string | null };
 }
 
 async function notify(admin: SupabaseClient, userId: string, kind: "approved" | "rejected", info: { periodEnd?: string; trx: string | null; amountMinor: number; currency?: string; note?: string | null }) {
@@ -115,25 +93,21 @@ async function notify(admin: SupabaseClient, userId: string, kind: "approved" | 
 export async function reviewPayment(admin: SupabaseClient, input: { paymentId: string; approve: boolean; reviewer: string; note?: string }) {
   const note = (input.note || "").trim().slice(0, 500) || null;
   const now = new Date().toISOString();
-  const from = input.approve ? ["pending", "rejected"] : ["pending"];
-  const { data, error } = await admin.from("payments")
-    .update({ status: input.approve ? "approved" : "rejected", reviewed_by: input.reviewer, reviewed_at: now, review_note: note })
-    .eq("id", input.paymentId).eq("method", "bkash_manual").in("status", from)
-    .select("id, user_id, plan_code, trx_id, method, amount_minor, status, period_days").maybeSingle();
+  if (input.approve) {
+    const { data: p, error } = await admin.from("payments").select("id, user_id, trx_id, amount_minor").eq("id", input.paymentId).eq("method", "bkash_manual").maybeSingle();
+    if (error) throw error;
+    if (!p) throw new PaymentError("Payment not found.");
+    const result = await settle(admin, p.id, "bkash_manual", ["pending", "rejected"], { reviewed_by: input.reviewer, review_note: note });
+    if (!result.changed) throw new PaymentError("This payment was already reviewed.");
+    await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: p.trx_id, amountMinor: p.amount_minor, note });
+    return { status: result.status, periodEnd: result.period_end! };
+  }
+  const { data, error } = await admin.from("payments").update({ status: "rejected", reviewed_by: input.reviewer, reviewed_at: now, review_note: note })
+    .eq("id", input.paymentId).eq("method", "bkash_manual").eq("status", "pending").select("user_id, trx_id, amount_minor").maybeSingle();
   if (error) throw error;
   if (!data) throw new PaymentError("This payment was already reviewed.");
-  let periodEnd: string | undefined;
-  if (input.approve) {
-    try {
-      periodEnd = await activate(admin, data as PaymentRow);
-    } catch (e) {
-      // Put the row back so the admin can retry; never leave a payment approved without the subscription extended.
-      await admin.from("payments").update({ status: "pending", reviewed_by: null, reviewed_at: null }).eq("id", data.id);
-      throw e;
-    }
-  }
-  await notify(admin, data.user_id, input.approve ? "approved" : "rejected", { periodEnd, trx: data.trx_id, amountMinor: data.amount_minor, note });
-  return { status: data.status as string, periodEnd };
+  await notify(admin, data.user_id, "rejected", { trx: data.trx_id, amountMinor: data.amount_minor, note });
+  return { status: "rejected" };
 }
 
 // ---------------------------------------------------------------------------
@@ -184,7 +158,9 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
   if (status !== "success") {
     // The callback URL is public, so its status is only a hint: cancel only if bKash itself does not report the payment completed.
     const q0 = await bk.queryPayment(paymentID).catch(() => null);
-    if (!q0 || !verifyCompleted(q0, { paymentID, amount: bkashAmount(p.amount_minor), invoice: p.invoice }).ok) {
+    if (!q0) return "unknown";
+    if (!verifyCompleted(q0, { paymentID, amount: bkashAmount(p.amount_minor), invoice: p.invoice }).ok) {
+      if (!["Cancelled", "Canceled", "Failed"].includes(q0.transactionStatus || "")) return "unknown";
       await admin.from("payments").update({ status: status === "cancel" ? "canceled" : "failed" }).eq("id", p.id).eq("status", "initiated");
       return status === "cancel" ? "cancel" : "failure";
     }
@@ -194,16 +170,14 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
   const q = await bk.queryPayment(paymentID);
   const v = verifyCompleted(q, { paymentID, amount: bkashAmount(p.amount_minor), invoice: p.invoice });
   if (!v.ok) {
-    // TODO(bkash): an "Initiated"/"Pending" execute can complete later; a scheduled re-query would recover those.
+    // Pending outcomes stay reconcilable; do not discard a payment which may complete later.
+    if (!["Cancelled", "Canceled", "Failed"].includes(q.transactionStatus || "")) return "unknown";
     await admin.from("payments").update({ status: "failed", provider_response: keep(q), review_note: v.reason }).eq("id", p.id).eq("status", "initiated");
     return "failure";
   }
-  const { data: claimed, error } = await admin.from("payments").update({ status: "approved", trx_id: v.trxID, payer_msisdn: q.customerMsisdn ?? null, provider_response: keep(q), reviewed_by: "bkash-query", reviewed_at: new Date().toISOString() })
-    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method, period_days").maybeSingle();
-  if (error) throw error;
-  if (!claimed) return "success"; // another request finished it first
-  const periodEnd = await activateClaimed(admin, claimed as PaymentRow);
-  await notify(admin, p.user_id, "approved", { periodEnd, trx: v.trxID, amountMinor: p.amount_minor });
+  const result = await settle(admin, p.id, "bkash_checkout", ["initiated"], { trx_id: v.trxID, payer_msisdn: q.customerMsisdn ?? null, provider_response: keep(q), reviewed_by: "bkash-query" });
+  if (result.status !== "approved") return "failure";
+  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: v.trxID, amountMinor: p.amount_minor });
   return "success";
 }
 
@@ -243,6 +217,7 @@ export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string,
   let body: unknown;
   try { body = JSON.parse(rawBody); } catch { return { status: 400, note: "bad json" }; }
   const ev = parseOrderEvent(body);
+  if (ev?.testMode) return { status: 200, note: "test mode ignored" };
   if (ev?.event === "order_refunded") return handleLemonRefund(admin, cfg.storeId, ev);
   if (!ev || ev.event !== "order_created") return { status: 200, note: "ignored" };
   if (ev.storeId !== cfg.storeId || !ev.paymentId || ev.status !== "paid") return { status: 200, note: "not ours or not paid" };
@@ -253,24 +228,15 @@ export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string,
     await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.subtotal}`, provider_order_id: ev.orderId }).eq("id", p.id).eq("status", "initiated");
     return { status: 200, note: "amount mismatch" };
   }
-  const { data: claimed, error } = await admin.from("payments").update({ status: "approved", trx_id: `LS-${ev.orderId}`, provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook", reviewed_at: new Date().toISOString() })
-    .eq("id", p.id).eq("status", "initiated").select("id, user_id, plan_code, trx_id, method, period_days").maybeSingle();
-  if (error) throw error;
-  if (!claimed) return { status: 200, note: "already done" };
-  const periodEnd = await activateClaimed(admin, claimed as PaymentRow);
-  await notify(admin, p.user_id, "approved", { periodEnd, trx: `LS-${ev.orderId}`, amountMinor: p.amount_minor, currency: "USD" });
-  return { status: 200, note: "activated" };
+  const result = await settle(admin, p.id, "lemonsqueezy", ["initiated"], { trx_id: `LS-${ev.orderId}`, provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook" });
+  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: `LS-${ev.orderId}`, amountMinor: p.amount_minor, currency: "USD" });
+  return { status: 200, note: result.changed ? "activated" : "already done" };
 }
 
 /** A full card refund takes back the pack's days (once). Partial refunds are left to the admin. */
 async function handleLemonRefund(admin: SupabaseClient, storeId: string, ev: NonNullable<ReturnType<typeof parseOrderEvent>>): Promise<{ status: number; note: string }> {
   if (ev.storeId !== storeId || !ev.paymentId) return { status: 200, note: "not ours" };
   if (ev.status !== "refunded") { console.error("lemonsqueezy partial refund, check by hand", ev.orderId); return { status: 200, note: "partial refund" }; }
-  const { data: p, error } = await admin.from("payments").update({ status: "refunded", review_note: `refunded (order ${ev.orderId})`, reviewed_by: "lemonsqueezy-webhook", reviewed_at: new Date().toISOString() })
-    .eq("id", ev.paymentId).eq("method", "lemonsqueezy").eq("status", "approved").select("id, user_id, period_days").maybeSingle();
-  if (error) throw error;
-  if (!p) return { status: 200, note: "nothing to refund" };
-  const { error: re } = await admin.rpc("extend_pro", { p_user: p.user_id, p_days: -(p.period_days || 30), p_provider: "lemonsqueezy", p_ref: `LS-${ev.orderId}-refund` });
-  if (re) { await admin.from("payments").update({ status: "approved" }).eq("id", p.id).eq("status", "refunded"); throw re; }
-  return { status: 200, note: "refunded" };
+  const result = await settle(admin, ev.paymentId, "lemonsqueezy", ["approved"], { provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook", review_note: `refunded (order ${ev.orderId})` }, true);
+  return { status: 200, note: result.changed ? "refunded" : "nothing to refund" };
 }

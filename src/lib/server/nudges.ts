@@ -2,8 +2,9 @@
 // warn before the trial ends and send a weekly career tip. Each one is an in-app notification (deduped), and the
 // important ones are also emailed once. Nothing here contacts an employer.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { emailProvider, sendEmail } from "../email/send";
+import { emailProvider } from "../email/send";
 import { nudgeEmail } from "../email/templates";
+import { deliverEmail } from "./email-outbox";
 import { notify, type NewNotification } from "./notify";
 
 const DAY = 86_400_000;
@@ -81,7 +82,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
 
   // 4. Paid Pro users get a real weekly career report. Trial users do not receive this.
   const week = isoWeek(now);
-  const { data: paid } = await admin.from("subscriptions").select("user_id, current_period_end").eq("status", "active").limit(5000);
+  const { data: paid } = await admin.from("subscriptions").select("user_id, current_period_end").eq("status", "active").eq("plan_code", "pro").limit(5000);
   for (const s of (paid || []) as { user_id: string; current_period_end: string | null }[]) {
     if (s.current_period_end && Date.parse(s.current_period_end) <= now.getTime()) continue;
     const [{ count: analysed }, { data: matches }, { data: apps }] = await Promise.all([
@@ -93,7 +94,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
     const prepared = (apps || []).filter((a) => !!a.pack).length, appliedCount = (apps || []).filter((a) => ["applied","interview","offer","closed"].includes(a.status)).length;
     const deadlines = (apps || []).flatMap((a) => { const j = a.jobs as unknown as { deadline?: string | null } | { deadline?: string | null }[] | null; const d = Array.isArray(j) ? j[0]?.deadline : j?.deadline; return d && d >= now.toISOString().slice(0,10) ? [d] : []; }).sort();
     const { data: gapRows } = await admin.from("matches").select("gaps").eq("user_id", s.user_id).eq("relevant", true).order("score", { ascending: false }).limit(20);
-    const freq = new Map<string, number>(); for (const r of gapRows || []) for (const g of ((r.gaps as string[] | null) || [])) freq.set(g, (freq.get(g) || 0) + 1);
+    const freq = new Map<string, number>(); for (const r of gapRows || []) for (const g of ((r.gaps as ({ t?: string } | string)[] | null) || [])) { const text = typeof g === "string" ? g : g.t; if (text) freq.set(text, (freq.get(text) || 0) + 1); }
     const topGap = [...freq.entries()].sort((a,b) => b[1]-a[1])[0]?.[0] || null;
     const extra = `${topGap ? ` · Most common gap: ${topGap}` : ""}${deadlines[0] ? ` · Next deadline: ${deadlines[0]}` : ""}`;
     add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `Jobs analysed: ${analysed || 0} · Relevant: ${relevant} · Strong: ${strong} · Prepared: ${prepared} · Applied: ${appliedCount}${extra}.`, link: "/insights", key: `career-report:${week}` });
@@ -111,13 +112,13 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
     for (const it of items) {
       try {
         const fresh = await notify(admin, userId, [it.n]);
-        if (!fresh) continue;
-        res.notified++;
+        if (fresh) res.notified++;
         if (it.n.kind === "reply") await admin.from("applications").update({ reply_checked_at: now.toISOString() }).eq("id", it.n.key.slice(6));
         const p = profs.get(userId);
         if (it.email && canEmail && p?.email && p.email_reminders !== false) {
-          await sendEmail({ to: p.email, ...nudgeEmail({ name: p.full_name || "", ...it.email, link: base + (it.n.link || "/inbox") }) });
-          res.emailed++;
+          const delivery = await deliverEmail(admin, userId, it.n.key, { to: p.email, ...nudgeEmail({ name: p.full_name || "", ...it.email, link: base + (it.n.link || "/inbox") }) });
+          if (delivery === "sent" && fresh) res.emailed++;
+          else if (delivery !== "sent") res.failed++;
         }
       } catch (e) { res.failed++; console.error("  nudge failed", userId, it.n.key, e); }
     }

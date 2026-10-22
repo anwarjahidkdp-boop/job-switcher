@@ -30,10 +30,10 @@ export interface AIProvider {
   readImages(req: VisionRequest): Promise<{ text: string; usage: AIUsage; truncated: boolean }>;
 }
 
-export type AIErrorCode = "not_configured" | "over_cap" | "trial_expired" | "plan_expired" | "refused" | "invalid_json" | "rate_limited" | "upstream";
+export type AIErrorCode = "not_configured" | "over_cap" | "trial_expired" | "plan_expired" | "refused" | "invalid_json" | "rate_limited" | "upstream" | "unresolved";
 
 export class AIError extends Error {
-  constructor(public code: AIErrorCode, message?: string) {
+  constructor(public code: AIErrorCode, message?: string, public usage?: AIUsage) {
     super(message || code);
     this.name = "AIError";
   }
@@ -43,7 +43,8 @@ export class AIError extends Error {
 export function aiErrCopy(e: unknown): string {
   const c = e instanceof AIError ? e.code : "upstream";
   if (c === "not_configured") return "AI analysis is not set up on this server yet. You can still try the sample CV.";
-  if (c === "over_cap") return "You have reached this month's AI allowance. It resets on the 1st; matching and reminders keep working.";
+  if (c === "unresolved") return "An earlier AI request has an unresolved usage record. Contact support so we can reconcile it before another request.";
+  if (c === "over_cap") return "You have reached your current AI allowance. See Upgrade for your plan and renewal date; matching and reminders keep working.";
   if (c === "trial_expired") return "Your free trial has ended. Matching keeps working; AI preparation needs Pro (see the Upgrade page).";
   if (c === "plan_expired") return "Your Pro month has ended. Matching keeps working; renew on the Upgrade page to use AI preparation again.";
   if (c === "rate_limited") return "Too many requests right now. Wait a minute and try again.";

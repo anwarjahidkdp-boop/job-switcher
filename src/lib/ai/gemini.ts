@@ -57,9 +57,9 @@ export class GeminiProvider implements AIProvider {
   async generateJSON<S extends z.ZodType>(req: JSONRequest<S>) {
     const { text, usage } = await this.run(req.tier, req.system, req.prompt, req.maxTokens, req.schema);
     let parsed: unknown;
-    try { parsed = JSON.parse(text); } catch { throw new AIError("invalid_json"); }
+    try { parsed = JSON.parse(text); } catch { throw new AIError("invalid_json", undefined, usage); }
     const r = req.schema.safeParse(parsed);
-    if (!r.success) throw new AIError("invalid_json");
+    if (!r.success) throw new AIError("invalid_json", undefined, usage);
     return { data: r.data as z.infer<S>, usage };
   }
 

@@ -43,7 +43,8 @@ async function main() {
         if (e) throw e;
       }
       // Only retire old listings when the fetch returned something (an empty result may be a page change, not "no jobs").
-      if (jobs.length) {
+      // Search APIs and paginated feeds are not authoritative full-board snapshots.
+      if (jobs.length && ["greenhouse", "lever", "ashby", "workable", "recruitee"].includes(src.kind)) {
         const { data: prev } = await db.from("jobs").select("external_id").eq("source_id", src.id).eq("active", true);
         const stale = staleIds((prev || []).map((r) => r.external_id as string), jobs.map((j) => j.externalId));
         for (let i = 0; i < stale.length; i += 100) await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).eq("source_id", src.id).in("external_id", stale.slice(i, i + 100));
@@ -78,7 +79,7 @@ async function main() {
     }
   }
   console.log(`ingest: done, ${total} job(s), ${failed} failed source(s)`);
-  if (failed && failed === (sources || []).length) process.exitCode = 1;
+  if (failed) process.exitCode = 1; // partial outages must also alert, even while other sources work
 }
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);

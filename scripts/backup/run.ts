@@ -8,7 +8,7 @@ import { flagValue, scriptAdmin } from "../lib/admin";
 export const TABLES = [
   "profiles", "subscriptions", "payments", "plans", "plan_prices", "country_rules", "cv_documents", "career_facts", "master_cvs",
   "applications", "application_events", "reminders", "matches", "notifications", "jobs", "ingestion_sources",
-  "forwarding_addresses", "inbound_emails", "ai_usage", "gmail_connections",
+  "forwarding_addresses", "inbound_emails", "ai_usage", "gmail_connections", "email_deliveries",
 ];
 const PAGE = 1000;
 
@@ -20,7 +20,10 @@ async function main() {
   for (const t of TABLES) {
     const rows: unknown[] = [];
     for (let from = 0; ; from += PAGE) {
-      const { data, error } = await db.from(t).select("*").range(from, from + PAGE - 1);
+      let query = db.from(t).select("*");
+      const keys = t === "matches" ? ["user_id", "job_id"] : t === "plan_prices" ? ["plan_code", "country"] : t === "plans" || t === "country_rules" ? ["code"] : t === "gmail_connections" ? ["user_id"] : ["id"];
+      for (const key of keys) query = query.order(key);
+      const { data, error } = await query.range(from, from + PAGE - 1);
       if (error) throw new Error(`${t}: ${error.message}`);
       rows.push(...(data || []));
       if (!data || data.length < PAGE) break;

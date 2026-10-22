@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cc, rule } from "../countries";
 import { todayStr } from "../dates";
-import { sendEmail } from "../email/send";
+import { deliverEmail } from "./email-outbox";
 import { reminderEmail } from "../email/templates";
 import { notify } from "./notify";
 
@@ -26,7 +26,7 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     .order("due_date")
     .limit(opts.limit ?? 200);
   if (error) throw error;
-  type Row = { id: string; user_id: string; due_date: string; job_id: string; applications: { status: string; pack: unknown }; jobs: { title: string; company: string; deadline: string | null }; profiles: { email: string | null; full_name: string | null; target_country: string; email_reminders: boolean } | null };
+  type Row = { id: string; user_id: string; due_date: string; job_id: string; application_id: string; applications: { status: string; pack: unknown }; jobs: { title: string; company: string; deadline: string | null }; profiles: { email: string | null; full_name: string | null; target_country: string; email_reminders: boolean } | null };
   // reminders.user_id references auth.users, so profiles are fetched separately (no PostgREST embed).
   const ids = [...new Set((data || []).map((r) => r.user_id as string))];
   const profs = new Map<string, Row["profiles"]>();
@@ -44,14 +44,15 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     // Due today or earlier in the user's time zone, and not before 08:00 local time.
     if (r.due_date > today || (r.due_date === today && localHour(tz, now) < SEND_FROM_HOUR)) { res.skipped++; continue; }
     if (r.applications.status !== "reminder" || !p?.email || p.email_reminders === false) {
-      await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: "skipped" }).eq("id", r.id);
+      if (!opts.dryRun) await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: "skipped" }).eq("id", r.id);
       res.skipped++;
       continue;
     }
     const msg = reminderEmail({ name: p.full_name || "", jobTitle: r.jobs.title, company: r.jobs.company, deadline: r.jobs.deadline, link: `${opts.appUrl.replace(/\/$/, "")}/jobs/${r.job_id}`, packReady: !!r.applications.pack });
     if (opts.dryRun) { res.sent++; continue; }
     try {
-      await sendEmail({ to: p.email, ...msg });
+      const delivery = await deliverEmail(admin, r.user_id, `reminder:${r.id}:${r.due_date}`, { to: p.email, ...msg, applicationId: r.application_id, dueDate: r.due_date });
+      if (delivery !== "sent") { res.failed++; continue; }
       // The email went out: if this record fails, say so loudly, because the next run would send it again.
       const { error: ue } = await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: null }).eq("id", r.id);
       if (ue) console.error("reminder sent but not recorded", r.id, ue);

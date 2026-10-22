@@ -88,7 +88,11 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
   await event(ctx, app.id, "Preparing application");
-  if (app.status !== "reminder") await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id);
+  if (app.status !== "reminder") {
+    const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
+    if (error) throw error;
+    if (!preparing) throw new Error("This application is being sent or was already submitted.");
+  }
 
   const master = st.master.content;
   const needVisa = st.profile.needs_visa;
@@ -114,8 +118,9 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
-  const { error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id);
+  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
   if (saveErr) throw saveErr;
+  if (!saved) throw new Error("This application is being sent or was already submitted.");
   await event(ctx, app.id, "Application ready", status);
   return { flags: checked.flags, ai, notice };
 }
@@ -127,8 +132,11 @@ export async function setReminder(ctx: Ctx, jobId: string, date: string, today: 
   if (job.deadline && date > job.deadline) throw new Error(`This is after the deadline of ${fmtDate(job.deadline)}. Choose an earlier date.`);
   const app = await ensureApp(ctx, jobId);
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) throw new Error("This application is already submitted.");
-  await ctx.db.from("applications").update({ status: "reminder", reminder_date: date }).eq("id", app.id);
-  await ctx.db.from("reminders").upsert({ user_id: ctx.userId, application_id: app.id, job_id: jobId, due_date: date, sent_at: null, send_error: null }, { onConflict: "application_id" });
+  const { data: scheduled, error: scheduleError } = await ctx.db.from("applications").update({ status: "reminder", reminder_date: date }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
+  if (scheduleError) throw scheduleError;
+  if (!scheduled) throw new Error("This application is being sent or was already submitted.");
+  const { error: reminderError } = await ctx.db.from("reminders").upsert({ user_id: ctx.userId, application_id: app.id, job_id: jobId, due_date: date, sent_at: null, send_error: null }, { onConflict: "application_id" });
+  if (reminderError) throw reminderError;
   await event(ctx, app.id, (app.status === "reminder" ? "Reminder moved to " : "Reminder set for ") + fmtDate(date), "reminder");
   return { needsPack: !app.pack };
 }
@@ -136,7 +144,7 @@ export async function setReminder(ctx: Ctx, jobId: string, date: string, today: 
 export async function markOpened(ctx: Ctx, jobId: string) {
   const app = await ensureApp(ctx, jobId);
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) return;
-  await ctx.db.from("applications").update({ status: "waiting" }).eq("id", app.id);
+  await ctx.db.from("applications").update({ status: "waiting" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null);
   await event(ctx, app.id, "Opened the application", "waiting");
 }
 
