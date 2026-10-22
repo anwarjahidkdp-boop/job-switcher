@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { aiConfigured, checkBudget, getBudget } from "../ai";
 import { emailProvider, sendEmail } from "../email/send";
 import { newMatchesEmail } from "../email/templates";
-import { preparePack } from "./applications";
+import { ApplicationSafetyError, preparePack } from "./applications";
 import { notify } from "./notify";
 
 export const NOTIFY_MIN_SCORE = 70;
@@ -49,7 +49,7 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
             if (out.ai) ready.add(r.job_id);
             res.prepared++;
             if (!out.ai) break; // out of allowance or AI unavailable: stop spending, the template pack is still saved
-          } catch (e) { console.error("  prepare failed", userId, r.job_id, e); break; }
+          } catch (e) { if (e instanceof ApplicationSafetyError) { console.info("  auto-prepare skipped by application safety", userId, r.job_id); continue; } console.error("  prepare failed", userId, r.job_id, e); break; }
         }
       }
 
