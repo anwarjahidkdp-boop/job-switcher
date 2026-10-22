@@ -113,9 +113,9 @@ export async function loadVisibleJobs(db: SupabaseClient, userId: string, countr
   return rows(await base().order("created_at", { ascending: false }).limit(ALL_LIMIT)).map(rowToJob);
 }
 
-/** How many open jobs we checked in this country (the dashboard's "Jobs analysed"). */
-async function countVisibleJobs(db: SupabaseClient, userId: string, country: string): Promise<number> {
-  const { count, error } = await db.from("jobs").select("id", { count: "exact", head: true }).eq("country", country).eq("active", true).or(`owner_id.is.null,owner_id.eq.${userId}`);
+/** Only persisted assessments belonging to this user count as personal analysis. */
+export async function countVisibleJobs(db: SupabaseClient, userId: string, country: string): Promise<number> {
+  const { count, error } = await db.from("matches").select("job_id,jobs!inner(country,active)", { count: "exact", head: true }).eq("user_id", userId).eq("jobs.country", country).eq("jobs.active", true);
   if (error) throw error;
   return count || 0;
 }
@@ -176,7 +176,7 @@ export function stats(st: UserState) {
   const apps = Object.values(st.apps);
   return {
     analysed: Math.max(st.analysed, st.scored.length), relevant: rel.length, strong: rel.filter((x) => x.m.score >= 70 && !x.m.expired).length,
-    prepared: apps.filter((a) => a.pack).length, applied: apps.filter((a) => ["applied", "interview", "offer", "closed"].includes(a.status)).length,
+    prepared: apps.filter((a) => a.pack).length, applied: apps.filter((a) => !!a.applied_at).length,
     reminders: apps.filter((a) => a.status === "reminder").length, interviews: apps.filter((a) => a.status === "interview").length, offers: apps.filter((a) => a.status === "offer").length,
   };
 }

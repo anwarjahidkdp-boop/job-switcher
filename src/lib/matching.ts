@@ -13,7 +13,7 @@ export const W = { role: 25, skills: 25, exp: 15, sen: 10, ind: 7, edu: 6, cert:
 type Factor = keyof typeof W;
 export const FACTOR_REASON: Record<Factor, string> = { role: "Role fit", skills: "Missing skill", exp: "Experience requirement", sen: "Seniority mismatch", ind: "Industry mismatch", edu: "Education requirement", cert: "Certification requirement", loc: "Location mismatch", sal: "Salary mismatch" };
 export const CAP_SCORE = 69;
-export const BAND: Record<Band, [string, string, string]> = { ex: ["Excellent Match", "p-ex", "band-ex"], st: ["Strong Match", "p-st", "band-st"], po: ["Possible Match", "p-po", "band-po"], lo: ["Low Match", "p-lo", "band-lo"] };
+export const BAND: Record<Band, [string, string, string]> = { ex: ["Strong Fit", "p-ex", "band-ex"], st: ["Good Fit, Competitive", "p-st", "band-st"], po: ["Stretch Opportunity", "p-po", "band-po"], lo: ["Low Fit", "p-lo", "band-lo"] };
 
 export function bandOf(score: number): Band {
   return score >= 85 ? "ex" : score >= 70 ? "st" : score >= 55 ? "po" : "lo";

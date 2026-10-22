@@ -127,3 +127,25 @@ describe("database transactions and RLS on a disposable PostgreSQL engine",()=>{
   expect(await scalar<string>("select claim_gmail_application($1)",[apps[1].id])).toBeTruthy();
   await role("postgres");
  });
+
+describe("persisted per-user career report evidence",()=>{
+ it("counts the user's period, retains overwritten matches, freezes retries, and enforces RLS",async()=>{
+  await role("postgres");
+  const job=await scalar<string>("insert into jobs(source_kind,source_label,country,title,company,apply_method,apply_target) values('paste','synthetic','BD','SQL analyst','Test','portal','https://example.invalid/job') returning id");
+  for(const [user,date,score] of [[U,'2026-10-20',90],[V,'2026-10-20',95]])await db.query("insert into matches(user_id,job_id,score,band,relevant,computed_at,gaps) values($1,$2,$3,'ex',true,$4,'[{\"t\":\"SQL\"}]')",[user,job,score,date]);
+  await db.query("update matches set computed_at='2026-10-27',score=40 where user_id=$1 and job_id=$2",[U,job]);
+  const app=await scalar<string>("insert into applications(user_id,job_id,status,created_at,applied_at,pack) values($1,$2,'ready','2026-09-01','2026-10-21','{}') returning id",[U,job]);
+  await db.query("insert into application_events(application_id,user_id,event,status,created_at) values($1,$2,'status','ready','2026-09-01'),($1,$2,'status','interview','2026-10-22'),($1,$2,'status','interview','2026-10-23'),($1,$2,'status','offer','2026-10-24')",[app,U]);
+  await role("service_role");
+  const args=[U,'weekly','2026-10-19','2026-10-26'];
+  const report=await scalar<{id:string;metrics:Record<string,unknown>}>("select to_jsonb(save_career_report($1,$2,$3,$4))",args);
+  expect(report.metrics).toMatchObject({jobs_analysed:1,relevant:1,strong:1,prepared:0,applied:1,interviews:1,offers:1,top_gap:'SQL'});
+  await db.query("update match_assessments set score=0 where user_id=$1",[U]);
+  expect(await scalar("select to_jsonb(save_career_report($1,$2,$3,$4))",args)).toEqual(report);
+  await role("authenticated",V);expect(await scalar<number>("select count(*)::int from career_reports")).toBe(0);
+  await expect(db.query("select career_metrics($1,'2026-10-19','2026-10-26')",[U])).rejects.toThrow();
+  await expect(db.query("delete from match_assessments")).rejects.toThrow();
+  await role("authenticated",U);expect(await scalar<number>("select count(*)::int from career_reports")).toBe(1);
+  await role("postgres");
+ });
+});

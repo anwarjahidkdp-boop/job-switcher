@@ -24,13 +24,21 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-17
       - run: npm run backup -- --out "$RUNNER_TEMP/backup"
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       - name: Encrypt
         env:
-          KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -e
           tar czf "$RUNNER_TEMP/b.tar.gz" -C "$RUNNER_TEMP" backup
@@ -41,6 +49,9 @@ jobs:
           name: jobpao-backup-${{ github.run_id }}
           path: jobpao-backup.tar.gz.enc
           retention-days: 90
+      - name: Clean private temporary files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/b.tar.gz"
       - name: Tell the owner it failed
         if: failure()
         env:

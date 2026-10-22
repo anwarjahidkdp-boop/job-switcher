@@ -17,7 +17,8 @@ vi.mock("../email/send",()=>({emailProvider:()=>null}));
 import { notify } from "./notify";
 import { sendNudges } from "./nudges";
 function schedulerDb(day:number) {
- const db={from(table:string){
+ const metrics={jobs_analysed:20,relevant:3,strong:1,prepared:2,applied:1,interviews:0,offers:0,top_gap:null,next_deadline:null};
+ const db={rpc:vi.fn(async(name:string)=>({data:name==="save_career_report"?{metrics}:metrics,error:null})),from(table:string){
   const calls:[string,unknown[]][]=[];const q:Record<string,unknown>={};
   for(const k of ['select','eq','is','gte','lte','limit','in','order','maybeSingle','update'])q[k]=(...args:unknown[])=>{calls.push([k,args]);return q;};
   q.then=(resolve:(r:unknown)=>unknown)=>{
@@ -28,7 +29,7 @@ function schedulerDb(day:number) {
    if(table==='matches')data=[{score:80,relevant:true}];
    return resolve({data,count:20,error:null});
   };return q;
- }};return {db:db as unknown as SupabaseClient,now:new Date(Date.parse('2026-10-01T00:00:00Z')+(day-1)*86400000)};
+ }};return {db:db as unknown as SupabaseClient,now:new Date(Date.parse('2026-10-01T00:00:00Z')+(day-1)*86400000+60000)};
 }
 beforeEach(()=>vi.mocked(notify).mockClear());
 describe('trial report journey',()=>{
@@ -40,4 +41,10 @@ describe('trial report journey',()=>{
   const x=schedulerDb(5);await sendNudges(x.db,{appUrl:'https://example.invalid',now:x.now});
   expect(notify).toHaveBeenCalledWith(x.db,'u',[expect.objectContaining({title:'Your First 5 Days with JobPao',key:'trial:day:5'})]);
  });
+});
+
+it('dry runs never save report snapshots or notify',async()=>{
+ const x=schedulerDb(5);const result=await sendNudges(x.db,{appUrl:'https://example.invalid',now:x.now,dryRun:true});
+ expect(result.notified).toBe(1);expect(notify).not.toHaveBeenCalled();
+ expect(x.db.rpc).not.toHaveBeenCalledWith('save_career_report',expect.anything());
 });

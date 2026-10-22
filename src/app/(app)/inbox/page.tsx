@@ -54,19 +54,19 @@ export default async function Inbox() {
   const done: DoneItem[] = [
     { n: improved ? `+${improved}` : "✓", label: "CV rewritten", sub: `${cname(country)} format${improved ? `, ${plural(improved, "improvement")}` : ""}`, href: "/profile", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>' },
     ...(s.analysed ? [{ n: fmt(s.analysed), label: "Jobs searched", sub: `in ${cname(country)}`, href: "#matches", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>' }] : []),
-    ...(s.relevant ? [{ n: fmt(s.relevant), label: "Matched to you", sub: s.strong ? `${fmt(s.strong)} strong matches` : "by role and skills", href: "#matches", icon: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' }] : []),
+    ...(s.relevant ? [{ n: fmt(s.relevant), label: "Matched to you", sub: s.strong ? `${fmt(s.strong)} Good Fit or better` : "by role and skills", href: "#matches", icon: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' }] : []),
     ...(checked ? [{ n: fmt(checked), label: "Checked by AI", sub: "read against your CV", href: "#matches", icon: '<path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/><path d="M19 15l.8 1.7 1.7.8-1.7.8L19 20l-.8-1.7-1.7-.8 1.7-.8z"/>' }] : []),
     ...(s.prepared ? [{ n: fmt(s.prepared), label: "Ready to send", sub: "CV + cover letter each", href: "/queue", icon: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>' }] : []),
     ...(s.applied ? [{ n: fmt(s.applied), label: "Sent by you", sub: "tracked for replies", href: "/applications", icon: '<path d="M20 6 9 17l-5-5"/>' }] : []),
   ];
-  const summary: [string, number][] = [["Jobs analysed", s.analysed], ["Strong matches", s.strong], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
+  const summary: [string, number][] = [["Jobs analysed", s.analysed], ["Good Fit or better", s.strong], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
   // Career guide: the missing skills that would lift the most matches to Strong.
   const opts = { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry };
   const guide = rows.filter((r) => r.h.v < 1).slice(0, 6).map((r) => { const imp = skillImpact(st.scored, P, r.s, opts); return { s: r.s, n: r.n, gain: imp.after - imp.before }; })
     .sort((a, b) => b.gain - a.gain || b.n - a.n).slice(0, 3);
   const kpis: Kpi[] = [
     { label: "Jobs analysed", n: s.analysed, href: "#matches", tone: "navy", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', hint: `in ${cname(country)}` },
-    { label: "Strong matches", n: s.strong, href: "#matches", tone: "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: "70%+ fit" },
+    { label: "Good Fit or better", n: s.strong, href: "#matches", tone: "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: "Fit score 70+" },
     { label: "Ready to apply", n: s.prepared, href: "/queue", tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: "CV + cover letter" },
     { label: "Applied", n: s.applied, href: "/applications", tone: "teal", icon: '<path d="m22 2-7 20-4-9-9-4z"/>' },
     { label: "Interviews", n: s.interviews + s.offers, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
@@ -76,7 +76,7 @@ export default async function Inbox() {
 
   return (
     <>
-      <PageHead kicker="Your job assistant" title={<>Welcome back{first ? <>, <span>{first}</span></> : ""}</>} sub={`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${s.strong} ${s.strong === 1 ? "is a strong match" : "are strong matches"} for your profile.`} />
+      <PageHead kicker="Your job assistant" title={<>Welcome back{first ? <>, <span>{first}</span></> : ""}</>} sub={`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${s.strong} ${s.strong === 1 ? "is Good Fit or better" : "are Good Fit or better"} for your profile.`} />
       {due.map(({ a, job }) => (
         <div key={a.id} className="banner warn" style={{ marginBottom: 14 }}>
           <div><b>Your {job!.company} application is ready.</b> <span className="muted">{job!.deadline ? `Deadline: ${daysUntil(job!.deadline, st.today)} days remaining. ` : ""}Did you submit your application?</span></div>
@@ -110,7 +110,7 @@ export default async function Inbox() {
                 {items.map((x) => <OppRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
               </div>
             )) : s.analysed
-              ? <p className="muted" style={{ padding: 16 }}>No strong matches right now. We checked {s.analysed} jobs; try adding target roles or skills in your profile.</p>
+              ? <p className="muted" style={{ padding: 16 }}>No Good Fit or better right now. We checked {s.analysed} jobs; try adding target roles or skills in your profile.</p>
               : <p className="muted" style={{ padding: 16 }}>No jobs in {cname(country)} yet. Paste a job you found, or set up automatic job alerts.</p>}
           </div>
         </div>
@@ -150,7 +150,7 @@ export default async function Inbox() {
           </div>
           <div className="card panel"><h3>Your JobPao trial so far</h3>
             <div className="stack small" style={{ gap: 4 }}>
-              {([["Jobs analysed", s.analysed], ["Relevant opportunities", s.relevant], ["Strong matches", s.strong], ["Applications prepared", s.prepared], ["Applications submitted", s.applied], ["CV improvements made", (st.master.content.improvements || []).length]] as [string, number][]).map(([l, n]) => <div key={l} className="row" style={{ justifyContent: "space-between" }}><span>{l}</span><b className="num">{n}</b></div>)}
+              {([["Jobs analysed", s.analysed], ["Relevant opportunities", s.relevant], ["Good Fit or better", s.strong], ["Applications prepared", s.prepared], ["Applications submitted", s.applied], ["CV improvements made", (st.master.content.improvements || []).length]] as [string, number][]).map(([l, n]) => <div key={l} className="row" style={{ justifyContent: "space-between" }}><span>{l}</span><b className="num">{n}</b></div>)}
             </div>
           </div>
         </aside>

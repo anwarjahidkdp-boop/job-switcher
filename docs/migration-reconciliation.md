@@ -45,3 +45,12 @@ New migrations have exact production version/name parity:
 - `20261022222537_gmail_allowance_claim.sql`
 
 All five were applied additively and checked in production. Synthetic transaction checks rolled back signup, profile persistence, CV, Master CV, payment and AI reservation data; no employer mail or provider payment was initiated. Trial remained `Pro trial (5 days)`, `trial_days=5` afterward. A disposable database also replays the full repository chain; this does not authorize replaying it on production.
+
+## 2026-10-22 remaining implementation release
+
+Applied once through the linked Job Switcher project and recorded with the exact production versions:
+
+- `20261022230014_career_reports.sql`: matching assessment history, service-only reporting RPCs, owner-read report snapshots.
+- `20261022230017_verified_career_sources.sql`: verified BRAC/BRAC IT sources, bounded same-origin detail discovery, reversible quarantine of 104 independently confirmed HTTP 404 board configurations. Existing jobs are preserved.
+
+Source rollback: inspect `ingestion_source_quarantine.original` and `evidence`, verify the replacement endpoint, then restore only the corresponding source's `active` setting. A 404 board configuration is not evidence that its historical jobs expired. Do not restore all 104 configurations blindly.

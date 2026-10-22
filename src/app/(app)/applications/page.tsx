@@ -26,7 +26,7 @@ export default async function Applications() {
     <>
       <PageHead kicker="Your progress" title={<>Your <span>applications</span></>} sub="Every job you prepared, applied to or interviewed for, in one place." />
       <div className="tiles" style={{ marginTop: 18 }}>
-        {([["Jobs analysed", s.analysed], ["Strong matches", s.strong], ["Prepared", s.prepared], ["Submitted", s.applied], ["Pending", pending], ["Interviews", s.interviews], ["Offers", s.offers]] as [string, number][]).map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}
+        {([["Jobs analysed", s.analysed], ["Good Fit or better", s.strong], ["Prepared", s.prepared], ["Submitted", s.applied], ["Pending", pending], ["Interviews", s.interviews], ["Offers", s.offers]] as [string, number][]).map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}
       </div>
       {upcoming.length ? (
         <div className="card panel" style={{ marginTop: 18 }}>
