@@ -14,6 +14,7 @@ export async function GET(req: Request) {
   const jobId = u.searchParams.get("jobId");
   const st = await loadState(c.db, c.userId);
   if (!st?.master) return NextResponse.json({ error: "No CV yet." }, { status: 404 });
+  if (!["done", "reveal"].includes(st.profile.onboarding_step)) return NextResponse.json({ error: "Complete your current country's setup and rebuild your CV before downloading." }, { status: 409 });
   const app = jobId ? st.apps[jobId] : null;
   if (jobId && !app?.pack) return NextResponse.json({ error: "No application pack for this job." }, { status: 404 });
   // Free trial: a ready application beyond today's one stays locked behind Pro here too (same rule as the job page).

@@ -3,7 +3,7 @@ import { PageHead } from "@/components/PageHead";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
-import { chargedPrice, formatPrice, isPack, localHint, packPrice, PACKS, PAYABLE_CURRENCIES, DEFAULT_PACK } from "@/lib/billing/pricing";
+import { chargedPrice, formatPrice, isPack, localHint, packPrice, packsForCountry, PAYABLE_CURRENCIES, DEFAULT_PACK } from "@/lib/billing/pricing";
 import { lemonConfig } from "@/lib/billing/lemonsqueezy";
 import { cname } from "@/lib/countries";
 import Link from "next/link";
@@ -34,7 +34,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
     supabase.from("profiles").select("home_country").eq("id", user.id).maybeSingle(),
   ]);
   const home = profRes.data?.home_country;
-  const pack = isPack(sp.pack) ? sp.pack : DEFAULT_PACK;
+  const pack = isPack(sp.pack) && packsForCountry(home).some(p => p.id === sp.pack) ? sp.pack : DEFAULT_PACK;
   const local = packPrice(home, pack);
   const month = packPrice(home, "30d");
   const payable = PAYABLE_CURRENCIES.includes(local.currency);
@@ -61,7 +61,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
         </div>
         {(() => { const l = packLimits("pro", home); return <p className="small muted" style={{ marginTop: 10 }}>Pro includes up to <b>{l.day} AI-tailored applications a day</b> (CV + cover letter for one job), up to {l.week} a week and {l.month} a month. After that you still get the standard version, free.</p>; })()}
         <div className="packs" role="radiogroup" aria-label="Choose your Pro pack">
-          {PACKS.map((k) => {
+          {packsForCountry(local.country).map((k) => {
             const p = packPrice(home, k.id), c = chargedPrice(p), hint = localHint(p);
             const full = chargedPrice(month).minor * (k.days / 30);
             const save = k.days > 30 ? Math.round((1 - c.minor / full) * 100) : 0;
