@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect,it } from "vitest";
-import { FitOverviewCard,fitTiles } from "./FitOverviewCard";
+import { FitOverviewCard,fitTiles,dashboardFitSummary } from "./FitOverviewCard";
 import type { Scored } from "@/lib/matching";
 const row=(score:number,expired=false)=>({job:{title:'Hidden role',company:'Hidden company'},m:{score,relevant:true,expired,allGaps:[{skill:'sap'}]}} as Scored);
 it('counts each percentage band at its exact boundaries and excludes expired jobs',()=>{
@@ -19,4 +19,16 @@ it('shows concise zero Strong Fit guidance on both surfaces without naming a job
 it('removes the improvement prompt once Strong Fit opportunities exist',()=>{
  const rows=[row(90)];const html=renderToStaticMarkup(React.createElement(FitOverviewCard,{tile:fitTiles(rows)[1],rows}));
  expect(html).not.toContain('fit-zero-guide');
+});
+
+it('automatically shows five Best Fits instead of combining eight matches at 70+',()=>{
+ const rows=[82,83,84,85,86,71,72,73,95].map(s=>row(s));
+ expect(dashboardFitSummary(rows)).toMatchObject({label:'Best Fit',count:5,range:'80–89%'});
+ expect(fitTiles(rows)[1].count).toBe(1);
+ expect(dashboardFitSummary(rows.filter(r=>r.m.score<80))).toMatchObject({label:'Good Fit',count:3,range:'70–79%'});
+});
+it('updates the summary for changed scores and excludes expired or irrelevant jobs',()=>{
+ expect(dashboardFitSummary([row(82,true),row(75),{...row(89),m:{...row(89).m,relevant:false}}])).toMatchObject({label:'Good Fit',count:1,range:'70–79%'});
+ expect(dashboardFitSummary([row(69)])).toMatchObject({label:'Stretch Opportunity',count:1,range:'55–69%'});
+ expect(dashboardFitSummary([])).toMatchObject({label:'Best Fit',count:0,range:'80–89%'});
 });

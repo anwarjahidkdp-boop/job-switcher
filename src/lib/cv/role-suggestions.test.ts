@@ -19,3 +19,10 @@ describe("optional role responsibility suggestions without AI", () => {
   expect(roleSuggestions("Unknown role",[])).toEqual([]);
  });
 });
+
+it('flags missing or placeholder responsibilities without replacing the user text',async()=>{
+ const {experienceNeedsDetails}=await import('./role-suggestions');
+ expect(experienceNeedsDetails({bullets:[]})).toBe(true);
+ expect(experienceNeedsDetails({bullets:['Full Accounts Management']})).toBe(true);
+ expect(experienceNeedsDetails({bullets:['Managed month-end closing and financial reports.','Reviewed reconciliations and supervised the accounting team.']})).toBe(false);
+});

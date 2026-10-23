@@ -2,7 +2,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadState } from "./state";
 
-export async function refreshMatches(db: SupabaseClient, userId: string): Promise<number> {
+export async function refreshMatches(db: SupabaseClient, userId: string, opts: { invalidateAi?: boolean } = {}): Promise<number> {
+  if (opts.invalidateAi) {
+    const { error } = await db.from("matches").update({ai_fit:null,ai_score:null,ai_reason:null,ai_checked_at:null}).eq("user_id",userId);
+    if(error)throw error;
+  }
   const st = await loadState(db, userId, undefined, { allJobs: true });
   if (!st || !st.P) return 0;
   const rows = st.scored.map(({ job, m }) => ({
@@ -20,4 +24,10 @@ export async function refreshMatches(db: SupabaseClient, userId: string): Promis
     if (error) throw error;
   }
   return rows.length;
+}
+
+/** Career edits refresh all existing candidates without invoking an AI model. The edit itself stays saved if a refresh fails. */
+export async function refreshCareerMatches(db:SupabaseClient,userId:string):Promise<boolean>{
+  try{await refreshMatches(db,userId,{invalidateAi:true});return true;}
+  catch(e){console.error("Career edit saved; full match refresh pending",e);return false;}
 }

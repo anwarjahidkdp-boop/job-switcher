@@ -1,3 +1,4 @@
+import { seniorityFromTitle } from "./jobs";
 // Deterministic job matching, ported faithfully from the prototype's scoreJob().
 // Weights: role 25, skills 25, exp 15, sen 10, ind 7, edu 6, cert 5, loc 4, sal 3.
 // Bands: >=90 Strong Fit, >=80 Best Fit, >=70 Good Fit, 55–69 Stretch Opportunity, below 55 Explore Further.
@@ -107,10 +108,24 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
     if (over) gaps.push({ k: "exp", o: 4, t: `Pitched at ${job.minYears}–${job.maxYears} years, below your experience` });
   }
 
-  if (job.seniority) {
-    const dl = LEVEL[job.seniority] - LEVEL[P.seniority];
-    f.sen = dl === 0 ? 1 : Math.abs(dl) === 1 ? 0.6 : 0;
-    if (Math.abs(dl) >= 2) gaps.push({ k: "sen", o: 4, t: `Role is ${LEVEL_NAME[LEVEL[job.seniority]]}; you are at ${LEVEL_NAME[LEVEL[P.seniority]]}` });
+  const currentSeniority = seniorityFromTitle(P.currentTitle) || P.seniority;
+  const jobSeniority = seniorityFromTitle(job.title) || job.seniority;
+  if (jobSeniority) {
+    const down = LEVEL[currentSeniority] - LEVEL[jobSeniority];
+    // A lower title can represent comparable responsibility, but employer prestige is never guessed.
+    const comparableScope = down > 0 && down <= 2 && jobSeniority !== "entry"
+      && job.minYears != null && job.minYears >= 5 && P.years >= job.minYears
+      && (job.maxYears == null || P.years <= job.maxYears + 2)
+      && !!P.salaryMin && job.salaryMax != null && job.salaryMax >= P.salaryMin
+      && (job.resp || []).some(t=>/\b(lead|manage|supervise|oversee|head)\w*\b.{0,50}\b(team|department|staff|function|unit)\b/i.test(t));
+    f.sen = down === 0 || comparableScope ? 1 : Math.abs(down) === 1 ? 0.6 : 0;
+    if (down > 0 && !comparableScope) {
+      const ceiling = down >= 3 ? 54 : down >= 2 ? 69 : 79;
+      capAt = Math.min(capAt, ceiling); capReason = "Seniority mismatch";
+      gaps.push({k:"sen",o:0,t:`Below your current ${LEVEL_NAME[LEVEL[currentSeniority]]}: this is ${LEVEL_NAME[LEVEL[jobSeniority]]}. Comparable responsibility and pay are not established.`});
+    } else if (comparableScope) {
+      gaps.push({k:"sen",o:3,t:"Lower title, but published experience, team responsibility and salary align. Confirm the role scope before applying."});
+    } else if (Math.abs(down) >= 2) gaps.push({k:"sen",o:4,t:`Role is ${LEVEL_NAME[LEVEL[jobSeniority]]}; you are at ${LEVEL_NAME[LEVEL[currentSeniority]]}`});
   }
 
   if (job.industry) {
@@ -190,7 +205,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
 
   matched.sort((a, b) => b.w - a.w);
   gaps.sort((a, b) => a.o - b.o);
-  return { score, band, f: f as Record<string, number | null>, matched: matched.slice(0, 5).map((m) => m.t), gaps: gaps.slice(0, 3), allGaps: gaps, relevant: (f.role ?? 0) >= 0.6, expired, capped, reason, reasonDetail };
+  return { score, band, f: f as Record<string, number | null>, matched: matched.slice(0, 5).map((m) => m.t), gaps: gaps.slice(0, 3), allGaps: gaps, relevant: (f.role ?? 0) >= 0.6, expired, capped, scoreCap: capAt, capReason, reason, reasonDetail };
 }
 
 export interface Scored { job: Job; m: MatchResult }

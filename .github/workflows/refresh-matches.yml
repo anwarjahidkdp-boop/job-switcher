@@ -1,0 +1,33 @@
+name: Refresh existing job matches
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/matching.ts'
+      - 'src/lib/facts.ts'
+      - 'src/lib/server/state.ts'
+      - 'src/lib/server/matches.ts'
+      - 'scripts/matches/**'
+      - '.github/workflows/refresh-matches.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: refresh-existing-matches
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Recheck current candidates without AI
+        run: node --conditions=react-server --import tsx scripts/matches/run.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

@@ -157,3 +157,28 @@ describe("guessCategory", () => {
     expect(guessCategory("Analyst", ["accounts payable"])).toBe("Finance & Accounting");
   });
 });
+
+describe('career level guardrails after a promotion',()=>{
+ const manager=()=>({...demoProfile(),currentTitle:'Accounts Manager',seniority:'mid' as const,years:13,salaryMin:70000,certs:[]});
+ const vacancy=(title:string):Job=>({...job('j1'),title,company:'Synthetic employer',seniority:'manager',required:[],preferred:[],certs:[],education:null,industry:null,location:null,minYears:2,maxYears:4,salaryMax:80000,resp:[]});
+ it.each([['Junior Officer, Accounts',54],['Accounts Officer',69],['Senior Accounts Officer',79]])('caps %s below Best Fit for a current manager',(title,ceiling)=>{
+  const m=scoreJob(vacancy(title as string),manager(),opts);expect(m.score).toBeLessThanOrEqual(ceiling as number);expect(m.scoreCap).toBe(ceiling);expect(m.allGaps.some(g=>g.k==='sen')).toBe(true);
+ });
+ it('does not infer career progression from a large-sounding company name',()=>{
+  const m=scoreJob({...vacancy('Junior Officer, Accounts'),company:'Large Global Group'},manager(),opts);expect(m.score).toBeLessThan(55);
+ });
+ it('allows a lower non-entry title only with published comparable experience, team scope and pay',()=>{
+  const job={...vacancy('Senior Accounts Officer'),minYears:10,maxYears:null,resp:['Lead the accounting team and oversee department reporting.']};
+  expect(scoreJob(job,manager(),opts).score).toBeGreaterThanOrEqual(80);
+  expect(scoreJob({...job,minYears:5},manager(),opts).score).toBeGreaterThanOrEqual(80);
+  expect(scoreJob({...job,minYears:5,maxYears:5},manager(),opts).score).toBeLessThan(80);
+  expect(scoreJob({...job,salaryMax:null},manager(),opts).score).toBeLessThan(80);
+  expect(scoreJob({...job,resp:[]},manager(),opts).score).toBeLessThan(80);
+ });
+ it('derives the new manager level from current verified experience, replacing stale extraction metadata',()=>{
+  const facts=groundExtraction(DEMO_EXTRACT,DEMO_CV_TEXT);
+  facts.push({kind:'experience',data:{title:'Accounts Manager',company:'Synthetic',start:'2025-01',end:null},verified:true,provenance:'user'});
+  const p=buildMatchProfile({name:'Synthetic',facts,meta:{industries:[],categories:['Accounting & Finance'],seniority:'mid',target_roles:[],location:null},prefs:DEMO_PREFS,country:'BD'});
+  expect(p.currentTitle).toBe('Accounts Manager');expect(p.seniority).toBe('manager');
+ });
+});
