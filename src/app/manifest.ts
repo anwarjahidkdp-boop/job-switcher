@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     related_applications: [{ platform: "webapp", url: "https://jobpao.app/manifest.webmanifest" }],
     display: "standalone",
-    background_color: "#0A1533",
-    theme_color: "#14275A",
+    background_color: "#F4F6FA",
+    theme_color: "#FFFFFF",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png" },

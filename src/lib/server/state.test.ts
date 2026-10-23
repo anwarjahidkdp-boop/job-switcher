@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadVisibleJobs, PAGE_NEWEST,stats,countVisibleJobs,type UserState } from "./state";
+import { loadVisibleJobs, PAGE_NEWEST,stats,countVisibleJobs,loadState,type UserState } from "./state";
 
 /** A tiny stand-in for the Supabase query builder: records each query's calls and answers from `answer`. */
 function fakeDb(answer: (table: string, calls: [string, unknown[]][]) => unknown[]) {
@@ -11,6 +11,7 @@ function fakeDb(answer: (table: string, calls: [string, unknown[]][]) => unknown
       log.push(q);
       const b: Record<string, unknown> = {};
       for (const m of ["select", "eq", "or", "order", "limit", "in", "not", "is", "range"]) b[m] = (...a: unknown[]) => { q.calls.push([m, a]); return b; };
+      b.maybeSingle = async () => ({data:answer(table,q.calls)[0]||null,error:null});
       b.then = (res: (v: unknown) => unknown) => res({ data: answer(table, q.calls), error: null });
       return b;
     },
@@ -38,8 +39,8 @@ describe("loadVisibleJobs", () => {
       const { db, log } = fakeDb((table) => (table === "matches" ? [] : [job("a")]));
       await loadVisibleJobs(db, "u1", "US", ["IT"], { all });
       const q = log.filter((x) => x.table === "jobs");
-      expect(q).toHaveLength(1);
-      expect(has(q[0].calls, all ? "range" : "limit", all ? 999 : 1000)).toBe(true);
+      expect(q).toHaveLength(all ? 1 : 3);
+      expect(q.some(x=>has(x.calls, all ? "range" : "limit", all ? 999 : 1000))).toBe(true);
     }
   });
 });
@@ -70,4 +71,13 @@ it('uses confirmed expected salary and notice answers for matching without an AI
  expect(profileFrom(profile as never,[],master as never)).toMatchObject({salaryMin:45000,notice:0});
  profile.answer_library={salaryNegotiable:true} as never;
  expect(profileFrom(profile as never,[],master as never)?.salaryMin).toBeNull();
+});
+
+it('loads a profile without fetching job inventory, assessments or application packs',async()=>{
+ const profile={id:'u1',home_country:'BD',target_country:'BD',onboarding_step:'done',personal:{dob:'1987-12-05'},preferences:{salaryMin:70000},career_meta:{}};
+ const {db,log}=fakeDb(table=>table==='profiles'?[profile]:table==='master_cvs'?[{id:'master',content:{name:'Synthetic'},created_at:'2026-10-23'}]:[]);
+ const st=await loadState(db,'u1',undefined,{skipMatching:true,skipApplications:true});
+ expect(st?.P?.name).toBe('Synthetic');expect(st?.master?.id).toBe('master');
+ expect(st?.scored).toEqual([]);
+ for(const table of ['jobs','matches','applications'])expect(log.some(q=>q.table===table)).toBe(false);
 });

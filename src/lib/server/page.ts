@@ -27,14 +27,19 @@ export async function ctx(next = "/inbox") {
   return { db: supabase, admin: createAdminClient(), userId: user.id, user };
 }
 
+/** Shared only within this render request; never cache account data across users/requests. */
+export const subscriptionOf = cache(async (db: Awaited<ReturnType<typeof createClient>>, userId:string) =>
+  await db.from("subscriptions").select("plan_code, status, trial_started_at, trial_ends_at, current_period_end").eq("user_id",userId).maybeSingle()
+);
+
 /** Is the person on paid Pro (not the trial)? Cached per request. */
 export const isPro = cache(async (db: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<boolean> => {
-  const { data } = await db.from("subscriptions").select("plan_code, status, current_period_end").eq("user_id", userId).maybeSingle();
+  const { data } = await subscriptionOf(db,userId);
   return !!data && data.plan_code === "pro" && data.status === "active" && (!data.current_period_end || Date.parse(data.current_period_end) > Date.now());
 });
 
 export async function trialLabel(db: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<string | null> {
-  const { data } = await db.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", userId).maybeSingle();
+  const { data } = await subscriptionOf(db,userId);
   if (!data) return null;
   if (data.status === "trialing" && data.trial_ends_at) {
     const left = Math.max(0, Math.ceil((Date.parse(data.trial_ends_at) - Date.now()) / DAY));
@@ -56,7 +61,7 @@ export async function photoUrl(db: Awaited<ReturnType<typeof createClient>>, pat
 /** For app pages: signed-in, onboarded user with a Master CV. */
 export async function requireAppState(next: string): Promise<{ st: UserState & { P: NonNullable<UserState["P"]>; master: NonNullable<UserState["master"]> }; db: Awaited<ReturnType<typeof createClient>>; userId: string }> {
   const { supabase, user } = await requireUser(next);
-  const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
+  const st = await loadState(supabase, user.id, profileOf(supabase, user.id), {skipMatching:next==="/profile",skipApplications:next==="/profile"});
   if (!st) redirect("/login");
   if (!st.P || !st.master) redirect("/onboarding");
   if(setupRequirements(st.profile).length)redirect("/onboarding?step=prefs");

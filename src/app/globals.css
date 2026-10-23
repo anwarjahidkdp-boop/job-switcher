@@ -1024,3 +1024,27 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .reference-toggle > span:last-child { display:block; font-weight:400; margin-top:4px; }
 
 .reference-card > fieldset { margin-top:12px; }
+
+/* Corporate light palette. Keep established card dimensions and semantic warning colours. */
+:root[data-theme="light"]{--ink:#182C46;--ink-2:#526279;--ink-3:#6B7C91;--line:#DAE2ED;--bg:#F4F6FA;--card:#FFFFFF;--accent:#2458A6;--accent-ink:#FFFFFF;--accent-soft:#EDF3FC;--shadow:0 2px 8px rgba(30,55,90,.045);color-scheme:light}
+:root[data-theme="light"] .top{box-shadow:0 2px 12px rgba(30,55,90,.035)}
+:root[data-theme="light"] .top-dash{background:#EDF3FC;border-color:#CBDAF0;color:#2458A6}
+:root[data-theme="light"] .top-dash svg{color:#2458A6}
+:root[data-theme="light"] main .btn-primary{background:#2458A6;box-shadow:0 2px 5px rgba(36,88,166,.16)}
+:root[data-theme="light"] .pghead,:root[data-theme="light"] .ob-hero{background:linear-gradient(120deg,#F9FBFF,#EAF1FB);color:#182C46;border-bottom:1px solid #DAE4F1}
+:root[data-theme="light"] .pghead::before,:root[data-theme="light"] .ob-hero::before{display:none}
+:root[data-theme="light"] .pghead h1,:root[data-theme="light"] .ob-hero h1{color:#182C46}
+:root[data-theme="light"] .pghead h1 span,:root[data-theme="light"] .ob-hero h1 span{background:none;color:#2458A6}
+:root[data-theme="light"] .pghead-sub,:root[data-theme="light"] .ob-sub{color:#526279}
+:root[data-theme="light"] .pghead-kicker,:root[data-theme="light"] .ob-kicker{color:#2458A6}
+:root[data-theme="light"] .pghead-kicker::before,:root[data-theme="light"] .ob-kicker::before{background:#2458A6;box-shadow:0 0 0 4px #DCE8FA}
+:root[data-theme="light"] .pghead-back,:root[data-theme="light"] .ob-back{color:#2458A6;background:#FFFFFF;border-color:#CCDAED}
+:root[data-theme="light"] .ob-steps li{color:#6B7C91}
+:root[data-theme="light"] .ob-steps li::before{background:#D8E1EE}
+:root[data-theme="light"] .ob-steps li.on,:root[data-theme="light"] .ob-steps li.done{color:#2458A6}
+:root[data-theme="light"] .ob-steps li.on::before{background:#2458A6}
+:root[data-theme="light"] .ob-steps li.done::before{background:#8EAED8}
+:root[data-theme="light"] .nav a[aria-current="page"]{background:#EDF3FC;color:#2458A6}
+:root[data-theme="light"] .nav a[aria-current="page"] .nav-ic{color:#2458A6}
+:root[data-theme="light"] .rprog{background:#3472CE;box-shadow:0 0 8px rgba(52,114,206,.25)}
+:root[data-theme="light"] .pghead~* .card,:root[data-theme="light"] .ob-body .card{box-shadow:0 2px 8px rgba(30,55,90,.045)}
