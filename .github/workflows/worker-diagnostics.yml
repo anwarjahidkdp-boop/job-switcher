@@ -1,0 +1,21 @@
+name: Worker diagnostics
+on:
+  push:
+    branches: [fix/worker-1102-diagnostics]
+    paths: [scripts/worker-diagnostics.mjs, .github/workflows/worker-diagnostics.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read Worker limits and aggregate metrics
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/worker-diagnostics.mjs
