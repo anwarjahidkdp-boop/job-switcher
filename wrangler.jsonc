@@ -17,7 +17,7 @@
     "NEXT_PUBLIC_APP_URL": "https://jobpao.app",
     "PAYMENT_METHODS": "manual",
     "BKASH_MANUAL_ACCOUNT_TYPE": "personal"
-  }
+  },
   // Requires Workers Paid. Do not deploy this change until the account upgrade is confirmed.
   // Production logs on 2026-10-23 show exceededCpu at the Free plan's 10 ms ceiling.
   "limits": { "cpu_ms": 30000 },
