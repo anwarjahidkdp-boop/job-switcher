@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { newestExperienceFirst } from "./cv/experience";
+import { closeEarlierRoles, newestExperienceFirst } from "./cv/experience";
 import { normSkill } from "./taxonomy";
 import type { CareerFact } from "./facts";
 import type { MasterCV } from "./types";
@@ -10,7 +10,7 @@ const education = z.object({ degree: text.min(1), field: text, institution: text
 const certification = z.object({ name: text.min(1), status: z.enum(["qualified", "partly", "in_progress"]), detail: text.nullable() });
 export const ManualCvSchema = z.object({
   name: text.min(1), headline: text, contact: z.string().max(1500), summary: z.string().max(6000),
-  experience: z.array(z.object({ title: text.min(1), company: text.min(1), location: text.nullable(), start: date, end: date, bullets: z.array(z.string().max(2000)).max(50) }).refine(e => !e.start || !e.end || e.start <= e.end, { message: "End date must be after the start date." })).max(40),
+  experience: z.array(z.object({ title: text.min(1), company: text.min(1), location: text.nullable(), start: date, end: date, autoEnd: z.boolean().optional(), concurrent: z.boolean().optional(), bullets: z.array(z.string().max(2000)).max(50) }).refine(e => !e.start || !e.end || e.start <= e.end, { message: "End date must be after the start date." })).max(40),
   education: z.array(education).max(30), certifications: z.array(certification).max(50),
   skills_core: z.array(text.min(1)).max(100), skills_tools: z.array(text.min(1)).max(100), languages: z.array(text.min(1)).max(50),
 });
@@ -23,7 +23,7 @@ export function manualDraft(master: MasterCV, facts: CareerFact[]): ManualCv {
   const certs = facts.filter(f => f.verified && f.kind === "certification").map(f => f.data);
   return {
     name: master.name, headline: master.headline, contact: master.contact, summary: master.summary,
-    experience: newestExperienceFirst(structuredClone(master.experience)),
+    experience: newestExperienceFirst(closeEarlierRoles(structuredClone(master.experience))),
     education: edus.length ? edus.map(d => ({ degree: String(d.degree || ""), field: String(d.field || ""), institution: String(d.institution || ""), year: String(d.year || ""), level: education.shape.level.safeParse(d.level).data || "bachelors", result: d.result == null ? null : String(d.result) })) : master.education.map(degree => ({ degree, field: "", institution: "", year: "", level: "bachelors", result: null })),
     certifications: certs.length ? certs.map(d => ({ name: String(d.name || ""), status: certification.shape.status.safeParse(d.status).data || "qualified", detail: d.detail == null ? null : String(d.detail) })) : master.certifications.map(name => ({ name, status: "qualified", detail: null })),
     skills_core: [...master.skills_core], skills_tools: [...master.skills_tools], languages: [...master.languages],
@@ -32,7 +32,7 @@ export function manualDraft(master: MasterCV, facts: CareerFact[]): ManualCv {
 
 export function manualContent(input: ManualCv, before: MasterCV, facts: CareerFact[]) {
   const original = manualDraft(before, facts);
-  const experience = newestExperienceFirst(input.experience);
+  const experience = newestExperienceFirst(closeEarlierRoles(input.experience));
   const master: MasterCV = {
     ...input, experience,
     education: JSON.stringify(input.education) === JSON.stringify(original.education) ? before.education : input.education.map(e => [e.degree + (e.field ? ` in ${e.field}` : ""), e.institution, e.year, e.result ? `(${e.result})` : ""].filter(Boolean).join(", ")),
@@ -40,7 +40,7 @@ export function manualContent(input: ManualCv, before: MasterCV, facts: CareerFa
     suggestions: [], improvements: before.improvements, extra_skills: [],
   };
   const rows: Pick<CareerFact, "kind" | "data">[] = [
-    ...experience.map(e => { const old = facts.find(f => f.kind === "experience" && f.data.company === e.company && f.data.title === e.title); return { kind: "experience" as const, data: { title: e.title, company: e.company, start: e.start, end: e.end, location: e.location, industry: old?.data.industry ?? null } }; }),
+    ...experience.map(e => { const old = facts.find(f => f.kind === "experience" && f.data.company === e.company && f.data.title === e.title); return { kind: "experience" as const, data: { title: e.title, company: e.company, start: e.start, end: e.end, autoEnd: e.autoEnd ?? false, concurrent: e.concurrent ?? false, location: e.location, industry: old?.data.industry ?? null } }; }),
     ...input.education.map(e => ({ kind: "education" as const, data: e })),
     ...input.certifications.map(c => ({ kind: "certification" as const, data: c })),
     ...Array.from(new Set([...input.skills_core, ...input.skills_tools].map(normSkill))).map(name => ({ kind: "skill" as const, data: { name } })),

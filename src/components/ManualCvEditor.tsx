@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { closeEarlierRoles } from "@/lib/cv/experience";
+import { roleSuggestions } from "@/lib/cv/role-suggestions";
 import { ManualCvSchema, type ManualCv } from "@/lib/manual-cv";
 
 export function ManualCvEditor({ initial, baseId, country, revision }: { initial: ManualCv; baseId: string; country: string; revision: number }) {
@@ -43,12 +45,18 @@ export function ManualCvEditor({ initial, baseId, country, revision }: { initial
         {field("Profile summary", cv.summary, summary => setCv({ ...cv, summary }), true)}
         <h3>Experience</h3>
         {cv.experience.map((e, i) => {
-          const change = (patch: Partial<typeof e>) => setCv({ ...cv, experience: cv.experience.map((x, k) => k === i ? { ...x, ...patch } : x) });
+          const change = (patch: Partial<typeof e>) => setCv({ ...cv, experience: closeEarlierRoles(cv.experience.map((x, k) => k === i ? { ...x, ...patch } : x)) });
           return <div className="stack card panel" style={{ gap: 10 }} key={i}>
             {field("Job title", e.title, title => change({ title }))}{field("Employer", e.company, company => change({ company }))}{field("Location", e.location || "", location => change({ location: location || null }))}
-            <div className="row" style={{ alignItems: "start" }}>{field("Start month", e.start || "", start => change({ start: start || null }), false, "month")}{field("End month (blank = Present)", e.end || "", end => change({ end: end || null }), false, "month")}</div>
+            <div className="row" style={{ alignItems: "start" }}>{field("Start month", e.start || "", start => change({ start: start || null }), false, "month")}{field("End month (blank = Present)", e.end || "", end => change({ end: end || null, autoEnd: false, concurrent: !end }), false, "month")}</div>
+            {e.autoEnd ? <p className="small muted" role="status">End month set automatically to the month before your next role starts. You can edit it.</p> : null}
+            <label className="small row"><input type="checkbox" checked={!!e.concurrent} onChange={v => change({ concurrent: v.target.checked, ...(v.target.checked ? { end: null, autoEnd: false } : {}) })} />Concurrent role — keep Present alongside another role</label>
             {field("Responsibilities and achievements (one bullet per line)", e.bullets.join("\n"), value => change({ bullets: value.split("\n") }), true)}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCv({ ...cv, experience: cv.experience.filter((_, k) => k !== i) })}>Remove this role</button>
+            {roleSuggestions(e.title, e.bullets).length ? <div className="stack" style={{ gap: 6 }} aria-label={`Suggested responsibilities for ${e.title}`}>
+              <b className="small">Suggested responsibilities</b><p className="small muted">Add only the work you actually did. You can edit each line after adding it. No AI charge.</p>
+              {roleSuggestions(e.title, e.bullets).map(suggestion => <div className="row" key={suggestion} style={{ justifyContent: "space-between", alignItems: "start" }}><span className="small" style={{ flex: "1 1 220px" }}>{suggestion}</span><button type="button" className="btn btn-ghost btn-sm" onClick={() => change({ bullets: [...e.bullets.filter(b => b.trim()), suggestion] })}>Add</button></div>)}
+            </div> : null}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCv({ ...cv, experience: closeEarlierRoles(cv.experience.filter((_, k) => k !== i)) })}>Remove this role</button>
           </div>;
         })}
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCv({ ...cv, experience: [...cv.experience, { title: "", company: "", location: null, start: null, end: null, bullets: [] }] })}>Add a role</button>

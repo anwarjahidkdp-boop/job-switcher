@@ -8,3 +8,20 @@ export function newestExperienceFirst<T extends { start: string | null; end: str
     return recent || (b.start || "").localeCompare(a.start || "");
   });
 }
+
+/** Close successive roles across employers at the month before the next role begins. */
+export function closeEarlierRoles<T extends { company: string; title: string; start: string | null; end: string | null; autoEnd?: boolean; concurrent?: boolean }>(items: readonly T[]): T[] {
+  const ym = (s: string | null): number | null => {
+    const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(s || "");
+    return m ? Number(m[1]) * 12 + Number(m[2]) - 1 : null;
+  };
+  return items.map(role => {
+    if (role.concurrent || (role.end && !role.autoEnd)) return role;
+    const start = ym(role.start);
+    if (start == null) return role;
+    const next = items.map(other => ym(other.start)).filter((month): month is number => month != null && month > start).sort((a,b) => a-b)[0];
+    if (next == null) return role.autoEnd ? { ...role, end: null, autoEnd: false } : role;
+    const end = next - 1;
+    return { ...role, end: `${Math.floor(end / 12)}-${String(end % 12 + 1).padStart(2,"0")}`, autoEnd: true };
+  });
+}
