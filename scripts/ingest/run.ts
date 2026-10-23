@@ -10,6 +10,8 @@ import { processNewMatches } from "../../src/lib/server/new-matches";
 import { checkTopMatches } from "../../src/lib/server/match-check";
 import { ADZUNA_COUNTRIES } from "../../src/lib/ingest/boards";
 import { cname } from "../../src/lib/countries";
+import { fetchBangladesh, type BangladeshBatch } from "./bd/fetch";
+import { ensureBangladeshSources, persistBangladeshJobs, persistBangladeshBatch } from "./bd/persist";
 
 async function main() {
   const db = scriptAdmin();
@@ -21,8 +23,9 @@ async function main() {
   const demand = await roleDemand(db);
   // The launch markets get search sources even before anyone there signs up, so their first users find jobs waiting.
   if (!only && !dry) await ensureSearchSources(db, [...new Set([...LAUNCH_MARKETS, ...demand.keys()])]);
+  if (!only && !dry) await ensureBangladeshSources(db);
 
-  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path").eq("active", true);
+  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url").eq("active", true);
   if (only) q = q.eq("id", only);
   const { data: sources, error } = await q;
   if (error) throw error;
@@ -32,12 +35,20 @@ async function main() {
   let total = 0, failed = 0;
   for (const src of (sources || []) as SourceRow[]) {
     try {
-      const jobs = await fetchSource(src, today, fetch, { queries: demand.get(src.country) || [] });
+      let batch: BangladeshBatch | null = null;
+      if (src.kind === "bdweb") {
+        const { data: retry, error } = await db.from("source_documents").select("url").eq("source_id", src.id).eq("state", "fetch_failed").order("last_seen_at").limit(20);
+        if (error) throw error;
+        batch = await fetchBangladesh(src.board_token || "", today, { cursor: src.cursor_url, retryUrls: (retry || []).map(r => r.url) });
+      }
+      const jobs = batch ? batch.jobs : await fetchSource(src, today, fetch, { queries: demand.get(src.country) || [] });
       total += jobs.length;
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
 
-      const rows = [...new Map(jobs.map((j) => [j.externalId, j])).values()].map((j) => ({ ...jobToRow(j, { owner_id: null, source_kind: src.kind, source_id: src.id, external_id: j.externalId, description: j.description.slice(0, 20000) }), active: true }));
+      if (src.country === "BD") await persistBangladeshJobs(db, src, jobs);
+      if (batch) await persistBangladeshBatch(db, src, batch);
+      const rows = src.country === "BD" ? [] : [...new Map(jobs.map((j) => [j.externalId, j])).values()].map((j) => ({ ...jobToRow(j, { owner_id: null, source_kind: src.kind, source_id: src.id, external_id: j.externalId, description: j.description.slice(0, 20000) }), active: true }));
       for (let i = 0; i < rows.length; i += 200) {
         const { error: e } = await db.from("jobs").upsert(rows.slice(i, i + 200), { onConflict: "source_id,external_id" });
         if (e) throw e;
@@ -50,7 +61,9 @@ async function main() {
         for (let i = 0; i < stale.length; i += 100) await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).eq("source_id", src.id).in("external_id", stale.slice(i, i + 100));
       }
       for (const j of jobs) touchedCountries.add(j.country);
-      await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: "ok", last_error: null, jobs_found: jobs.length }).eq("id", src.id);
+      const detail = batch?.failures ? `${batch.failures} detail page fetch(es) failed; saved for retry` : batch?.documents.length ? `${batch.documents.length} circular(s) need extraction/review before matching` : null;
+      await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: batch?.failures ? "error" : "ok", last_error: detail, jobs_found: jobs.length }).eq("id", src.id);
+      if (batch?.failures) failed++;
     } catch (e) {
       failed++;
       const msg = errText(e);

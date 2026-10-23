@@ -49,8 +49,11 @@ export async function finishOnboardingAction(target?: unknown) {
   if (!profile || !["reveal", "done"].includes(profile.onboarding_step)) redirect("/onboarding");
   const { data: master } = await c.db.from("master_cvs").select("id").eq("user_id", c.userId).eq("is_current", true).limit(1).maybeSingle();
   if (!master) redirect("/onboarding");
-  const { error } = await c.db.from("profiles").update({ onboarding_step: "done" }).eq("id", c.userId);
+  const { data: finished, error } = await c.db.from("profiles").update({ onboarding_step: "done" }).eq("id", c.userId)
+    .eq("target_country", profile.target_country).eq("search_country_version", profile.search_country_version)
+    .in("onboarding_step", ["reveal", "done"]).select("id").maybeSingle();
   if (error) throw error;
+  if (!finished) redirect("/onboarding");
   redirect(target === "/setup" ? "/setup" : "/inbox");
 }
 

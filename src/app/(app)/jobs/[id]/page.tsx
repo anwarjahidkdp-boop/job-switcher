@@ -39,6 +39,10 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   // The full post, so the person can judge the job themselves before applying (list loads leave it out).
   const { data: descRow } = await db.from("jobs").select("description").eq("id", job.id).maybeSingle();
   const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
+  const { data: occurrences } = job.country === "BD" ? await db.from("job_source_occurrences").select("discovered_url, original_source_url").eq("job_id", job.id).limit(20) : { data: null };
+  const publicLink = (value: string | null) => { try { const u = new URL(value || ""); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
+  const foundAt = [...new Set((occurrences || []).map(o => publicLink(o.discovered_url)).filter((u): u is string => !!u))];
+  const original = (occurrences || []).map(o => publicLink(o.original_source_url)).find(Boolean);
   const a = st.apps[job.id];
   // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
   const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
@@ -89,6 +93,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {description ? <details className="jd"><summary className="btn btn-ghost btn-sm">View job description</summary><div className="jd-text">{description}</div></details> : null}
               {job.url ? <a className="btn btn-ghost btn-sm" href={job.url} target="_blank" rel="noopener noreferrer nofollow">Open the original post ↗</a> : null}
             </div> : null}
+            {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;

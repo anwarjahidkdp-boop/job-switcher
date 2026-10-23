@@ -1,5 +1,8 @@
 name: Ingest public job listings
 on:
+  push:
+    branches: [main]
+    paths: ['scripts/ingest/bd/**']
   schedule:
     - cron: "30 0 * * *"   # 06:30 Asia/Dhaka daily
   workflow_dispatch:
@@ -17,7 +20,7 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
