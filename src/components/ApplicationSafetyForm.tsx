@@ -1,4 +1,5 @@
 "use client";
+import { rule } from "@/lib/countries";
 import { useState, useTransition } from "react";
 import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { saveCareerSafetyAction } from "@/app/actions";
@@ -10,6 +11,7 @@ const SWITCHES = [['remoteOnly','Remote only'],['noRelocation','No relocation'],
 const exclusionsMode = (d: DealBreakers, key: typeof EXCLUSIONS[number][0]) => d[key]?.length ? 'list' : d[`${key}Set`] ? 'none' : '';
 
 export function ApplicationSafetyForm({ answers, rules, country="BD" }: { answers: AnswerLibrary; rules: DealBreakers; country?:string }) {
+  const salaryUnit=`${rule(country).sym.trim()||"local currency"} per ${rule(country).per}`;
   const [a,setA] = useState(answers), [d,setD] = useState(rules);
   const [saved,setSaved] = useState({a:answers,d:rules});
   const [editing,setEditing] = useState<string[]>([]);
@@ -51,7 +53,7 @@ export function ApplicationSafetyForm({ answers, rules, country="BD" }: { answer
   const cardStyle={padding:10,border:'1px solid var(--warn)',borderRadius:8,background:'var(--warn-soft)',scrollMarginTop:90};
   return <section id="application-safety" className="card panel profile-card" data-tone={missing.length ? "warn":"good"} style={{scrollMarginTop:90}}>
     <ProfileCardTitle icon="application">Application details <span className={`pill ${missing.length ? 'p-warn':'p-st'}`}>{missing.length ? `${missing.length} incomplete`:'Complete'}</span></ProfileCardTitle>
-    <p className="small muted" style={{marginTop:6}}>Save your answers below. Completed fields move into your summary, where you can edit them anytime.</p>
+    <p className="small muted" style={{marginTop:6}}>Salary amounts use {salaryUnit}. Compare current pay only in this currency and pay period; otherwise enter your expected salary. Completed fields move into your editable summary.</p>
     {summary.length ? <div style={{marginTop:12}}><h3>Saved information</h3>{summary.map(([name,label,value])=><div className="qitem" key={name}><div className="small"><b>{label}</b><div>{value}</div></div><button type="button" className="btn btn-text btn-sm" disabled={editing.includes(name)} onClick={()=>edit(name)}>Edit</button></div>)}</div>:null}
     <form noValidate action={()=>start(save)} className="stack" style={{marginTop:12}}>
       <fieldset disabled={pending} className="stack" style={{border:0,padding:0,margin:0,minWidth:0,gap:12}}>
