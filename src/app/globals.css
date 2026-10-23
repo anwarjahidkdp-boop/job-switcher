@@ -1057,6 +1057,14 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 /* Dashboard figures are already in the cards: keep its heading and warning close. */
 .pghead-compact{padding-bottom:16px}
 .pghead-compact+*{margin-top:12px!important}
+.ob-upload-with-bdjobs{max-width:1040px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,1fr);gap:18px;align-items:start}
+.bdjobs-connect{border-top:3px solid var(--accent);display:grid;gap:12px}
+.bdjobs-connect h3{font-size:17px}
+.bdjobs-connect summary{cursor:pointer;font-size:14px;font-weight:600}
+.bdjobs-connect ol{list-style:decimal;padding-left:20px;margin:10px 0;font-size:13px}
+.bdjobs-connect li{margin:8px 0}
+.bdjobs-connect>.btn{justify-self:start}
+@media(max-width:760px){.ob-upload-with-bdjobs{grid-template-columns:minmax(0,1fr)}.ob-upload-with-bdjobs>.bdjobs-connect{grid-row:1}}
 
 /* Keep the existing palette; fix contrast and the compact mobile dashboard. */
 .application-notice-short{display:none}

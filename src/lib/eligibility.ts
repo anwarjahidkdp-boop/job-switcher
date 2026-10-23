@@ -19,8 +19,8 @@ export function extractEligibility(text:string):JobEligibility {
  const t=digits(text).toLowerCase();const out:JobEligibility={};
  const range=t.match(/(?:\bage(?:d| limits?| range)?\s*[:：]?|বয়স(?:সীমা)?\s*[:ঃ]?|বয়স(?:সীমা)?\s*[:ঃ]?)\s*(?:between\s+|from\s+)?(\d{1,2})\s*(?:[-–—]|to|and|থেকে|হতে)\s*(\d{1,2})/);
  if(range){out.minAge=Number(range[1]);out.maxAge=Number(range[2]);}
- const max=t.match(/(?:maximum age|age(?:d)?\s*(?:limit|not more than|at most|up to)|বয়স\s*(?:সর্বোচ্চ|অনূর্ধ্ব)|বয়স\s*(?:সর্বোচ্চ|অনূর্ধ্ব)|সর্বোচ্চ\s*বয়স|সর্বোচ্চ\s*বয়স)\s*[:ঃ]?\s*(\d{1,2})/);
- const min=t.match(/(?:minimum age|age(?:d)?\s*(?:at least|minimum))\s*:?\s*(\d{1,2})/);
+ const max=t.match(/(?:maximum age|age(?:d)?\s*[:：]?\s*(?:limit|maximum|max|not more than|at most|up to)|বয়স\s*[:ঃ]?\s*(?:সর্বোচ্চ|অনূর্ধ্ব)|বয়স\s*[:ঃ]?\s*(?:সর্বোচ্চ|অনূর্ধ্ব)|সর্বোচ্চ\s*বয়স|সর্বোচ্চ\s*বয়স)\s*[:：ঃ]?\s*(\d{1,2})/);
+ const min=t.match(/(?:minimum age|age(?:d)?\s*[:：]?\s*(?:at least|minimum|min))\s*[:：]?\s*(\d{1,2})/);
  if(max)out.maxAge=Number(max[1]);if(min)out.minAge=Number(min[1]);
  const on=t.match(/(?:age[^\n]{0,60}?(?:as (?:of|on)|on)|বয়স[^\n]{0,40}?)\s*(\d{4}-\d{2}-\d{2})/);
  if(on&&validBirthDate(on[1],on[1]))out.ageAsOf=on[1];

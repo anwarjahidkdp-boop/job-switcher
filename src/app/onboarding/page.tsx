@@ -19,6 +19,7 @@ import { CountryStep, UploadStep, PrefsStep } from "./steps";
 import { ManualCvEditor } from "@/components/ManualCvEditor";
 import { manualDraft } from "@/lib/manual-cv";
 import { CvSuggestions } from "@/components/CvSuggestions";
+import { BdjobsConnectCard } from "@/components/BdjobsConnectCard";
 
 export const metadata = { title: "Get started" };
 export const maxDuration = 120;
@@ -69,8 +70,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     </div>;
   } else if (step === "upload") {
     head = <Head cur="upload" back="country" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;
-    body = <div className="ob">
-      <UploadStep aiReady={aiConfigured()} autoDemo={demo} />
+    body = <div className={`ob${country === "BD" ? " ob-upload-with-bdjobs" : ""}`}>
+      <div><UploadStep aiReady={aiConfigured()} autoDemo={demo} /></div>
+      {country === "BD" ? <BdjobsConnectCard steps={st.profile.setup_steps || {}} /> : null}
     </div>;
   } else if (step === "questions" && st.cvDoc) {
     const qs = st.cvDoc.questions || [];
@@ -124,7 +126,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
         <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} />
       </div>
       <div className="banner" style={{ marginTop: 22 }}><p><b>We found {nm.length} current opportunities in {cn} relevant to your career.</b> {strong} {strong === 1 ? "is Good Fit or better" : "are Good Fit or better"}.</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>
-      <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {portals(country).slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>
+      {country === "BD" ? <div style={{marginTop:14}}><BdjobsConnectCard ready steps={st.profile.setup_steps || {}} /></div> : <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {portals(country).slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>}
       {st.cvDoc?.text_content ? <details className="orig-cv" style={{ marginTop: 22 }}><summary>See the CV you uploaded</summary><div className="raw">{st.cvDoc.text_content.slice(0, 6000)}</div></details> : null}
     </>;
   } else {
