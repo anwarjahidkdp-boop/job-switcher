@@ -6,16 +6,17 @@ import type { BangladeshBatch, PublicReader } from './fetch';
 const ORIGIN = 'https://alljobs.teletalk.com.bd';
 const LIST = ORIGIN + '/api/v1/govt-jobs/org-list';
 interface GovernmentJob {
-  id: number; job_title: string; job_title_bn?: string; organization_id: number;
+  id: number; job_title: string; job_title_bn?: string; organization_id?: number;
   deadline_date?: string; published_date?: string; advertisement_published_date?: string;
   application_site?: string; advertisement_file?: string; vacancy?: string; min_age?: number; max_age?: number;
   is_result?: boolean; is_notice?: boolean; status?: number;
-  job_utilities_govtorganization?: { name?: string; name_bn?: string };
+  job_utilities_govtorganization?: { id?: number; name?: string; name_bn?: string };
 }
 export function teletalkJob(d: GovernmentJob, today: string): DiscoveredJob | null {
   const deadline = sourceDate(d.deadline_date), company = d.job_utilities_govtorganization?.name || d.job_utilities_govtorganization?.name_bn;
-  if (!Number.isSafeInteger(d.id) || !Number.isSafeInteger(d.organization_id) || !d.job_title || !company || !deadline || deadline < today || d.is_result || d.is_notice || d.status !== 5) return null;
-  const url = `${ORIGIN}/jobs/government/${d.organization_id}?jobId=${d.id}`;
+  const org = d.organization_id ?? d.job_utilities_govtorganization?.id;
+  if (!Number.isSafeInteger(d.id) || !Number.isSafeInteger(org) || !d.job_title || !company || !deadline || deadline < today || d.is_result || d.is_notice || d.status !== 5) return null;
+  const url = `${ORIGIN}/jobs/government/${org}?jobId=${d.id}`;
   let apply: string | null = null;
   try { const u = new URL(d.application_site || ''); if (/^https?:$/.test(u.protocol) && !u.username && !u.password) apply = u.href; } catch { /* missing application link */ }
   const description = [d.job_title, d.job_title_bn, company, d.vacancy ? `Vacancies: ${d.vacancy}` : '',
@@ -25,7 +26,7 @@ export function teletalkJob(d: GovernmentJob, today: string): DiscoveredJob | nu
   ].filter(Boolean).join('\n');
   const job = normaliseJobText({ title: d.job_title, company, country: 'BD', text: description, url, source: 'Alljobs Teletalk', deadline, publishedAt: sourceDate(d.advertisement_published_date), today });
   // The API does not expose full requirements or work location; never derive them from the employer's history or age limits.
-  job.minYears = null; job.maxYears = null; job.education = null; job.location = null;
+  job.minYears = null; job.maxYears = null; job.education = null; job.location = null; job.industry = null; job.resp = [];
   job.apply = { method: 'portal', target: apply || url };
   return { ...job, description, externalId: `govt-${d.id}`, discovery: { url, originalUrl: url, source: 'Alljobs Teletalk', evidence: 'structured' } };
 }

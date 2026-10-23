@@ -9,6 +9,7 @@ export type ApplyMethod = "email" | "portal" | "unknown";
 /** Normalised job as used by matching and the UI. Mirrors the `jobs` table. */
 export interface Job {
   id: string;
+  active?: boolean;
   country: CountryCode;
   title: string;
   company: string;

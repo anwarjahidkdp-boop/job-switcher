@@ -1,5 +1,5 @@
 import {BOT_UA,robotsAllows} from '../../../src/lib/ingest/robots';import {all,href,parse,text} from './html';
-import {detailUrls,nextPage,parseDetail,type DiscoveredJob,type SourceDocument} from './parse';import {BD_SOURCES,type BangladeshSource} from './registry';
+import {detailUrls,nextPage,parseDetail,type DiscoveredJob,type SourceDocument} from './parse';import {BD_SOURCES,approvedSource,type BangladeshSource} from './registry';
 import {fetchTeletalk} from './teletalk';
 export type Fetcher=(url:string,init?:RequestInit)=>Promise<Response>;
 export class PublicReader {
@@ -40,7 +40,7 @@ export class PublicReader {
 }
 export interface BangladeshBatch {jobs:DiscoveredJob[];documents:(SourceDocument&{state:'needs_review'|'fetch_failed'})[];checkedUrls:string[];nextUrl:string|null;pages:number;failures:number}
 export async function fetchBangladesh(key:string,today:string,opts:{fetcher?:Fetcher;cursor?:string|null;pages?:number;retryUrls?:string[];delay?:number}={}):Promise<BangladeshBatch>{
- const c=BD_SOURCES.find(x=>x.key===key);if(!c||!c.enabled)throw Error(c?.note||'Unsupported Bangladesh source');const reader=new PublicReader(c.url,opts.fetcher,opts.delay??400);
+ const c=BD_SOURCES.find(x=>x.key===key);if(!c||!approvedSource(c))throw Error('Source quality review required before collection');if(!c.enabled)throw Error(c.note||'Unsupported Bangladesh source');const reader=new PublicReader(c.url,opts.fetcher,opts.delay??400);
  if(c.mode==='teletalk')return fetchTeletalk(reader,today,opts);
  const result:BangladeshBatch={jobs:[],documents:[],checkedUrls:[],nextUrl:null,pages:0,failures:0};
  const handle=async(url:string)=>{try{const html=await reader.html(url);const parsed=parseDetail(html,url,c,today);result.jobs.push(...parsed.jobs);result.documents.push(...parsed.documents.map(d=>({...d,state:'needs_review' as const})));result.checkedUrls.push(url);}catch(e){result.failures++;result.documents.push({url,title:'Source page',kind:'article',reason:String(e).slice(0,300),publishedAt:null,state:'fetch_failed'});}};

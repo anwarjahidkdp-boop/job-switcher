@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 vi.mock('server-only',()=>({}));
 vi.mock('./state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
-import { loadJob } from './state';
-import { markOpened, setReminder } from './applications';
+import { loadJob, loadState } from './state';
+import { markOpened, setReminder, preparePack } from './applications';
 // A stale page loads a ready application; a send claims it before the next mutation.
 function context() {
  const mutations:{patch:unknown;filters:unknown[]}[]=[];
@@ -19,6 +19,12 @@ function context() {
  return {ctx:{db,admin:db,userId:'u'},mutations};
 }
 describe('stale application page safeguards',()=>{
+ it('does not prepare or mutate an application for an inactive source listing',async()=>{
+  vi.mocked(loadState).mockResolvedValue({P:{},master:{}} as unknown as NonNullable<Awaited<ReturnType<typeof loadState>>>);
+  vi.mocked(loadJob).mockResolvedValue({active:false} as unknown as NonNullable<Awaited<ReturnType<typeof loadJob>>>);
+  const x=context();await expect(preparePack(x.ctx,'held-job')).rejects.toThrow('source is reviewed');
+  expect(x.mutations).toHaveLength(0);
+ });
  it('opening a portal never overwrites a concurrently submitted or sending application',async()=>{
   const x=context();await markOpened(x.ctx,'j');expect(x.mutations[0].filters).toEqual(expect.arrayContaining([['is','sending_at',null],['not','status','in','(applied,interview,offer,closed,withdrawn)']]));
  });

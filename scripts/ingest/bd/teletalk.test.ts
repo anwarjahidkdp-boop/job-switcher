@@ -12,6 +12,7 @@ it('uses only public government job fields, keeping age and employer history out
   expect(j.description).toContain('Full education, experience');
   expect(teletalkJob({ ...detail, deadline_date: '2026-10-22' }, '2026-10-23')).toBeNull();
   expect(teletalkJob({ ...detail, is_result: true }, '2026-10-23')).toBeNull();
+  expect(teletalkJob({ ...detail, organization_id: undefined, job_utilities_govtorganization: { id: 20, name: 'Synthetic Government Agency' } }, '2026-10-23')?.url).toContain('/government/20?jobId=10');
 });
 it.each(['Age: 22 to 30 years\nExperience:\n3 to 5 years', 'Age\n23 to 40 years\nMinimum 1 year(s)', 'Aged between 18 and 32 years\nExperience: 3-5 years'])('separates age from tenure in imported descriptions (%s)', text => {
   const j = normaliseJobText({ title: 'Officer', company: 'Synthetic', text, country: 'BD', source: 'test', today: '2026-10-23' });

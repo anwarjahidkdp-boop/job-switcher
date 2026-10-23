@@ -83,6 +83,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
+  if (job.active === false) throw new Error("This listing is unavailable while its status or source is reviewed. Choose an active opportunity.");
   const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa);
   if (!safety.safe) throw new ApplicationSafetyError(safety);
   const app = await ensureApp(ctx, jobId);

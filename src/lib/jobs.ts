@@ -8,7 +8,7 @@ import type { SampleJobRaw } from "./demo";
 import type { PastedJobOut } from "./ai/schemas";
 
 export interface JobRow {
-  id: string; owner_id: string | null; source_id?: string | null; source_kind: string; source_label: string; external_id?: string | null;
+  id: string; active?: boolean; owner_id: string | null; source_id?: string | null; source_kind: string; source_label: string; external_id?: string | null;
   country: string; title: string; company: string; industry: string | null; category: string | null; location: string | null;
   employment_type: string | null; salary_min: number | string | null; salary_max: number | string | null; min_years: number | string | null; max_years: number | string | null;
   seniority: string | null; education: { level?: string | null; field?: string } | null; required_skills: string[] | null; preferred_skills: string[] | null;
@@ -22,7 +22,7 @@ const applyMethod = (m: unknown): ApplyMethod => (m === "email" || m === "portal
 export function rowToJob(r: JobRow): Job {
   const edu = r.education && isEduLevel(r.education.level) ? { level: r.education.level, field: String(r.education.field || "").toLowerCase() } : null;
   return {
-    id: r.id, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
+    id: r.id, active: r.active !== false, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
     type: r.employment_type, salaryMin: num(r.salary_min), salaryMax: num(r.salary_max), minYears: num(r.min_years), maxYears: num(r.max_years),
     seniority: isSeniority(r.seniority) ? r.seniority : null, education: edu,
     required: (r.required_skills || []).map(normSkill), preferred: (r.preferred_skills || []).map(normSkill),
