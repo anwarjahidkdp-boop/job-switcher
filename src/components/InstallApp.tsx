@@ -1,87 +1,53 @@
 "use client";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import {useEffect,useState,useRef} from "react";
+import {usePathname} from "next/navigation";
+import {createInstaller,INSTALL_GUIDE,installOs,type InstallOs,type InstallPrompt} from "@/lib/pwa/install";
 
-type Prompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
-type Os = "ios" | "android" | "desktop";
-const KEY = "jp-install-hidden";
-
-function detectOs(): Os {
-  const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return "ios";
-  return /Android/i.test(ua) ? "android" : "desktop";
+const SESSION_KEY="jp-install-dismissed-session";
+const standalone=()=>window.matchMedia?.("(display-mode: standalone)").matches||(navigator as Navigator&{standalone?:boolean}).standalone===true;
+const dismissed=()=>{try{return sessionStorage.getItem(SESSION_KEY)==="1";}catch{return false;}};
+/** This explicit entry works even after a dismissed prompt or uninstall. */
+export function InstallButton({className="btn btn-primary"}:{className?:string}){
+ return <button type="button" className={className} onClick={()=>window.dispatchEvent(new Event("jobpao:install"))}>Install JobPao</button>;
 }
-const standalone = () => window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-const GUIDE: Record<Os, { title: string; steps: string[] }> = {
-  ios: { title: "Install on iPhone", steps: ["Open jobpao.app in Safari.", "Tap the Share button (the square with an arrow) at the bottom.", "Scroll down and tap \"Add to Home Screen\", then \"Add\"."] },
-  android: { title: "Install on Android", steps: ["Open jobpao.app in Chrome.", "Tap the ⋮ menu at the top right.", "Tap \"Install app\" (or \"Add to Home screen\"), then \"Install\"."] },
-  desktop: { title: "Install on your computer", steps: ["Open jobpao.app in Chrome or Edge.", "Click the install icon at the right end of the address bar.", "Click \"Install\". JobPao opens in its own window."] },
-};
-
-/** "Install app" button on the right edge: one tap installs where the browser allows it, otherwise a short guide for the phone. */
-export function InstallApp() {
-  const [evt, setEvt] = useState<Prompt | null>(null);
-  const [show, setShow] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [os, setOs] = useState<Os>("android");
-  // Only on the home page and the job inbox, so it never sits over a form button.
-  const where = usePathname();
-  const here = where === "/" || where.startsWith("/inbox");
-
-  useEffect(() => {
-    navigator.serviceWorker?.register("/sw.js").catch(() => {});
-    let hidden = false;
-    try { hidden = localStorage.getItem(KEY) === "1"; } catch {}
-    const t = setTimeout(() => {
-      const o = detectOs();
-      setOs(o);
-      // Chrome and Edge only fire beforeinstallprompt while the app is NOT installed, so there we wait for it.
-      // iPhone never fires it and cannot tell us, so the guide button shows until the person hides it.
-      setShow(!hidden && !standalone() && o === "ios");
-    }, 0);
-    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as Prompt); if (!hidden && !standalone()) setShow(true); };
-    const onDone = () => { setShow(false); setOpen(false); try { localStorage.setItem(KEY, "1"); } catch {} };
-    // Already installed on this device (Android Chrome can tell): never show the button.
-    (navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> }).getInstalledRelatedApps?.().then((apps) => { if (apps.length) onDone(); }).catch(() => {});
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onDone);
-    return () => { clearTimeout(t); window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onDone); };
-  }, []);
-
-  if (!show || !here) return null;
-  const install = async () => {
-    if (!evt) { setOpen(true); return; }
-    await evt.prompt();
-    const { outcome } = await evt.userChoice;
-    setEvt(null);
-    if (outcome === "accepted") onAccepted();
-  };
-  const onAccepted = () => { setShow(false); try { localStorage.setItem(KEY, "1"); } catch {} };
-  const hide = () => { setShow(false); try { localStorage.setItem(KEY, "1"); } catch {} };
-  const g = GUIDE[os];
-  return (
-    <>
-      <div className="ia">
-        <button type="button" className="ia-btn" onClick={install}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M12 7v7m-3-3 3 3 3-3M10 18h4" /></svg>
-          Install on phone
-        </button>
-        <button type="button" className="ia-x" onClick={hide} aria-label="Hide install button">×</button>
-      </div>
-      {open ? (
-        <div className="ia-sheet" role="dialog" aria-modal="true" aria-labelledby="ia-t" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div className="ia-card">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon-192.png" alt="" width="56" height="56" />
-            <h3 id="ia-t">{g.title}</h3>
-            <p className="small muted">Get JobPao on your home screen. It opens like an app, with no app store needed.</p>
-            <ol>{g.steps.map((s) => <li key={s}>{s}</li>)}</ol>
-            <div className="ia-tabs">{(["android", "ios", "desktop"] as Os[]).map((k) => <button key={k} type="button" className={k === os ? "on" : ""} onClick={() => setOs(k)}>{k === "ios" ? "iPhone" : k === "android" ? "Android" : "Computer"}</button>)}</div>
-            <button type="button" className="btn btn-primary" onClick={() => setOpen(false)}>Got it</button>
-          </div>
-        </div>
-      ) : null}
-    </>
-  );
+export function InstallApp(){
+ const [show,setShow]=useState(false);
+ const [open,setOpen]=useState(false);
+ const [os,setOs]=useState<InstallOs>("android");
+ const dialog=useRef<HTMLDialogElement>(null);
+ const [installer]=useState(()=>createInstaller({showGuide:()=>setOpen(true),onInstalled:()=>{setShow(false);setOpen(false);}}));
+ const where=usePathname();
+ const here=where==="/"||where.startsWith("/inbox");
+ useEffect(()=>{
+  navigator.serviceWorker?.register("/sw.js").catch(()=>{});
+  const sync=()=>{setOs(installOs(navigator.userAgent,navigator.platform,navigator.maxTouchPoints));setShow(!standalone()&&!installer.isInstalled()&&!dismissed());};
+  const timer=setTimeout(sync,0);
+  const onPrompt=(event:Event)=>{installer.capture(event as InstallPrompt);setShow(!standalone()&&!dismissed());};
+  const onDone=()=>installer.installed();
+  const onRequest=()=>{void installer.request();};
+  const onVisibility=()=>{if(document.visibilityState==="visible")sync();};
+  window.addEventListener("beforeinstallprompt",onPrompt);
+  window.addEventListener("appinstalled",onDone);
+  window.addEventListener("jobpao:install",onRequest);
+  window.addEventListener("focus",sync);
+  document.addEventListener("visibilitychange",onVisibility);
+  return()=>{clearTimeout(timer);window.removeEventListener("beforeinstallprompt",onPrompt);window.removeEventListener("appinstalled",onDone);window.removeEventListener("jobpao:install",onRequest);window.removeEventListener("focus",sync);document.removeEventListener("visibilitychange",onVisibility);};
+ },[installer]);
+ useEffect(()=>{if(open)dialog.current?.showModal();else dialog.current?.close();},[open]);
+ const hide=()=>{setShow(false);try{sessionStorage.setItem(SESSION_KEY,"1");}catch{}};
+ const guide=INSTALL_GUIDE[os];
+ return <>
+  {show&&here?<div className="ia"><button type="button" className="ia-btn" onClick={()=>void installer.request()}>Install JobPao</button><button type="button" className="ia-x" onClick={hide} aria-label="Hide install reminder for this session">×</button></div>:null}
+  <dialog ref={dialog} className="ia-dialog" aria-labelledby="ia-t" onCancel={()=>setOpen(false)} onClose={()=>setOpen(false)}>
+   <div className="ia-card">
+    <h2 id="ia-t">{guide.title}</h2>
+    <p className="small muted">Install again any time. If the browser does not show a prompt, use its menu below.</p>
+    <ol>{guide.steps.map(step=><li key={step}>{step}</li>)}</ol>
+    <div className="ia-tabs">{(["android","ios","desktop"] as InstallOs[]).map(k=><button type="button" key={k} className={k===os?"on":""} onClick={()=>setOs(k)}>{k==="ios"?"iPhone":k==="android"?"Android":"Computer"}</button>)}</div>
+    <p className="small">Your saved CV, preferences and application history belong to your account. Sign in with the same email to get them back. Unsaved edits may be lost.</p>
+    <p className="small muted">Already installed? Open JobPao from your home screen. Installing or removing the icon does not delete your JobPao account.</p>
+    <button type="button" className="btn btn-primary" onClick={()=>setOpen(false)}>Close</button>
+   </div>
+  </dialog>
+ </>;
 }

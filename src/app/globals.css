@@ -1048,3 +1048,16 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 :root[data-theme="light"] .nav a[aria-current="page"] .nav-ic{color:#2458A6}
 :root[data-theme="light"] .rprog{background:#3472CE;box-shadow:0 0 8px rgba(52,114,206,.25)}
 :root[data-theme="light"] .pghead~* .card,:root[data-theme="light"] .ob-body .card{box-shadow:0 2px 8px rgba(30,55,90,.045)}
+
+.ia-dialog{border:0;padding:0;background:transparent;color:var(--ink);margin:auto;max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto}
+.ia-dialog::backdrop{background:rgba(18,38,66,.55)}
+.ia-dialog .ia-card{box-shadow:none}
+.install-page{max-width:760px;margin-inline:auto;display:grid;gap:18px}
+.install-page h2{font-size:24px}.install-page h3{margin:0}
+.install-guide{border:1px solid var(--line);border-radius:10px;padding:14px}
+.install-guide summary{cursor:pointer;font-weight:600}
+.install-guide ol{list-style:decimal;padding-left:22px;margin-top:12px}
+:root[data-theme="light"] .ia{background:#FFFFFF;border-color:#CBDAF0;box-shadow:0 4px 16px rgba(30,55,90,.16)}
+:root[data-theme="light"] .ia-btn{background:#2458A6;color:#FFFFFF}
+:root[data-theme="light"] .ia-x{color:#526279}
+@media print{.ia-dialog{display:none}}
