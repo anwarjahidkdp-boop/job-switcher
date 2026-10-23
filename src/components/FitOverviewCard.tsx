@@ -24,3 +24,9 @@ export function fitTiles(rows:Scored[]):FitTile[]{
   {label:"Explore Further",count:count(0,55),range:"Below 55%",tone:"slate",icon:"search"},
  ];
 }
+
+// Strong Fit has a dedicated card; show the highest other available band beside it.
+export function dashboardFitSummary(rows:Scored[]):FitTile {
+ const bands=fitTiles(rows).slice(2);
+ return bands.find(tile=>tile.count>0) || bands[0];
+}
