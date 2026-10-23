@@ -26,7 +26,7 @@ export default async function Insights() {
     <>
       <PageHead kicker="Market insights" title={<>Your career <span>market</span></>} sub={`Based on ${rel.length} relevant jobs analysed for your profile.`} />
       <div className="tiles" style={{ marginTop: 18 }}>
-        {([["Relevant jobs", rel.length], [BAND.ex[0], band("ex")], [BAND.st[0], band("st")], [BAND.po[0], band("po")], [BAND.lo[0], band("lo")]] as [string, number][]).map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}
+        {([["Relevant jobs", rel.length], [BAND.ex[0], band("ex")], [BAND.st[0], band("st")], [BAND.po[0], band("po")], [BAND.lo[0], rel.filter(x => x.m.score >= 55 && x.m.score < 70).length], ["Explore Further", rel.filter(x => x.m.score < 55).length]] as [string, number][]).map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}
       </div>
       <section id="career-reports" className="stack" style={{marginTop:18}} aria-label="Career reports">
         {reports.map(r=><article className="card panel" key={r.id}>
