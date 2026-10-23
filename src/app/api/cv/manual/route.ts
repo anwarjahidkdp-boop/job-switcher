@@ -1,3 +1,4 @@
+import { refreshMatches } from "@/lib/server/matches";
 import { NextResponse } from "next/server";
 import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
 import { manualContent, ManualSaveSchema } from "@/lib/manual-cv";
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
     const updated = manualContent(input.cv, current.content as MasterCV, facts);
     const { data: id, error: saveError } = await c.db.rpc("save_manual_cv", { p_base_id: input.baseId, p_country: input.country, p_revision: input.revision, p_content: updated.master, p_facts: updated.facts });
     if (saveError) throw saveError;
-    return NextResponse.json({ id, message: "CV saved. Your downloads and matching profile use these changes." }, { headers: { "Cache-Control": "no-store" } });
+    let matchingRefreshed=true;
+    try { await refreshMatches(c.db,c.userId,{invalidateAi:true}); }
+    catch(e) { matchingRefreshed=false;console.error("CV saved; full match refresh pending",e); }
+    return NextResponse.json({ id, matchingRefreshed, message: matchingRefreshed ? "CV saved. Existing jobs have been rechecked against your updated profile." : "CV saved. Your updated profile is active; the full job refresh will retry shortly." }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) { return apiError(e); }
 }

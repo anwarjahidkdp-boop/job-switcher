@@ -135,7 +135,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("applications").select("*, jobs!inner(country), application_events(event, status, actor, created_at)").eq("user_id", userId),
-    db.from("matches").select("job_id, ai_fit, ai_score, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
+    db.from("matches").select("job_id, ai_fit, ai_score, ai_reason, ai_checked_at").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
   // A failed read must show the error page, never look like "no CV" (which sends people back to onboarding) or "no jobs".
@@ -154,7 +154,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   }
   const homeCountry = cc(profile.home_country);
   // The AI check read the full post next to the CV: "no" means a different profession or clearly unqualified, so it is hidden like a dismissed job.
-  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_score: number | null; ai_reason: string | null }[]).map((r) => [r.job_id, { fit: r.ai_fit, score: r.ai_score, reason: r.ai_reason || "" }]));
+  const aiCheck = new Map(((checkRes.data || []) as { job_id: string; ai_fit: AiFit; ai_score: number | null; ai_reason: string | null; ai_checked_at: string | null }[]).filter(r=>aiAssessmentIsCurrent(r.ai_checked_at, master?.created_at)).map((r) => [r.job_id, { fit: r.ai_fit, score: r.ai_score, reason: r.ai_reason || "" }]));
   const dismissed = new Set([...(profile.dismissed_job_ids || []), ...[...aiCheck].filter(([, c]) => c.fit === "no").map(([id]) => id)]);
   const scored = P ? withAiScores(scoreAll(jobs, P, { today, needVisa: profile.needs_visa, homeCountry }), aiCheck) : [];
   return { userId, profile, country, homeCountry, today, facts, cvDoc: (cvRes.data as CvDocRow) || null, master, P, scored, analysed, apps, dismissed, aiCheck };
@@ -168,8 +168,9 @@ export function withAiScores(scored: Scored[], aiCheck: Map<string, AiCheck>): S
   return scored.map((x) => {
     const c = aiCheck.get(x.job.id);
     if (!c || c.score == null) return x;
-    const score = x.m.capped ? Math.min(c.score, CAP_SCORE) : c.score;
-    return { job: x.job, m: { ...x.m, score, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
+    const ceiling = x.m.scoreCap ?? (x.m.capped ? CAP_SCORE : 100);
+    const score = Math.min(c.score, ceiling);
+    return { job: x.job, m: { ...x.m, score, capped: x.m.capped || c.score > ceiling, reason: c.score > ceiling && x.m.capReason ? x.m.capReason : x.m.reason, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
   });
 }
 
@@ -187,4 +188,9 @@ export function stats(st: UserState) {
     prepared: apps.filter((a) => a.pack).length, applied: apps.filter((a) => !!a.applied_at).length,
     reminders: apps.filter((a) => a.status === "reminder").length, interviews: apps.filter((a) => a.status === "interview").length, offers: apps.filter((a) => a.status === "offer").length,
   };
+}
+
+/** A CV edit invalidates earlier AI opinions; live deterministic matching always uses current facts. */
+export function aiAssessmentIsCurrent(checkedAt:string|null|undefined,cvCreatedAt:string|undefined):boolean {
+ return !!checkedAt && (!cvCreatedAt || Date.parse(checkedAt)>=Date.parse(cvCreatedAt));
 }

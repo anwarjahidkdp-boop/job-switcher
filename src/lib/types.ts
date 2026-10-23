@@ -73,6 +73,9 @@ export interface MatchResult {
   relevant: boolean;
   expired: boolean;
   capped: boolean;
+  /** Hard constraints also apply when an AI assessment supplies the score. */
+  scoreCap?: number;
+  capReason?: string;
   reason: string;
   reasonDetail: string;
 }

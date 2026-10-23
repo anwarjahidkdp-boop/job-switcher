@@ -15,3 +15,9 @@ export function roleSuggestions(title: string, existing: string[]): string[] {
   const used = new Set(existing.map(key));
   return (CATALOG.find(([pattern]) => pattern.test(title.toLowerCase()))?.[1] || []).filter(s => !used.has(key(s)));
 }
+
+/** Brief placeholders such as "Full accounts management" still need concrete responsibilities. */
+export function experienceNeedsDetails(role:{bullets:string[]}):boolean{
+ const lines=role.bullets.map(s=>s.trim()).filter(Boolean);
+ return !lines.length || (lines.length<2 && lines.join(" ").length<80);
+}

@@ -1,5 +1,5 @@
 import { FitOverviewCard, fitTiles } from "@/components/FitOverviewCard";
-import { StrongFitGuide } from "@/components/StrongFitGuide";
+import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction } from "@/app/actions";
 import { PageHead } from "@/components/PageHead";
@@ -90,7 +90,20 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/>}/>
+      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="#career-guide"/>}/>
+          <section id="career-guide" className="card panel profile-card career-guide-feature" data-tone="accent"><div className="row" style={{justifyContent:"space-between"}}><ProfileCardTitle icon="skills">Career guide</ProfileCardTitle><Link className="btn btn-ghost btn-sm" href="/insights#career-guidance">See all skills ↗</Link></div>
+            {guide.length ? <>
+              <p className="small muted">Skills employers in {cname(country)} ask for that your profile does not show yet:</p>
+              <div className="career-guide-grid">{guide.map((g) => (
+                <div key={g.s} className="qitem" style={{ display: "block" }}>
+                  <div className="small"><b>{skillLabel(g.s)}</b> · in {g.n} of {rel.length} relevant jobs{g.gain > 0 ? <> · <span style={{ color: "var(--good)" }}>Potential +{g.gain} {g.gain === 1 ? "match" : "matches"} at Good Fit or better</span></> : null}</div>
+                  <div className="guide-links">{courseLinks(skillLabel(g.s)).map((l) => <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer nofollow">{l.label} ↗</a>)}</div>
+                </div>
+              ))}</div>
+              <p className="small muted" style={{ marginTop: 8 }}>Learned one? Add it in your profile and your scores update.</p>
+            </> : <p className="small muted">Your profile covers the most requested skills.</p>}
+          </section>
+
       {best ? (
         <Link className="spot" href={`/jobs/${best.job.id}`}>
           <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>
@@ -108,7 +121,6 @@ export default async function Inbox() {
         <div>
           <div className="card">
             <PastePanel sites={portals(st.country)} />
-            <StrongFitGuide rows={list} />
             {groups.length ? groups.map(([b, items]) => (
               <div key={b}>
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>
@@ -139,19 +151,6 @@ export default async function Inbox() {
             <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${comp}%` }} /></div><b className="num small">{comp}%</b></div>
             <p className="small muted" style={{ marginTop: 8 }}>{comp < 100 ? "Add confirmed skills or answer the skipped questions to sharpen your matches." : "Your profile is complete."}</p>
             <div className="row" style={{ marginTop: 8 }}><a className="btn btn-text btn-sm" href="/profile">Edit profile</a><form action={backToStepAction.bind(null, "upload")}><button className="btn btn-text btn-sm">Upload a new CV</button></form></div>
-          </div>
-          <div className="card panel"><h3>Career guide</h3>
-            {guide.length ? <>
-              <p className="small muted">Skills employers in {cname(country)} ask for that your profile does not show yet:</p>
-              {guide.map((g) => (
-                <div key={g.s} className="qitem" style={{ display: "block" }}>
-                  <div className="small"><b>{skillLabel(g.s)}</b> · in {g.n} of {rel.length} relevant jobs{g.gain > 0 ? <> · <span style={{ color: "var(--ok, #2E9E6B)" }}>+{g.gain} {g.gain === 1 ? "match" : "matches"} at Good Fit or better</span></> : null}</div>
-                  <div className="guide-links">{courseLinks(skillLabel(g.s)).map((l) => <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer nofollow">{l.label} ↗</a>)}</div>
-                </div>
-              ))}
-              <p className="small muted" style={{ marginTop: 8 }}>Learned one? Add it in your profile and your scores update.</p>
-              <Link className="btn btn-text" href="/insights">See all skills</Link>
-            </> : <p className="small muted">Your profile covers the most requested skills.</p>}
           </div>
           <div className="card panel"><h3>Your JobPao trial so far</h3>
             <div className="stack small" style={{ gap: 4 }}>

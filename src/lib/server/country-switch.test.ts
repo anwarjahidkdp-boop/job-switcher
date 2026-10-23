@@ -1,3 +1,4 @@
+vi.mock("./matches",()=>({refreshCareerMatches:vi.fn().mockResolvedValue(true)}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("server-only", () => ({}));

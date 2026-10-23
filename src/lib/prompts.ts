@@ -150,7 +150,7 @@ Assess every point below against the job post, using only what the CV states (ne
 2. Must-have requirements in the post (years of experience, degree, professional qualification, specific systems or tools, language, licence, location or right to work${needVisa ? ", visa sponsorship (this person needs it)" : ""}): which does the CV show, and which are missing?
 3. Experience: total relevant years in this kind of work against what the post asks.
 4. Industry: which industries is the person's experience in (from the employers and roles in the CV), and which industry is this job in? Same industry, a related one (for example manufacturing and FMCG, banking and financial services), or unrelated.
-5. Level: is the seniority right (not an intern role for a manager, not a director role for a junior)?
+5. Level: use the newest/current role, not old job titles. A manager must not receive a Best Fit assessment for a junior officer/intern/entry role (score below 55). A job two levels below the current career level must score below 70. A one-level step down must score below 80 unless published experience, team/department responsibility AND pay establish comparable scope. Never infer employer scale or prestige from its name. A larger employer alone does not establish a suitable career move.
 6. Duties: how many of the main responsibilities has the person actually done, by the CV?
 
 score: 0-100, how well this person fits this job overall, as a careful recruiter would rate it from points 1-6. Different profession: below 30. Same profession: start from how many must-haves are met, then adjust for experience, industry, level and duties. 85+ only when the profession, must-haves, level and most duties match and the industry is the same or related.

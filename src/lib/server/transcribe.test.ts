@@ -1,3 +1,4 @@
+vi.mock("./matches",()=>({refreshCareerMatches:vi.fn().mockResolvedValue(true)}));
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { transcribeCv } from "./onboarding";

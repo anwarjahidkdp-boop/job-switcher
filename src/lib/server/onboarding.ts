@@ -1,3 +1,4 @@
+import { refreshCareerMatches } from "./matches";
 // Onboarding: CV upload -> extraction -> grounded facts -> questions -> preferences -> Master CV.
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -204,6 +205,7 @@ function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: 
 async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null, profile: ProfileRow, completeSetup = false) {
   const { error } = await ctx.db.rpc("publish_country_master_cv", { p_content: content, p_flags: flags, p_ai: ai, p_model: model, p_document_id: docId, p_country: profile.target_country, p_revision: profile.search_country_version, p_complete_setup: completeSetup });
   if (error) throw error;
+  await refreshCareerMatches(ctx.db,ctx.userId);
 }
 
 /** Generate the Master CV from verified facts only, then run the deterministic post-checks. */
@@ -290,6 +292,7 @@ export async function addUserSkill(ctx: Ctx, skill: string) {
   const pending = facts.find((f) => f.kind === "skill" && !f.verified && normSkill((f.data as { name: string }).name) === name);
   if (pending?.id) await ctx.db.from("career_facts").update({ verified: true, provenance: "user" }).eq("id", pending.id);
   else await ctx.db.from("career_facts").insert({ user_id: ctx.userId, kind: "skill", data: { name }, provenance: "user", verified: true });
+  await refreshCareerMatches(ctx.db,ctx.userId);
 }
 
 /** The user confirms (or removes) a CV fact we could not find in their CV text. */
@@ -303,4 +306,5 @@ export async function reviewFact(ctx: Ctx, factId: string, keep: boolean) {
   }
   if (keep) await ctx.db.from("career_facts").update({ verified: true }).eq("id", factId).eq("user_id", ctx.userId);
   else await ctx.db.from("career_facts").delete().eq("id", factId).eq("user_id", ctx.userId);
+  await refreshCareerMatches(ctx.db,ctx.userId);
 }

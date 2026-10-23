@@ -4,7 +4,7 @@ import { closeEarlierRoles, newestExperienceFirst } from "./cv/experience";
 import { yearsFrom } from "./matching";
 import { cc, type CountryCode } from "./countries";
 import { isEduLevel, isSeniority, normSkill, SKILL_ALIAS, type Seniority } from "./taxonomy";
-import { LANGUAGES } from "./jobs";
+import { LANGUAGES, seniorityFromTitle } from "./jobs";
 import type { Extraction, ExtractedCert, ExtractedEducation, ExtractedExperience, MatchProfile, Preferences, Provenance } from "./types";
 
 export type FactKind = "experience" | "education" | "certification" | "skill" | "language" | "answer";
@@ -142,7 +142,7 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
     currentTitle: exps[0]?.title || "",
     currentCompany: exps[0]?.company || "",
     years: yearsFrom(exps),
-    seniority: isSeniority(input.meta.seniority) ? input.meta.seniority : "mid",
+    seniority: seniorityFromTitle(exps[0]?.title || "") || (isSeniority(input.meta.seniority) ? input.meta.seniority : "mid"),
     industries: (input.meta.industries || []).map((s) => String(s).toLowerCase()),
     categories: input.meta.categories || [],
     education: edu.map((e) => ({ degree: e.degree, field: e.field, level: e.level, institution: e.institution, year: e.year, result: e.result })),
