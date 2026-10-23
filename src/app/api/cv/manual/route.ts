@@ -26,6 +26,6 @@ export async function POST(req: Request) {
     let matchingRefreshed=true;
     try { await refreshMatches(c.db,c.userId,{invalidateAi:true}); }
     catch(e) { matchingRefreshed=false;console.error("CV saved; full match refresh pending",e); }
-    return NextResponse.json({ id, matchingRefreshed, message: matchingRefreshed ? "CV saved. Existing jobs have been rechecked against your updated profile." : "CV saved. Your updated profile is active; the full job refresh will retry shortly." }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ id, matchingRefreshed, message: matchingRefreshed ? "CV saved. Existing jobs have been rechecked against your updated profile." : "CV saved. Your updated profile is active. The full stored-match refresh is temporarily unavailable." }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) { return apiError(e); }
 }
