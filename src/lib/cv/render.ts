@@ -3,6 +3,7 @@
 // All user content is HTML-escaped here.
 import { cc, isAccent, isTemplate, rule, ACCENTS, type CountryCode, type CvTemplate } from "../countries";
 import { destinationMaster, destinationProse } from "./destination";
+import { newestExperienceFirst } from "./experience";
 import { fmtYM } from "../dates";
 import type { ApplicationPack, CvStyle, MasterCV, PersonalDetails } from "../types";
 import { convention, personalRows, cleanReferees, DECLARATION, signDate } from "./conventions";
@@ -89,7 +90,7 @@ export function renderCvHtml(inp: RenderInput): string {
   const r = rule(country);
   const { tpl, accent } = resolveStyle(inp.style, country);
   const skills = t && t.skills_order && t.skills_order.length ? t.skills_order : [...(m.skills_core || []), ...(m.skills_tools || [])];
-  let exp = (m.experience || []).map((e, i) => ({ ...e, bullets: t && i === 0 && t.top_bullets && t.top_bullets.length ? t.top_bullets : e.bullets || [] }));
+  let exp = newestExperienceFirst((m.experience || []).map((e, i) => ({ ...e, bullets: t && i === 0 && t.top_bullets && t.top_bullets.length ? t.top_bullets : e.bullets || [] })));
   if (r.onePage) exp = exp.map((e, i) => ({ ...e, bullets: e.bullets.slice(0, i === 0 ? 5 : 3) }));
   const pd = inp.personal || {};
   const cv = convention(country);

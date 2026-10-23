@@ -1,5 +1,6 @@
 // Career facts with provenance. Every fact the generators may use lives here.
 // Rule: generators and matching only ever see facts where verified === true.
+import { newestExperienceFirst } from "./cv/experience";
 import { yearsFrom } from "./matching";
 import { cc, type CountryCode } from "./countries";
 import { isEduLevel, isSeniority, normSkill, SKILL_ALIAS, type Seniority } from "./taxonomy";
@@ -117,7 +118,7 @@ export function answerSkillFacts(extraSkills: string[], answersText: string, exi
 /** Build the matching profile from verified facts + preferences (prototype buildProfile). */
 export function buildMatchProfile(input: { name: string; facts: CareerFact[]; meta: CareerMeta; prefs: Preferences | null; country: CountryCode | string }): MatchProfile {
   const v = verifiedOnly(input.facts);
-  const exps = v.filter((f) => f.kind === "experience").map((f) => f.data as unknown as ExtractedExperience);
+  const exps = newestExperienceFirst(v.filter((f) => f.kind === "experience").map((f) => f.data as unknown as ExtractedExperience));
   const edu = v.filter((f) => f.kind === "education").map((f) => f.data as unknown as ExtractedEducation);
   const certs = v.filter((f) => f.kind === "certification").map((f) => f.data as unknown as ExtractedCert);
   const skills: MatchProfile["skills"] = [];
