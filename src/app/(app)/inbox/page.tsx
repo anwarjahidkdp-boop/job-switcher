@@ -1,24 +1,21 @@
 import { FitOverviewCard, fitTiles, dashboardFitSummary } from "@/components/FitOverviewCard";
-import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction } from "@/app/actions";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState } from "@/lib/server/page";
 import { stats } from "@/lib/server/state";
-import { inboxList, skillDemand, type Scored } from "@/lib/matching";
+import { inboxList, type Scored } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
 import { cname, money, perLabel, portals } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
-import { skillLabel } from "@/lib/taxonomy";
 import { fitLabel } from "@/lib/matching";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { Ring, DeadlineChip, BandPill } from "@/components/ui";
 import { appliedAction } from "@/app/actions";
 import { PastePanel } from "./PastePanel";
 import { siteDone, sitesDone } from "@/lib/setup";
-import { courseLinks, nowMs, trialPlan } from "@/lib/today";
-import { skillImpact } from "@/lib/matching";
+import { nowMs, trialPlan } from "@/lib/today";
 import { listNotifications } from "@/lib/server/notify";
 import { REPLY_CHECK_DAYS } from "@/lib/server/nudges";
 import { TodayCard, type DoneItem } from "./TodayCard";
@@ -39,7 +36,6 @@ export default async function Inbox() {
   const upcoming = list.filter((x) => (daysUntil(x.job.deadline, st.today) ?? -1) >= 0).sort((a, b) => (a.job.deadline || "").localeCompare(b.job.deadline || "")).slice(0, 3);
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
-  const { rel, rows } = skillDemand(st.scored, P);
   const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const [{ data: sub }, notes] = await Promise.all([
@@ -64,10 +60,6 @@ export default async function Inbox() {
     ...(s.applied ? [{ n: fmt(s.applied), label: "Sent by you", sub: "tracked for replies", href: "/applications", icon: '<path d="M20 6 9 17l-5-5"/>' }] : []),
   ];
   const summary: [string, number][] = [["Jobs analysed", s.analysed], [fit.label, fit.count], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
-  // Career guide: the missing skills that would lift the most matches to Strong.
-  const opts = { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry };
-  const guide = rows.filter((r) => r.h.v < 1).slice(0, 6).map((r) => { const imp = skillImpact(st.scored, P, r.s, opts); return { s: r.s, n: r.n, gain: imp.after - imp.before }; })
-    .sort((a, b) => b.gain - a.gain || b.n - a.n).slice(0, 3);
   const kpis: Kpi[] = [
     { label: "Jobs analysed", n: s.analysed, href: "#matches", tone: "navy", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', hint: `in ${cname(country)}` },
     { label: fit.label, n: fit.count, href: "#matches", tone: fit.tone === "green" ? "green" : fit.tone === "blue" ? "blue" : "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: `Fit score ${fit.range}` },
@@ -91,19 +83,9 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="#career-guide"/>}/>
-          <section id="career-guide" className="card panel profile-card career-guide-feature" data-tone="accent"><div className="row" style={{justifyContent:"space-between"}}><ProfileCardTitle icon="skills">Career guide</ProfileCardTitle><Link className="btn btn-ghost btn-sm" href="/insights#career-guidance">See all skills ↗</Link></div>
-            {guide.length ? <>
-              <p className="small muted">Skills employers in {cname(country)} ask for that your profile does not show yet:</p>
-              <div className="career-guide-grid">{guide.map((g) => (
-                <div key={g.s} className="qitem" style={{ display: "block" }}>
-                  <div className="small"><b>{skillLabel(g.s)}</b> · in {g.n} of {rel.length} relevant jobs{g.gain > 0 ? <> · <span style={{ color: "var(--good)" }}>Potential +{g.gain} {g.gain === 1 ? "match" : "matches"} at Good Fit or better</span></> : null}</div>
-                  <div className="guide-links">{courseLinks(skillLabel(g.s)).map((l) => <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer nofollow">{l.label} ↗</a>)}</div>
-                </div>
-              ))}</div>
-              <p className="small muted" style={{ marginTop: 8 }}>Learned one? Add it in your profile and your scores update.</p>
-            </> : <p className="small muted">Your profile covers the most requested skills.</p>}
-          </section>
+      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/>}/>
+
+      <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
 
       {best ? (
         <Link className="spot" href={`/jobs/${best.job.id}`}>
@@ -117,7 +99,6 @@ export default async function Inbox() {
           <span className="spot-go">{st.apps[best.job.id]?.pack ? "Review application" : "See why it fits"} →</span>
         </Link>
       ) : null}
-      <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
       <div className="dash" id="matches">
         <div>
           <div className="card">
