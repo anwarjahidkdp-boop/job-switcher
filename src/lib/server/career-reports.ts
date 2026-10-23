@@ -8,7 +8,7 @@ export function reportWeek(now:Date) {
  return {start:new Date(end.getTime()-7*86400000),end};
 }
 export function reportBody(m:CareerMetrics) {
- return `Jobs checked for you: ${m.jobs_analysed} · Relevant: ${m.relevant} · Strong Fit: ${m.strong} · Prepared: ${m.prepared} · Applied: ${m.applied} · Interviews: ${m.interviews} · Offers: ${m.offers}${m.top_gap?` · Top gap: ${m.top_gap}`:""}${m.next_deadline?` · Next deadline: ${m.next_deadline}`:""}.`;
+ return `Jobs checked for you: ${m.jobs_analysed} · Relevant: ${m.relevant} · Top matches: ${m.strong} · Prepared: ${m.prepared} · Applied: ${m.applied} · Interviews: ${m.interviews} · Offers: ${m.offers}${m.top_gap?` · Top gap: ${m.top_gap}`:""}${m.next_deadline?` · Next deadline: ${m.next_deadline}`:""}.`;
 }
 export async function careerMetrics(db:SupabaseClient,userId:string,start:Date,end:Date) {
  const {data,error}=await db.rpc("career_metrics",{p_user:userId,p_start:start.toISOString(),p_end:end.toISOString()});

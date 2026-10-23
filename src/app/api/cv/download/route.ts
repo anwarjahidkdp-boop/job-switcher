@@ -4,6 +4,7 @@ import { loadState } from "@/lib/server/state";
 import { isPro } from "@/lib/server/page";
 import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { cvDocHtml, cvPrintHtml, safeFileName } from "@/lib/cv/doc";
+import { coverLetterDocHtml, coverLetterPrintHtml } from "@/lib/cv/cover-letter";
 
 /** GET ?format=doc|print&jobId=<optional, for the tailored CV>. "print" opens a printable page (Save as PDF). */
 export async function GET(req: Request) {
@@ -12,6 +13,7 @@ export async function GET(req: Request) {
   const u = new URL(req.url);
   const format = u.searchParams.get("format") === "print" ? "print" : "doc";
   const jobId = u.searchParams.get("jobId");
+  const cover = u.searchParams.get("document") === "cover";
   const st = await loadState(c.db, c.userId);
   if (!st?.master) return NextResponse.json({ error: "No CV yet." }, { status: 404 });
   if (!["done", "reveal"].includes(st.profile.onboarding_step)) return NextResponse.json({ error: "Complete your current country's setup and rebuild your CV before downloading." }, { status: 409 });
@@ -21,6 +23,12 @@ export async function GET(req: Request) {
   if (app && (app.status === "ready" || app.status === "reminder") && !(await isPro(c.db, c.userId))) {
     const apps = Object.values(st.apps);
     if (!unlockedReady(apps, trialApplyRoom(apps)).has(app.job_id)) return NextResponse.redirect(new URL("/upgrade?from=trial", req.url));
+  }
+  if (cover) {
+    if (!app?.pack?.cover_letter) return NextResponse.json({ error: 'No cover letter for this application.' }, { status: 404 });
+    const headers = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' };
+    if (format === 'print') return new NextResponse(coverLetterPrintHtml(st.master.content.name, app.pack.cover_letter, st.country, u.searchParams.get('auto') === '1'), { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
+    return new NextResponse(coverLetterDocHtml(st.master.content.name, app.pack.cover_letter), { headers: { ...headers, 'Content-Type': 'application/msword', 'Content-Disposition': `attachment; filename="${safeFileName(st.master.content.name)}-Cover-Letter.doc"` } });
   }
   let photoUrl: string | null = null;
   if (st.profile.photo_path) {

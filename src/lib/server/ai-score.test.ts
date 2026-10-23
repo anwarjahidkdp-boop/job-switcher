@@ -8,7 +8,7 @@ describe("withAiScores", () => {
   it("uses the AI score and band where the AI checked the job", () => {
     const checks = new Map<string, AiCheck>([["a", { fit: "partial", score: 62, reason: "" }], ["b", { fit: "no", score: 20, reason: "" }]]);
     const [a, b, c] = withAiScores([row("a", 97), row("b", 94), row("c", 90)], checks);
-    expect([a.m.score, a.m.band, a.m.relevant]).toEqual([62, "po", true]);
+    expect([a.m.score, a.m.band, a.m.relevant]).toEqual([62, "lo", true]);
     expect([b.m.score, b.m.relevant]).toEqual([20, false]);
     expect(c.m.score).toBe(90);
   });

@@ -23,14 +23,14 @@ describe("weights and bands", () => {
     expect(W).toEqual({ role: 25, skills: 25, exp: 15, sen: 10, ind: 7, edu: 6, cert: 5, loc: 4, sal: 3 });
     expect(Object.values(W).reduce((a, b) => a + b, 0)).toBe(100);
   });
-  it("bands at 85 / 70 / 55", () => {
+  it("bands at 90 / 80 / 70", () => {
     expect(bandOf(100)).toBe("ex");
-    expect(bandOf(85)).toBe("ex");
-    expect(bandOf(84)).toBe("st");
-    expect(bandOf(70)).toBe("st");
-    expect(bandOf(69)).toBe("po");
-    expect(bandOf(55)).toBe("po");
-    expect(bandOf(54)).toBe("lo");
+    expect(bandOf(90)).toBe("ex");
+    expect(bandOf(89)).toBe("st");
+    expect(bandOf(80)).toBe("st");
+    expect(bandOf(79)).toBe("po");
+    expect(bandOf(70)).toBe("po");
+    expect(bandOf(69)).toBe("lo");
     expect(bandOf(0)).toBe("lo");
   });
 });
