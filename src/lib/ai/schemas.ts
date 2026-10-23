@@ -84,6 +84,7 @@ const JobFields = {
   category: z.string().nullable(),
   location: z.string().nullable(),
   type: z.string().nullable(),
+  eligibility: z.object({minAge:z.number().nullable(),maxAge:z.number().nullable(),ageAsOf:z.string().nullable(),ageException:z.boolean().optional(),requirementsUnverified:z.boolean().optional()}).optional(),
   salaryMin: z.number().nullable(),
   salaryMax: z.number().nullable(),
   visa: z.boolean().nullable(),

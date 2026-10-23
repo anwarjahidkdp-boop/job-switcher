@@ -1,3 +1,4 @@
+import { eligibilityCheck } from "./eligibility";
 import { seniorityFromTitle } from "./jobs";
 // Deterministic job matching, ported faithfully from the prototype's scoreJob().
 // Weights: role 25, skills 25, exp 15, sen 10, ind 7, edu 6, cert 5, loc 4, sal 3.
@@ -98,13 +99,14 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
     else gaps.push({ k: "missing", skill: s, o: 3, t: `${skillLabel(s)} preferred but not listed` });
   }
   f.skills = tot ? got / tot : null;
+  if(missingReq.length){capAt=Math.min(capAt,79);capReason="Required skills not confirmed";}
 
   if (job.minYears != null) {
     const d = P.years - job.minYears;
     const over = !!job.maxYears && P.years > job.maxYears + 5;
     f.exp = d >= 0 ? (over ? 0.8 : 1) : d >= -1 ? 0.7 : d >= -2 ? 0.4 : 0;
     if (d >= 0) matched.unshift({ t: `${Math.floor(P.years)} years of experience (${job.minYears}+ asked)`, w: 3 });
-    else gaps.push({ k: "exp", o: 2, t: `Asks for ${job.minYears}+ years; your profile shows ${Math.floor(P.years)}` });
+    else {capAt=Math.min(capAt,69);capReason="Experience requirement";gaps.push({ k: "exp", o: 2, t: `Asks for ${job.minYears}+ years; your profile shows ${Math.floor(P.years)}` });}
     if (over) gaps.push({ k: "exp", o: 4, t: `Pitched at ${job.minYears}–${job.maxYears} years, below your experience` });
   }
 
@@ -144,7 +146,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
     f.edu = ok && fieldOk ? 1 : ok ? 0.7 : 0;
     const best = P.education.find((e) => lvOf(String(e.level)) === lv);
     if (ok && fieldOk && best) matched.push({ t: `${best.degree} in ${best.field}`, w: 1 });
-    else if (!ok) gaps.push({ k: "edu", o: 2, t: `Asks for a ${job.education.level} degree` });
+    else if (!ok) {capAt=Math.min(capAt,54);capReason="Education requirement";gaps.push({ k: "edu", o: 0, t: `Asks for a ${job.education.level} degree; your verified profile does not establish this qualification.` });}
   }
 
   if (job.certs && job.certs.length) {
@@ -173,17 +175,21 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
 
   if (P.salaryMin) {
     if (job.salaryMax) {
-      f.sal = job.salaryMax < 0.9 * P.salaryMin ? 0 : 1;
+      f.sal = job.salaryMax < P.salaryMin ? 0 : 1;
       if (!f.sal) gaps.push({ k: "sal", o: 2, t: `Pays up to ${money(job.salaryMax, job.country)}; you expect ${money(P.salaryMin, job.country)}+` });
     } else f.sal = 0.7;
   }
+
+  const eligibility = eligibilityCheck(job,P,opts.today);
+  for(const issue of eligibility.issues) gaps.push({k:issue.code,o:issue.blocking?0:3,t:issue.message});
+  if(eligibility.scoreCap<capAt){capAt=eligibility.scoreCap;capReason=eligibility.reason||"Eligibility not confirmed";}
 
   const home = opts.homeCountry || HOME_COUNTRY;
   if ((job.country || home) !== home && opts.needVisa !== false) {
     if (job.visa === true) matched.push({ t: "Visa sponsorship offered", w: 2.5 });
     else if (job.visa === false) {
       gaps.push({ k: "visa", o: 0, t: "No visa sponsorship offered; you would need your own right to work" });
-      capAt = Math.min(capAt, CAP_SCORE); capReason = capReason || "Visa sponsorship";
+      capAt = 0; capReason = "Visa sponsorship";
     }
   }
 
@@ -205,7 +211,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
 
   matched.sort((a, b) => b.w - a.w);
   gaps.sort((a, b) => a.o - b.o);
-  return { score, band, f: f as Record<string, number | null>, matched: matched.slice(0, 5).map((m) => m.t), gaps: gaps.slice(0, 3), allGaps: gaps, relevant: (f.role ?? 0) >= 0.6, expired, capped, scoreCap: capAt, capReason, reason, reasonDetail };
+  return { score, band, f: f as Record<string, number | null>, matched: matched.slice(0, 5).map((m) => m.t), gaps: gaps.slice(0, 3), allGaps: gaps, relevant: capAt>0 && !eligibility.blocked && (f.role ?? 0) >= 0.6, expired, capped, scoreCap: capAt, capReason, reason, reasonDetail };
 }
 
 export interface Scored { job: Job; m: MatchResult }

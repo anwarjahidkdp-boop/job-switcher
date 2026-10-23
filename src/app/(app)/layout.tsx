@@ -1,3 +1,4 @@
+import { setupRequirements } from "@/lib/eligibility";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -8,6 +9,7 @@ import { unreadCount } from "@/lib/server/notify";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await requireUser("/inbox");
   const profile = await profileOf(supabase, user.id);
+  if(profile&&setupRequirements(profile).length)redirect("/onboarding?step=prefs");
   // The last onboarding step shows the finished CV, so leaving it for any app page (e.g. "My dashboard") finishes onboarding.
   if (profile?.onboarding_step === "reveal") {
     await supabase.from("profiles").update({ onboarding_step: "done" }).eq("id", user.id);

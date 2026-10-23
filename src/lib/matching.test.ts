@@ -45,13 +45,13 @@ describe("scoreJob (demo profile, Bangladesh)", () => {
     expect(P.years).toBeGreaterThan(9);
     expect(P.certs).toEqual([{ name: "ACCA", status: "partly" }]);
   });
-  it("rates the close accounts role as Excellent", () => {
+  it("withholds Best Fit when only the upper part of the pay range meets the minimum", () => {
     const m = scoreJob(job("j1"), P, opts);
-    expect(m.band).toBe("ex");
-    expect(m.score).toBeGreaterThanOrEqual(85);
+    expect(m.band).toBe("po");
+    expect(m.score).toBeLessThan(80);
     expect(m.relevant).toBe(true);
     expect(m.matched[0]).toMatch(/years of experience/);
-    expect(m.capped).toBe(false);
+    expect(m.capped).toBe(true);
   });
   it("caps at 69 when a required certification is not fully held", () => {
     const m = scoreJob(job("j5"), P, opts); // FP&A manager: CA or CMA required
@@ -168,7 +168,7 @@ describe('career level guardrails after a promotion',()=>{
   const m=scoreJob({...vacancy('Junior Officer, Accounts'),company:'Large Global Group'},manager(),opts);expect(m.score).toBeLessThan(55);
  });
  it('allows a lower non-entry title only with published comparable experience, team scope and pay',()=>{
-  const job={...vacancy('Senior Accounts Officer'),minYears:10,maxYears:null,resp:['Lead the accounting team and oversee department reporting.']};
+  const job={...vacancy('Senior Accounts Officer'),salaryMin:70000,minYears:10,maxYears:null,resp:['Lead the accounting team and oversee department reporting.']};
   expect(scoreJob(job,manager(),opts).score).toBeGreaterThanOrEqual(80);
   expect(scoreJob({...job,minYears:5},manager(),opts).score).toBeGreaterThanOrEqual(80);
   expect(scoreJob({...job,minYears:5,maxYears:5},manager(),opts).score).toBeLessThan(80);

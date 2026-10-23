@@ -1,3 +1,6 @@
+import { fillPersonalFromCv } from "../cv/personal-read";
+import { setupRequirements,validBirthDate } from "../eligibility";
+import type { AnswerLibrary } from "../career-safety";
 import { refreshCareerMatches } from "./matches";
 // Onboarding: CV upload -> extraction -> grounded facts -> questions -> preferences -> Master CV.
 import "server-only";
@@ -33,6 +36,7 @@ export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean, 
   const home = homeCountry ? cc(homeCountry) : cc(prev.home_country);
   const patch: Record<string, unknown> = { target_country: code, needs_visa: code === home ? false : !!needsVisa };
   if (homeCountry) patch.home_country = home;
+  if(code!==prev.target_country){patch.answer_library={...prev.answer_library,birthDate:prev.answer_library?.birthDate||prev.personal?.dob||null,expectedSalary:null,salaryNegotiable:false,salaryCountry:code,currentSalaryCountry:prev.answer_library?.currentSalaryCountry||prev.target_country,workAuthorization:"unknown",sponsorshipRequired:null,willingToRelocate:null};patch.deal_breakers={...prev.deal_breakers,minSalary:null,minSalarySet:false};}
   if (prev.onboarding_step === "country") { patch.onboarding_step = "upload"; patch.cv_style = { tpl: rule(code).tpl }; }
   // The database resets country-specific setup atomically, including direct REST updates.
   const { error } = await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
@@ -109,6 +113,8 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
     },
   });
   if (error) throw error;
+  const personal=fillPersonalFromCv(profile.personal,text);
+  if(JSON.stringify(personal)!==JSON.stringify(profile.personal||{})){const saved=await ctx.db.from("profiles").update({personal}).eq("id",ctx.userId);if(saved.error)throw saved.error;}
 
   return { cvDocumentId: docId as string, questions, found: { roles: extraction.experiences.length, degrees: extraction.education.length, skills: extraction.skills.length }, unverified: facts.filter((f) => !f.verified).length, name: extraction.name };
 }
@@ -150,14 +156,23 @@ export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {
   await ctx.db.from("profiles").update({ onboarding_step: "prefs" }).eq("id", ctx.userId);
 }
 
-const num = (v: unknown) => (v === "" || v == null || isNaN(Number(v)) ? null : Math.max(0, Number(v)));
-export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null, destination?: { country: string; revision: number; needsVisa?: boolean }) {
+const num = (v: unknown) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.max(0, Number(v)));
+export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null, destination?: { country: string; revision: number; needsVisa?: boolean },readiness?:Partial<AnswerLibrary>) {
   const p: Preferences = {
     roles: String(prefs.roles || "").slice(0, 500), locations: String(prefs.locations || "").slice(0, 300),
     salaryMin: num(prefs.salaryMin), salaryMax: num(prefs.salaryMax), notice: num(prefs.notice),
     mode: (["On-site", "Hybrid", "Remote", "Any"] as const).includes(prefs.mode as Preferences["mode"]) ? (prefs.mode as Preferences["mode"]) : "On-site",
   };
-  const patch: Record<string, unknown> = { preferences: p };
+  const existing=await loadProfile(ctx.db,ctx.userId);
+  if(!existing)throw new Error("Profile missing");
+  const country=destination?.country||existing.target_country;
+  const answers={...existing.answer_library,...readiness,expectedSalary:p.salaryMin,salaryNegotiable:false,salaryCountry:country,noticeDays:p.notice,birthDate:personal?.dob||readiness?.birthDate||existing.answer_library?.birthDate||existing.personal?.dob||null};
+  if(answers.birthDate&&!validBirthDate(answers.birthDate))throw new Error("Enter a valid date of birth.");
+  const missing=setupRequirements({target_country:country,preferences:p,personal,answer_library:answers});
+  if(!p.roles.trim())missing.push("Target roles");
+  if(missing.length)throw new Error(`Complete required matching details: ${missing.join(", ")}.`);
+  if(p.salaryMax!=null&&p.salaryMin!=null&&p.salaryMax<p.salaryMin)throw new Error("The upper expected salary must be at least your minimum.");
+  const patch: Record<string, unknown> = { preferences: p,answer_library:answers };
   if (personal) {
     const { data, error } = await ctx.db.from("profiles").select("personal").eq("id", ctx.userId).maybeSingle();
     if (error) throw error;
@@ -169,6 +184,7 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   const { data, error } = await query.select("id").maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Your job-search country changed. Reload and complete setup for the current country.");
+  await refreshCareerMatches(ctx.db,ctx.userId);
 }
 
 const verifiedFactsFor = (facts: CareerFact[]) => {
@@ -212,6 +228,8 @@ async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: bool
 export async function buildMasterCv(ctx: Ctx) {
   const profile = await loadProfile(ctx.db, ctx.userId);
   if (!profile) throw new Error("profile missing");
+  const missing=setupRequirements(profile);
+  if(missing.length)throw new Error(`Complete required matching details before building your CV: ${missing.join(", ")}.`);
   const country: CountryCode = cc(profile.target_country);
   const { data: docRow, error: docError } = await ctx.db.from("cv_documents").select("id, text_content, questions, answers, is_demo, extraction").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
   if (docError) throw docError;

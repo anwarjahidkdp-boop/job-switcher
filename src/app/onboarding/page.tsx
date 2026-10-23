@@ -1,3 +1,4 @@
+import { setupRequirements } from "@/lib/eligibility";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { countryFromHeader } from "@/lib/billing/pricing";
@@ -45,11 +46,12 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   const { supabase, user } = await requireUser("/onboarding");
   const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
   if (!st) redirect("/login");
-  const editing = st.profile.onboarding_step === "done" && sp.step === "prefs";
+  const requiredSetup=setupRequirements(st.profile).length>0;
+  const editing = st.profile.onboarding_step === "done" && (sp.step === "prefs" || requiredSetup);
   // "done" without a CV (an old account, or a failed save) would bounce between here and the dashboard: ask for the CV again.
   const noCv = st.profile.onboarding_step === "done" && !st.master;
   if (st.profile.onboarding_step === "done" && !editing && !noCv) redirect("/inbox");
-  const step = noCv ? "upload" : editing ? "prefs" : st.profile.onboarding_step;
+  const step = noCv ? "upload" : editing ? "prefs" : requiredSetup && st.profile.onboarding_step==="reveal" ? "prefs" : st.profile.onboarding_step;
   const country = st.country, r = rule(country), cn = cname(country);
   // First visit: guess where they live from Cloudflare's country header; they can change it.
   const ip = (await headers()).get("cf-ipcountry");
@@ -87,9 +89,11 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
+    const savedSalary=st.profile.answer_library?.salaryCountry===country?st.profile.answer_library.expectedSalary:null;
+    if(Number(savedSalary)>0)p.salaryMin=Number(savedSalary);
     head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub={<>Set your preferences for {cn}. Your existing improved CV will use this destination’s structure, reference conventions and style. Your saved career information will be reused.</>} />;
     body = <div className="ob">
-      <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} country={country} revision={st.profile.search_country_version} needsVisa={st.profile.needs_visa} abroad={country !== home} />
+      <PrefsStep answers={st.profile.answer_library||{}} editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} country={country} revision={st.profile.search_country_version} needsVisa={st.profile.needs_visa} abroad={country !== home} />
     </div>;
   } else if (step === "reveal" && st.master && st.P) {
     const m = st.master.content;

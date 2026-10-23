@@ -1,3 +1,4 @@
+import { extractEligibility, normaliseEligibility, type JobEligibility } from "./eligibility";
 // Job normalisation: DB row <-> Job, AI output -> Job, and a deterministic text normaliser
 // used by ingestion (no AI cost) and as a fallback when AI is unavailable.
 import { cc, rule, type CountryCode } from "./countries";
@@ -8,6 +9,7 @@ import type { SampleJobRaw } from "./demo";
 import type { PastedJobOut } from "./ai/schemas";
 
 export interface JobRow {
+  eligibility?: JobEligibility | null; raw?: unknown;
   id: string; active?: boolean; owner_id: string | null; source_id?: string | null; source_kind: string; source_label: string; external_id?: string | null;
   country: string; title: string; company: string; industry: string | null; category: string | null; location: string | null;
   employment_type: string | null; salary_min: number | string | null; salary_max: number | string | null; min_years: number | string | null; max_years: number | string | null;
@@ -23,6 +25,7 @@ export function rowToJob(r: JobRow): Job {
   const edu = r.education && isEduLevel(r.education.level) ? { level: r.education.level, field: String(r.education.field || "").toLowerCase() } : null;
   return {
     id: r.id, active: r.active !== false, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
+    eligibility: {...extractEligibility(r.description || ""),...normaliseEligibility(r.eligibility || (r.raw && typeof r.raw === "object" ? (r.raw as Record<string,unknown>).eligibility : null))},
     type: r.employment_type, salaryMin: num(r.salary_min), salaryMax: num(r.salary_max), minYears: num(r.min_years), maxYears: num(r.max_years),
     seniority: isSeniority(r.seniority) ? r.seniority : null, education: edu,
     required: (r.required_skills || []).map(normSkill), preferred: (r.preferred_skills || []).map(normSkill),
@@ -43,7 +46,7 @@ export function jobToRow(j: Omit<Job, "id"> & { id?: string }, extra: { owner_id
     employment_type: j.type, salary_min: j.salaryMin, salary_max: j.salaryMax, min_years: j.minYears, max_years: j.maxYears, seniority: j.seniority,
     education: j.education, required_skills: j.required, preferred_skills: j.preferred, certs: j.certs, visa_sponsorship: j.visa,
     deadline: j.deadline, published_at: j.publishedAt, apply_method: j.apply.method, apply_target: j.apply.target, url: j.url,
-    responsibilities: j.resp.slice(0, 8), description: extra.description ?? null, is_sample: !!j.isSample, raw: extra.raw ?? null,
+    responsibilities: j.resp.slice(0, 8), description: extra.description ?? null, is_sample: !!j.isSample, raw: { ...(extra.raw && typeof extra.raw === "object" && !Array.isArray(extra.raw) ? extra.raw as Record<string,unknown> : extra.raw != null ? {sourcePayload:extra.raw} : {}), eligibility: {...extractEligibility(extra.description || ""),...j.eligibility} },
   };
 }
 
@@ -54,6 +57,7 @@ export function aiJobToJob(j: PastedJobOut & { url?: string | null }, ctx: { cou
   return {
     country: ctx.country, title: j.title, company: j.company, industry: j.industry && INDUSTRY_LIST.includes(j.industry.toLowerCase()) ? j.industry.toLowerCase() : j.industry,
     category: j.category && CATEGORIES.includes(j.category) ? j.category : j.category || "Other", location: j.location, type: j.type,
+    eligibility: normaliseEligibility(j.eligibility),
     salaryMin: num(j.salaryMin), salaryMax: num(j.salaryMax), minYears: num(j.minYears), maxYears: num(j.maxYears),
     seniority: isSeniority(j.seniority) ? j.seniority : null,
     education: j.education && isEduLevel(j.education.level) ? { level: j.education.level, field: (j.education.field || "").toLowerCase() } : null,
@@ -118,6 +122,7 @@ export function languagesRequired(text: string): string[] {
 
 export function seniorityFromTitle(title: string): Seniority | null {
   const t = title.toLowerCase();
+  if (/\b(accounts? assistant|assistant accountant|cashier|clerk)\b/.test(t)) return "entry";
   if (/\b(head|director|chief|vp|vice president|cfo|cto|gm|general manager)\b/.test(t)) return "head";
   if (/\bmanager\b/.test(t) && !/\b(assistant|asst\.?)\s+manager\b/.test(t)) return "manager";
   if (/\b(senior|sr\.?|lead|principal|assistant manager|asst\.? manager|supervisor|specialist)\b/.test(t)) return "senior";
@@ -161,7 +166,7 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   return {
     country: input.country, title: input.title, company: input.company, industry, category: guessCategory(input.title, allSkills),
     location: input.location ?? null, type: input.type ?? null, salaryMin: input.salaryMin ?? null, salaryMax: input.salaryMax ?? null,
-    minYears, maxYears, seniority: seniorityFromTitle(input.title),
+    eligibility: extractEligibility(text), minYears, maxYears, seniority: seniorityFromTitle(input.title),
     education: edu ? { level: edu as EduLevel, field: fieldM ? fieldM[1] : "" } : null,
     required, preferred, certs, visa, deadline: input.deadline ?? (deadlineM ? deadlineM[1] : labelledDate), publishedAt: input.publishedAt ?? input.today,
     apply: email ? { method: "email", target: email } : { method: input.url ? "portal" : "unknown", target: null }, url: input.url ?? null, source: input.source, resp,

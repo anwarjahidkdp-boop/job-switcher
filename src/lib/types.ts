@@ -17,6 +17,7 @@ export interface Job {
   category: string | null;
   location: string | null;
   type: string | null;
+  eligibility?: import("./eligibility").JobEligibility;
   salaryMin: number | null;
   salaryMax: number | null;
   minYears: number | null;
@@ -42,6 +43,13 @@ export interface ProfileEducation { degree: string; field: string; level: EduLev
 
 /** Matching profile built only from verified career facts + preferences. */
 export interface MatchProfile {
+  birthDate?: string | null;
+  workAuthorization?: "yes"|"no"|"unknown";
+  sponsorshipRequired?: boolean;
+  salaryConfirmed?: boolean;
+  willingToRelocate?:boolean|null;
+  workMode?:string;
+  dealBreakers?:import("./career-safety").DealBreakers;
   name: string;
   titles: string[];
   currentTitle: string;

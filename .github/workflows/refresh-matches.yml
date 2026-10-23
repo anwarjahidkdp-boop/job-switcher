@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'src/lib/matching.ts'
+      - 'src/lib/eligibility.ts'
+      - 'src/lib/market-rules.ts'
+      - 'src/lib/jobs.ts'
       - 'src/lib/facts.ts'
       - 'src/lib/server/state.ts'
       - 'src/lib/server/matches.ts'

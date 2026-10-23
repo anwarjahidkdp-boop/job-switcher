@@ -86,7 +86,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   const { data: job } = await ctx.db.from("jobs").select("*").eq("id", jobId).maybeSingle();
   if (!job || job.apply_method !== "email" || !job.apply_target) throw new Error("This job does not take applications by email. Apply on the employer's page instead.");
   if (job.deadline && job.deadline < st.today) throw new Error("The deadline for this job has passed.");
-  const safety = applicationSafety(rowToJob(job as JobRow), st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library as AnswerLibrary, st.profile.needs_visa);
+  const safety = applicationSafety(rowToJob(job as JobRow), st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library as AnswerLibrary, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!safety.safe) throw new ApplicationSafetyError(safety);
   const to = cleanAddress(job.apply_target);
   await assertCanApply(ctx);

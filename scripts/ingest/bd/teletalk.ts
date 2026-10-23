@@ -26,6 +26,7 @@ export function teletalkJob(d: GovernmentJob, today: string): DiscoveredJob | nu
   ].filter(Boolean).join('\n');
   const job = normaliseJobText({ title: d.job_title, company, country: 'BD', text: description, url, source: 'Alljobs Teletalk', deadline, publishedAt: sourceDate(d.advertisement_published_date), today });
   // The API does not expose full requirements or work location; never derive them from the employer's history or age limits.
+  job.eligibility={...job.eligibility,minAge:d.min_age??null,maxAge:d.max_age??null,requirementsUnverified:true};
   job.minYears = null; job.maxYears = null; job.education = null; job.location = null; job.industry = null; job.resp = [];
   job.apply = { method: 'portal', target: apply || url };
   return { ...job, description, externalId: `govt-${d.id}`, discovery: { url, originalUrl: url, source: 'Alljobs Teletalk', evidence: 'structured' } };
