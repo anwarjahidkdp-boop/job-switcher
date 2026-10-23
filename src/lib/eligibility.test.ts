@@ -6,7 +6,7 @@ import {withAiScores} from './server/state';
 import type {Job,MatchProfile} from './types';
 const today='2026-10-23';
 const job={id:'j',country:'BD',title:'Accountant',minYears:0,salaryMin:80000,salaryMax:100000,required:[],preferred:[],certs:[],resp:[],eligibility:{minAge:18,maxAge:32,ageAsOf:today}} as unknown as Job;
-const P={birthDate:'1986-10-24',salaryMin:70000,salaryConfirmed:true,workAuthorization:'yes',sponsorshipRequired:false} as MatchProfile;
+const P={birthDate:'1986-10-24',salaryMin:70000,salaryConfirmed:true,workAuthorization:'yes' as const,sponsorshipRequired:false} as MatchProfile;
 it('uses actual birthdays on the circular cutoff date, not approximate age or tenure',()=>{
  expect(ageOn('1994-10-24',today)).toBe(31);expect(ageOn('1994-10-23',today)).toBe(32);expect(ageOn('1994-10-22',today)).toBe(32);
  expect(validBirthDate('2026-02-30')).toBe(false);expect(validBirthDate('2027-01-01',today)).toBe(false);
@@ -51,8 +51,8 @@ it('cannot be lifted to 100 by an old AI assessment after hard ineligibility',()
  expect(r.m.score).toBe(0);expect(r.m.relevant).toBe(false);
 });
 it('requires numeric salary, Bangladesh birth date, permission, sponsorship and relocation before setup completes',()=>{
- expect(setupRequirements({target_country:'BD'})).toEqual(['Date of birth','Expected salary','Work authorization','Sponsorship requirement','Relocation preference']);
- const answers={expectedSalary:70000,workAuthorization:'yes',sponsorshipRequired:false,willingToRelocate:false};
+ expect(setupRequirements({target_country:'BD'})).toEqual(['Date of birth','Expected salary','Work authorization','Sponsorship requirement']);
+ const answers={expectedSalary:70000,workAuthorization:'yes' as const,sponsorshipRequired:false,willingToRelocate:false};
  expect(setupRequirements({target_country:'GB',answer_library:answers})).toEqual([]);
  expect(setupRequirements({target_country:'BD',answer_library:{...answers,birthDate:'1986-01-01'}})).toEqual([]);
  expect(setupRequirements({target_country:'US',answer_library:{...answers,salaryCountry:'BD'}})).toContain('Expected salary');

@@ -68,7 +68,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           {pending.length ? <div className="card panel profile-card" data-tone="warn"><ProfileCardTitle icon="review">Waiting for your confirmation</ProfileCardTitle><p className="small muted" style={{ marginBottom: 8 }}>We could not find these word-for-word in your CV, so they are not used until you confirm them.</p><FactReview facts={pending} /></div> : null}
           <div className="card panel profile-card" data-tone="accent"><ProfileCardTitle icon="preferences">Preferences</ProfileCardTitle>
             <div className="stack small" style={{ gap: 4 }}>
-              <div>Target roles: <b>{P.targetRoles.join(", ")}</b></div>
+              <div>Career target from CV: <b>{P.targetRoles.join(", ")}</b></div>
               <div>Locations: <b>{P.locations.join(", ") || "Anywhere in " + cname(country)}</b></div>
               <div>Expected salary: <b>{st.profile.answer_library?.salaryNegotiable === true ? "Negotiable" : P.salaryMin ? money(P.salaryMin, country) + (P.salaryMax ? "–" + money(P.salaryMax, country) : "+") + perLabel(country) : "Not set"}</b></div>
               <div>Experience: <b>{Math.floor(P.years)} years</b> · {LEVEL_NAME[LEVEL[P.seniority]]}</div>

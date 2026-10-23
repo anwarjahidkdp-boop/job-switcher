@@ -1,3 +1,4 @@
+import { localSearchAnswers } from "../application-defaults";
 import { fillPersonalFromCv } from "../cv/personal-read";
 import { setupRequirements,validBirthDate } from "../eligibility";
 import type { AnswerLibrary } from "../career-safety";
@@ -7,7 +8,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { cc, rule, type CountryCode } from "../countries";
-import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type CareerFact, type CareerMeta, type RemovedItem } from "../facts";
+import { answerSkillFacts, appearsIn, buildMatchProfile, groundExtraction, verifiedOnly, type CareerFact, type CareerMeta, type RemovedItem } from "../facts";
 import { dropRemoved, EditRefused, MAX_EDITS_KEPT } from "../cv-edit";
 import { checkMasterCv } from "../numbers-check";
 import { EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
@@ -166,10 +167,11 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   const existing=await loadProfile(ctx.db,ctx.userId);
   if(!existing)throw new Error("Profile missing");
   const country=destination?.country||existing.target_country;
-  const answers={...existing.answer_library,...readiness,expectedSalary:p.salaryMin,salaryNegotiable:false,salaryCountry:country,noticeDays:p.notice,birthDate:personal?.dob||readiness?.birthDate||existing.answer_library?.birthDate||existing.personal?.dob||null};
+  const autoProfile=buildMatchProfile({name:existing.full_name||"",facts:await loadFacts(ctx.db,ctx.userId)||[],meta:{...DEFAULT_META,...existing.career_meta},prefs:null,country});
+  p.roles=autoProfile.targetRoles.join(", ");
+  const answers=localSearchAnswers({...existing.answer_library,...readiness,expectedSalary:p.salaryMin,salaryNegotiable:false,salaryCountry:country,noticeDays:p.notice,birthDate:personal?.dob||readiness?.birthDate||existing.answer_library?.birthDate||existing.personal?.dob||null},country,existing.home_country);
   if(answers.birthDate&&!validBirthDate(answers.birthDate))throw new Error("Enter a valid date of birth.");
-  const missing=setupRequirements({target_country:country,preferences:p,personal,answer_library:answers});
-  if(!p.roles.trim())missing.push("Target roles");
+  const missing=setupRequirements({target_country:country,home_country:existing.home_country,preferences:p,personal,answer_library:answers});
   if(missing.length)throw new Error(`Complete required matching details: ${missing.join(", ")}.`);
   if(p.salaryMax!=null&&p.salaryMin!=null&&p.salaryMax<p.salaryMin)throw new Error("The upper expected salary must be at least your minimum.");
   const patch: Record<string, unknown> = { preferences: p,answer_library:answers };
@@ -178,7 +180,7 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
     if (error) throw error;
     patch.personal = mergePersonal((data?.personal as PersonalDetails | null) ?? null, personal);
   }
-  if (typeof destination?.needsVisa === "boolean") patch.needs_visa = destination.needsVisa;
+  patch.needs_visa = answers.sponsorshipRequired===true;
   let query = ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
   if (destination) query = query.eq("target_country", destination.country).eq("search_country_version", destination.revision);
   const { data, error } = await query.select("id").maybeSingle();

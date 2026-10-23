@@ -1,3 +1,4 @@
+import { localSearchAnswers } from "../application-defaults";
 import { fillPersonalFromCv } from "../cv/personal-read";
 import type { AnswerLibrary,DealBreakers } from "../career-safety";
 import { applicationInSearch } from "../application-country";
@@ -66,7 +67,7 @@ export async function loadFacts(db: SupabaseClient, userId: string): Promise<Car
 export function profileFrom(profile: ProfileRow, facts: CareerFact[], master: MasterRow | null): MatchProfile | null {
   if (!master) return null;
   const meta = { ...DEFAULT_META, ...(profile.career_meta || {}) } as CareerMeta;
-  const stored=profile.answer_library||{};
+  const stored=localSearchAnswers(profile.answer_library,profile.target_country,profile.home_country);
   const a:AnswerLibrary={...stored,...(stored.salaryCountry&&stored.salaryCountry!==profile.target_country?{expectedSalary:null,salaryNegotiable:false}:{}),...(stored.currentSalaryCountry&&stored.currentSalaryCountry!==profile.target_country?{currentSalary:null}:{})};
   const expected = Number(a.expectedSalary);
   const prefs = { ...(profile.preferences || { roles:"",locations:"",salaryMin:null,salaryMax:null,notice:null,mode:"Any" as const }),
@@ -145,6 +146,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   if (!profile) return null;
   // A failed read must show the error page, never look like "no CV" (which sends people back to onboarding) or "no jobs".
   for (const r of [cvRes, masterRes, appsRes, checkRes]) if (r.error) throw r.error;
+  profile.answer_library=localSearchAnswers(profile.answer_library,profile.target_country,profile.home_country);
   profile.personal=fillPersonalFromCv(profile.personal,String(cvRes.data?.text_content||""));
   const country = cc(profile.target_country);
   const today = todayStr(rule(country).timeZone);

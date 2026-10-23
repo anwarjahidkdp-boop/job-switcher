@@ -110,21 +110,21 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
     if (over) gaps.push({ k: "exp", o: 4, t: `Pitched at ${job.minYears}–${job.maxYears} years, below your experience` });
   }
 
-  const currentSeniority = seniorityFromTitle(P.currentTitle) || P.seniority;
+  const currentSeniority = P.careerBaselineSeniority || seniorityFromTitle(P.careerBaselineTitle || P.currentTitle) || P.seniority;
   const jobSeniority = seniorityFromTitle(job.title) || job.seniority;
   if (jobSeniority) {
     const down = LEVEL[currentSeniority] - LEVEL[jobSeniority];
     // A lower title can represent comparable responsibility, but employer prestige is never guessed.
-    const comparableScope = down > 0 && down <= 2 && jobSeniority !== "entry"
+    const comparableScope = down > 0 && down <= 3
       && job.minYears != null && job.minYears >= 5 && P.years >= job.minYears
       && (job.maxYears == null || P.years <= job.maxYears + 2)
       && !!P.salaryMin && job.salaryMax != null && job.salaryMax >= P.salaryMin
       && (job.resp || []).some(t=>/\b(lead|manage|supervise|oversee|head)\w*\b.{0,50}\b(team|department|staff|function|unit)\b/i.test(t));
     f.sen = down === 0 || comparableScope ? 1 : Math.abs(down) === 1 ? 0.6 : 0;
     if (down > 0 && !comparableScope) {
-      const ceiling = down >= 3 ? 54 : down >= 2 ? 69 : 79;
+      const ceiling = 54;
       capAt = Math.min(capAt, ceiling); capReason = "Seniority mismatch";
-      gaps.push({k:"sen",o:0,t:`Below your current ${LEVEL_NAME[LEVEL[currentSeniority]]}: this is ${LEVEL_NAME[LEVEL[jobSeniority]]}. Comparable responsibility and pay are not established.`});
+      gaps.push({k:"sen",o:0,t:`Below your established career level ${LEVEL_NAME[LEVEL[currentSeniority]]}: this is ${LEVEL_NAME[LEVEL[jobSeniority]]}. Comparable responsibility and pay are not established.`});
     } else if (comparableScope) {
       gaps.push({k:"sen",o:3,t:"Lower title, but published experience, team responsibility and salary align. Confirm the role scope before applying."});
     } else if (Math.abs(down) >= 2) gaps.push({k:"sen",o:4,t:`Role is ${LEVEL_NAME[LEVEL[jobSeniority]]}; you are at ${LEVEL_NAME[LEVEL[currentSeniority]]}`});

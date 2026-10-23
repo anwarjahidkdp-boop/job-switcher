@@ -1,3 +1,4 @@
+import { localSearchAnswers } from "./application-defaults";
 import { EDU } from "./taxonomy";
 import { agePolicy } from "./market-rules";
 import type { Job, MatchProfile } from './types';
@@ -70,12 +71,11 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
  else if(floor&&job.salaryMin!=null&&job.salaryMin<floor)add('salary_range','Only the upper part of the advertised salary range meets your minimum. Confirm the actual offer; higher pay is not established.',false,79);
  return {issues,scoreCap:cap,reason,eligible:!issues.some(i=>i.blocking),blocked:cap===0};
 }
-export function setupRequirements(profile:{target_country:string;personal?:{dob?:string}|null;preferences?:{salaryMin?:number|null}|null;answer_library?:{birthDate?:string|null;expectedSalary?:number|null;currentSalary?:number|null;salaryCountry?:string;currentSalaryCountry?:string;workAuthorization?:string;sponsorshipRequired?:boolean|null;willingToRelocate?:boolean|null}|null}){
- const a=profile.answer_library||{};const missing:string[]=[];
+export function setupRequirements(profile:{target_country:string;home_country?:string;personal?:{dob?:string}|null;preferences?:{salaryMin?:number|null}|null;answer_library?:{birthDate?:string|null;expectedSalary?:number|null;currentSalary?:number|null;salaryCountry?:string;currentSalaryCountry?:string;workAuthorization?:"yes"|"no"|"unknown";sponsorshipRequired?:boolean|null;willingToRelocate?:boolean|null}|null}){
+ const a=localSearchAnswers(profile.answer_library,profile.target_country,profile.home_country);const missing:string[]=[];
  if(profile.target_country==='BD'&&!validBirthDate(a.birthDate||profile.personal?.dob))missing.push('Date of birth');
  if(!((!a.salaryCountry||a.salaryCountry===profile.target_country)&&Number(a.expectedSalary)>0||(!a.currentSalaryCountry||a.currentSalaryCountry===profile.target_country)&&Number(a.currentSalary)>0||Number(profile.preferences?.salaryMin)>0))missing.push('Expected salary');
  if(!['yes','no'].includes(a.workAuthorization||''))missing.push('Work authorization');
  if(typeof a.sponsorshipRequired!=='boolean')missing.push('Sponsorship requirement');
- if(typeof a.willingToRelocate!=='boolean')missing.push('Relocation preference');
  return missing;
 }

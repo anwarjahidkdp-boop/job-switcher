@@ -2,7 +2,7 @@ import { eligibilityCheck } from "./eligibility";
 import type { MatchProfile } from "./types";
 import type { Job, Preferences } from "./types";
 export interface DealBreakers { minSalary?: number|null; minSalarySet?: boolean; excludedCompaniesSet?: boolean; excludedIndustriesSet?: boolean; excludedRoleTypesSet?: boolean; remoteOnly?: boolean; noRelocation?: boolean; noContract?: boolean; sponsorshipRequired?: boolean; workAuthorizationRequired?: boolean; excludedIndustries?: string[]; excludedCompanies?: string[]; excludedRoleTypes?: string[] }
-export interface AnswerLibrary { birthDate?:string|null; salaryCountry?:string; currentSalaryCountry?:string; expectedSalary?: number|null; salaryNegotiable?: boolean; noticeDays?: number|null; workAuthorization?: "yes"|"no"|"unknown"; sponsorshipRequired?: boolean|null; willingToRelocate?: boolean|null; currentSalary?: number|null; managementYears?: number|null; teamSize?: number|null; willingToTravel?: boolean|null }
+export interface AnswerLibrary { workAuthorizationSource?:"home_country_default"|"user"; sponsorshipSource?:"home_country_default"|"user"; birthDate?:string|null; salaryCountry?:string; currentSalaryCountry?:string; expectedSalary?: number|null; salaryNegotiable?: boolean; noticeDays?: number|null; workAuthorization?: "yes"|"no"|"unknown"; sponsorshipRequired?: boolean|null; willingToRelocate?: boolean|null; currentSalary?: number|null; managementYears?: number|null; teamSize?: number|null; willingToTravel?: boolean|null }
 export interface SafetyIssue { code:string; message:string; blocking:boolean }
 export interface SafetyCheck { safe:boolean; issues:SafetyIssue[] }
 const low=(v:unknown)=>String(v||"").trim().toLowerCase();
