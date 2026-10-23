@@ -65,21 +65,22 @@ export default async function Inbox() {
     { label: fit.label, n: fit.count, href: "#matches", tone: fit.tone === "green" ? "green" : fit.tone === "blue" ? "blue" : "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: `Fit score ${fit.range}` },
     { label: "Ready to apply", n: s.prepared, href: "/queue", tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: "CV + cover letter" },
     { label: "Applied", n: s.applied, href: "/applications", tone: "teal", icon: '<path d="m22 2-7 20-4-9-9-4z"/>' },
-    { label: "Interviews", n: s.interviews + s.offers, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
+    { label: "Interviews", n: s.interviews, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
+    { label: "Offers", n: s.offers, href: "/applications", tone: "gold", icon: '<circle cx="12" cy="9" r="6"/><path d="m8 14-1 7 5-3 5 3-1-7M9 9l2 2 4-4"/>', hint: "Job offers received" },
   ];
   const best = list.find((x) => !st.apps[x.job.id]) || list[0];
   const dayLabel = (d: string) => { const n = daysUntil(d, st.today) ?? 0; return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : fmtDate(d); };
 
   return (
     <>
-      <PageHead kicker="Your job assistant" title={<>Welcome back{first ? <>, <span>{first}</span></> : ""}</>} sub={`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${fit.count} ${fit.count === 1 ? "match is" : "matches are"} ${fit.label} (${fit.range}).`} />
+      <PageHead kicker="Your job assistant" title="Career overview" sub={<>Welcome back{first ? `, ${first}` : ""}. {`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${fit.count} ${fit.count === 1 ? "match is" : "matches are"} ${fit.label} (${fit.range}).`}</>} />
       <ApplicationProfileNotice country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} />
       {due.map(({ a, job }) => (
         <div key={a.id} className="banner warn" style={{ marginBottom: 14 }}>
           <div><b>Your {job!.company} application is ready.</b> <span className="muted">{job!.deadline ? `Deadline: ${daysUntil(job!.deadline, st.today)} days remaining. ` : ""}Did you submit your application?</span></div>
           <div className="row">
             <form action={appliedAction.bind(null, job!.id)}><button className="btn btn-primary btn-sm">Yes, Applied</button></form>
-            <Link className="btn btn-ghost btn-sm" href={`/jobs/${job!.id}?notyet=1`}>Not yet</Link>
+            <Link prefetch={false} className="btn btn-ghost btn-sm" href={`/jobs/${job!.id}?notyet=1`}>Not yet</Link>
           </div>
         </div>
       ))}
@@ -88,7 +89,7 @@ export default async function Inbox() {
       <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
 
       {best ? (
-        <Link className="spot" href={`/jobs/${best.job.id}`}>
+        <Link prefetch={false} className="spot" href={`/jobs/${best.job.id}`}>
           <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>
           <div className="spot-txt">
             <span className="spot-k">Your best match right now</span>
@@ -96,7 +97,7 @@ export default async function Inbox() {
             <span className="spot-m">{best.job.company}{best.job.location ? ` · ${best.job.location}` : ""}</span>
             {best.m.matched.length ? <span className="spot-why">{best.m.matched.slice(0, 3).map((t) => "✓ " + t).join("  ")}</span> : null}
           </div>
-          <span className="spot-go">{st.apps[best.job.id]?.pack ? "Review application" : "See why it fits"} →</span>
+          <span className="spot-go">Review opportunity →</span>
         </Link>
       ) : null}
       <div className="dash" id="matches">
@@ -119,11 +120,11 @@ export default async function Inbox() {
               <h3>Get jobs automatically</h3>
               <div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${Math.round((100 * setupDone) / setupSites.length)}%` }} /></div><b className="num small">{setupDone}/{setupSites.length}</b></div>
               <p className="small muted" style={{ marginTop: 8 }}>Forward job-alert emails from {portals(country).slice(0, 2).join(" and ")} so new jobs arrive here on their own.</p>
-              <Link className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/setup">{setupDone ? `Set up ${setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p))}` : "Start setup"}</Link>
+              <Link prefetch={false} className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/setup">{setupDone ? `Set up ${setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p))}` : "Start setup"}</Link>
             </div>
           ) : null}
           <div className="card panel"><h3>Apply Queue</h3>
-            {queue.length ? queue.map((x) => <div key={x.a.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job!.company}</div><div className="small muted">{dayLabel(x.date)} · {STATUS_LABEL[x.a.status]}</div></div><Link className="btn btn-text" href={`/jobs/${x.job!.id}`}>Open</Link></div>)
+            {queue.length ? queue.map((x) => <div key={x.a.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job!.company}</div><div className="small muted">{dayLabel(x.date)} · {STATUS_LABEL[x.a.status]}</div></div><Link prefetch={false} className="btn btn-text" href={`/jobs/${x.job!.id}`}>Open</Link></div>)
               : <p className="small muted">Prepared applications and reminders appear here.</p>}
           </div>
           <div className="card panel"><h3>Upcoming deadlines</h3>
@@ -148,7 +149,7 @@ export default async function Inbox() {
 function OppRow({ x, today, status, ai }: { x: Scored; today: string; status?: keyof typeof STATUS_LABEL; ai?: { fit: string; reason: string } }) {
   const { job, m } = x;
   return (
-    <Link className="opp" href={`/jobs/${job.id}`}>
+    <Link prefetch={false} className="opp" href={`/jobs/${job.id}`}>
       <Ring score={m.score} band={m.band} />
       <div style={{ minWidth: 0 }}>
         <h4>{job.title}</h4>

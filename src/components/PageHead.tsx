@@ -5,7 +5,7 @@ export function PageHead({ kicker, title, sub, back, slim }: { kicker?: React.Re
   return (
     <section className={`pghead${slim ? " pghead-slim" : ""}`}>
       <div className="pghead-in">
-        {back ? <Link className="pghead-back" href={back.href}>← {back.label}</Link> : null}
+        {back ? <Link prefetch={false} className="pghead-back" href={back.href}>← {back.label}</Link> : null}
         {kicker ? <p className="pghead-kicker">{kicker}</p> : null}
         {title ? <h1>{title}</h1> : null}
         {sub ? <p className="pghead-sub">{sub}</p> : null}

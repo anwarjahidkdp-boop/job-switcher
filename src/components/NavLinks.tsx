@@ -18,7 +18,7 @@ export function NavLinks() {
   return (
     <nav className="nav" aria-label="Main">
       {NAV.map(([href, label, short, icon]) => (
-        <Link key={href} href={href} aria-current={cur.startsWith(href) ? "page" : undefined}>
+        <Link prefetch={false} key={href} href={href} aria-current={cur.startsWith(href) ? "page" : undefined}>
           <span className="nav-ic">{icon}</span><span className="nav-l">{label}</span><span className="nav-s">{short}</span>
         </Link>
       ))}

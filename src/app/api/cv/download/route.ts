@@ -14,7 +14,8 @@ export async function GET(req: Request) {
   const format = u.searchParams.get("format") === "print" ? "print" : "doc";
   const jobId = u.searchParams.get("jobId");
   const cover = u.searchParams.get("document") === "cover";
-  const st = await loadState(c.db, c.userId);
+  // Downloads need the saved CV and trial/application checks, not a fresh job-market ranking.
+  const st = await loadState(c.db, c.userId, undefined, { skipMatching: true });
   if (!st?.master) return NextResponse.json({ error: "No CV yet." }, { status: 404 });
   if (!["done", "reveal"].includes(st.profile.onboarding_step)) return NextResponse.json({ error: "Complete your current country's setup and rebuild your CV before downloading." }, { status: 409 });
   const app = jobId ? st.apps[jobId] : null;

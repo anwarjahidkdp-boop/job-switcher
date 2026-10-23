@@ -1053,6 +1053,23 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .ia-dialog::backdrop{background:rgba(18,38,66,.55)}
 .ia-dialog .ia-card{box-shadow:none}
 .install-page{max-width:760px;margin-inline:auto;display:grid;gap:18px}
+
+/* Keep the existing palette; fix contrast and the compact mobile dashboard. */
+.application-notice-short{display:none}
+.kpis-seven{grid-template-columns:repeat(7,minmax(0,1fr))}
+.flow-i.last>a,.flow-i.last>div{background:linear-gradient(160deg,#2B529C,#22468A);color:#EAF0FA}
+.flow-i.last .flow-ic{background:rgba(255,255,255,.12);color:var(--g,#E2B652)}
+@media(max-width:1000px){.kpis-seven{grid-template-columns:repeat(3,minmax(0,1fr))}.kpis-seven>.kpi:first-child{grid-column:1/-1;height:auto;min-height:70px;flex-direction:row;align-items:center;gap:12px}.kpis-seven>.kpi:first-child .kpi-ic{margin:0}.kpis-seven>.kpi:first-child b{order:2;margin-left:auto}}
+@media(max-width:760px){.kpis-seven{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){
+  .application-notice-compact{flex-wrap:nowrap;gap:8px;padding:4px 10px;border-width:1px;border-left-width:3px;border-radius:9px;min-height:44px;box-shadow:none}
+  .application-notice-compact>div{flex:1 1 auto;min-width:0}
+  .application-notice-compact p,.application-notice-compact .application-notice-full{display:none}
+  .application-notice-compact .application-notice-short{display:inline}
+  .application-notice-compact .application-notice-title{gap:6px;font-size:12px;white-space:nowrap}
+  .application-notice-compact .application-notice-title svg{width:17px;height:17px}
+  .application-notice-compact>.btn{flex:0 0 auto;width:auto;min-height:36px;padding:6px 0 6px 5px;font-size:12px;background:transparent;border:0;color:var(--bad)}
+}
 .install-page h2{font-size:24px}.install-page h3{margin:0}
 .install-guide{border:1px solid var(--line);border-radius:10px;padding:14px}
 .install-guide summary{cursor:pointer;font-weight:600}
