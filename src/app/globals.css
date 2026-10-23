@@ -1090,3 +1090,6 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 :root[data-theme="light"] .ia-btn{background:#2458A6;color:#FFFFFF}
 :root[data-theme="light"] .ia-x{color:#526279}
 @media print{.ia-dialog{display:none}}
+
+.apply-queue-item{grid-template-columns:minmax(0,1fr) auto}
+@media(max-width:760px){.apply-queue-item{grid-template-columns:minmax(0,1fr)}.apply-queue-item>.row{flex-wrap:wrap}}

@@ -132,6 +132,7 @@ export async function dismissAction(jobId: string) {
   const c = await ctx();
   await dismissJob(c, jobId);
   revalidatePath("/inbox");
+  revalidatePath("/queue");
 }
 
 export async function openedAction(jobId: string) {

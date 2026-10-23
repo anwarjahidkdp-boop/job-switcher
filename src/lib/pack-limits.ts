@@ -37,8 +37,8 @@ export function trialApplyRoom(apps: { applied_at: string | null }[], now = Date
   return Math.max(0, Math.min(TRIAL_APPLY.day - today, TRIAL_APPLY.total - sent.length));
 }
 
-/** Which ready applications a trial user can open and send now: the oldest ones, as many as there is room for. */
+/** The daily allowance is consumed on send, not reserved by an old pack. The user may choose any ready pack. */
 export function unlockedReady(apps: { job_id: string; status: string; created_at: string }[], room: number): Set<string> {
-  const ready = apps.filter((a) => a.status === "ready" || a.status === "reminder").sort((a, b) => a.created_at.localeCompare(b.created_at));
-  return new Set(ready.slice(0, room).map((a) => a.job_id));
+  const ready = apps.filter((a) => a.status === "ready" || a.status === "reminder");
+  return new Set((room > 0 ? ready : []).map((a) => a.job_id));
 }
