@@ -63,7 +63,13 @@ export async function loadFacts(db: SupabaseClient, userId: string): Promise<Car
 export function profileFrom(profile: ProfileRow, facts: CareerFact[], master: MasterRow | null): MatchProfile | null {
   if (!master) return null;
   const meta = { ...DEFAULT_META, ...(profile.career_meta || {}) } as CareerMeta;
-  return buildMatchProfile({ name: profile.full_name || master.content.name, facts, meta, prefs: profile.preferences, country: profile.target_country });
+  const a = profile.answer_library || {};
+  const expected = Number(a.expectedSalary);
+  const prefs = { ...(profile.preferences || { roles:"",locations:"",salaryMin:null,salaryMax:null,notice:null,mode:"Any" as const }),
+    ...(a.salaryNegotiable === true ? {salaryMin:null,salaryMax:null} : Number.isFinite(expected) && expected>0 ? {salaryMin:expected} : {}),
+    ...(typeof a.noticeDays === "number" ? {notice:a.noticeDays} : {}),
+  };
+  return buildMatchProfile({ name: profile.full_name || master.content.name, facts, meta, prefs, country: profile.target_country });
 }
 
 // Everything rowToJob reads; the long description and raw payload stay out of list loads (job pages fetch the full row).

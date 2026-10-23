@@ -1,3 +1,5 @@
+import { StrongFitGuide } from "@/components/StrongFitGuide";
+import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction } from "@/app/actions";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
@@ -27,7 +29,7 @@ export default async function Inbox() {
   const { st, db } = await requireAppState("/inbox");
   const P = st.P, s = stats(st), country = st.country;
   const list = inboxList(st.scored, st.dismissed);
-  const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
   const first = (P.name || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(" ")[0];
@@ -77,6 +79,7 @@ export default async function Inbox() {
   return (
     <>
       <PageHead kicker="Your job assistant" title={<>Welcome back{first ? <>, <span>{first}</span></> : ""}</>} sub={`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${s.strong} ${s.strong === 1 ? "is Good Fit or better" : "are Good Fit or better"} for your profile.`} />
+      <ApplicationProfileNotice answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} />
       {due.map(({ a, job }) => (
         <div key={a.id} className="banner warn" style={{ marginBottom: 14 }}>
           <div><b>Your {job!.company} application is ready.</b> <span className="muted">{job!.deadline ? `Deadline: ${daysUntil(job!.deadline, st.today)} days remaining. ` : ""}Did you submit your application?</span></div>
@@ -104,6 +107,7 @@ export default async function Inbox() {
         <div>
           <div className="card">
             <PastePanel sites={portals(st.country)} />
+            <StrongFitGuide rows={list} />
             {groups.length ? groups.map(([b, items]) => (
               <div key={b}>
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>
@@ -140,7 +144,7 @@ export default async function Inbox() {
               <p className="small muted">Skills employers in {cname(country)} ask for that your profile does not show yet:</p>
               {guide.map((g) => (
                 <div key={g.s} className="qitem" style={{ display: "block" }}>
-                  <div className="small"><b>{skillLabel(g.s)}</b> · in {g.n} of {rel.length} relevant jobs{g.gain > 0 ? <> · <span style={{ color: "var(--ok, #2E9E6B)" }}>+{g.gain} strong {g.gain === 1 ? "match" : "matches"}</span></> : null}</div>
+                  <div className="small"><b>{skillLabel(g.s)}</b> · in {g.n} of {rel.length} relevant jobs{g.gain > 0 ? <> · <span style={{ color: "var(--ok, #2E9E6B)" }}>+{g.gain} {g.gain === 1 ? "match" : "matches"} at Good Fit or better</span></> : null}</div>
                   <div className="guide-links">{courseLinks(skillLabel(g.s)).map((l) => <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer nofollow">{l.label} ↗</a>)}</div>
                 </div>
               ))}
