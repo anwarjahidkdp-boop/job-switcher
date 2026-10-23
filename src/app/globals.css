@@ -1049,7 +1049,7 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 :root[data-theme="light"] .rprog{background:#3472CE;box-shadow:0 0 8px rgba(52,114,206,.25)}
 :root[data-theme="light"] .pghead~* .card,:root[data-theme="light"] .ob-body .card{box-shadow:0 2px 8px rgba(30,55,90,.045)}
 
-.ia-dialog{border:0;padding:0;background:transparent;color:var(--ink);margin:auto;max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto}
+.ia-dialog{border:0;padding:0;background:transparent;color:var(--ink);margin:auto;width:min(420px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto}
 .ia-dialog::backdrop{background:rgba(18,38,66,.55)}
 .ia-dialog .ia-card{box-shadow:none}
 .install-page{max-width:760px;margin-inline:auto;display:grid;gap:18px}
