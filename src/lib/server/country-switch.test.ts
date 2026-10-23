@@ -61,3 +61,10 @@ it('requires an actual birth date for Bangladesh setup even if all other answers
  await expect(savePreferences(x.ctx,{roles:'Accountant',salaryMin:70000},null,{country:'BD',revision:2})).rejects.toThrow('Date of birth');
  expect(x.from).not.toHaveBeenCalled();
 });
+
+it('saves blank references for a completed Bangladesh profile without blocking or rebuilding the CV',async()=>{
+ const {savePreferences}=await import('./onboarding');const x=fixture();
+ Object.assign(x.profile,{target_country:'BD',home_country:'BD',onboarding_step:'done',personal:{dob:'1987-12-05'},answer_library:{}});
+ await expect(savePreferences(x.ctx,{salaryMin:70000},{dob:'1987-12-05',references:[]},{country:'BD',revision:2})).resolves.toBeUndefined();
+ expect(x.from).toHaveBeenCalledWith('profiles');expect(runAI).not.toHaveBeenCalled();expect(x.rpc).not.toHaveBeenCalled();
+});

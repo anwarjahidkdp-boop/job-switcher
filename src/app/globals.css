@@ -1019,3 +1019,8 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .cv-responsibility-choice{flex-wrap:nowrap;align-items:flex-start;gap:9px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--card);cursor:pointer}
 .cv-responsibility-choice input{flex:none;margin-top:3px;accent-color:var(--accent)}
 @media(max-width:760px){.career-guide-grid{grid-template-columns:minmax(0,1fr)}}
+
+.reference-toggle { cursor:pointer; display:list-item; font-weight:700; color:var(--ink); }
+.reference-toggle > span:last-child { display:block; font-weight:400; margin-top:4px; }
+
+.reference-card > fieldset { margin-top:12px; }
