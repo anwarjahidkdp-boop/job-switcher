@@ -47,7 +47,7 @@ async function main() {
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
 
-      if (src.country === "BD") await persistBangladeshJobs(db, src, jobs);
+      if (src.country === "BD") await persistBangladeshJobs(db, src, jobs, today);
       if (batch) await persistBangladeshBatch(db, src, batch);
       const rows = src.country === "BD" ? [] : [...new Map(jobs.map((j) => [j.externalId, j])).values()].map((j) => ({ ...jobToRow(j, { owner_id: null, source_kind: src.kind, source_id: src.id, external_id: j.externalId, description: j.description.slice(0, 20000) }), active: true }));
       for (let i = 0; i < rows.length; i += 200) {
