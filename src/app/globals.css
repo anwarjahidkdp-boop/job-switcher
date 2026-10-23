@@ -1054,6 +1054,10 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .ia-dialog .ia-card{box-shadow:none}
 .install-page{max-width:760px;margin-inline:auto;display:grid;gap:18px}
 
+/* Dashboard figures are already in the cards: keep its heading and warning close. */
+.pghead-compact{padding-bottom:16px}
+.pghead-compact+*{margin-top:12px!important}
+
 /* Keep the existing palette; fix contrast and the compact mobile dashboard. */
 .application-notice-short{display:none}
 .kpis-seven{grid-template-columns:repeat(7,minmax(0,1fr))}
