@@ -28,6 +28,7 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
   return (
     <>
       <div className="cvbar-card">
+      <div className="cv-design-heading"><h3>CV design studio</h3><span className="pill p-neutral">4 professional layouts</span></div>
       <div className="cvbar" aria-busy={pending}>
         <div className="row" style={{ gap: 6 }}>
           {TEMPLATES.map(([k, l]) => (
@@ -61,6 +62,7 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
           ) : null}
         </div>
       </div>
+      <p className="small muted cv-design-hint">{props.tpl === "corporate" ? "Corporate: structured typography and a clean column for corporate roles." : props.tpl === "classic" ? "Classic: refined serif headings with a clean, traditional layout." : props.tpl === "executive" ? "Executive: a bold colour header with a clear leadership profile." : "Modern: a colour sidebar with a distinctive visual layout."} Choose a layout and accent colour; your downloads use the same design.</p>
       {props.downloads ? (
         <div className="cvbar-dl">
           <a className="btn btn-primary btn-sm" href={props.downloads.pdf} target="_blank" rel="noopener">Download PDF</a>

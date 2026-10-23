@@ -22,7 +22,7 @@ import { daysUntil } from "@/lib/dates";
 import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
-import { limitNotice, trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
+import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { askRows, postAsks } from "@/lib/job-asks";
 
 export const metadata = { title: "Job" };
@@ -56,17 +56,14 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   const allowance = !a?.pack && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  const trial = allowance?.plan === "trial";
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
   const pro = await isPro(db, st.userId);
   const room = trialApplyRoom(apps);
   const lockedPack = !!a?.pack && (a.status === "ready" || a.status === "reminder") && !pro && !unlockedReady(apps, room).has(job.id);
-  const leftAll = allowance ? Math.max(0, allowance.limits.month - allowance.used.month) : 0;
   const aiLeft = !allowance ? null : allowance.left
-    ? trial ? `Free trial: 1 AI-tailored application a day (${leftAll} of ${allowance.limits.month} left)` : `${allowance.left} AI-tailored ${allowance.left === 1 ? "application" : "applications"} left today (${leftAll} this month)`
-    : `${limitNotice(allowance)} You will get the standard version.`;
-  // Trial used up for today (or in all): invite the person to Pro, where they can apply to many more.
+    ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
+    : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
   const canPrepare = !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn", "waiting"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
@@ -98,9 +95,11 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             {description || job.url || canPrepare ? <div className="jd-actions">
               {description ? <details className="jd"><summary className="btn btn-ghost btn-sm">View job description</summary><div className="jd-text">{description}</div></details> : null}
               {job.url ? <a className="btn btn-ghost btn-sm" href={job.url} target="_blank" rel="noopener noreferrer nofollow">Open the original post ↗</a> : null}
-              {canPrepare ? <PrepareApplicationButton jobId={job.id} /> : null}
+              {canPrepare ? <div className="jd-application-group"><PrepareApplicationButton jobId={job.id} /><ActionsPanel compact jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
+              deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
+              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} /></div> : null}
             </div> : null}
-            {canPrepare && aiLeft ? <p className="small muted" style={{ marginTop: 8 }}>{aiLeft}</p> : null}
+            {canPrepare && aiLeft ? <p className="small muted jd-ai-note">{aiLeft}</p> : null}
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
           {a?.status === "applied" ? (() => {
@@ -164,7 +163,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             {m.gaps.length ? <><h3 style={{ marginTop: 14 }}>Potential gaps</h3><GapList gaps={m.gaps.map((g) => ({ t: g.t, skill: g.skill || null, label: g.skill ? skillLabel(g.skill) : null }))} /></> : null}
             <p className="small muted" style={{ marginTop: 14 }}>The score compares your verified profile with this job&apos;s requirements. It is not a chance of being hired.</p>
           </div>
-          {lockedPack ? null : <div className="card panel">
+          {lockedPack || canPrepare ? null : <div className="card panel">
             <ActionsPanel jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
               gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} />
