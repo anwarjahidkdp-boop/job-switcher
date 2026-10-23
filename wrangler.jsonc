@@ -18,6 +18,7 @@
     "PAYMENT_METHODS": "manual",
     "BKASH_MANUAL_ACCOUNT_TYPE": "personal"
   }
-  // Workers Paid only: raise the per-request CPU limit (default 30000 ms on Paid; Free is fixed at 10 ms).
-  // "limits": { "cpu_ms": 30000 },
+  // Requires Workers Paid. Do not deploy this change until the account upgrade is confirmed.
+  // Production logs on 2026-10-23 show exceededCpu at the Free plan's 10 ms ceiling.
+  "limits": { "cpu_ms": 30000 },
 }
