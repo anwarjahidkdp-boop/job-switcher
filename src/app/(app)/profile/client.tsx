@@ -19,13 +19,13 @@ export function CountryPanel({ current, needsVisa, homeCountry }: { current: str
       </label>
       {selected !== current ? <div className="banner warn" style={{ marginTop: 12 }}><div>
         <p>Switching to {rule(selected).name} clears your target roles, cities, salary, work preferences, country-specific CV details. Your improved CV will be adapted to the new country’s format, reference conventions and default style using your saved career information. You will set them up again using that country’s currency and questions. Returning to {rule(current).name} also requires fresh setup.</p>
-        <p className="small">Your uploaded CV, verified career facts, Career Safety, Answer Library and previous applications stay saved.</p>
+        <p className="small">Unsent applications and reminders for your previous country leave the active queue. Sent applications stay in your history. Changing country does not reset your daily application quota. Your uploaded CV and verified career facts stay saved.</p>
         <button className="btn btn-primary" disabled={pending} onClick={() => save(() => setCountryAction(selected, selected !== homeCountry), () => router.push("/onboarding"))}>Change country and set up again</button>
         <button className="btn btn-text" disabled={pending} onClick={() => setSelected(current)}>Cancel</button>
       </div></div> : null}
       {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; save(() => setNeedsVisaAction(v)); }} /> I need visa sponsorship</label> : null}
       {err ? <p role="alert" className="err" style={{ marginTop: 8 }}>{err}</p> : null}
-      <p className="small muted" style={{ marginTop: 8 }}>One country is active at a time. CV format, salary currency and matching follow your job-search country.</p>
+      <p className="small muted" style={{ marginTop: 8 }}>One country is active at a time. Changing it removes previous-country selections from your active queue. Your daily application quota does not reset.</p>
     </div>
   );
 }
