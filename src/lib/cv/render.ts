@@ -74,6 +74,8 @@ export interface RenderInput {
   photoUrl?: string | null;
   /** Word/print-safe markup (tables instead of grid, no placeholders, no highlight marks). */
   forDoc?: boolean;
+  /** Preview-only change marks are omitted from documents sent to employers. */
+  highlightChanges?: boolean;
   /** Notice period in days, from the person's preferences. */
   noticeDays?: number | null;
   /** Date on the signature line; defaults to today. */
@@ -97,7 +99,7 @@ export function renderCvHtml(inp: RenderInput): string {
   const personal = personalRows(cv, pd, inp.noticeDays);
   const contact = String(m.contact || "").split(/\s*·\s*/).filter(Boolean);
   const H = r.doc === "Résumé" ? { sum: "Summary", exp: "Work Experience" } : { sum: "Profile", exp: "Professional Experience" };
-  const sumTxt = t && t.summary && t.summary !== m.summary ? (forDoc ? esc(t.summary) : `<mark>${esc(t.summary)}</mark>`) : esc(m.summary);
+  const sumTxt = t && t.summary && t.summary !== m.summary ? (forDoc || inp.highlightChanges === false ? esc(t.summary) : `<mark>${esc(t.summary)}</mark>`) : esc(m.summary);
   const photo = inp.photoUrl && SAFE_IMG.test(inp.photoUrl) ? inp.photoUrl : null;
   const ph = !r.photo ? "" : photo ? `<img class="ph" src="${esc(photo)}" alt="Profile photo" width="104" height="104">` : forDoc ? "" : `<div class="ph ph-empty" title="Add a photo from the toolbar">${esc(initials(m.name))}</div>`;
   const sec = (h: string, body: string) => (body ? `<section class="cs"><h3>${h}</h3>${body}</section>` : "");
@@ -178,6 +180,10 @@ export function renderCvHtml(inp: RenderInput): string {
     if (forDoc) return `<table width="100%" cellspacing="0" cellpadding="0"><tr><td class="band" style="background:${acc};padding:16pt 18pt">${band}</td></tr></table><div style="padding:0 6pt">${body}</div>`;
     return `<article class="cv t-exec" style="--cva:${acc}"><header class="band">${band}</header><div class="body">${body}</div></article>`;
   }
-  const inner = `<header>${ph}${nameBlock}<p class="ct">${contact.map(esc).join(" · ")}</p></header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${sec("Skills", skills.length ? `<p>${skills.map(esc).join(" · ")}</p>` : "")}${sec("Languages", langs)}${sec(persH, pers)}${closing}`;
+  const classicIdentity = `${nameBlock}<p class="ct">${contact.map(esc).join(" · ")}</p>`;
+  const classicHead = forDoc
+    ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td valign="top">${classicIdentity}</td>${ph ? `<td align="right" valign="top" width="96">${ph}</td>` : ""}</tr></table>`
+    : `<div class="identity">${classicIdentity}</div>${ph}`;
+  const inner = `<header>${classicHead}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${sec("Skills", skills.length ? `<p>${skills.map(esc).join(" · ")}</p>` : "")}${sec("Languages", langs)}${sec(persH, pers)}${closing}`;
   return forDoc ? `<div class="classic">${inner}</div>` : `<article class="cv t-classic" style="--cva:${acc}">${inner}</article>`;
 }

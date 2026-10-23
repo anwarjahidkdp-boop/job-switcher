@@ -127,3 +127,12 @@ describe("country conventions on the CV", () => {
     expect(h).toContain("I hereby declare");
   });
 });
+
+it('exports polished documents without preview-only change highlights or external font providers',()=>{
+ const input={master:DEMO_MASTER,country:'BD',style:{tpl:'classic' as const},tailored:{summary:'Tailored professional summary.',top_bullets:[],skills_order:[]}};
+ const print=cvPrintHtml(input);
+ expect(print).toContain('/fonts/inter-latin.woff2');expect(print).toContain('/fonts/manrope-latin.woff2');
+ expect(print).not.toContain('fonts.googleapis.com');expect(print).not.toContain('<mark>');
+ expect(print).toContain('Tailored professional summary.');
+ expect(cvDocHtml(input)).toContain('class="classic"');expect(cvDocHtml(input)).toContain('text-align:left');
+});

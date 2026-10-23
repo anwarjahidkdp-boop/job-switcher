@@ -1,3 +1,4 @@
+import { FitOverviewCard, fitTiles } from "@/components/FitOverviewCard";
 import { StrongFitGuide } from "@/components/StrongFitGuide";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction } from "@/app/actions";
@@ -89,7 +90,7 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <KpiStrip items={kpis} />
+      <div className="dashboard-kpi-row"><KpiStrip items={kpis} /><FitOverviewCard tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/></div>
       {best ? (
         <Link className="spot" href={`/jobs/${best.job.id}`}>
           <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>

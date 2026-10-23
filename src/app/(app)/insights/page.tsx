@@ -1,6 +1,9 @@
+import { FitOverviewCard, fitTiles } from "@/components/FitOverviewCard";
+import Link from "next/link";
+import { strongFitGuide } from "@/lib/strong-fit";
 import { PageHead } from "@/components/PageHead";
 import { requireAppState } from "@/lib/server/page";
-import { BAND, skillDemand, skillImpact } from "@/lib/matching";
+import { skillDemand, skillImpact } from "@/lib/matching";
 import { skillLabel } from "@/lib/taxonomy";
 import { aiConfigured } from "@/lib/ai";
 import { latestCareerReports } from "@/lib/server/career-reports";
@@ -11,7 +14,9 @@ export const metadata = { title: "Insights" };
 export default async function Insights() {
   const { st, db, userId } = await requireAppState("/insights");
   const reports = await latestCareerReports(db,userId);
-  const { rel, rows } = skillDemand(st.scored, st.P);
+  const { rows } = skillDemand(st.scored, st.P);
+  const rel = st.scored.filter(x=>x.m.relevant && !x.m.expired);
+  const guide = strongFitGuide(rel);
   const max = rows[0]?.n || 1;
   const missed = rel.filter((x) => x.m.score < 70 && !x.m.expired);
   const rc: Record<string, { n: number; examples: string[] }> = {};
@@ -21,13 +26,17 @@ export default async function Insights() {
     const imp = r.h.v < 1 ? skillImpact(st.scored, st.P, r.s, opts) : null;
     return { s: r.s, label: skillLabel(r.s), n: r.n, v: r.h.v, pct: Math.round((100 * r.n) / max), impact: imp };
   });
-  const band = (b: string) => rel.filter((x) => x.m.band === b).length;
   return (
     <>
       <PageHead kicker="Market insights" title={<>Your career <span>market</span></>} sub={`Based on ${rel.length} relevant jobs analysed for your profile.`} />
-      <div className="tiles" style={{ marginTop: 18 }}>
-        {([["Relevant jobs", rel.length], [BAND.ex[0], band("ex")], [BAND.st[0], band("st")], [BAND.po[0], band("po")], [BAND.lo[0], rel.filter(x => x.m.score >= 55 && x.m.score < 70).length], ["Explore Further", rel.filter(x => x.m.score < 55).length]] as [string, number][]).map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}
+      <div className="fit-overview" style={{ marginTop: 18 }}>
+        {fitTiles(rel).map(tile=><FitOverviewCard key={tile.label} tile={tile} rows={rel}/>)}
       </div>
+      <section id="career-guidance" className="card panel career-guidance" aria-label="Career guidance">
+        <div className="row" style={{justifyContent:"space-between"}}><h3>Career guidance</h3><span className="pill p-ex">Strong Fit · 90% or higher</span></div>
+        {guide?.score!=null ? <p className="small muted">Current best: {guide.score}% · {guide.points} points to Strong Fit.</p> : null}
+        {guide?.skills.length ? <><p className="small" style={{marginTop:8}}><b>Skills to develop or confirm</b></p><div className="skchips">{guide.skills.map(s=><span className="sk" key={s.skill}>{s.label}</span>)}</div><Link className="btn btn-ghost btn-sm" style={{marginTop:10}} href="/profile">Update my skills</Link></> : <p className="small muted" style={{marginTop:8}}>{guide ? "No specific skill gap is confirmed yet. Review your profile and the job requirements." : "You have Strong Fit opportunities. Keep your verified skills up to date."}</p>}
+      </section>
       <section id="career-reports" className="stack" style={{marginTop:18}} aria-label="Career reports">
         {reports.map(r=><article className="card panel" key={r.id}>
           <h3>{r.kind === "trial" ? "Your First 5 Days with JobPao" : "Your Weekly Career Report"}</h3>

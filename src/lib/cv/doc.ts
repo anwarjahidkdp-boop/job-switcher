@@ -11,10 +11,9 @@ export function cvDocHtml(inp: Omit<RenderInput, "forDoc">): string {
 /** Standalone printable page; the browser's "Save as PDF" produces the PDF (no server-side PDF engine needed on free tiers). */
 export function cvPrintHtml(inp: Omit<RenderInput, "forDoc">, opts: { autoPrint?: boolean } = {}): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(inp.master.name)} – CV</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,600;0,700;1,400&display=swap">
-<style>:root{--display:"Manrope",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif}${CV_SCREEN_CSS}${CV_PRINT_CSS}${pageCss(inp)}</style></head>
+<style>@font-face{font-family:Inter;src:url("/fonts/inter-latin.woff2") format("woff2");font-weight:400 600;font-display:swap}@font-face{font-family:Manrope;src:url("/fonts/manrope-latin.woff2") format("woff2");font-weight:600 800;font-display:swap}:root{--display:"Manrope",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif}${CV_SCREEN_CSS}${CV_PRINT_CSS}${pageCss(inp)}</style></head>
 <body><div class="print-bar">Choose "Save as PDF" in the print dialog. <button type="button" onclick="window.print()">Print / Save as PDF</button></div>
-<div class="sheet">${renderCvHtml({ ...inp, forDoc: false, photoUrl: inp.photoUrl })}</div>${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),400))</script>` : ""}</body></html>`;
+<div class="sheet">${renderCvHtml({ ...inp, forDoc: false, highlightChanges: false, photoUrl: inp.photoUrl })}</div>${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),400))</script>` : ""}</body></html>`;
 }
 
 /**
