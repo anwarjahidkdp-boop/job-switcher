@@ -4,15 +4,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { cc, rule, type CountryCode } from "../countries";
 import { answerSkillFacts, appearsIn, groundExtraction, verifiedOnly, type CareerFact, type CareerMeta, type RemovedItem } from "../facts";
-import { bnDigits, dropRemoved, EditRefused, factRefs, hasBangla, FIELDS, MAX_EDIT_CHARS, MAX_EDITS_KEPT, nextRemoved, planFactEdits, type FactOp } from "../cv-edit";
+import { dropRemoved, EditRefused, MAX_EDITS_KEPT } from "../cv-edit";
 import { checkMasterCv } from "../numbers-check";
-import { CV_EDIT_PROMPT, TRANSLATE_EDIT_PROMPT, EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
-import { CvEditSchema, ExtractionSchema, MasterBuildSchema, TranslateSchema, type CvEditOut } from "../ai/schemas";
+import { EXTRACT_PROMPT, MASTER_PROMPT, OCR_PROMPT, OCR_SYSTEM, SYSTEM_RULES } from "../prompts";
+import { ExtractionSchema, MasterBuildSchema } from "../ai/schemas";
 import { aiConfigured, checkBudget, getBudget, runAI } from "../ai";
 import { AIError } from "../ai/provider";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_MASTER } from "../demo";
 import { MAX_CV_TEXT, MIME, MIN_CV_CHARS, CvReadError, sniffImage, sniffKind, tidy } from "../cv/sniff";
-import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill, skillLabel } from "../taxonomy";
+import { CATEGORIES, INDUSTRY_LIST, isSeniority, normSkill } from "../taxonomy";
 import { mergePersonal } from "../cv/conventions";
 import { applySuggestion, cleanSuggestions, dismissSuggestion } from "../cv/suggestions";
 import type { CvQuestion, Extraction, ExtractedExperience, MasterCV, PersonalDetails, Preferences } from "../types";
@@ -216,7 +216,7 @@ export async function buildMasterCv(ctx: Ctx) {
   const doc = docRow as (CvDocRow & { extraction: Extraction | null }) | null;
   if (!doc) throw new Error("Upload a CV first.");
   // Country changes reuse the already improved CV. Country-specific rendering needs no paid AI call.
-  if (profile.onboarding_step === "prefs" && profile.search_country_version > 0) {
+  if ((profile.onboarding_step === "prefs" && profile.search_country_version > 0) || metaOf(profile).manual_cv) {
     const { data: existing, error } = await ctx.db.from("master_cvs").select("content, flags, ai, model, source_cv_document_id").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
     if (error) throw error;
     if (existing && existing.source_cv_document_id === doc.id) {
@@ -250,79 +250,6 @@ export async function buildMasterCv(ctx: Ctx) {
 
   await saveMaster(ctx, checked.master, checked.flags, ai, model, doc.id, profile, true);
   return { flags: checked.flags, ai };
-}
-
-/**
- * "Ask AI to change your CV": apply one typed instruction. The AI proposes fact changes and the edited Master CV;
- * the fact changes are checked against what the person typed (planFactEdits) before anything is stored, so the
- * change sticks for later rebuilds and application packs. Facts added or corrected this way have provenance "user".
- */
-export async function editMasterCv(ctx: Ctx, instruction: string, language: string | null = null) {
-  let text = bnDigits(String(instruction || "")).replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
-  if (text.length < 3) throw new EditRefused("Tell us what to change in your CV.");
-  if (!aiConfigured()) throw new AIError("not_configured");
-  // Written (or spoken) in Bangla or the local language: translate it first, then apply the English version with the same checks.
-  let readAs = "";
-  const nonLatin = /[^\u0000-\u024F\s\d.,;:!?'"()&%/+-]/.test(text);
-  if (hasBangla(text) || language || nonLatin) {
-    const from = hasBangla(text) ? "Bangla" : language || "the person's language";
-    const tr = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: TRANSLATE_EDIT_PROMPT(text, from), schema: TranslateSchema, maxTokens: 800 }));
-    const en = bnDigits(String((tr.data as { english?: string }).english || "")).replace(/"""/g, "\"").replace(/\s+/g, " ").trim().slice(0, MAX_EDIT_CHARS);
-    if (en.length < 3 || hasBangla(en)) throw new EditRefused("We could not read that. Try saying it another way.");
-    text = readAs = en;
-  }
-  const profile = await loadProfile(ctx.db, ctx.userId);
-  if (!profile) throw new Error("profile missing");
-  const [{ data: masterRow }, { data: docRow }, facts] = await Promise.all([
-    ctx.db.from("master_cvs").select("content").eq("user_id", ctx.userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    ctx.db.from("cv_documents").select("id, text_content, answers").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle(),
-    loadFacts(ctx.db, ctx.userId),
-  ]);
-  const before = (masterRow?.content as MasterCV | undefined) || null;
-  if (!before) throw new EditRefused("Create your CV first, then ask for changes.");
-  const doc = docRow as Pick<CvDocRow, "id" | "text_content" | "answers"> | null;
-
-  const refs = factRefs(facts).map(({ ref, fact }) => ({ ref, kind: fact.kind, data: fact.data, confirmed: fact.verified }));
-  const res = await runAI(ctx.admin, ctx.userId, "cv_edit", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: CV_EDIT_PROMPT({ ...before, suggestions: undefined }, refs, text), schema: CvEditSchema, maxTokens: 12000 }));
-  const out = res.data as CvEditOut;
-  if (!out.ok || !out.master) throw new EditRefused(String(out.message || "").slice(0, 300) || "We could not tell what to change. Try saying it another way, for example \"remove the skill Tally\".");
-
-  const meta = metaOf(profile);
-  const ops: FactOp[] = (out.ops || []).map((o) => ({
-    op: o.op, ref: o.ref || null, kind: o.kind, clear: o.clear || [],
-    values: Object.fromEntries((o.values || []).filter((x) => FIELDS[o.kind].includes(x.field)).map((x) => [x.field, x.value])),
-  }));
-  const plan = planFactEdits(facts, ops, text, meta.removed || []);
-  const m: MasterCV = { ...(out.master as MasterCV), improvements: before.improvements, extra_skills: before.extra_skills };
-  m.suggestions = cleanSuggestions(m, before.suggestions);
-  // A skill the person added is on the CV even if the model left it out.
-  const listed = new Set([...(m.skills_core || []), ...(m.skills_tools || [])].map(normSkill));
-  for (const f of plan.add) if (f.kind === "skill" && !listed.has(normSkill(f.data.name))) m.skills_core = [...(m.skills_core || []), skillLabel(normSkill(f.data.name))];
-  const factsChange = plan.remove.length + plan.update.length + plan.add.length;
-  if (!factsChange && JSON.stringify(m) === JSON.stringify(before)) throw new EditRefused("We could not find anything to change for that. Name the item the way it appears on your CV.");
-
-  if (plan.remove.length) {
-    const { error } = await ctx.db.from("career_facts").delete().eq("user_id", ctx.userId).in("id", plan.remove);
-    if (error) throw error;
-  }
-  for (const u of plan.update) {
-    const { error } = await ctx.db.from("career_facts").update({ data: u.data, provenance: "user", verified: true }).eq("id", u.id).eq("user_id", ctx.userId);
-    if (error) throw error;
-  }
-  if (plan.add.length) {
-    const { error } = await ctx.db.from("career_facts").insert(plan.add.map((f) => ({ ...f, user_id: ctx.userId, cv_document_id: doc?.id ?? null })));
-    if (error) throw error;
-  }
-
-  const edits = [...(meta.edits || []), text].slice(-MAX_EDITS_KEPT);
-  const removed = nextRemoved(meta.removed || [], plan);
-  const after = await loadFacts(ctx.db, ctx.userId);
-  const answersText = Object.values(doc?.answers || {}).filter(Boolean).join("\n");
-  const checked = finishMaster(m, verifiedFactsFor(after), after, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed });
-  await saveMaster(ctx, checked.master, checked.flags, true, res.usage.model, doc?.id ?? null, profile);
-  await ctx.db.from("profiles").update({ career_meta: { ...meta, edits, removed } }).eq("id", ctx.userId);
-  const message = String(out.message || "Your CV was updated.").slice(0, 300);
-  return { message: readAs ? `We read your request as: "${readAs}". ${message}` : message, flags: checked.flags };
 }
 
 /** The person chose an option for a recommended change (or dismissed it). The change is kept for later rebuilds as their own edit. */

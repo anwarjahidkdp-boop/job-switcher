@@ -231,3 +231,38 @@ describe('public Bangladesh job identity and source evidence', () => {
     await role('postgres');
   });
 });
+
+ describe("manual CV saves with no AI allowance", () => {
+  it("atomically versions the CV and matching facts, preserves answers, blocks stale and cross-user saves", async () => {
+    const owner = "88888888-8888-4888-8888-888888888888";
+    await role("postgres");
+    await db.query("insert into auth.users values($1,'manual@example.invalid')", [owner]);
+    await role("authenticated", owner);
+    const base = await scalar<string>("select replace_master_cv($1,'{}',false,null,null)", [{ name: "Manual User", experience: [] }]);
+    await db.query("insert into career_facts(user_id,kind,data,provenance,verified) values($1,'answer','{\"answer\":\"kept\"}','answer',true),($1,'skill','{\"name\":\"old skill\"}','cv',true)", [owner]);
+    const usageBefore = await scalar<number>("select count(*)::int from ai_usage where user_id=$1", [owner]);
+    const profile = (await db.query<{target_country:string;search_country_version:number}>("select target_country,search_country_version from profiles where id=$1", [owner])).rows[0];
+    const content = { name: "Updated User", summary: "Updated myself", experience: [{ title: "Manager", company: "Gentle Park", start: "2021-11", end: null, bullets: ["Monitored team activities."] }] };
+    const facts = [{ kind: "experience", data: { title: "Manager", company: "Gentle Park", start: "2021-11", end: null } }];
+    const args = [base, profile.target_country, profile.search_country_version, content, facts];
+    await role("authenticated", V);
+    await expect(db.query("select save_manual_cv($1,$2,$3,$4,$5)", args)).rejects.toThrow();
+    await role("authenticated", owner);
+    await expect(db.query("select save_manual_cv($1,$2,$3,$4,$5)", [base, profile.target_country, profile.search_country_version + 1, content, facts])).rejects.toThrow("country changed");
+    await expect(db.query("select save_manual_cv($1,$2,$3,$4,$5)", [base, profile.target_country, profile.search_country_version, content, [{ kind: "bogus", data: {} }]])).rejects.toThrow();
+    expect(await scalar<string>("select id from master_cvs where is_current")).toBe(base);
+    expect(await scalar<number>("select count(*)::int from career_facts where kind='skill'")).toBe(1);
+    const id = await scalar<string>("select save_manual_cv($1,$2,$3,$4,$5)", args);
+    expect(id).not.toBe(base);
+    expect(await scalar<string>("select full_name from profiles where id=$1", [owner])).toBe("Updated User");
+    expect(await scalar<number>("select count(*)::int from career_facts where kind='answer'")).toBe(1);
+    expect(await scalar<number>("select count(*)::int from career_facts where kind='skill'")).toBe(0);
+    expect(await scalar<boolean>("select bool_and(verified and provenance='user') from career_facts where kind='experience'")).toBe(true);
+    expect(await scalar<number>("select count(*)::int from ai_usage where user_id=$1", [owner])).toBe(usageBefore);
+    await expect(db.query("select save_manual_cv($1,$2,$3,$4,$5)", args)).rejects.toThrow("another tab");
+    expect(await scalar<string>("select id from master_cvs where is_current")).toBe(id);
+    await role("anon");
+    await expect(db.query("select save_manual_cv($1,$2,$3,$4,$5)", args)).rejects.toThrow("permission denied");
+    await role("postgres");
+  });
+ });
