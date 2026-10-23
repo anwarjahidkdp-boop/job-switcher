@@ -972,3 +972,16 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 
 .jd-application-group .jd-prepare>.btn{font-size:12px;padding:8px 10px}
 .jd-secondary>.btn{font-size:11px;padding:6px}
+
+/* The completeness notice and dashboard metrics must occupy separate rows. */
+.application-profile-notice{align-items:center;gap:14px 20px}
+.application-profile-notice>div{flex:1 1 420px;min-width:0}
+.application-profile-notice>.btn{flex:0 0 auto;white-space:nowrap}
+.application-profile-notice+.kpis{margin-top:18px}
+.dashboard-kpi-row .kpis{margin:0}
+@media(max-width:600px){.application-profile-notice>.btn{width:100%}}
+
+.application-profile-notice{background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));border-left:4px solid var(--bad);border-radius:14px;margin-bottom:18px;padding:18px 20px;box-shadow:0 5px 18px rgba(180,35,24,.06)}
+.application-notice-title{display:flex;align-items:center;gap:10px;color:var(--bad);line-height:1.45}
+.application-notice-title svg{flex:none}
+.application-profile-notice>.btn{border-color:var(--bad);background:var(--card);color:var(--bad)}
