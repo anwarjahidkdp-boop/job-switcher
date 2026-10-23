@@ -35,8 +35,8 @@ export function ManualCvEditor({ initial, baseId, country, revision }: { initial
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   const field = (label: string, value: string, change: (v: string) => void, multiline = false, type = "text") => <label className="stack small" style={{ gap: 4 }}><span>{label}</span>{multiline ? <textarea rows={4} value={value} onChange={e => change(e.target.value)} /> : <input type={type} value={value} onChange={e => change(e.target.value)} />}</label>;
-  return <section className="card panel" style={{ marginBottom: 14 }} aria-label="Edit your CV">
-    {!open ? <><div className="row"><button type="button" className="btn btn-primary btn-sm" onClick={start}>Edit CV</button><span className="small muted">Edit it yourself and save. No AI charge.</span></div>{notice ? <p role="status" className="note" style={{ marginTop: 8 }}>{notice}</p> : null}</> : <form onSubmit={e => { e.preventDefault(); save(); }}>
+  return <section className={open ? "card panel" : undefined} style={{ marginBottom: open ? 14 : 8 }} aria-label="Edit your CV">
+    {!open ? <><div className="row" style={{ justifyContent: "flex-end" }}><button type="button" className="btn btn-primary btn-sm" aria-expanded={open} onClick={start}><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/></svg>Edit CV</button></div>{notice ? <p role="status" className="note" style={{ marginTop: 8 }}>{notice}</p> : null}</> : <form onSubmit={e => { e.preventDefault(); save(); }}>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}><h3>Edit your CV</h3><span className="small muted">No AI charge</span></div>
       <fieldset disabled={busy} className="stack" style={{ border: 0, padding: 0, margin: 0, minWidth: 0, gap: 14 }}>
         {field("Full name", cv.name, name => setCv({ ...cv, name }))}

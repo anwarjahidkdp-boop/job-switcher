@@ -903,3 +903,19 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .legal ul{list-style:disc;padding-left:22px;margin:6px 0 10px;display:flex;flex-direction:column;gap:5px}
 .legal hr{border:0;border-top:1px solid var(--line);margin:24px 0 14px}
 @media (max-width:600px){.legal{padding:18px 16px}}
+
+/* Profile cards share a clear hierarchy while important settings stand out. */
+.profile-card{--card-tone:var(--accent);--card-tint:var(--accent-soft);border-top:3px solid var(--card-tone)}
+.profile-card[data-tone="good"]{--card-tone:var(--good);--card-tint:var(--good-soft)}
+.profile-card[data-tone="warn"]{--card-tone:var(--warn);--card-tint:var(--warn-soft)}
+.profile-card .profile-card-title{display:flex;align-items:center;gap:10px;line-height:1.4;margin-bottom:14px}
+.profile-card-title>span:last-child{min-width:0}
+.profile-card-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:1px solid color-mix(in srgb,var(--card-tone) 22%,transparent);border-radius:11px;background:var(--card-tint);color:var(--card-tone)}
+.profile-country{background:linear-gradient(135deg,var(--accent-soft),var(--card) 80%);border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-top:3px solid var(--accent)}
+.profile-card-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.profile-card-topline .profile-card-title{margin-bottom:0}
+.profile-card-topline>.pill{font-size:11px;margin-top:7px}
+.profile-country .f{margin-top:14px}
+.profile-country select{background-color:var(--card);border-color:color-mix(in srgb,var(--accent) 35%,var(--line));font-weight:600}
+.profile-sidebar .profile-card>.stack>div{padding:5px 0;border-bottom:1px solid var(--line)}
+.profile-sidebar .profile-card>.stack>div:last-child{border-bottom:0}

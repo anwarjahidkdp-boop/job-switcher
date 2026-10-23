@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { useRouter } from "next/navigation";
 import { addSkillAction, reviewFactAction, setCountryAction, setNeedsVisaAction } from "@/app/actions";
 import { CountrySelect } from "@/components/CountrySelect";
@@ -11,7 +12,7 @@ export function CountryPanel({ current, needsVisa, homeCountry }: { current: str
   const router = useRouter();
   const [selected, setSelected] = useState(current);
   return (
-    <div className="card panel"><h3>Job-search country</h3>
+    <div className="card panel profile-card profile-country" data-tone="accent"><div className="profile-card-topline"><ProfileCardTitle icon="country">Job-search country</ProfileCardTitle><span className="pill p-neutral">Active search</span></div>
       <p className="small">Subscription country: <b>{rule(homeCountry).name}</b> (fixed). Searching abroad keeps the same subscription.</p>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
         <CountrySelect id="countrysel" value={selected} disabled={pending} label="Target country" first={homeCountry} onChange={setSelected} />
@@ -87,7 +88,7 @@ export function GmailPanel({ email, status, ready }: { email: string | null; sta
   const router = useRouter();
   const note = status === "connected" ? "Gmail connected." : status === "failed" ? "Gmail could not be connected. Try again." : status === "cancelled" ? "Gmail was not connected." : "";
   return (
-    <div className="card panel"><h3>Apply from your Gmail</h3>
+    <div className="card panel profile-card" data-tone="accent"><ProfileCardTitle icon="email">Apply from your Gmail</ProfileCardTitle>
       {note ? <p className="note" style={{ marginBottom: 8 }}>{note}</p> : null}
       {!ready ? <>
         <p className="small muted">Gmail sending is awaiting server setup. You can still download your CV and cover letter and send them from your email.</p>
