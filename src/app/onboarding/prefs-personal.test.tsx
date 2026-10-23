@@ -19,10 +19,17 @@ it('asks for a missing Bangladesh birth date while keeping other missing persona
 it('does not ask home-country permission, sponsorship, relocation or manual target roles',()=>{
  const html=renderToStaticMarkup(<PrefsStep {...props} personal={{}} refs={{mode:'list',count:2}}/>);
  for(const label of ['Do you have permission','Do you need employer sponsorship','Are you willing to relocate','Target roles (comma separated)'])expect(html).not.toContain(label);
- expect(html).toContain('Career target from your CV');expect(html).toContain('References (optional)');expect(html).toContain('You can skip this and continue');
+ expect(html).toContain('Career target from your CV');expect(html).toContain('References ');expect(html).toContain('(optional)');expect(html).toContain('You can skip this and continue');
  expect(html).not.toMatch(/required[^>]*id="ref/);
 });
 it('retains work permission and sponsorship questions for foreign searches',()=>{
  const html=renderToStaticMarkup(<PrefsStep {...props} abroad country="GB" countryLabel="United Kingdom" personal={{}}/>);
  expect(html).toContain('Do you have permission');expect(html).toContain('Do you need employer sponsorship');
+});
+
+it('keeps optional referee fields collapsed until the user opens them',()=>{
+ const html=renderToStaticMarkup(<PrefsStep {...props} personal={{}} refs={{mode:'list',count:2}}/>);
+ expect(html).toMatch(/<details[^>]*><summary class="reference-toggle"/);
+ expect(html).not.toMatch(/<details[^>]*open[^>]*><summary class="reference-toggle"/);
+ expect(html).toContain('Open to add or edit');
 });

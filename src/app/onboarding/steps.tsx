@@ -286,7 +286,6 @@ function NoCvForm({ disabled, onSubmit, onBack }: { disabled: boolean; onSubmit:
 export type PersonalField = { k: Exclude<keyof PersonalDetails, "references">; label: string; hint: string };
 const emptyRef = (): Referee => ({ name: "", title: "", org: "", phone: "", email: "", relation: "" });
 export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean; country: string; revision: number; needsVisa: boolean; abroad: boolean }) {
-  const router = useRouter();
   const [p, setP] = useState({ roles: props.initial.roles || "", locations: props.initial.locations || "", salaryMin: props.initial.salaryMin ?? "", salaryMax: props.initial.salaryMax ?? "", notice: props.initial.notice ?? "", mode: props.initial.mode || "On-site" });
   const [authorization,setAuthorization]=useState(props.answers?.workAuthorization||(!props.abroad?"yes":"unknown"));
   const [sponsor,setSponsor]=useState<boolean|null>(props.answers?.sponsorshipRequired??(!props.abroad?false:null));
@@ -298,7 +297,6 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
   const [refs, setRefs] = useState<Referee[]>(() => { const r = (props.personal.references || []).map((x) => ({ ...emptyRef(), ...x })); while (r.length < props.refs.count) r.push(emptyRef()); return r.slice(0, props.refs.count); });
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
-  const [, start] = useTransition();
   const upd = (k: keyof typeof p) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setP({ ...p, [k]: e.target.value });
   async function submit() {
     setErr("");
@@ -307,10 +305,11 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
       if(missing.length)throw new Error(`Complete required matching details: ${missing.join(", ")}.`);
       setBusy("Saving your preferences");
       await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: sponsor===true,readiness:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:props.answers?.willingToRelocate}, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
-      if (props.editing) { start(() => router.push("/profile")); return; }
+      // Route-handler saves do not clear prefetched client redirects. Read the saved state in a fresh navigation.
+      if (props.editing) { window.location.replace("/profile"); return; }
       setBusy("Preparing your CV for this country using your saved career information.");
       await post("/api/cv/build", {});
-      router.refresh();
+      window.location.replace("/onboarding");
     } catch (e) { setErr((e as Error).message); setBusy(""); }
   }
   return (
@@ -341,8 +340,8 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
         </div>
       ) : null}
       {props.refs.mode === "list" ? (
-        <div className="card panel stack" style={{ marginTop: 14 }}>
-          <h3 style={{ margin: 0 }}>References (optional)</h3>
+        <details className="card panel reference-card" style={{ marginTop: 14 }}>
+          <summary className="reference-toggle"><span>References <span className="muted">(optional)</span></span><span className="small muted">Open to add or edit</span></summary>
           <p className="small muted">You can skip this and continue. Add referees only with their permission. A specific vacancy may request references later. Until you add them, your CV says &quot;Available on request&quot;.</p>
           {refs.map((r, i) => (
             <fieldset key={i} className="ref-box">
@@ -354,7 +353,7 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
               </div>
             </fieldset>
           ))}
-        </div>
+        </details>
       ) : null}
       {!props.fields.length ? <p className="note" style={{ marginTop: 14 }}>{props.countryLabel} CVs leave out photo, date of birth and marital status, so we will not add them.</p> : null}
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
