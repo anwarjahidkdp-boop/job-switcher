@@ -26,6 +26,8 @@ export interface CareerMeta {
   location: string | null;
   /** Instructions from "Ask AI to change your CV", so a Master CV rebuild follows them too. Reset by a new CV. */
   edits?: string[];
+  /** Manual edits are authoritative and can be reused without another AI rebuild. */
+  manual_cv?: boolean;
   /** Items the person removed that way; the original CV text still has them. */
   removed?: RemovedItem[];
 }

@@ -285,3 +285,9 @@ insert into ingestion_sources (kind, name, url, board_token, country, company) v
 ```
 
 Only add pages that are public and whose terms allow automated reading. The ingester identifies itself as `JobPaoBot`. It skips a page when robots.txt disallows it or cannot be read.
+
+### Manual CV editing
+
+Profile and the onboarding CV preview offer **Edit CV** above the CV. Users can edit text, roles, dates, education, certification status, skills and languages, then save or cancel. Editing has no AI charge, works without AI credentials and does not consume application allowance. `/api/cv/edit` is retired with HTTP 410 so stale chat tabs cannot start paid edits.
+
+`POST /api/cv/manual` validates the fields and calls the user-scoped `save_manual_cv` transaction. It versions the Master CV and replaces its matching facts together, preserves interview answers and existing application history, and refuses stale CV versions or changed search countries. Manually saved CVs are reused without an AI rebuild; uploading a new CV starts the normal extraction flow again. Existing prepared applications remain snapshots.
