@@ -1,6 +1,6 @@
 // Deterministic job matching, ported faithfully from the prototype's scoreJob().
 // Weights: role 25, skills 25, exp 15, sen 10, ind 7, edu 6, cert 5, loc 4, sal 3.
-// Bands: >=85 Excellent, >=70 Strong, >=55 Possible, else Low.
+// Bands: >=90 Strong Fit, >=80 Best Fit, >=70 Good Fit, 55–69 Stretch Opportunity, below 55 Explore Further.
 // A required certification not fully held, or no visa sponsorship when the user needs it, caps the score at 69.
 import { money, HOME_COUNTRY, type CountryCode } from "./countries";
 import { daysUntil } from "./dates";
@@ -13,10 +13,14 @@ export const W = { role: 25, skills: 25, exp: 15, sen: 10, ind: 7, edu: 6, cert:
 type Factor = keyof typeof W;
 export const FACTOR_REASON: Record<Factor, string> = { role: "Role fit", skills: "Missing skill", exp: "Experience requirement", sen: "Seniority mismatch", ind: "Industry mismatch", edu: "Education requirement", cert: "Certification requirement", loc: "Location mismatch", sal: "Salary mismatch" };
 export const CAP_SCORE = 69;
-export const BAND: Record<Band, [string, string, string]> = { ex: ["Strong Fit", "p-ex", "band-ex"], st: ["Good Fit, Competitive", "p-st", "band-st"], po: ["Stretch Opportunity", "p-po", "band-po"], lo: ["Low Fit", "p-lo", "band-lo"] };
+export const BAND: Record<Band, [string, string, string]> = { ex: ["Strong Fit", "p-ex", "band-ex"], st: ["Best Fit", "p-st", "band-st"], po: ["Good Fit", "p-po", "band-po"], lo: ["Stretch Opportunity", "p-lo", "band-lo"] };
 
 export function bandOf(score: number): Band {
-  return score >= 85 ? "ex" : score >= 70 ? "st" : score >= 55 ? "po" : "lo";
+  return score >= 90 ? "ex" : score >= 80 ? "st" : score >= 70 ? "po" : "lo";
+}
+
+export function fitLabel(score: number): string {
+  return score < 55 ? "Explore Further" : BAND[bandOf(score)][0];
 }
 
 export const hasSkillSet = (P: MatchProfile) => new Set(P.skills.map((s) => s.name));

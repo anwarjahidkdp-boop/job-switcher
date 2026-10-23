@@ -8,7 +8,7 @@ import { completeness } from "@/lib/facts";
 import { cname, money, perLabel, portals } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { skillLabel } from "@/lib/taxonomy";
-import { BAND } from "@/lib/matching";
+import { fitLabel } from "@/lib/matching";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { Ring, DeadlineChip, BandPill } from "@/components/ui";
 import { appliedAction } from "@/app/actions";
@@ -168,10 +168,10 @@ function OppRow({ x, today, status, ai }: { x: Scored; today: string; status?: k
         <h4>{job.title}</h4>
         <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{job.salaryMax ? ` · ${money(job.salaryMin, job.country)}–${money(job.salaryMax, job.country)}${perLabel(job.country)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
         <div className="why">{m.matched.slice(0, 3).map((t) => "✓ " + t).join(" · ")}{m.gaps[0] ? <> · <span style={{ color: "var(--warn)" }}>⚠ {m.gaps[0].t.split(";")[0]}</span></> : null}</div>
-        {ai?.fit === "strong" ? <span className="chip-chance high">Strong Fit</span> : ai?.fit === "partial" && m.score >= 60 ? <span className="chip-chance">Good Fit, Competitive</span> : ai?.fit === "partial" ? <span className="chip-chance low">Stretch Opportunity</span> : null}
+        <span className={`chip-chance ${m.score >= 90 ? "high" : m.score < 70 ? "low" : ""}`}>{fitLabel(m.score)}</span>
         {ai?.reason ? <div className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`}><b>AI fit check:</b> {ai.reason}</div> : null}
       </div>
-      <div className="dlc stack" style={{ gap: 6, alignItems: "flex-end" }}><DeadlineChip deadline={job.deadline} today={today} />{status ? <span className="pill p-neutral">{STATUS_LABEL[status]}</span> : null}<span className="hide">{BAND[m.band][0]}</span></div>
+      <div className="dlc stack" style={{ gap: 6, alignItems: "flex-end" }}><DeadlineChip deadline={job.deadline} today={today} />{status ? <span className="pill p-neutral">{STATUS_LABEL[status]}</span> : null}<span className="hide">{fitLabel(m.score)}</span></div>
     </Link>
   );
 }

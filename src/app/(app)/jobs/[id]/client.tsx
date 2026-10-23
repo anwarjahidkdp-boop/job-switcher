@@ -49,7 +49,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
             <a className="btn btn-ghost btn-sm" href={`/api/cv/download?format=print&jobId=${props.jobId}`} target="_blank" rel="noopener">Save as PDF</a>
           </div>
         </div>
-        {t === "cover" ? <><div className="copybox">{props.cover}</div><div style={{ marginTop: 10 }}><CopyButton text={props.cover} label="Copy cover letter" /></div></> : null}
+        {t === "cover" ? <><div className="copybox">{props.cover}</div><div className="row" style={{ marginTop: 10 }}><a className="btn btn-ghost btn-sm" href={`/api/cv/download?document=cover&format=print&auto=1&jobId=${props.jobId}`} target="_blank" rel="noopener">Save cover letter as PDF</a><a className="btn btn-ghost btn-sm" href={`/api/cv/download?document=cover&format=doc&jobId=${props.jobId}`}>Download cover letter (Word)</a><CopyButton text={props.cover} label="Copy cover letter" /></div></> : null}
         {t === "email" ? <>
           <p className="small muted">To: {props.to || "(the employer's address, if they accept email)"}</p>
           <p className="small" style={{ margin: "6px 0" }}><b>Subject:</b> {props.subject}</p>
@@ -58,7 +58,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
             <CopyButton text={props.subject} label="Copy subject" /><CopyButton text={props.email} label="Copy email" />
             {props.to ? <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a> : null}
           </div>
-          <p className="small muted" style={{ marginTop: 8 }}>When you send it yourself, attach your tailored CV. JobPao never sends anything without your press.</p>
+          <p className="small muted" style={{ marginTop: 8 }}>When you send it yourself, paste the email body and attach your tailored CV plus the cover letter when requested. Save both as PDF from their tabs, or use Word if the employer accepts it. Opening your email app does not attach files automatically. JobPao never sends anything without your press.</p>
         </> : null}
         {t === "check" ? <ul className="why-list">{props.checklist.map((c) => <li key={c}><span className="mk ok">✓</span><span>{c}</span></li>)}</ul> : null}
       </div>
@@ -110,14 +110,14 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
   }
 
   if (busy) return <><p><Spinner /> {busy}</p>{busy.startsWith("Preparing") ? <p className="small muted" style={{ marginTop: 8 }}>Tailoring your CV and writing a cover letter from your verified profile.</p> : null}</>;
-  const gmailNote = p.gmailStatus === "connected" ? "Gmail connected. You can now apply in one tap." : p.gmailStatus === "failed" ? "Gmail could not be connected. Try again." : p.gmailStatus === "cancelled" ? "Gmail was not connected." : "";
+  const gmailNote = p.gmailStatus === "connected" ? "Gmail connected. Review and send this email application." : p.gmailStatus === "failed" ? "Gmail could not be connected. Try again." : p.gmailStatus === "cancelled" ? "Gmail was not connected." : "";
   if (mode === "send") return (
     <>
       <h3>Send this application?</h3>
       <ul className="small" style={{ paddingLeft: 18, margin: "8px 0 0" }}>
         <li>To: <b>{p.applyTarget}</b></li>
         <li>From: <b>{p.gmail}</b></li>
-        <li>Attached: your tailored CV and cover letter</li>
+        <li>Attached: your tailored CV and cover letter (Word files)</li>
       </ul>
       <p className="small muted" style={{ marginTop: 8 }}>Check the Tailored CV, Cover letter and Email tabs first. The email is sent only when you press Send.</p>
       <div className="row" style={{ marginTop: 12 }}>
@@ -171,23 +171,26 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
     <>
       {remind}
       <h3>Your application is ready</h3>
+      {!em ? <p className="small muted">Complete and submit the form on the employer’s website. JobPao prepares your documents and tracks your confirmation; it does not automatically fill or submit external forms.</p> : !p.gmailReady ? <p className="small muted">Direct Gmail sending is not configured on this server. Use the Email tab to send the application yourself.</p> : null}
       {gmailNote ? <p className="note" style={{ marginTop: 8 }}>{gmailNote}</p> : null}
-      {em && p.gmailReady ? (
+      {em ? (
         <div className="stack" style={{ marginTop: 10, gap: 8 }}>
-          {p.gmail
-            ? <button className="btn btn-primary" onClick={() => { setErr(""); setMode("send"); }}>Apply now from {p.gmail}</button>
-            : <a className="btn btn-primary" href={`/api/gmail/connect?next=${encodeURIComponent(`/jobs/${p.jobId}`)}`}>Connect Gmail to apply in one tap</a>}
-          <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, JobPao sends each application from your Gmail when you press Apply. We can only send, never read your email."}</p>
+          {!p.gmailReady
+            ? <button className="btn btn-ghost" disabled>Gmail setup pending</button>
+            : p.gmail
+            ? <button className="btn btn-primary" onClick={() => { setErr(""); setMode("send"); }}>Review and send from {p.gmail}</button>
+            : <a className="btn btn-primary" href={`/api/gmail/connect?next=${encodeURIComponent(`/jobs/${p.jobId}`)}`}>Connect Gmail to send applications</a>}
+          {p.gmailReady ? <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, JobPao sends each application from your Gmail after you review and press Send application. We can only send, never read your email."}</p> : null}
           <p className="small muted" style={{ marginTop: 4 }}>Or send it yourself:</p>
         </div>
       ) : null}
       <ol className="small" style={{ paddingLeft: 18, margin: "8px 0 0" }}>
-        {em ? <><li>Copy the email and send it to <b>{p.applyTarget}</b> from your own email</li><li>Attach your tailored CV</li><li>Come back and confirm</li></>
-          : <><li>Open the application page</li><li>Upload your tailored CV</li><li>Paste the cover letter and answers</li><li>Submit, then confirm here</li></>}
+        {em ? <><li>Copy the email and send it to <b>{p.applyTarget}</b> from your own email</li><li>Attach your tailored CV and the cover letter if requested (PDF or an accepted Word file)</li><li>Come back and confirm</li></>
+          : <><li>Open the application page</li><li>Upload your tailored CV</li><li>Upload the cover letter PDF or paste it into the cover-letter field, as requested</li><li>Submit, then confirm here</li></>}
       </ol>
       <div className="row" style={{ marginTop: 12 }}>
         {p.url && !em
-          ? <a className="btn btn-primary btn-sm" href={p.url} target="_blank" rel="noopener noreferrer nofollow" onClick={() => act(() => openedAction(p.jobId))}>Open Application Page</a>
+          ? <a className="btn btn-primary btn-sm" href={p.url} target="_blank" rel="noopener noreferrer nofollow" onClick={() => act(() => openedAction(p.jobId))}>Open employer application</a>
           : <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => act(() => openedAction(p.jobId))}>{em ? "I have sent the email" : "I opened the application"}</button>}
         <button className="btn btn-ghost btn-sm" onClick={() => setMode("later")}>{p.status === "reminder" ? "Change reminder" : "Apply later"}</button>
       </div>

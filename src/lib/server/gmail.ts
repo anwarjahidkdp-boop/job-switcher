@@ -6,7 +6,7 @@ import { publicEnv } from "../env";
 import { openToken, sealToken } from "../gmail/crypto";
 import { base64url, buildMime, cleanAddress, fromHeader } from "../gmail/mime";
 import { cvDocHtml, safeFileName } from "../cv/doc";
-import { esc } from "../cv/render";
+import { coverLetterDocHtml } from "../cv/cover-letter";
 import { loadState } from "./state";
 import { rowToJob, type JobRow } from "../jobs";
 import { applicationSafety, type AnswerLibrary } from "../career-safety";
@@ -73,11 +73,6 @@ export async function disconnectGmail(admin: SupabaseClient, userId: string) {
   await admin.from("gmail_connections").delete().eq("user_id", userId);
 }
 
-function coverLetterDoc(name: string, letter: string): string {
-  const paras = letter.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
-  return `<html><head><meta charset="utf-8"><title>${esc(name)} – Cover letter</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.45}p{margin:0 0 10pt}</style></head><body>${paras}</body></html>`;
-}
-
 /** The user pressed Apply: send the prepared application from their Gmail, then record it as applied. */
 export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: string; from: string }> {
   if (!gmailConfigured()) throw new GmailError("not_connected", "Sending from Gmail is not set up on this server yet.");
@@ -108,7 +103,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
     from: fromHeader(master.name, conn.google_email), to, subject: app.pack.email_subject, text: app.pack.email_body,
     attachments: [
       { filename: `${base}-CV.doc`, contentType: "application/msword", content: cv },
-      ...(app.pack.cover_letter ? [{ filename: `${base}-Cover-Letter.doc`, contentType: "application/msword", content: coverLetterDoc(master.name, app.pack.cover_letter) }] : []),
+      ...(app.pack.cover_letter ? [{ filename: `${base}-Cover-Letter.doc`, contentType: "application/msword", content: coverLetterDocHtml(master.name, app.pack.cover_letter) }] : []),
     ],
   });
 
