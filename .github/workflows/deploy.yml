@@ -73,6 +73,11 @@ jobs:
           fi
       # Settings first, so the new code never starts with old settings. Roll back a bad release with: npx wrangler rollback
       - run: npx wrangler deploy
+      - name: Verify production health
+        env:
+          APP_ORIGIN: ${{ secrets.APP_URL || 'https://jobpao.app' }}
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 --max-time 30 "$APP_ORIGIN/api/health" | jq -e '.ok == true'
       - name: Tell the owner it failed
         if: failure()
         env:

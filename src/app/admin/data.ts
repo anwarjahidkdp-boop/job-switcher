@@ -111,7 +111,7 @@ export async function loadJobs(admin: SupabaseClient, k: string): Promise<{ rows
 }
 
 export async function loadSources(admin: SupabaseClient, onlyFailing: boolean): Promise<AdminSource[]> {
-  let q = admin.from("ingestion_sources").select("id, kind, name, country, active, last_status, last_error, last_run_at, jobs_found").eq("active", true).order("last_status").order("jobs_found", { ascending: false, nullsFirst: false });
+  let q = admin.from("ingestion_sources").select("id, kind, name, country, active, last_status, last_error, last_run_at, jobs_found").or("active.eq.true,last_status.eq.access_required").order("last_status").order("jobs_found", { ascending: false, nullsFirst: false });
   if (onlyFailing) q = q.eq("last_status", "error");
   const { data, error } = await q;
   if (error) throw new Error(error.message);

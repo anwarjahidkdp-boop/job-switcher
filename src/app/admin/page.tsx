@@ -52,7 +52,7 @@ export default async function AdminDashboard() {
       <SiteHeader inApp={false} signedIn />
       <main><div className="wrap">
         <PageHead kicker="Admin" title={<>JobPao <span>dashboard</span></>} sub="Live numbers from the database. Times in Dhaka time." />
-        <div className="row" style={{ marginTop: 10 }}><Link className="btn btn-ghost btn-sm" href="/admin/payments">bKash payments{s.pending_payments ? ` (${s.pending_payments} to review)` : ""}</Link></div>
+        <div className="row" style={{ marginTop: 10 }}><Link className="btn btn-ghost btn-sm" href="/admin/payments">bKash payments{s.pending_payments ? ` (${s.pending_payments} to review)` : ""}</Link><Link className="btn btn-ghost btn-sm" href="/admin/list?k=source_documents">Circulars awaiting review</Link></div>
 
         <h2 style={{ fontSize: 20, marginTop: 22 }}>Users</h2>
         <Tiles items={[["Total users", s.users, undefined, "users"], ["Finished onboarding", s.onboarded, pct(s.onboarded, s.users), "onboarded"], ["Did not finish onboarding", s.users - s.onboarded, undefined, "not_onboarded"], ["New in 7 days", s.signups_7d, undefined, "new7"], ["New in 30 days", s.signups_30d, undefined, "new30"]]} />

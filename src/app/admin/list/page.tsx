@@ -39,6 +39,11 @@ export default async function AdminList({ searchParams }: { searchParams: Promis
     title = kind === "jobs_new" ? "Jobs added in the last 24 hours" : code ? `Active jobs in ${cname(code)}` : "Active jobs";
     count = total > rows.length ? `${total} (newest ${rows.length} shown)` : total;
     body = <JobTable rows={rows} />;
+  } else if (kind === "source_documents") {
+    const { data: rows, error } = await admin.from("source_documents").select("id,title,url,kind,state,reason").neq("state", "processed").order("last_seen_at", { ascending: false }).limit(200);
+    if (error) throw error;
+    title = "Circulars awaiting extraction or verification"; count = rows?.length || 0;
+    body = <div className="stack" style={{ marginTop: 16 }}>{(rows || []).map(d => <div className="card panel" key={d.id}><h3>{d.title}</h3><p className="small">{d.kind} · {d.state}</p><p>{d.reason}</p>{/^https?:\/\//i.test(d.url) ? <a href={d.url} target="_blank" rel="noopener noreferrer nofollow">View source circular ↗</a> : null}</div>)}</div>;
   } else if (kind === "sources" || kind === "sources_failing") {
     const rows = await loadSources(admin, kind === "sources_failing");
     title = kind === "sources_failing" ? "Job sources failing" : "Job sources";

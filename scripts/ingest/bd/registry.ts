@@ -1,0 +1,20 @@
+export interface BangladeshSource {key:string;name:string;url:string;type:'portal'|'employer'|'government'|'newspaper'|'weeklypaper';mode:'jsonld'|'dohaj'|'labelled'|'newspaper'|'documents'|'teletalk';detail:RegExp;pageParam?:string;company?:string;authority?:boolean;enabled:boolean;note?:string}
+export const BD_SOURCES:BangladeshSource[]=[
+ {key:'dohaj',name:'Dohaj',url:'https://dohaj.com/jobs/all',type:'portal',mode:'dohaj',detail:/^\/job-details\/[^/]+$/,pageParam:'page',enabled:true},
+ {key:'skilljobs',name:'Skill.Jobs (formerly JobsBD)',url:'https://skill.jobs/browse-jobs',type:'portal',mode:'jsonld',detail:/^\/jobs\/[^/]+$/,pageParam:'page',enabled:true},
+ {key:'nextjobz',name:'NextJobz',url:'https://nextjobz.com.bd/jobs',type:'portal',mode:'jsonld',detail:/^\/jobs\/[^/]+$/,pageParam:'page',enabled:true},
+ {key:'bdrecruit',name:'bdRecruit',url:'https://bdrecruit.net/bdjobs',type:'portal',mode:'jsonld',detail:/^\/jobs-in-bd\/[^?#]+$/,pageParam:'page',enabled:true},
+ {key:'jobcombd',name:'Job.com.bd',url:'https://job.com.bd/jobs/',type:'portal',mode:'labelled',detail:/^\/jobs\/details\/?$/,pageParam:'page',enabled:true},
+ {key:'morejobs',name:'MoreJobs',url:'https://morejobsbd.com/job-lists',type:'portal',mode:'labelled',detail:/^\/job-list\/\d+\/details$/,pageParam:'page',enabled:true},
+ {key:'jagojobs',name:'JagoJobs',url:'https://jagojobs.com/all-jobs',type:'portal',mode:'labelled',detail:/^\/[^/]+\/\d+$/,pageParam:'page',enabled:false,note:'Detail links need validation; do not fabricate URLs'},
+ {key:'bdjobstoday',name:'BDJobsToday',url:'https://www.bdjobstoday.com/',type:'portal',mode:'labelled',detail:/^\/(?:hot)?jobs?_details\.php$/,enabled:true},
+ {key:'dhakapost',name:'Dhaka Post Jobs',url:'https://www.dhakapost.com/jobs-career',type:'newspaper',mode:'newspaper',detail:/^\/jobs-career\/\d+$/,pageParam:'page',enabled:true},
+ {key:'prothomalo',name:'Prothom Alo Chakri',url:'https://www.prothomalo.com/chakri/employment',type:'newspaper',mode:'newspaper',detail:/^\/chakri\/(?:employment|advice|interview)\/[^/]+$/,enabled:true},
+ {key:'chakrirkhabar',name:'Saptahic Chakrir Khabar',url:'https://www.saptahicchakrirkhabar.com/job-list',type:'weeklypaper',mode:'labelled',detail:/^\/explore-job$/,pageParam:'page',enabled:true},
+ {key:'chakrirkhabar-epaper',name:'Saptahic Chakrir Khabar E-paper',url:'https://www.saptahicchakrirkhabar.com/gallery',type:'weeklypaper',mode:'documents',detail:/\.(?:pdf|jpe?g|png|webp)$/i,enabled:true},
+ {key:'sdf',name:'Social Development Foundation',url:'https://www.sdf.org.bd/career-opportunities',type:'employer',mode:'documents',detail:/\.pdf$/i,authority:true,company:'Social Development Foundation',enabled:true},
+ {key:'bdjobs',name:'Bdjobs',url:'https://jobs.bdjobs.com/jobsearch-cache.asp',type:'portal',mode:'jsonld',detail:/^\/jobdetails\.asp$/,enabled:false,note:'robots.txt disallows JobPaoBot; needs permitted feed/API access. Existing user alert import remains available'},
+ {key:'alljobs',name:'Alljobs Teletalk',url:'https://alljobs.teletalk.com.bd/',type:'government',mode:'teletalk',detail:/^\/[^?#]+$/,authority:true,enabled:true},
+ {key:'nrbjobs',name:'NRBJobs',url:'https://www.nrbjobs.com/',type:'portal',mode:'labelled',detail:/^\/jobs\//,enabled:false,note:'Provider currently redirects to Account Suspended'},
+ {key:'reliefweb',name:'ReliefWeb Bangladesh',url:'https://reliefweb.int/jobs?advanced-search=(C31)',type:'portal',mode:'jsonld',detail:/^\/job\//,enabled:false,note:'Official API requires an approved appname; approval not yet available'},
+];

@@ -208,3 +208,26 @@ describe("fixed billing country and destination setup", () => {
     await role("postgres");
   });
 });
+
+describe('public Bangladesh job identity and source evidence', () => {
+  it('merges a repeated hiring round while retaining both portals and rejecting client RPC access', async () => {
+    await role('postgres');
+    const s1 = await scalar<string>("insert into ingestion_sources(kind,name,country,active,source_type,url,board_token) values('bdweb','Synthetic Portal One','BD',true,'portal','https://one.invalid','synthetic-one') returning id");
+    const s2 = await scalar<string>("insert into ingestion_sources(kind,name,country,active,source_type,url,board_token) values('bdweb','Synthetic Portal Two','BD',true,'portal','https://two.invalid','synthetic-two') returning id");
+    const job = { owner_id: null, is_sample: false, country: 'BD', title: 'Synthetic Accountant', company: 'Synthetic Employer', deadline: '2099-11-01', external_id: 'one', url: 'https://one.invalid/job', description: 'Verified synthetic description' };
+    const row = { canonical_key: 'a'.repeat(64), discovered_url: job.url, original_url: 'https://employer.invalid/careers', data: job };
+    await role('authenticated', U);
+    await expect(db.query('select ingest_public_jobs($1,$2)', [s1, [row]])).rejects.toThrow();
+    await role('service_role');
+    expect(await scalar('select ingest_public_jobs($1,$2)', [s1, [row]])).toMatchObject({ inserted: 1, occurrences: 1 });
+    expect(await scalar('select ingest_public_jobs($1,$2)', [s2, [{ ...row, discovered_url: 'https://two.invalid/job', data: { ...job, external_id: 'two' } }]])).toMatchObject({ inserted: 0, occurrences: 1 });
+    expect(await scalar<number>("select count(*)::int from jobs where company='Synthetic Employer'")).toBe(1);
+    expect(await scalar<number>("select count(*)::int from job_source_occurrences where source_id in ($1,$2)", [s1,s2])).toBe(2);
+    expect(await scalar('select ingest_public_jobs($1,$2)', [s1, [{ ...row, canonical_key: 'b'.repeat(64), data: { ...job, external_id: 'expired', deadline: '2000-01-01' } }]])).toMatchObject({ inserted: 0, occurrences: 0 });
+    await role('authenticated', U);
+    expect(await scalar<number>("select count(*)::int from job_source_occurrences where source_id in ($1,$2)", [s1,s2])).toBe(2);
+    await expect(db.query('select * from job_canonical_keys')).rejects.toThrow('permission denied');
+    await expect(db.query("insert into source_documents(source_id,url,title,kind,state) values($1,'https://one.invalid/scan','Scan','image','needs_review')", [s1])).rejects.toThrow();
+    await role('postgres');
+  });
+});
