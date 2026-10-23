@@ -919,3 +919,8 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .profile-country select{background-color:var(--card);border-color:color-mix(in srgb,var(--accent) 35%,var(--line));font-weight:600}
 .profile-sidebar .profile-card>.stack>div{padding:5px 0;border-bottom:1px solid var(--line)}
 .profile-sidebar .profile-card>.stack>div:last-child{border-bottom:0}
+
+.jd-prepare{margin-left:auto;max-width:100%}
+.jd-prepare>.btn{white-space:nowrap}
+.jd-prepare>p{margin-top:8px;max-width:300px}
+@media(max-width:600px){.jd-prepare{margin-left:0}}

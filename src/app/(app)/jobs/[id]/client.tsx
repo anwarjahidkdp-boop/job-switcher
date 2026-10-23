@@ -68,7 +68,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
 
-export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; aiLeft?: string | null }) {
+export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<"main" | "later" | "notyet" | "send">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
   const [busy, setBusy] = useState("");
@@ -81,15 +81,6 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
   const em = p.applyMethod === "email";
   const act = (f: () => Promise<unknown>) => start(async () => { setErr(""); try { await f(); router.refresh(); } catch (e) { setErr((e as Error).message || "Something went wrong."); } });
 
-  async function prepare() {
-    setBusy("Preparing your application"); setErr("");
-    const r = await fetch(`/api/applications/${p.jobId}/prepare`, { method: "POST" });
-    const j = await r.json().catch(() => ({}));
-    setBusy("");
-    if (!r.ok) { setErr(j.error || "Could not prepare the application."); return; }
-    if (j.notice) setNotice(j.notice);
-    router.refresh();
-  }
   async function send() {
     setBusy("Sending your application from " + p.gmail); setErr("");
     const r = await fetch(`/api/applications/${p.jobId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }) });
@@ -109,7 +100,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
     router.refresh();
   }
 
-  if (busy) return <><p><Spinner /> {busy}</p>{busy.startsWith("Preparing") ? <p className="small muted" style={{ marginTop: 8 }}>Tailoring your CV and writing a cover letter from your verified profile.</p> : null}</>;
+  if (busy) return <><p><Spinner /> {busy}</p></>;
   const gmailNote = p.gmailStatus === "connected" ? "Gmail connected. Review and send this email application." : p.gmailStatus === "failed" ? "Gmail could not be connected. Try again." : p.gmailStatus === "cancelled" ? "Gmail was not connected." : "";
   if (mode === "send") return (
     <>
@@ -204,8 +195,6 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       {remind}
       <h3>What would you like to do?</h3>
       <div className="stack" style={{ marginTop: 10, gap: 8 }}>
-        <button className="btn btn-primary" onClick={prepare}>Prepare Application</button>
-        {p.aiLeft ? <p className="small muted" style={{ margin: "-2px 0 2px", textAlign: "center" }}>{p.aiLeft}</p> : null}
         <button className="btn btn-ghost" onClick={() => setMode("later")}>Apply Later</button>
         <button className="btn btn-text" disabled={pending} onClick={() => start(async () => { try { await dismissAction(p.jobId); } catch { /* still leave the page */ } router.push("/inbox"); })}>Not interested</button>
       </div>

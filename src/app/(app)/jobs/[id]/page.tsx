@@ -1,3 +1,4 @@
+import { PrepareApplicationButton } from "@/components/PrepareApplicationButton";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -66,6 +67,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
     ? trial ? `Free trial: 1 AI-tailored application a day (${leftAll} of ${allowance.limits.month} left)` : `${allowance.left} AI-tailored ${allowance.left === 1 ? "application" : "applications"} left today (${leftAll} this month)`
     : `${limitNotice(allowance)} You will get the standard version.`;
   // Trial used up for today (or in all): invite the person to Pro, where they can apply to many more.
+  const canPrepare = !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn", "waiting"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -93,10 +95,12 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {job.certs.map((c, i) => <span key={"c" + i} className="sk">{c.names.join(" or ")}{c.required ? "" : " · preferred"}</span>)}
               {!job.required.length && !job.preferred.length && !job.certs.length ? <span className="small muted">The post does not list specific skills.</span> : null}
             </div>
-            {description || job.url ? <div className="jd-actions">
+            {description || job.url || canPrepare ? <div className="jd-actions">
               {description ? <details className="jd"><summary className="btn btn-ghost btn-sm">View job description</summary><div className="jd-text">{description}</div></details> : null}
               {job.url ? <a className="btn btn-ghost btn-sm" href={job.url} target="_blank" rel="noopener noreferrer nofollow">Open the original post ↗</a> : null}
+              {canPrepare ? <PrepareApplicationButton jobId={job.id} /> : null}
             </div> : null}
+            {canPrepare && aiLeft ? <p className="small muted" style={{ marginTop: 8 }}>{aiLeft}</p> : null}
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
           {a?.status === "applied" ? (() => {
@@ -163,7 +167,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           {lockedPack ? null : <div className="card panel">
             <ActionsPanel jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
-              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} aiLeft={aiLeft} />
+              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} />
           </div>}
         </aside>
       </div>
