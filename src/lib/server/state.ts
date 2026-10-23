@@ -1,3 +1,4 @@
+import { applicationInSearch } from "../application-country";
 // Loads everything a signed-in page needs, through a Supabase client (user-scoped with RLS, or admin for cron/inbound).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cc, type CountryCode } from "../countries";
@@ -133,7 +134,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
     loadFacts(db, userId),
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    db.from("applications").select("*, application_events(event, status, actor, created_at)").eq("user_id", userId),
+    db.from("applications").select("*, jobs!inner(country), application_events(event, status, actor, created_at)").eq("user_id", userId),
     db.from("matches").select("job_id, ai_fit, ai_score, ai_reason").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
@@ -144,9 +145,10 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   const master = (masterRes.data as MasterRow) || null;
   const P = profileFrom(profile, facts, master);
   const [jobs, analysed] = P ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
-  // Jobs referenced by applications may be in another country (after a country change); load them too.
+  // Drop previous-country drafts from all active views; retain sent history for account-wide limits.
   const apps: Record<string, ApplicationRow> = {};
-  for (const a of (appsRes.data || []) as ApplicationRow[]) {
+  for (const a of (appsRes.data || []) as (ApplicationRow & { jobs: { country: string } | null })[]) {
+    if (!applicationInSearch(a, country)) continue;
     a.application_events = (a.application_events || []).sort((x, y) => x.created_at.localeCompare(y.created_at));
     apps[a.job_id] = a;
   }

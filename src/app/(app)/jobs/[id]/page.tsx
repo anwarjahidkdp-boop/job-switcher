@@ -21,7 +21,7 @@ import { daysUntil } from "@/lib/dates";
 import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
-import { limitNotice, packLimits, trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
+import { limitNotice, trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { askRows, postAsks } from "@/lib/job-asks";
 
 export const metadata = { title: "Job" };
@@ -34,6 +34,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const job = st.scored.find((x) => x.job.id === id)?.job || (await loadJob(db, id));
   if (!job) notFound();
+  if (job.country !== st.country && !st.apps[job.id]?.applied_at) return <><PageHead title={<>Previous search country</>} sub="This selection has left your active queue. Choose a job in your current search country." /><Link className="btn btn-primary" href="/inbox">View current opportunities</Link></>;
   if (job.active === false && !st.apps[job.id]) return <><PageHead title={<>Listing unavailable</>} sub="This vacancy has closed or its source requires review. It is not currently offered as a job recommendation." /><Link className="btn btn-ghost" href="/inbox">Back to opportunities</Link></>;
   const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
   const ai = st.aiCheck.get(job.id);
@@ -57,13 +58,14 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const trial = allowance?.plan === "trial";
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
-  const lockedPack = !!a?.pack && (a.status === "ready" || a.status === "reminder") && !(await isPro(db, st.userId)) && !unlockedReady(apps, trialApplyRoom(apps)).has(job.id);
+  const pro = await isPro(db, st.userId);
+  const room = trialApplyRoom(apps);
+  const lockedPack = !!a?.pack && (a.status === "ready" || a.status === "reminder") && !pro && !unlockedReady(apps, room).has(job.id);
   const leftAll = allowance ? Math.max(0, allowance.limits.month - allowance.used.month) : 0;
   const aiLeft = !allowance ? null : allowance.left
     ? trial ? `Free trial: 1 AI-tailored application a day (${leftAll} of ${allowance.limits.month} left)` : `${allowance.left} AI-tailored ${allowance.left === 1 ? "application" : "applications"} left today (${leftAll} this month)`
     : `${limitNotice(allowance)} You will get the standard version.`;
   // Trial used up for today (or in all): invite the person to Pro, where they can apply to many more.
-  const upsell = trial && allowance && !allowance.left;
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -144,11 +146,11 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           ) : null}
         </div>
         <aside className="side">
-          {upsell && !lockedPack ? <div className="card panel upsell" role="note">
-            <p className="eyebrow">Want to apply to more jobs?</p>
-            <h3 style={{ margin: "4px 0 6px" }}>{leftAll ? "Today's free application is used" : "Your 5 free applications are used"}</h3>
-            <p className="small">With Pro, JobPao prepares up to {packLimits("pro", st.homeCountry).day} tailored applications every day, each with its own CV and cover letter. {leftAll ? "Your next free one is ready tomorrow." : ""}</p>
-            <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade">Go Pro and apply to more</Link>
+          {!pro ? <div className="card panel upsell" role="status">
+            <p className="eyebrow">Free trial</p>
+            <h3 style={{ margin: "4px 0 6px" }}>1 application per day · {room} remaining today</h3>
+            <p className="small">Your allowance is shared across all countries. Changing country does not reset it.</p>
+            {!room ? <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade">Go Pro and apply to more</Link> : null}
           </div> : null}
           <div className="card panel">
             <p className="eyebrow">Why this job?</p>

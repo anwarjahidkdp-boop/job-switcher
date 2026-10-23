@@ -20,13 +20,13 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
   const maxToday = todayStr("Pacific/Kiritimati", now);
   const { data, error } = await admin
     .from("reminders")
-    .select("id, user_id, due_date, job_id, application_id, applications!inner(status, pack), jobs!inner(title, company, deadline)")
+    .select("id, user_id, due_date, job_id, application_id, applications!inner(status, pack), jobs!inner(title, company, deadline, country)")
     .is("sent_at", null)
     .lte("due_date", maxToday)
     .order("due_date")
     .limit(opts.limit ?? 200);
   if (error) throw error;
-  type Row = { id: string; user_id: string; due_date: string; job_id: string; application_id: string; applications: { status: string; pack: unknown }; jobs: { title: string; company: string; deadline: string | null }; profiles: { email: string | null; full_name: string | null; target_country: string; email_reminders: boolean } | null };
+  type Row = { id: string; user_id: string; due_date: string; job_id: string; application_id: string; applications: { status: string; pack: unknown }; jobs: { title: string; company: string; deadline: string | null; country: string }; profiles: { email: string | null; full_name: string | null; target_country: string; email_reminders: boolean } | null };
   // reminders.user_id references auth.users, so profiles are fetched separately (no PostgREST embed).
   const ids = [...new Set((data || []).map((r) => r.user_id as string))];
   const profs = new Map<string, Row["profiles"]>();
@@ -43,7 +43,7 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     const today = todayStr(tz, now);
     // Due today or earlier in the user's time zone, and not before 08:00 local time.
     if (r.due_date > today || (r.due_date === today && localHour(tz, now) < SEND_FROM_HOUR)) { res.skipped++; continue; }
-    if (r.applications.status !== "reminder" || !p?.email || p.email_reminders === false) {
+    if (r.applications.status !== "reminder" || r.jobs.country !== p?.target_country || !p?.email || p.email_reminders === false) {
       if (!opts.dryRun) await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: "skipped" }).eq("id", r.id);
       res.skipped++;
       continue;

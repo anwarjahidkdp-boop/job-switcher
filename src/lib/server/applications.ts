@@ -2,6 +2,7 @@
 // is set only in the user's session, either by their confirmation or after they press Apply and Gmail accepts the email
 // (see gmail.ts). A DB trigger enforces this again.
 import "server-only";
+import { assertSearchCountry } from "../application-country";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
 import { checkPack } from "../numbers-check";
@@ -64,6 +65,10 @@ export const isTrialLimitError = (e: unknown) => !!e && typeof e === "object" &&
 async function requireJob(ctx: Ctx, jobId: string): Promise<Job> {
   const job = await loadJob(ctx.db, jobId);
   if (!job) throw new Error("Job not found");
+  const { data: profile, error } = await ctx.db.from("profiles").select("target_country").eq("id", ctx.userId).maybeSingle();
+  if (error) throw error;
+  if (!profile) throw new Error("Profile missing");
+  assertSearchCountry(job.country, profile.target_country);
   return job;
 }
 
@@ -143,6 +148,7 @@ export async function setReminder(ctx: Ctx, jobId: string, date: string, today: 
 }
 
 export async function markOpened(ctx: Ctx, jobId: string) {
+  await requireJob(ctx, jobId);
   const app = await ensureApp(ctx, jobId);
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) return;
   await ctx.db.from("applications").update({ status: "waiting" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null);

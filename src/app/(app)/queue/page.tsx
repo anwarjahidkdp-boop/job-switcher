@@ -1,3 +1,4 @@
+import { cname } from "@/lib/countries";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { isPro, requireAppState } from "@/lib/server/page";
@@ -14,7 +15,7 @@ export default async function Queue() {
   const items = [];
   for (const a of Object.values(st.apps).filter((a) => ["ready", "reminder", "waiting"].includes(a.status))) {
     const job = st.scored.find((x) => x.job.id === a.job_id)?.job || (await loadJob(db, a.job_id));
-    if (job) items.push({ a, job, date: a.status === "reminder" && a.reminder_date ? a.reminder_date : st.today });
+    if (job && job.country === st.country) items.push({ a, job, date: a.status === "reminder" && a.reminder_date ? a.reminder_date : st.today });
   }
   items.sort((x, y) => x.date.localeCompare(y.date));
   // Free trial: one application a day can be opened and sent; the others stay ready behind Pro.
@@ -28,8 +29,9 @@ export default async function Queue() {
   for (const x of items) { const k = label(x.date); groups.set(k, [...(groups.get(k) || []), x]); }
   return (
     <>
-      <PageHead kicker="To do" title={<>Apply <span>queue</span></>} sub="Your task list: applications ready to send and reminders you set." />
+      <PageHead kicker="To do" title={<>Apply <span>queue</span></>} sub={`Applications and reminders for ${cname(st.country)}. Previous-country selections are removed from this queue.`} />
       <div className="stack" style={{ marginTop: 20 }}>
+        {!pro ? <div className="note small" role="status"><b>Free trial: 1 application per day · {trialApplyRoom(apps)} remaining today</b><div>Changing country does not reset this quota.</div></div> : null}
         {nLocked ? <div className="card panel upsell upsell-row">
           <div><p className="eyebrow">Free trial · {TRIAL_APPLY.day} application a day</p><h3 style={{ margin: "4px 0 4px" }}>{nLocked} more {nLocked === 1 ? "application is" : "applications are"} ready for you</h3>
             <p className="small">Each one is prepared to what its job post asks for: a tailored CV, a cover letter and a list of anything else to attach. Go Pro to send them all today and get new ones every day.</p></div>
