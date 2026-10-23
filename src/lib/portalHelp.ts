@@ -10,9 +10,7 @@ export const PORTAL_HELP: Record<string, PortalHelp> = {
     from: "bdjobs.com",
     url: "https://mybdjobs.bdjobs.com/jobseeker-panel/email-notification",
     steps: [
-      "Open bdjobs.com and sign in (create an account with your Gmail if you don't have one).",
-      "Click your name or photo at the top right, then click \"Bdjobs Profile\".",
-      "On your profile page, click \"Account Settings\" in the left menu, then \"Email Notification\".",
+      "Use Open Bdjobs below to go directly to Email Notification. Sign in on Bdjobs if asked.",
       "Turn on the \"Hot Job Notification\" switch. Bdjobs then emails you the hot jobs that match your qualification.",
       "Keep your Bdjobs CV and job category up to date, because Bdjobs matches these emails to your Bdjobs profile.",
     ],

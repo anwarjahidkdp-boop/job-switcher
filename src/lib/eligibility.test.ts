@@ -50,6 +50,15 @@ it('cannot be lifted to 100 by an old AI assessment after hard ineligibility',()
  const [r]=withAiScores([{job,m}],new Map([['j',{fit:'strong',score:100,reason:'old opinion'}]]));
  expect(r.m.score).toBe(0);expect(r.m.relevant).toBe(false);
 });
+it('reads colon-separated Bdjobs age wording before an ineligible job can become a top match',()=>{
+ for(const text of ['Age: at most 32 years','Age： maximum 32 years','বয়স: সর্বোচ্চ ৩২ বছর','বয়সঃ অনূর্ধ্ব ৩২ বছর']) {
+  const e=extractEligibility(text+'\nAge as of 2026-10-23');
+  expect(e.maxAge).toBe(32);
+  expect(eligibilityCheck({...job,eligibility:e},P,today)).toMatchObject({blocked:true,scoreCap:0});
+ }
+ expect(extractEligibility('Age: at least 30 years')).toMatchObject({minAge:30});
+ expect(extractEligibility('Age: at most 32 years\nExperience: minimum 5 years')).not.toHaveProperty('minAge');
+});
 it('requires numeric salary, Bangladesh birth date, permission, sponsorship and relocation before setup completes',()=>{
  expect(setupRequirements({target_country:'BD'})).toEqual(['Date of birth','Expected salary','Work authorization','Sponsorship requirement']);
  const answers={expectedSalary:70000,workAuthorization:'yes' as const,sponsorshipRequired:false,willingToRelocate:false};
