@@ -90,7 +90,7 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <div className="dashboard-kpi-row"><KpiStrip items={kpis} /><FitOverviewCard tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/></div>
+      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/>}/>
       {best ? (
         <Link className="spot" href={`/jobs/${best.job.id}`}>
           <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>

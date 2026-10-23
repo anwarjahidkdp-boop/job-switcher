@@ -961,10 +961,7 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 @media(max-width:1100px){.fit-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.fit-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.fit-overview-card{padding:13px}}
 
-.dashboard-kpi-row{display:grid;grid-template-columns:minmax(0,5fr) minmax(175px,1fr);gap:12px;margin-top:18px;align-items:stretch}
-.dashboard-kpi-row .kpis{margin-top:0;height:100%}
-.dashboard-kpi-row>.fit-overview-card{border-radius:16px}
-@media(max-width:1100px){.dashboard-kpi-row{grid-template-columns:minmax(0,1fr)}.dashboard-kpi-row>.fit-overview-card .fit-zero-guide{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.dashboard-kpi-row>.fit-overview-card .fit-zero-guide p,.dashboard-kpi-row>.fit-overview-card .fit-zero-guide .btn{margin:0}}
+
 
 .cv-preview-heading>span{white-space:nowrap}
 .jd-actions>.btn,.jd-actions>.jd>summary{font-size:12px;padding:8px 10px}
@@ -972,3 +969,40 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 
 .jd-application-group .jd-prepare>.btn{font-size:12px;padding:8px 10px}
 .jd-secondary>.btn{font-size:11px;padding:6px}
+
+/* The completeness notice and dashboard metrics must occupy separate rows. */
+.application-profile-notice{align-items:center;gap:14px 20px}
+.application-profile-notice>div{flex:1 1 420px;min-width:0}
+.application-profile-notice>.btn{flex:0 0 auto;white-space:nowrap}
+.application-profile-notice+.kpis{margin-top:18px}
+@media(max-width:600px){.application-profile-notice>.btn{width:100%}}
+
+.application-profile-notice{background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));border-left:4px solid var(--bad);border-radius:14px;margin-bottom:18px;padding:18px 20px;box-shadow:0 5px 18px rgba(180,35,24,.06)}
+.application-notice-title{display:flex;align-items:center;gap:10px;color:var(--bad);line-height:1.45}
+.application-notice-title svg{flex:none}
+.application-profile-notice>.btn{border-color:var(--bad);background:var(--card);color:var(--bad)}
+
+/* Distinct account controls in the application header. */
+.top .chip-trial{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 11px;border-radius:11px;font-size:12px;font-weight:600;line-height:1.3;box-shadow:0 2px 4px rgba(15,27,45,.04);transition:filter .15s,box-shadow .15s}
+.top .chip-country{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 25%,var(--line));background:linear-gradient(135deg,var(--accent-soft),var(--card))}
+.top .chip-plan{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 35%,var(--line));background:linear-gradient(135deg,var(--gold-soft),color-mix(in srgb,var(--gold-soft) 55%,var(--card)))}
+.top .chip-trial svg{flex:none}
+.top .chip-trial:hover{filter:brightness(.97);box-shadow:0 4px 10px rgba(15,27,45,.09)}
+.top .bell{color:var(--accent);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 20%,var(--line));border-radius:11px}
+.top .bell:hover{background:color-mix(in srgb,var(--accent) 16%,var(--card))}
+@media(max-width:760px){.top .chip-country{display:none}.top .chip-plan{font-size:11px;gap:5px;padding:6px 9px}}
+
+/* Keep the headline metrics compact, with fit levels beside each other. */
+.kpis-six{grid-template-columns:repeat(6,minmax(0,1fr));align-items:start}
+.kpis-six>.kpi,.kpis-six>.fit-card-compact{height:144px;min-height:0}
+.fit-card-compact{height:144px;padding:14px 16px 13px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.fit-card-compact .fit-overview-top{margin-bottom:4px;min-height:32px;flex-wrap:nowrap}
+.fit-card-compact .fit-overview-icon{width:30px;height:30px;padding:0;align-items:center;justify-content:center;border-radius:9px;flex:none}
+.fit-card-compact .fit-range{font-size:10px}
+.fit-card-compact .fit-overview-count{font-size:30px;line-height:1.1;margin:0}
+.fit-card-compact .fit-overview-label{font-size:12px;line-height:1.4}
+.fit-compact-link{display:block;width:fit-content;max-width:100%;font-size:10px;font-weight:600;line-height:1.35;padding:3px 5px;margin-top:2px;background:var(--card);border:1px solid color-mix(in srgb,var(--fit-color) 35%,var(--line));border-radius:6px;color:var(--fit-color);text-decoration:none;white-space:nowrap}
+.application-profile-notice{border:2px solid var(--bad);border-left-width:5px;box-shadow:0 5px 18px rgba(180,35,24,.12)}
+.application-profile-notice>.btn{background:var(--bad);color:var(--accent-ink);font-weight:700}
+@media(max-width:900px){.kpis-six{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.kpis-six{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis-six>.kpi:first-child{height:auto;min-height:70px}}

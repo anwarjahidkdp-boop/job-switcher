@@ -30,7 +30,7 @@ export default async function Insights() {
     <>
       <PageHead kicker="Market insights" title={<>Your career <span>market</span></>} sub={`Based on ${rel.length} relevant jobs analysed for your profile.`} />
       <div className="fit-overview" style={{ marginTop: 18 }}>
-        {fitTiles(rel).map(tile=><FitOverviewCard key={tile.label} tile={tile} rows={rel}/>)}
+        {fitTiles(rel).map(tile=><FitOverviewCard compact key={tile.label} tile={tile} rows={rel}/>)}
       </div>
       <section id="career-guidance" className="card panel career-guidance" aria-label="Career guidance">
         <div className="row" style={{justifyContent:"space-between"}}><h3>Career guidance</h3><span className="pill p-ex">Strong Fit · 90% or higher</span></div>
