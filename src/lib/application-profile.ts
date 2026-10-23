@@ -3,7 +3,7 @@ import type { AnswerLibrary, DealBreakers } from "./career-safety";
 export const APPLICATION_FIELDS = [
   { key: "birthDate", name: "birthDate", label: "Date of birth", type: "date", hint: "Required for Bangladesh age-limited vacancies. Used privately for eligibility checks." },
   { key: "workAuthorization", name: "workAuthorization", label: "Work authorization", type: "choice", hint: "Confirm whether you have permission to work in your selected job-search country." },
-  { key: "expectedSalary", name: "expectedSalary", label: "Expected salary", type: "number", hint: "Enter your expected monthly salary in the selected country's currency." },
+  { key: "expectedSalary", name: "expectedSalary", label: "Expected salary", type: "number", hint: "Enter your expected salary in the selected country's currency and pay period." },
   { key: "noticeDays", name: "noticeDays", label: "Notice period (days)", type: "number", hint: "Enter 0 if you can start immediately." },
   { key: "sponsorshipRequired", name: "answerSponsorship", label: "Need sponsorship?", type: "choice", hint: "Choose Yes or No; an unanswered question is not treated as No." },
   { key: "willingToRelocate", name: "willingToRelocate", label: "Willing to relocate?", type: "choice", hint: "Choose Yes or No for moving to take a job." },
