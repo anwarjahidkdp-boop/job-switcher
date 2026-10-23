@@ -8,7 +8,7 @@ async function main(){
  console.log(`Preserved source eligibility for ${await backfillEligibility(db)} existing listings.`);
  let users=0,jobs=0,failed=0;
  for(let offset=0;;offset+=200){
-  const {data,error}=await db.from('profiles').select('id,personal').eq('onboarding_step','done').order('id').range(offset,offset+199);
+  const {data,error}=await db.from('profiles').select('id,personal').order('id').range(offset,offset+199);
   if(error)throw error;
   for(const user of data||[]){
    try{
