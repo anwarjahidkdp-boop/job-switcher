@@ -1,3 +1,4 @@
+import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { ApplicationSafetyForm } from "@/components/ApplicationSafetyForm";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { PageHead } from "@/components/PageHead";
@@ -57,15 +58,15 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           {convention(country).refs === "list" && !(st.profile.personal?.references || []).length ? <p className="note" style={{ marginTop: 12 }}>{cname(country)} CVs list {convention(country).refCount} references who are not relatives. Your CV says &quot;Available on request&quot; until you add them. <Link href="/onboarding?step=prefs">Add references</Link></p> : null}
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
-        <aside className="side">
+        <aside className="side profile-sidebar">
           <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} />
-          <div className="card panel"><h3>Verified skills</h3>
+          <div className="card panel profile-card" data-tone="good"><ProfileCardTitle icon="skills">Verified skills</ProfileCardTitle>
             <div className="skchips">{P.skills.map((s) => <span key={s.name} className={`sk ${s.src === "user" ? "u" : ""}`} title={srcTitle(s.src)}>{skillLabel(s.name)}</span>)}</div>
             <SkillAdder />
             <p className="small muted" style={{ marginTop: 6 }}>Teal skills were added by you. Hover a skill to see where it came from.</p>
           </div>
-          {pending.length ? <div className="card panel"><h3>Waiting for your confirmation</h3><p className="small muted" style={{ marginBottom: 8 }}>We could not find these word-for-word in your CV, so they are not used until you confirm them.</p><FactReview facts={pending} /></div> : null}
-          <div className="card panel"><h3>Preferences</h3>
+          {pending.length ? <div className="card panel profile-card" data-tone="warn"><ProfileCardTitle icon="review">Waiting for your confirmation</ProfileCardTitle><p className="small muted" style={{ marginBottom: 8 }}>We could not find these word-for-word in your CV, so they are not used until you confirm them.</p><FactReview facts={pending} /></div> : null}
+          <div className="card panel profile-card" data-tone="accent"><ProfileCardTitle icon="preferences">Preferences</ProfileCardTitle>
             <div className="stack small" style={{ gap: 4 }}>
               <div>Target roles: <b>{P.targetRoles.join(", ")}</b></div>
               <div>Locations: <b>{P.locations.join(", ") || "Anywhere in " + cname(country)}</b></div>
@@ -76,17 +77,17 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <Link className="btn btn-primary btn-sm" style={{ marginTop: 12, width: "100%" }} href="/onboarding?step=prefs"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/></svg>Edit preferences</Link>
           </div>
           <ApplicationSafetyForm answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} />
-          <div className="card panel"><h3>Job sites</h3>
+          <div className="card panel profile-card" data-tone="accent"><ProfileCardTitle icon="sites">Job sites</ProfileCardTitle>
             {setupSites.map((site) => <div key={site} className="qitem"><div><b className="small">{site}</b><div className="small muted">Paste a {site} link or job text and we match it. To apply, open the job on {site} yourself, where you sign in.</div></div><span className="pill p-neutral">No password</span></div>)}
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>
             <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{setupSites.length} sites)</Link>
           </div>
           <GmailPanel email={gmail} status={gmailStatus} ready={gmailConfigured()} />
-          <div className="card panel"><h3>Reminder emails</h3>
+          <div className="card panel profile-card" data-tone="warn"><ProfileCardTitle icon="reminders">Reminder emails</ProfileCardTitle>
             <p className="small muted">{st.profile.email_reminders ? "We email you on the reminder dates you set." : "Reminder emails are off; reminders still show in your inbox."}</p>
             <form action={setReminderPrefAction.bind(null, !st.profile.email_reminders)}><button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}>{st.profile.email_reminders ? "Turn off reminder emails" : "Turn on reminder emails"}</button></form>
           </div>
-          <div className="card panel"><h3>Your data</h3>
+          <div className="card panel profile-card" data-tone="good"><ProfileCardTitle icon="data">Your data</ProfileCardTitle>
             <p className="small muted">Your CV and photo are stored privately; links to them expire after a minute.</p>
             <div className="row" style={{ marginTop: 10 }}>
               {st.cvDoc?.storage_path ? <a className="btn btn-ghost btn-sm" href="/api/cv/original">Download my original CV</a> : null}

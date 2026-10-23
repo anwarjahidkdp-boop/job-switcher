@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { saveCareerSafetyAction } from "@/app/actions";
 import { APPLICATION_FIELDS, missingApplicationFields } from "@/lib/application-profile";
 import type { AnswerLibrary, DealBreakers } from "@/lib/career-safety";
@@ -48,8 +49,8 @@ export function ApplicationSafetyForm({ answers, rules }: { answers: AnswerLibra
     } catch(e) {setError(e instanceof Error && e.message.length<180 ? e.message : 'Could not save. Your changes are still here.');}
   }
   const cardStyle={padding:10,border:'1px solid var(--warn)',borderRadius:8,background:'var(--warn-soft)',scrollMarginTop:90};
-  return <section id="application-safety" className="card panel" style={{scrollMarginTop:90}}>
-    <h3>Application details <span className={`pill ${missing.length ? 'p-warn':'p-st'}`}>{missing.length ? `${missing.length} incomplete`:'Complete'}</span></h3>
+  return <section id="application-safety" className="card panel profile-card" data-tone={missing.length ? "warn":"good"} style={{scrollMarginTop:90}}>
+    <ProfileCardTitle icon="application">Application details <span className={`pill ${missing.length ? 'p-warn':'p-st'}`}>{missing.length ? `${missing.length} incomplete`:'Complete'}</span></ProfileCardTitle>
     <p className="small muted" style={{marginTop:6}}>Save your answers below. Completed fields move into your summary, where you can edit them anytime.</p>
     {summary.length ? <div style={{marginTop:12}}><h3>Saved information</h3>{summary.map(([name,label,value])=><div className="qitem" key={name}><div className="small"><b>{label}</b><div>{value}</div></div><button type="button" className="btn btn-text btn-sm" disabled={editing.includes(name)} onClick={()=>edit(name)}>Edit</button></div>)}</div>:null}
     <form noValidate action={()=>start(save)} className="stack" style={{marginTop:12}}>
