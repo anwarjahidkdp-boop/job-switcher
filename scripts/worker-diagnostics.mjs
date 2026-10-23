@@ -42,9 +42,14 @@ for (const account of accounts?.result || []) {
       { key: "$workers.outcome", operation: "neq", type: "string", value: "ok" },
     ] },
   });
-  for (const event of telemetry?.result?.events || []) {
+  function eventsIn(value) {
+    if (!value || typeof value !== "object") return [];
+    if (value.$workers) return [value];
+    return Object.values(value).flatMap(eventsIn);
+  }
+  for (const event of eventsIn(telemetry?.result?.events)) {
     const w = event.$workers || {}; let path;
-    try { path = new URL(w.event?.request?.url).pathname; } catch { /* no request */ }
+    try { path = new URL(w.event?.request?.url || event.$metadata?.url).pathname; } catch { /* no request */ }
     console.log(JSON.stringify({ errorEvent: { timestamp: event.timestamp, outcome: w.outcome, cpuTimeMs: w.cpuTimeMs, wallTimeMs: w.wallTimeMs, path, requestId: w.requestId } }));
   }
 }
