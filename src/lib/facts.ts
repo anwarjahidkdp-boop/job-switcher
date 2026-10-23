@@ -3,7 +3,7 @@
 import { closeEarlierRoles, newestExperienceFirst } from "./cv/experience";
 import { yearsFrom } from "./matching";
 import { cc, type CountryCode } from "./countries";
-import { isEduLevel, isSeniority, normSkill, SKILL_ALIAS, type Seniority } from "./taxonomy";
+import { isEduLevel, isSeniority, LEVEL, normSkill, SKILL_ALIAS, type Seniority } from "./taxonomy";
 import { LANGUAGES, seniorityFromTitle } from "./jobs";
 import type { Extraction, ExtractedCert, ExtractedEducation, ExtractedExperience, MatchProfile, Preferences, Provenance } from "./types";
 
@@ -133,12 +133,15 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
   }
   const p = input.prefs;
   const split = (s: string | undefined) => String(s || "").split(",").map((x) => x.trim()).filter(Boolean);
-  const roles = split(p?.roles);
+  const baseline=exps.reduce<(typeof exps)[number]|null>((best,e)=>{const level=seniorityFromTitle(e.title);return level&&(!best||LEVEL[level]>LEVEL[seniorityFromTitle(best.title)||"entry"])?e:best;},null)||exps[0];
+  const baselineSeniority=seniorityFromTitle(baseline?.title||"")||(isSeniority(input.meta.seniority)?input.meta.seniority:"mid");
   const locs = split(p?.locations);
   const country = cc(input.country);
   return {
     name: input.name,
     titles: exps.map((e) => e.title),
+    careerBaselineTitle:baseline?.title||"",
+    careerBaselineSeniority:baselineSeniority,
     currentTitle: exps[0]?.title || "",
     currentCompany: exps[0]?.company || "",
     years: yearsFrom(exps),
@@ -148,7 +151,7 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
     education: edu.map((e) => ({ degree: e.degree, field: e.field, level: e.level, institution: e.institution, year: e.year, result: e.result })),
     certs: certs.map((c) => ({ name: String(c.name), status: c.status || "qualified" })),
     skills,
-    targetRoles: roles.length ? roles : input.meta.target_roles || [],
+    targetRoles: baseline?.title ? [baseline.title] : input.meta.target_roles || [],
     locations: locs.length ? locs : country === "BD" ? [input.meta.location || "Dhaka"] : [],
     country,
     salaryMin: Number(p?.salaryMin) || null,

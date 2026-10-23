@@ -7,7 +7,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
 import { requireUser, photoUrl, trialLabel, profileOf } from "@/lib/server/page";
-import { loadState } from "@/lib/server/state";
+import { buildMatchProfile } from "@/lib/facts";
+import { DEFAULT_META, loadState } from "@/lib/server/state";
 import { cname, portals, rule, perLabel } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { convention, personalFields } from "@/lib/cv/conventions";
@@ -89,6 +90,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
+    p.roles=buildMatchProfile({name:st.profile.full_name||"",facts:st.facts,meta:{...DEFAULT_META,...meta},prefs:null,country}).targetRoles.join(", ");
     const savedSalary=st.profile.answer_library?.salaryCountry===country?st.profile.answer_library.expectedSalary:null;
     if(Number(savedSalary)>0)p.salaryMin=Number(savedSalary);
     head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub={<>Set your preferences for {cn}. Your existing improved CV will use this destination’s structure, reference conventions and style. Your saved career information will be reused.</>} />;

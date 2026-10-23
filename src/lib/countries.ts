@@ -26,9 +26,9 @@ export interface CountryRule {
 
 export const COUNTRIES = {
   BD: { name: "Bangladesh", sym: "৳", per: "month", loc: "en-IN", photo: true, personal: true, doc: "CV", pages: "1–2 pages", tpl: "modern", timeZone: "Asia/Dhaka",
-    rules: ["A professional photo is expected", "Personal details with father's and mother's names", "Two references who are not relatives", "Ends with a declaration, date and signature"],
+    rules: ["A professional photo is expected", "Personal details with father's and mother's names", "References optional; provide them if the vacancy requests them", "Ends with a declaration, date and signature"],
     prompt: "Bangladesh: English CV, 1-2 pages; a professional photo and a short personal-details section are normal. Salaries in BDT per month.",
-    checklist: ["Tailored CV (attached in this pack)", "Cover letter", "Recent passport-size photo", "Copies of academic certificates", "Experience or release letters from previous employers", "NID copy", "Expected salary statement", "Two references who are not relatives"] },
+    checklist: ["Tailored CV (attached in this pack)", "Cover letter", "Recent passport-size photo", "Copies of academic certificates", "Experience or release letters from previous employers", "NID copy", "Expected salary statement", "References optional; provide them if the vacancy requests them"] },
   AE: { name: "United Arab Emirates", short: "UAE", sym: "AED ", per: "month", photo: true, personal: true, visaField: true, doc: "CV", pages: "2 pages", tpl: "modern", timeZone: "Asia/Dubai",
     rules: ["Photo, nationality and visa status are commonly expected", "Notice period and UAE driving licence are stated up front", "Salaries are quoted in AED per month", "References available on request"],
     prompt: "United Arab Emirates: 2-page CV; a professional photo and nationality/visa status are commonly included; state notice period and availability to relocate. Salaries in AED per month.",

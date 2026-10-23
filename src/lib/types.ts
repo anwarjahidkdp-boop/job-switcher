@@ -52,6 +52,8 @@ export interface MatchProfile {
   dealBreakers?:import("./career-safety").DealBreakers;
   name: string;
   titles: string[];
+  careerBaselineTitle?: string;
+  careerBaselineSeniority?: Seniority;
   currentTitle: string;
   currentCompany: string;
   years: number;

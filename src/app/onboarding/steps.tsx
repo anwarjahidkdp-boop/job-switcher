@@ -288,9 +288,8 @@ const emptyRef = (): Referee => ({ name: "", title: "", org: "", phone: "", emai
 export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean; country: string; revision: number; needsVisa: boolean; abroad: boolean }) {
   const router = useRouter();
   const [p, setP] = useState({ roles: props.initial.roles || "", locations: props.initial.locations || "", salaryMin: props.initial.salaryMin ?? "", salaryMax: props.initial.salaryMax ?? "", notice: props.initial.notice ?? "", mode: props.initial.mode || "On-site" });
-  const [authorization,setAuthorization]=useState(props.answers?.workAuthorization||"unknown");
-  const [sponsor,setSponsor]=useState<boolean|null>(props.answers?.sponsorshipRequired??null);
-  const [relocate,setRelocate]=useState<boolean|null>(props.answers?.willingToRelocate??null);
+  const [authorization,setAuthorization]=useState(props.answers?.workAuthorization||(!props.abroad?"yes":"unknown"));
+  const [sponsor,setSponsor]=useState<boolean|null>(props.answers?.sponsorshipRequired??(!props.abroad?false:null));
   const [pd, setPd] = useState<Record<string, string>>(Object.fromEntries(props.fields.map((f) => [f.k, String(props.personal[f.k] || (f.k==="dob"?props.answers?.birthDate:"") || "")])));
   const [personalEdits,setPersonalEdits]=useState<string[]>([]);
   const initialPersonal=Object.fromEntries(props.fields.map(f=>[f.k,String(props.personal[f.k]||(f.k==="dob"?props.answers?.birthDate:"")||"")]));
@@ -304,11 +303,10 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
   async function submit() {
     setErr("");
     try {
-      const missing=setupRequirements({target_country:props.country,personal:pd,preferences:{salaryMin:Number(p.salaryMin)||null},answer_library:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:relocate}});
-      if(!p.roles.trim())missing.push("Target roles");
+      const missing=setupRequirements({target_country:props.country,personal:pd,preferences:{salaryMin:Number(p.salaryMin)||null},answer_library:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:props.answers?.willingToRelocate}});
       if(missing.length)throw new Error(`Complete required matching details: ${missing.join(", ")}.`);
       setBusy("Saving your preferences");
-      await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: sponsor===true,readiness:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:relocate}, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
+      await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: sponsor===true,readiness:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:props.answers?.willingToRelocate}, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
       if (props.editing) { start(() => router.push("/profile")); return; }
       setBusy("Preparing your CV for this country using your saved career information.");
       await post("/api/cv/build", {});
@@ -318,11 +316,11 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
   return (
     <>
       <div className="card panel stack" style={{ marginTop: 22 }}>
-        <p className="note small"><b>Required for accurate job recommendations</b><br/>Confirm your target salary, work authorization, sponsorship and relocation preferences. {props.isBD?"Date of birth is also required for Bangladesh age limits.":"Age does not determine your fit for ordinary jobs in this market."}</p>
-        <label className="f">Do you have permission to work in {props.countryLabel}? <select value={authorization} onChange={e=>setAuthorization(e.target.value as "yes"|"no"|"unknown")}><option value="unknown">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <p className="note small"><b>Required for accurate job recommendations</b><br/>Set your expected salary. Your career target is read automatically from your CV. {props.isBD?"Date of birth is also required for Bangladesh age limits.":"Age does not determine your fit for ordinary jobs in this market."}</p>
+        {props.abroad ? <><label className="f">Do you have permission to work in {props.countryLabel}? <select value={authorization} onChange={e=>setAuthorization(e.target.value as "yes"|"no"|"unknown")}><option value="unknown">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
         <label className="f">Do you need employer sponsorship? <select value={sponsor===null?'':sponsor?'yes':'no'} onChange={e=>setSponsor(e.target.value==='yes'?true:e.target.value==='no'?false:null)}><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-        <label className="f">Are you willing to relocate? <select value={relocate===null?'':relocate?'yes':'no'} onChange={e=>setRelocate(e.target.value==='yes'?true:e.target.value==='no'?false:null)}><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-        <label className="f" htmlFor="p_roles">Target roles (comma separated)<input type="text" id="p_roles" value={p.roles} onChange={upd("roles")} /></label>
+        </> : <p className="small muted">Local search: work permission defaults to Yes and sponsorship to No. You can edit these in your application details.</p>}
+        <div className="note small"><b>Career target from your CV</b><div>{p.roles||"Based on your verified experience and skills"} · equivalent or higher level</div><span className="muted">A lower title is considered only when published pay, senior experience and responsibilities establish comparable scope.</span></div>
         <label className="f" htmlFor="p_locs">Preferred cities in {props.countryLabel} (leave blank for anywhere)<input type="text" id="p_locs" value={p.locations} onChange={upd("locations")} /></label>
         <div className="row" style={{ alignItems: "flex-end" }}>
           <label className="f" htmlFor="p_smin" style={{ flex: 1, minWidth: 140 }}>Expected salary from ({props.currency}) · Required<input required min="1" type="number" id="p_smin" value={p.salaryMin} onChange={upd("salaryMin")} placeholder={props.isBD ? "e.g. 70000" : ""} /></label>
@@ -344,8 +342,8 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
       ) : null}
       {props.refs.mode === "list" ? (
         <div className="card panel stack" style={{ marginTop: 14 }}>
-          <h3 style={{ margin: 0 }}>References for your {props.countryLabel} CV</h3>
-          <p className="small muted">{props.countryLabel} employers expect {props.refs.count} referees who are not relatives, such as a former manager or a senior colleague. Ask them first. Until you add them, your CV says &quot;Available on request&quot;.</p>
+          <h3 style={{ margin: 0 }}>References (optional)</h3>
+          <p className="small muted">You can skip this and continue. Add referees only with their permission. A specific vacancy may request references later. Until you add them, your CV says &quot;Available on request&quot;.</p>
           {refs.map((r, i) => (
             <fieldset key={i} className="ref-box">
               <legend>Referee {i + 1}</legend>
