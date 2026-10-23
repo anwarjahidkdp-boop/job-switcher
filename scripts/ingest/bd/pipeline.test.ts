@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+// Synthetic fixture exercises the generic reader; it does not approve this real provider for production.
+vi.mock('./registry', async importOriginal => {
+  const actual = await importOriginal<typeof import('./registry')>();
+  return { ...actual, BD_SOURCES: actual.BD_SOURCES.map(s => s.key === 'dohaj' ? { ...s, enabled: true, trust: 'official', verificationUrl: 'https://fixture.invalid/verification' } : s) };
+});
 import { sourceDate } from './dates';
 import { BD_SOURCES } from './registry';
 import { parseDetail, detailUrls } from './parse';

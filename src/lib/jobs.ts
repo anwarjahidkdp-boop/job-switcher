@@ -8,7 +8,7 @@ import type { SampleJobRaw } from "./demo";
 import type { PastedJobOut } from "./ai/schemas";
 
 export interface JobRow {
-  id: string; owner_id: string | null; source_id?: string | null; source_kind: string; source_label: string; external_id?: string | null;
+  id: string; active?: boolean; owner_id: string | null; source_id?: string | null; source_kind: string; source_label: string; external_id?: string | null;
   country: string; title: string; company: string; industry: string | null; category: string | null; location: string | null;
   employment_type: string | null; salary_min: number | string | null; salary_max: number | string | null; min_years: number | string | null; max_years: number | string | null;
   seniority: string | null; education: { level?: string | null; field?: string } | null; required_skills: string[] | null; preferred_skills: string[] | null;
@@ -22,7 +22,7 @@ const applyMethod = (m: unknown): ApplyMethod => (m === "email" || m === "portal
 export function rowToJob(r: JobRow): Job {
   const edu = r.education && isEduLevel(r.education.level) ? { level: r.education.level, field: String(r.education.field || "").toLowerCase() } : null;
   return {
-    id: r.id, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
+    id: r.id, active: r.active !== false, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
     type: r.employment_type, salaryMin: num(r.salary_min), salaryMax: num(r.salary_max), minYears: num(r.min_years), maxYears: num(r.max_years),
     seniority: isSeniority(r.seniority) ? r.seniority : null, education: edu,
     required: (r.required_skills || []).map(normSkill), preferred: (r.preferred_skills || []).map(normSkill),
@@ -131,7 +131,9 @@ const CERT_NAMES = ["ACCA", "CIMA", "CMA", "CPA", "CA", "CFA", "PMP", "SHRM", "C
 export function normaliseJobText(input: { title: string; company: string; text: string; country: CountryCode; location?: string | null; type?: string | null; url?: string | null; source: string; deadline?: string | null; publishedAt?: string | null; salaryMin?: number | null; salaryMax?: number | null; applyEmail?: string | null; today: string }): Omit<Job, "id"> {
   const text = input.text;
   const low = text.toLowerCase();
-  const yrs = low.match(/(\d{1,2})\s*(?:\+|-\s*(\d{1,2}))?\s*(?:\+\s*)?years?/);
+  // Recruitment pages often put an age limit before work experience. Age is never career tenure.
+  const experienceText = low.replace(/\baged?\s*:?\s*(?:between\s+|from\s+|at least\s+|at most\s+|not more than\s+)?\d{1,2}(?:\s*(?:to|-|–|and)\s*\d{1,2})?\s*(?:years?|yrs?)(?:\s+old)?/g, " ");
+  const yrs = experienceText.match(/\b(\d{1,2})\s*(?:\+|(?:-|–|to)\s*(\d{1,2}))?\s*(?:\+\s*)?years?/);
   const minYears = yrs ? Number(yrs[1]) : null;
   const maxYears = yrs && yrs[2] ? Number(yrs[2]) : null;
   const edu = /\b(phd|doctorate)\b/.test(low) ? "phd" : /\b(master'?s|mba|m\.?sc|m\.?com)\b/.test(low) ? "masters" : /\b(bachelor'?s|bba|b\.?sc|b\.?com|graduate degree|degree in)\b/.test(low) ? "bachelors" : /\bdiploma\b/.test(low) ? "diploma" : null;

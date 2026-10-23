@@ -34,6 +34,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const job = st.scored.find((x) => x.job.id === id)?.job || (await loadJob(db, id));
   if (!job) notFound();
+  if (job.active === false && !st.apps[job.id]) return <><PageHead title={<>Listing unavailable</>} sub="This vacancy has closed or its source requires review. It is not currently offered as a job recommendation." /><Link className="btn btn-ghost" href="/inbox">Back to opportunities</Link></>;
   const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
   const ai = st.aiCheck.get(job.id);
   // The full post, so the person can judge the job themselves before applying (list loads leave it out).

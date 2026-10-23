@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { jobToRow } from '../../../src/lib/jobs';
 import type { IngestedJob } from '../../../src/lib/ingest/ats';
 import type { SourceRow } from '../fetch-source';
-import { BD_SOURCES } from './registry';
+import { BD_SOURCES, approvedSource } from './registry';
 import { canonicalIdentity } from './identity';
 import type { BangladeshBatch } from './fetch';
 import type { DiscoveredJob } from './parse';
@@ -14,13 +14,17 @@ export async function ensureBangladeshSources(db: SupabaseClient) {
   const known = new Set((data || []).map(s => s.board_token));
   const rows = BD_SOURCES.filter(s => !known.has(s.key)).map(s => ({
     kind: 'bdweb', board_token: s.key, name: s.name, url: s.url, country: 'BD',
-    company: s.company || null, source_type: s.type, active: s.enabled,
-    last_status: s.enabled ? 'pending' : 'access_required', last_error: s.note || null,
+    company: s.company || null, source_type: s.type, active: s.enabled && approvedSource(s),
+    last_status: !approvedSource(s) ? 'quality_review' : s.enabled ? 'pending' : 'access_required', last_error: s.note || null,
   }));
   if (rows.length) { const { error } = await db.from('ingestion_sources').insert(rows); if (error) throw error; }
 }
 
 export async function persistBangladeshJobs(db: SupabaseClient, src: SourceRow, jobs: IngestedJob[]) {
+  if (src.kind === 'bdweb') {
+    const configured = BD_SOURCES.find(s => s.key === src.board_token);
+    if (!configured || !configured.enabled || !approvedSource(configured)) throw new Error('Source quality review required before publishing');
+  }
   const rows = jobs.map(j => {
     const discovery = (j as Partial<DiscoveredJob>).discovery;
     return { canonical_key: canonicalIdentity(j, src.id),
