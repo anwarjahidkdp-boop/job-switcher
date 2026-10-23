@@ -1,3 +1,4 @@
+import { applyQueue } from "../apply-queue";
 import { localSearchAnswers } from "../application-defaults";
 import { fillPersonalFromCv } from "../cv/personal-read";
 import type { AnswerLibrary,DealBreakers } from "../career-safety";
@@ -194,7 +195,7 @@ export function stats(st: UserState) {
   const apps = Object.values(st.apps);
   return {
     analysed: Math.max(st.analysed, st.scored.length), relevant: rel.length, strong: rel.filter((x) => x.m.score >= 70 && !x.m.expired).length,
-    prepared: apps.filter((a) => a.pack).length, applied: apps.filter((a) => !!a.applied_at).length,
+    prepared: applyQueue(st).filter(x => st.apps[x.job.id]?.pack).length, applied: apps.filter((a) => !!a.applied_at).length,
     reminders: apps.filter((a) => a.status === "reminder").length, interviews: apps.filter((a) => a.status === "interview").length, offers: apps.filter((a) => a.status === "offer").length,
   };
 }

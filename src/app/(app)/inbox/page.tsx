@@ -1,3 +1,4 @@
+import { applyQueue } from "@/lib/apply-queue";
 import { FitOverviewCard, fitTiles, dashboardFitSummary } from "@/components/FitOverviewCard";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction } from "@/app/actions";
@@ -8,7 +9,7 @@ import { stats } from "@/lib/server/state";
 import { inboxList, type Scored } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
 import { cname, money, perLabel, portals } from "@/lib/countries";
-import { daysUntil, fmtDate } from "@/lib/dates";
+import { daysUntil } from "@/lib/dates";
 import { fitLabel } from "@/lib/matching";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { Ring, DeadlineChip, BandPill } from "@/components/ui";
@@ -31,7 +32,7 @@ export default async function Inbox() {
   const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
-  const queue = Object.values(st.apps).filter((a) => ["ready", "reminder", "waiting"].includes(a.status)).map((a) => ({ a, job: jobById.get(a.job_id), date: a.status === "reminder" && a.reminder_date ? a.reminder_date : st.today })).filter((x) => x.job).sort((x, y) => x.date.localeCompare(y.date)).slice(0, 4);
+  const queue = applyQueue(st).slice(0, 4);
   const upcoming = list.filter((x) => (daysUntil(x.job.deadline, st.today) ?? -1) >= 0).sort((a, b) => (a.job.deadline || "").localeCompare(b.job.deadline || "")).slice(0, 3);
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
@@ -68,7 +69,6 @@ export default async function Inbox() {
     { label: "Offers", n: s.offers, href: "/applications", tone: "gold", icon: '<circle cx="12" cy="9" r="6"/><path d="m8 14-1 7 5-3 5 3-1-7M9 9l2 2 4-4"/>', hint: "Job offers received" },
   ];
   const best = list.find((x) => !st.apps[x.job.id]) || list[0];
-  const dayLabel = (d: string) => { const n = daysUntil(d, st.today) ?? 0; return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : fmtDate(d); };
 
   return (
     <>
@@ -123,8 +123,8 @@ export default async function Inbox() {
             </div>
           ) : null}
           <div className="card panel"><h3>Apply Queue</h3>
-            {queue.length ? queue.map((x) => <div key={x.a.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job!.company}</div><div className="small muted">{dayLabel(x.date)} · {STATUS_LABEL[x.a.status]}</div></div><Link prefetch={false} className="btn btn-text" href={`/jobs/${x.job!.id}`}>Open</Link></div>)
-              : <p className="small muted">Prepared applications and reminders appear here.</p>}
+            {queue.length ? queue.map((x) => <div key={x.job.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job!.company}</div><div className="small muted">{x.m.score}% · {st.apps[x.job.id]?.pack ? "Prepared" : "Selected automatically"}</div></div><Link prefetch={false} className="btn btn-text" href={`/jobs/${x.job!.id}`}>Open</Link></div>)
+              : <p className="small muted">Your highest eligible matches appear here automatically.</p>}
           </div>
           <div className="card panel"><h3>Upcoming deadlines</h3>
             {upcoming.length ? upcoming.map((x) => <div key={x.job.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job.title}</div><div className="small muted">{x.job.company}</div></div><DeadlineChip deadline={x.job.deadline} today={st.today} /></div>) : <p className="small muted">No upcoming deadlines.</p>}

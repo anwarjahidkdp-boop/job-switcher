@@ -8,13 +8,15 @@ import { newMatchesEmail } from "../email/templates";
 import { ApplicationSafetyError, preparePack } from "./applications";
 import { deliverEmail } from "./email-outbox";
 import { notify } from "./notify";
+import { loadState } from "./state";
+import { AUTO_QUEUE_SIZE, applyQueue } from "../apply-queue";
 
 export const NOTIFY_MIN_SCORE = 70;
-export const PREPARE_MIN_SCORE = 80;
+export const PREPARE_MIN_SCORE = 70;
 export const PREPARE_PER_RUN = 2;
 /** AI-prepared packs cost money; with this many still waiting unsent, we stop preparing new ones until the person acts. */
 export const PREPARED_WAITING_MAX = 3;
-/** Only jobs our AI check read against the CV and rated a strong fit are prepared ahead; the rest are one tap away. */
+/** Retained for callers checking an AI assessment; queue selection also enforces current deterministic safety. */
 export const aiVerified = (r: { ai_fit?: string | null; ai_score?: number | null }) => r.ai_fit === "strong" || (r.ai_score ?? 0) >= 70;
 const DIGEST_MAX = 8;
 const NOTIFY_PER_RUN = 5;
@@ -37,23 +39,26 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
       const { data: apps } = await admin.from("applications").select("job_id, status").eq("user_id", userId);
       const started = new Set((apps || []).map((a) => a.job_id as string));
       const fresh = ((data || []) as unknown as Row[]).filter((r) => !dismissed.has(r.job_id) && !started.has(r.job_id));
-      if (!fresh.length) continue;
       res.users++;
 
       const ready = new Set<string>();
       if (opts.prepare !== false && aiConfigured() && !opts.dryRun && (await canSpend(admin, userId))) {
-        const waiting = (apps || []).filter((a) => a.status === "ready").length;
+        const st = await loadState(admin, userId);
+        const ranked = st ? applyQueue(st).slice(0, AUTO_QUEUE_SIZE) : [];
+        const waiting = ranked.filter(x => st?.apps[x.job.id]?.pack).length;
         const room = Math.max(0, Math.min(PREPARE_PER_RUN, PREPARED_WAITING_MAX - waiting));
-        for (const r of fresh.filter((x) => x.score >= PREPARE_MIN_SCORE && aiVerified(x)).slice(0, room)) {
+        for (const candidate of ranked.filter(x => !st?.apps[x.job.id]?.pack).slice(0, room)) {
+          const r = {job_id:candidate.job.id};
           try {
             const out = await preparePack({ db: admin, admin, userId }, r.job_id);
-            if (out.ai) ready.add(r.job_id);
+            ready.add(r.job_id);
             res.prepared++;
             if (!out.ai) break; // out of allowance or AI unavailable: stop spending, the template pack is still saved
           } catch (e) { if (e instanceof ApplicationSafetyError) { console.info("  auto-prepare skipped by application safety", userId, r.job_id); continue; } console.error("  prepare failed", userId, r.job_id, e); break; }
         }
       }
 
+      if (!fresh.length) continue;
       if (!opts.dryRun) {
         // In the app: one notification per strong new match (best few), so the bell and the email say the same thing.
         await notify(admin, userId, fresh.slice(0, NOTIFY_PER_RUN).map((r) => ready.has(r.job_id)

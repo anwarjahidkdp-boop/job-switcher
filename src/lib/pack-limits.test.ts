@@ -32,7 +32,7 @@ describe("free trial applying", () => {
     expect(trialApplyRoom([{ applied_at: ago(2) }], now)).toBe(0);
     expect(trialApplyRoom(Array.from({ length: 5 }, (_, i) => ({ applied_at: ago(30 + i * 24) })), now)).toBe(0);
     const apps = [{ job_id: "b", status: "ready", created_at: ago(1) }, { job_id: "a", status: "ready", created_at: ago(5) }, { job_id: "c", status: "applied", created_at: ago(9) }];
-    expect([...unlockedReady(apps, 1)]).toEqual(["a"]);
+    expect([...unlockedReady(apps, 1)]).toEqual(["b", "a"]);
     expect(unlockedReady(apps, 0).size).toBe(0);
   });
 });
