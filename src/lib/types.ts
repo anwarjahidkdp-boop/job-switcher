@@ -100,7 +100,7 @@ export interface Extraction {
 }
 
 // ---------- Master CV ----------
-export interface MasterExperience { title: string; company: string; location: string | null; start: string | null; end: string | null; bullets: string[] }
+export interface MasterExperience { title: string; company: string; location: string | null; start: string | null; end: string | null; bullets: string[]; autoEnd?: boolean; concurrent?: boolean }
 export interface MasterCV {
   name: string;
   headline: string;
