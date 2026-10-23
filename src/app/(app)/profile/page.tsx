@@ -45,8 +45,8 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
       <ApplicationProfileNotice answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} onProfile />
       <div className="dash" style={{ marginTop: 18 }}>
         <div>
-          <ManualCvEditor initial={manualDraft(st.master.content, st.facts)} baseId={st.master.id} country={country} revision={st.profile.search_country_version} />
           <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc", label: "Your Master CV" }} />
+          <ManualCvEditor initial={manualDraft(st.master.content, st.facts)} baseId={st.master.id} country={country} revision={st.profile.search_country_version} />
           <CvPreview master={st.master.content} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} />
           <div className="row" style={{ marginTop: 12 }}>
             <a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download Master CV (Word)</a>
@@ -73,7 +73,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
               <div>Experience: <b>{Math.floor(P.years)} years</b> · {LEVEL_NAME[LEVEL[P.seniority]]}</div>
               <div>Notice period: <b>{P.notice != null ? (P.notice === 0 ? "Available immediately" : P.notice + " days") : "Not set"}</b></div>
             </div>
-            <Link className="btn btn-text" style={{ marginTop: 6 }} href="/onboarding?step=prefs">Edit preferences</Link>
+            <Link className="btn btn-primary btn-sm" style={{ marginTop: 12, width: "100%" }} href="/onboarding?step=prefs"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/></svg>Edit preferences</Link>
           </div>
           <ApplicationSafetyForm answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} />
           <div className="card panel"><h3>Job sites</h3>
