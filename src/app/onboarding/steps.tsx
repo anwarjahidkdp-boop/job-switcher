@@ -1,7 +1,7 @@
 "use client";
 import { setupRequirements } from "@/lib/eligibility";
 import type { AnswerLibrary } from "@/lib/career-safety";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
 import { CountrySelect } from "@/components/CountrySelect";

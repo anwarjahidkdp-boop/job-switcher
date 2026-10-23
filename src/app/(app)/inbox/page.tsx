@@ -3,7 +3,7 @@ import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice"
 import { backToStepAction } from "@/app/actions";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
-import { requireAppState } from "@/lib/server/page";
+import { subscriptionOf, requireAppState } from "@/lib/server/page";
 import { stats } from "@/lib/server/state";
 import { inboxList, type Scored } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
@@ -39,7 +39,7 @@ export default async function Inbox() {
   const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const [{ data: sub }, notes] = await Promise.all([
-    db.from("subscriptions").select("status, trial_started_at, trial_ends_at").eq("user_id", st.userId).maybeSingle(),
+    subscriptionOf(db,st.userId),
     listNotifications(db, st.userId, 10),
   ]);
   const now = nowMs();

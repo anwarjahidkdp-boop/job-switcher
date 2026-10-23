@@ -32,10 +32,9 @@ function describeFact(kind: string, d: Record<string, unknown>): string {
 export default async function Profile({ searchParams }: { searchParams: Promise<{ gmail?: string }> }) {
   const { st, db } = await requireAppState("/profile");
   const gmailStatus = (await searchParams).gmail ?? null;
-  const gmail = gmailConfigured() ? await gmailAccount(createAdminClient(), st.userId) : null;
+  const [gmail,photo] = await Promise.all([gmailConfigured() ? gmailAccount(createAdminClient(), st.userId) : null,photoUrl(db, st.profile.photo_path)]);
   const P = st.P, country = st.country, r = rule(country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
-  const photo = await photoUrl(db, st.profile.photo_path);
   const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const pending = st.facts.filter((f) => !f.verified && f.kind !== "answer" && f.id).map((f) => ({ id: f.id!, kind: f.kind, text: describeFact(f.kind, f.data) }));
@@ -55,7 +54,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <form action={backToStepAction.bind(null, "upload")}><button className="btn btn-ghost btn-sm">Upload a new CV</button></form>
           </div>
           <CvSuggestions items={st.master.content.suggestions || []} />
-          {convention(country).refs === "list" && !(st.profile.personal?.references || []).length ? <p className="note" style={{ marginTop: 12 }}>{cname(country)} CVs list {convention(country).refCount} references who are not relatives. Your CV says &quot;Available on request&quot; until you add them. <Link href="/onboarding?step=prefs">Add references</Link></p> : null}
+          {convention(country).refs === "list" && !(st.profile.personal?.references || []).length ? <p className="note" style={{ marginTop: 12 }}>References are optional. Your CV says &quot;Available on request&quot; until you add them. <Link href="/onboarding?step=prefs">Add references</Link></p> : null}
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side profile-sidebar">

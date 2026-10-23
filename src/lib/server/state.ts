@@ -101,14 +101,15 @@ export async function loadVisibleJobs(db: SupabaseClient, userId: string, countr
   const base = () => db.from("jobs").select(LIST_COLS).eq("country", country).eq("active", true).or(visible);
   const rows = (r: { data: unknown; error: unknown }) => { if (r.error) throw r.error; return (r.data || []) as JobRow[]; };
   if (!opts.all) {
-    const best = await db.from("matches").select("job_id").eq("user_id", userId).eq("relevant", true).order("score", { ascending: false }).limit(PAGE_BEST);
+    // Start independent reads while the stored match IDs load.
+    const [best, newest, own] = await Promise.all([
+      db.from("matches").select("job_id").eq("user_id", userId).eq("relevant", true).order("score", { ascending: false }).limit(PAGE_BEST),
+      base().order("created_at", { ascending: false }).limit(PAGE_NEWEST),
+      db.from("jobs").select(LIST_COLS).eq("owner_id", userId).eq("country", country).eq("active", true).order("created_at", { ascending: false }).limit(200),
+    ]);
     const ids = ((best.data || []) as { job_id: string }[]).map((r) => r.job_id);
     if (!best.error && ids.length) {
-      const [newest, own, top] = await Promise.all([
-        base().order("created_at", { ascending: false }).limit(PAGE_NEWEST),
-        db.from("jobs").select(LIST_COLS).eq("owner_id", userId).eq("country", country).eq("active", true).order("created_at", { ascending: false }).limit(200),
-        base().in("id", ids),
-      ]);
+      const top = await base().in("id", ids);
       const seen = new Map<string, JobRow>();
       for (const j of [...rows(newest), ...rows(own), ...rows(top)]) seen.set(j.id, j);
       return [...seen.values()].map(rowToJob);
@@ -133,15 +134,15 @@ export async function countVisibleJobs(db: SupabaseClient, userId: string, count
   return count || 0;
 }
 
-export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>, opts: { allJobs?: boolean } = {}): Promise<UserState | null> {
+export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>, opts: { allJobs?: boolean; skipMatching?:boolean; skipApplications?:boolean } = {}): Promise<UserState | null> {
   // The profile and the person's own rows load together; only the job list waits for the profile (country, categories).
   const [profile, facts, cvRes, masterRes, appsRes, checkRes] = await Promise.all([
     profileP || loadProfile(db, userId),
     loadFacts(db, userId),
     db.from("cv_documents").select("id, text_content, questions, answers, is_demo, file_name, storage_path, created_at").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("master_cvs").select("id, content, flags, ai, model, created_at, version").eq("user_id", userId).eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    db.from("applications").select("*, jobs!inner(country), application_events(event, status, actor, created_at)").eq("user_id", userId),
-    db.from("matches").select("job_id, ai_fit, ai_score, ai_reason, ai_checked_at").eq("user_id", userId).not("ai_fit", "is", null),
+    opts.skipApplications ? Promise.resolve({data:[],error:null}) : db.from("applications").select("*, jobs!inner(country), application_events(event, status, actor, created_at)").eq("user_id", userId),
+    opts.skipMatching ? Promise.resolve({data:[],error:null}) : db.from("matches").select("job_id, ai_fit, ai_score, ai_reason, ai_checked_at").eq("user_id", userId).not("ai_fit", "is", null),
   ]);
   if (!profile) return null;
   // A failed read must show the error page, never look like "no CV" (which sends people back to onboarding) or "no jobs".
@@ -152,7 +153,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   const today = todayStr(rule(country).timeZone);
   const master = (masterRes.data as MasterRow) || null;
   const P = profileFrom(profile, facts, master);
-  const [jobs, analysed] = P ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
+  const [jobs, analysed] = P && !opts.skipMatching ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
   // Drop previous-country drafts from all active views; retain sent history for account-wide limits.
   const apps: Record<string, ApplicationRow> = {};
   for (const a of (appsRes.data || []) as (ApplicationRow & { jobs: { country: string } | null })[]) {
