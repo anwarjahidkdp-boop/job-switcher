@@ -33,7 +33,8 @@ async function main() {
 
   const touchedCountries = new Set<string>();
   let total = 0, failed = 0;
-  for (const src of (sources || []) as SourceRow[]) {
+  // Bangladesh collection must not wait behind the much larger international employer boards.
+  for (const src of ((sources || []) as SourceRow[]).sort((a, b) => Number(b.country === "BD") - Number(a.country === "BD"))) {
     try {
       let batch: BangladeshBatch | null = null;
       if (src.kind === "bdweb") {

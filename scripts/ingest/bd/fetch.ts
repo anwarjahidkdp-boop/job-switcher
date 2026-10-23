@@ -1,10 +1,18 @@
 import {BOT_UA,robotsAllows} from '../../../src/lib/ingest/robots';import {all,href,parse,text} from './html';
 import {detailUrls,nextPage,parseDetail,type DiscoveredJob,type SourceDocument} from './parse';import {BD_SOURCES,type BangladeshSource} from './registry';
+import {fetchTeletalk} from './teletalk';
 export type Fetcher=(url:string,init?:RequestInit)=>Promise<Response>;
 export class PublicReader {
  private rules=new Map<string,string>();private nextStart=0;
  constructor(private base:string,private fetcher:Fetcher=fetch,private delay=400){}
- private async request(url:string):Promise<Response>{const wait=Math.max(0,this.nextStart-Date.now());this.nextStart=Math.max(Date.now(),this.nextStart)+this.delay;if(wait)await new Promise(r=>setTimeout(r,wait));return this.fetcher(url,{headers:{'user-agent':BOT_UA,accept:'text/html,application/json,application/pdf;q=0.9,*/*;q=0.5'},redirect:'manual',signal:AbortSignal.timeout(20000)});}
+ private async request(url:string):Promise<Response>{
+  for(let attempt=0;attempt<2;attempt++){
+   const wait=Math.max(0,this.nextStart-Date.now());this.nextStart=Math.max(Date.now(),this.nextStart)+this.delay;if(wait)await new Promise(r=>setTimeout(r,wait));
+   try {const r=await this.fetcher(url,{headers:{'user-agent':BOT_UA,accept:'text/html,application/json,application/pdf;q=0.9,*/*;q=0.5'},redirect:'manual',signal:AbortSignal.timeout(20000)});
+    if(attempt===0&&(r.status===429||r.status>=500)){await r.body?.cancel();await new Promise(r=>setTimeout(r,250));continue;}return r;
+   }catch(e){if(attempt===1)throw e;await new Promise(r=>setTimeout(r,250));}
+  }throw Error('Source request failed');
+ }
  async bytes(url:string):Promise<{bytes:Uint8Array;type:string}>{
   const target=new URL(url);const base=new URL(this.base);
   if(target.protocol!=='https:'||target.username||target.password||target.hostname.replace(/^www\./,'')!==base.hostname.replace(/^www\./,''))throw Error('Source URL left its configured host');
@@ -33,6 +41,7 @@ export class PublicReader {
 export interface BangladeshBatch {jobs:DiscoveredJob[];documents:(SourceDocument&{state:'needs_review'|'fetch_failed'})[];checkedUrls:string[];nextUrl:string|null;pages:number;failures:number}
 export async function fetchBangladesh(key:string,today:string,opts:{fetcher?:Fetcher;cursor?:string|null;pages?:number;retryUrls?:string[];delay?:number}={}):Promise<BangladeshBatch>{
  const c=BD_SOURCES.find(x=>x.key===key);if(!c||!c.enabled)throw Error(c?.note||'Unsupported Bangladesh source');const reader=new PublicReader(c.url,opts.fetcher,opts.delay??400);
+ if(c.mode==='teletalk')return fetchTeletalk(reader,today,opts);
  const result:BangladeshBatch={jobs:[],documents:[],checkedUrls:[],nextUrl:null,pages:0,failures:0};
  const handle=async(url:string)=>{try{const html=await reader.html(url);const parsed=parseDetail(html,url,c,today);result.jobs.push(...parsed.jobs);result.documents.push(...parsed.documents.map(d=>({...d,state:'needs_review' as const})));result.checkedUrls.push(url);}catch(e){result.failures++;result.documents.push({url,title:'Source page',kind:'article',reason:String(e).slice(0,300),publishedAt:null,state:'fetch_failed'});}};
  const seen=new Set<string>();const consume=async(html:string,url:string)=>{

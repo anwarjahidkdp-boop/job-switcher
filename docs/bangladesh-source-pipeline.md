@@ -6,6 +6,8 @@ The daily GitHub ingestion workflow is scheduled at 00:30 UTC / 06:30 Asia/Dhaka
 
 The registry in `scripts/ingest/bd/registry.ts` covers portals (Dohaj, Skill.Jobs/former JobsBD, NextJobz, bdRecruit, Job.com.bd, MoreJobs, BDJobsToday), newspapers (Dhaka Post, Prothom Alo), weekly circulars (Saptahic Chakrir Khabar and its e-paper), an employer circular source (SDF), and Alljobs Teletalk. Existing BRAC and BRAC IT employer integrations continue. These are configured adapters; only a successful live run establishes working coverage and vacancy counts.
 
+Alljobs Teletalk uses its anonymous government organization listing and public job detail JSON endpoints, as used by the provider's website. No token is sent. Full eligibility not exposed by that API is left unknown and the description directs applicants to the official circular; employer history and age limits never become work experience. Bangladesh sources run before international boards. Transient network/5xx errors get one bounded retry. A 403 remains an access failure and is not bypassed.
+
 Bdjobs is disabled pending permitted feed/API access because its robots rules prohibit our crawler. JagoJobs detail URLs still need validation. NRBJobs is disabled after an account-suspended response. ReliefWeb needs an approved API app name. Disabled access requirements appear in Admin > Sources rather than being counted as functioning scrapers.
 
 ## Data integrity and cost

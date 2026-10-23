@@ -131,7 +131,9 @@ const CERT_NAMES = ["ACCA", "CIMA", "CMA", "CPA", "CA", "CFA", "PMP", "SHRM", "C
 export function normaliseJobText(input: { title: string; company: string; text: string; country: CountryCode; location?: string | null; type?: string | null; url?: string | null; source: string; deadline?: string | null; publishedAt?: string | null; salaryMin?: number | null; salaryMax?: number | null; applyEmail?: string | null; today: string }): Omit<Job, "id"> {
   const text = input.text;
   const low = text.toLowerCase();
-  const yrs = low.match(/(\d{1,2})\s*(?:\+|-\s*(\d{1,2}))?\s*(?:\+\s*)?years?/);
+  // Recruitment pages often put an age limit before work experience. Age is never career tenure.
+  const experienceText = low.replace(/\baged?\s*:?\s*(?:between\s+|from\s+|at least\s+|at most\s+|not more than\s+)?\d{1,2}(?:\s*(?:to|-|–|and)\s*\d{1,2})?\s*(?:years?|yrs?)(?:\s+old)?/g, " ");
+  const yrs = experienceText.match(/\b(\d{1,2})\s*(?:\+|(?:-|–|to)\s*(\d{1,2}))?\s*(?:\+\s*)?years?/);
   const minYears = yrs ? Number(yrs[1]) : null;
   const maxYears = yrs && yrs[2] ? Number(yrs[2]) : null;
   const edu = /\b(phd|doctorate)\b/.test(low) ? "phd" : /\b(master'?s|mba|m\.?sc|m\.?com)\b/.test(low) ? "masters" : /\b(bachelor'?s|bba|b\.?sc|b\.?com|graduate degree|degree in)\b/.test(low) ? "bachelors" : /\bdiploma\b/.test(low) ? "diploma" : null;
