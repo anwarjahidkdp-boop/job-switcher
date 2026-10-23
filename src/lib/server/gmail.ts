@@ -79,7 +79,8 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   const { data: conn } = await ctx.admin.from("gmail_connections").select("google_email, refresh_token_enc").eq("user_id", ctx.userId).maybeSingle();
   if (!conn) throw new GmailError("not_connected", "Connect your Gmail first.");
 
-  const st = await loadState(ctx.db, ctx.userId);
+  // Keep current-profile safety checks for this job, without ranking the entire market to send one pack.
+  const st = await loadState(ctx.db, ctx.userId, undefined, { skipMatching: true });
   const app = st?.apps[jobId];
   if (!st?.master || !app?.pack) throw new Error("Prepare the application first.");
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) throw new Error("This application was already sent.");

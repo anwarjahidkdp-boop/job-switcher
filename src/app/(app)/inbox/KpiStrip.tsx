@@ -21,10 +21,10 @@ export function KpiStrip({ items, afterFirst }: { items: Kpi[]; afterFirst?: Rea
     return () => cancelAnimationFrame(raf);
   }, []);
   return (
-    <div className={`kpis${afterFirst ? " kpis-six" : ""}`} ref={box}>
+    <div className={`kpis${afterFirst ? " kpis-six" : ""}${items.length + (afterFirst ? 1 : 0) === 7 ? " kpis-seven" : ""}`} ref={box}>
       {items.map((k,i) => (
         <Fragment key={k.label}>
-        <Link key={k.label} href={k.href} className={`kpi kpi-${k.tone}`}>
+        <Link prefetch={false} key={k.label} href={k.href} className={`kpi kpi-${k.tone}`}>
           <span className="kpi-ic" aria-hidden="true" dangerouslySetInnerHTML={{ __html: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${k.icon}</svg>` }} />
           <b className="num" data-n={k.n}>{k.n}</b>
           <span className="kpi-l">{k.label}</span>

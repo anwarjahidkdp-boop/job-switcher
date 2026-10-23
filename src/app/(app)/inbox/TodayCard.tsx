@@ -19,22 +19,22 @@ export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; i
       </div>
       {done.length ? <ol className="flow" aria-label="What JobPao did for you">{done.map((d, i) => {
         const body = <><span className="flow-top"><span className="flow-ic"><Ic d={d.icon} /></span><span className="flow-step">Step {i + 1}</span></span><b className="flow-n num">{d.n}</b><span className="flow-l">{d.label}</span>{d.sub ? <span className="flow-s">{d.sub}</span> : null}</>;
-        return <li key={d.label} className={`flow-i${i === done.length - 1 ? " last" : ""}`}>{d.href ? <Link href={d.href}>{body}</Link> : <div>{body}</div>}</li>;
+        return <li key={d.label} className={`flow-i${i === done.length - 1 ? " last" : ""}`}>{d.href ? <Link prefetch={false} href={d.href}>{body}</Link> : <div>{body}</div>}</li>;
       })}</ol> : null}
       {plan?.summaryTime ? (
         <div className="today-next" style={{ display: "block" }}>
           <b>Your trial with JobPao</b>
           <div className="tiles" style={{ marginTop: 10 }}>{summary.map(([l, n]) => <div key={l} className="card tile"><b>{n}</b><span className="small muted">{l}</span></div>)}</div>
           <div className="row" style={{ marginTop: 12 }}>
-            <Link className="btn btn-primary btn-sm" href="/upgrade">Keep my assistant working</Link>
+            <Link prefetch={false} className="btn btn-primary btn-sm" href="/upgrade">Keep my assistant working</Link>
             <span className="small muted">New matches and ready applications every day.</span>
           </div>
         </div>
       ) : null}
       {items.length ? (
         <div className="today-items">
-          {items.map((n) => <Link key={n.id} href={n.link || "/inbox"} className="ntf new"><span className="ntf-dot" aria-hidden="true" /><span style={{ flex: 1 }}><b>{n.title}</b>{n.body ? <span className="small muted" style={{ display: "block" }}>{n.body}</span> : null}</span></Link>)}
-          <Link className="btn btn-text" href="/notifications">All notifications</Link>
+          {items.map((n) => <Link prefetch={false} key={n.id} href={n.link || "/inbox"} className="ntf new"><span className="ntf-dot" aria-hidden="true" /><span style={{ flex: 1 }}><b>{n.title}</b>{n.body ? <span className="small muted" style={{ display: "block" }}>{n.body}</span> : null}</span></Link>)}
+          <Link prefetch={false} className="btn btn-text" href="/notifications">All notifications</Link>
         </div>
       ) : null}
     </div>
