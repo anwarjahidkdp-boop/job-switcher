@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { newestExperienceFirst } from "./cv/experience";
 import { normSkill } from "./taxonomy";
 import type { CareerFact } from "./facts";
 import type { MasterCV } from "./types";
@@ -22,7 +23,7 @@ export function manualDraft(master: MasterCV, facts: CareerFact[]): ManualCv {
   const certs = facts.filter(f => f.verified && f.kind === "certification").map(f => f.data);
   return {
     name: master.name, headline: master.headline, contact: master.contact, summary: master.summary,
-    experience: structuredClone(master.experience),
+    experience: newestExperienceFirst(structuredClone(master.experience)),
     education: edus.length ? edus.map(d => ({ degree: String(d.degree || ""), field: String(d.field || ""), institution: String(d.institution || ""), year: String(d.year || ""), level: education.shape.level.safeParse(d.level).data || "bachelors", result: d.result == null ? null : String(d.result) })) : master.education.map(degree => ({ degree, field: "", institution: "", year: "", level: "bachelors", result: null })),
     certifications: certs.length ? certs.map(d => ({ name: String(d.name || ""), status: certification.shape.status.safeParse(d.status).data || "qualified", detail: d.detail == null ? null : String(d.detail) })) : master.certifications.map(name => ({ name, status: "qualified", detail: null })),
     skills_core: [...master.skills_core], skills_tools: [...master.skills_tools], languages: [...master.languages],
@@ -31,14 +32,15 @@ export function manualDraft(master: MasterCV, facts: CareerFact[]): ManualCv {
 
 export function manualContent(input: ManualCv, before: MasterCV, facts: CareerFact[]) {
   const original = manualDraft(before, facts);
+  const experience = newestExperienceFirst(input.experience);
   const master: MasterCV = {
-    ...input,
+    ...input, experience,
     education: JSON.stringify(input.education) === JSON.stringify(original.education) ? before.education : input.education.map(e => [e.degree + (e.field ? ` in ${e.field}` : ""), e.institution, e.year, e.result ? `(${e.result})` : ""].filter(Boolean).join(", ")),
     certifications: JSON.stringify(input.certifications) === JSON.stringify(original.certifications) ? before.certifications : input.certifications.map(c => `${c.name}${c.status === "partly" ? " (partly qualified)" : c.status === "in_progress" ? " (in progress)" : ""}${c.detail ? ` — ${c.detail}` : ""}`),
     suggestions: [], improvements: before.improvements, extra_skills: [],
   };
   const rows: Pick<CareerFact, "kind" | "data">[] = [
-    ...input.experience.map(e => { const old = facts.find(f => f.kind === "experience" && f.data.company === e.company && f.data.title === e.title); return { kind: "experience" as const, data: { title: e.title, company: e.company, start: e.start, end: e.end, location: e.location, industry: old?.data.industry ?? null } }; }),
+    ...experience.map(e => { const old = facts.find(f => f.kind === "experience" && f.data.company === e.company && f.data.title === e.title); return { kind: "experience" as const, data: { title: e.title, company: e.company, start: e.start, end: e.end, location: e.location, industry: old?.data.industry ?? null } }; }),
     ...input.education.map(e => ({ kind: "education" as const, data: e })),
     ...input.certifications.map(c => ({ kind: "certification" as const, data: c })),
     ...Array.from(new Set([...input.skills_core, ...input.skills_tools].map(normSkill))).map(name => ({ kind: "skill" as const, data: { name } })),

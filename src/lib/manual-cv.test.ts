@@ -11,12 +11,12 @@ const facts: CareerFact[] = [{ kind: "education", data: { degree: "BBA", field: 
 describe("manual CV editing without AI", () => {
  it("saves promotion dates separately for two roles at one employer", () => {
   const input = manualDraft(master, facts);
-  input.experience[1].start = "2021-11";
-  input.experience[1].bullets = ["Monitored team activities.", "Prepared monthly budgets."];
+  input.experience[0].start = "2021-11";
+  input.experience[0].bullets = ["Monitored team activities.", "Prepared monthly budgets."];
   const out = manualContent(ManualCvSchema.parse(input), master, facts);
-  expect(out.master.experience[0].end).toBe("2021-10");
-  expect(out.facts.filter(f => f.kind === "experience").map(f => f.data.start)).toEqual(["2018-01", "2021-11"]);
-  expect(out.master.experience[1].bullets).toContain("Monitored team activities.");
+  expect(out.master.experience[1].end).toBe("2021-10");
+  expect(out.facts.filter(f => f.kind === "experience").map(f => f.data.start)).toEqual(["2021-11", "2018-01"]);
+  expect(out.master.experience[0].bullets).toContain("Monitored team activities.");
   expect(out.master.education).toEqual(master.education);
  });
  it("syncs changes to education, certification status and skills with matching facts", () => {
