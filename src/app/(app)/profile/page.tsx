@@ -58,6 +58,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side profile-sidebar">
+          <div className="card panel profile-card"><h3>JobPao on your phone</h3><p className="small muted">Install again any time. Sign in with the same email to keep your saved CV and application history.</p><Link className="btn btn-primary btn-sm" href="/install" style={{marginTop:12}}>Install / reinstall app</Link></div>
           <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} />
           <div className="card panel profile-card" data-tone="good"><ProfileCardTitle icon="skills">Verified skills</ProfileCardTitle>
             <div className="skchips">{P.skills.map((s) => <span key={s.name} className={`sk ${s.src === "user" ? "u" : ""}`} title={srcTitle(s.src)}>{skillLabel(s.name)}</span>)}</div>

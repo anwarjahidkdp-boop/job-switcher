@@ -15,6 +15,7 @@ export function SiteFooter({ signedIn }: { signedIn?: boolean }) {
           <Link href={signedIn ? "/inbox" : "/login?mode=signup&next=/onboarding"}>{signedIn ? "My jobs" : "Start free"}</Link>
           <Link href={signedIn ? "/upgrade" : "/#pricing"}>Pricing</Link>
           <Link href="/setup">Setup guide</Link>
+          <Link href="/install">Install / reinstall app</Link>
         </nav>
         <nav className="sf-col" aria-label="Help">
           <b>Help</b>
