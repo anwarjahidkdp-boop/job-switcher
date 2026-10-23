@@ -5,7 +5,7 @@ import {scoreJob} from './matching';
 import {withAiScores} from './server/state';
 import type {Job,MatchProfile} from './types';
 const today='2026-10-23';
-const job={id:'j',country:'BD',title:'Accountant',salaryMin:80000,salaryMax:100000,required:[],preferred:[],certs:[],resp:[],eligibility:{minAge:18,maxAge:32,ageAsOf:today}} as unknown as Job;
+const job={id:'j',country:'BD',title:'Accountant',minYears:0,salaryMin:80000,salaryMax:100000,required:[],preferred:[],certs:[],resp:[],eligibility:{minAge:18,maxAge:32,ageAsOf:today}} as unknown as Job;
 const P={birthDate:'1986-10-24',salaryMin:70000,salaryConfirmed:true,workAuthorization:'yes',sponsorshipRequired:false} as MatchProfile;
 it('uses actual birthdays on the circular cutoff date, not approximate age or tenure',()=>{
  expect(ageOn('1994-10-24',today)).toBe(31);expect(ageOn('1994-10-23',today)).toBe(32);expect(ageOn('1994-10-22',today)).toBe(32);
@@ -67,4 +67,9 @@ it('blocks application preparation when mandatory experience, education, skills 
  const j={...job,eligibility:{},minYears:5,education:{level:'masters' as const,field:''},required:['sap'],certs:[{names:['CA'],required:true}]};
  const r=eligibilityCheck(j,{...P,years:2,education:[{degree:'BBA',field:'accounting',level:'bachelors'}],skills:[],certs:[]},today);
  expect(r.eligible).toBe(false);expect(r.issues.map(i=>i.code)).toEqual(expect.arrayContaining(['experience','education','required_skills','certification']));
+});
+
+it('does not turn a title-only listing into a perfect match by ignoring missing requirements',()=>{
+ const r=eligibilityCheck({...job,minYears:null,eligibility:{}},P,today);
+ expect(r.scoreCap).toBe(79);expect(r.eligible).toBe(false);expect(r.issues.some(i=>i.code==='requirements_unknown')).toBe(true);
 });

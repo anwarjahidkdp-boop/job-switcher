@@ -36,7 +36,7 @@ describe('stale application page safeguards',()=>{
  });
  it('opening a portal never overwrites a concurrently submitted or sending application',async()=>{
   vi.mocked(loadState).mockResolvedValue({P:{salaryMin:null},today:'2026-10-23',profile:{preferences:null,deal_breakers:{},answer_library:{},needs_visa:false}} as unknown as NonNullable<Awaited<ReturnType<typeof loadState>>>);
-  vi.mocked(loadJob).mockResolvedValue({country:'BD'} as unknown as NonNullable<Awaited<ReturnType<typeof loadJob>>>);
+  vi.mocked(loadJob).mockResolvedValue({country:'BD',minYears:0} as unknown as NonNullable<Awaited<ReturnType<typeof loadJob>>>);
  const x=context();await markOpened(x.ctx,'j');expect(x.mutations[0].filters).toEqual(expect.arrayContaining([['is','sending_at',null],['not','status','in','(applied,interview,offer,closed,withdrawn)']]));
  });
  it('refuses a reminder mutation when a send won the race',async()=>{

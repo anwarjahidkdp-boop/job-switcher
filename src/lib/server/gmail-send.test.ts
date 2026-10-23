@@ -17,7 +17,7 @@ import { sendApplication } from "./gmail";
 function fixture(opts: { claimError?: string; statusError?: boolean; receiptError?: boolean } = {}) {
   const row = { sending_at: null as string | null, status: "ready" };
   const events: unknown[] = [];
-  const job = { country:"US",salary_min:70000,salary_max:90000,id: "job", company: "Synthetic Employer", title: "Accountant", apply_method: "email", apply_target: "hr@example.invalid", deadline: null };
+  const job = { country:"US",min_years:0,salary_min:70000,salary_max:90000,id: "job", company: "Synthetic Employer", title: "Accountant", apply_method: "email", apply_target: "hr@example.invalid", deadline: null };
   const db = { rpc: async () => {
     if (opts.claimError) return { data: null, error: { code: opts.claimError } };
     if (row.sending_at) return { data: null, error: new Error("A previous send attempt is unresolved") };
