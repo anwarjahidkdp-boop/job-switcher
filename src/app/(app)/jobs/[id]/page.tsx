@@ -38,7 +38,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
   const ai = st.aiCheck.get(job.id);
   // The full post, so the person can judge the job themselves before applying (list loads leave it out).
-  const { data: descRow } = await db.from("jobs").select("description").eq("id", job.id).maybeSingle();
+  const { data: descRow } = await db.from("jobs").select("description,source_kind").eq("id", job.id).maybeSingle();
   const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
   const { data: occurrences } = job.country === "BD" ? await db.from("job_source_occurrences").select("discovered_url, original_source_url").eq("job_id", job.id).limit(20) : { data: null };
   const publicLink = (value: string | null) => { try { const u = new URL(value || ""); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
@@ -82,6 +82,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {job.minYears != null ? <span className="pill p-neutral">{job.minYears}+ years</span> : null}
               <span className="pill p-neutral">{job.source}{job.isSample ? " · fictional sample" : ""}</span>
             </div>
+            {descRow?.source_kind === 'bdweb' ? <p className="note small" style={{ marginTop: 12 }}>Confirm the employer, full eligibility and application instructions in the linked original advertisement before applying. A source listing does not guarantee an employer or job offer.</p> : null}
             {job.resp.length ? <><h3 style={{ fontSize: 15, marginTop: 18 }}>Main responsibilities</h3><ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>{job.resp.map((x, i) => <li key={i}>{x}</li>)}</ul></> : null}
             <h3 style={{ fontSize: 15, marginTop: 14 }}>Asks for</h3>
             <div className="skchips" style={{ marginTop: 6 }}>

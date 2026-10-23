@@ -1,6 +1,7 @@
 import {BOT_UA,robotsAllows} from '../../../src/lib/ingest/robots';import {all,href,parse,text} from './html';
 import {detailUrls,nextPage,parseDetail,type DiscoveredJob,type SourceDocument} from './parse';import {BD_SOURCES,approvedSource,type BangladeshSource} from './registry';
 import {fetchTeletalk} from './teletalk';
+import {sourceReviewReason} from './quality';
 export type Fetcher=(url:string,init?:RequestInit)=>Promise<Response>;
 export class PublicReader {
  private rules=new Map<string,string>();private nextStart=0;
@@ -58,6 +59,7 @@ export async function fetchBangladesh(key:string,today:string,opts:{fetcher?:Fet
   const html=await reader.html(u.href);result.pages++;await consume(html,u.href);next=nextPage(html,u.href,c);
  }
  result.nextUrl=next;result.jobs=[...new Map(result.jobs.map(j=>[j.externalId,j])).values()];
+ result.jobs=result.jobs.filter(j=>{const reason=sourceReviewReason(j,c,today);if(!reason)return true;result.documents.push({url:j.discovery.url,title:j.title,kind:'article',reason,publishedAt:j.publishedAt,state:'needs_review'});return false;});
  if(!seen.size)throw Error('No job links found: listing structure changed; refusing a false empty success');return result;
 }
 export function documentLinks(html:string,c:BangladeshSource):SourceDocument[]{

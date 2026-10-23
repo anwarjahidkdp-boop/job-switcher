@@ -6,6 +6,8 @@ import { BD_SOURCES, approvedSource } from './registry';
 import { canonicalIdentity } from './identity';
 import type { BangladeshBatch } from './fetch';
 import type { DiscoveredJob } from './parse';
+import { sourceReviewReason } from './quality';
+import { todayStr } from '../../../src/lib/dates';
 
 /** Register new sources once; preserve any later administrator disable decision. */
 export async function ensureBangladeshSources(db: SupabaseClient) {
@@ -20,10 +22,11 @@ export async function ensureBangladeshSources(db: SupabaseClient) {
   if (rows.length) { const { error } = await db.from('ingestion_sources').insert(rows); if (error) throw error; }
 }
 
-export async function persistBangladeshJobs(db: SupabaseClient, src: SourceRow, jobs: IngestedJob[]) {
+export async function persistBangladeshJobs(db: SupabaseClient, src: SourceRow, jobs: IngestedJob[], today = todayStr('Asia/Dhaka')) {
   if (src.kind === 'bdweb') {
     const configured = BD_SOURCES.find(s => s.key === src.board_token);
     if (!configured || !configured.enabled || !approvedSource(configured)) throw new Error('Source quality review required before publishing');
+    for (const job of jobs) { const reason = sourceReviewReason(job, configured, today); if (reason) throw new Error(`Listing review required: ${reason}`); }
   }
   const rows = jobs.map(j => {
     const discovery = (j as Partial<DiscoveredJob>).discovery;

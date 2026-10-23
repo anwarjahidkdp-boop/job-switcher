@@ -4,6 +4,8 @@ The daily GitHub ingestion workflow is scheduled at 00:30 UTC / 06:30 Asia/Dhaka
 
 ## Sources
 
+Later owner decision on 23 October 2026 supersedes the blanket quality pause below: the owner reviewed the ten paused providers and authorized cautious use. They are recorded as `owner_reviewed`, distinct from an official/employer verification claim. Eight technically available adapters are enabled; JagoJobs still needs validated detail links and NRBJobs remains unavailable. Previously held jobs are not bulk-reactivated: only fresh collection passing named-employer, position, current-deadline, traceable-source and application-route checks may republish them. Incomplete advertisements and image/PDF circulars remain in review. Known access errors are retained. Original records and application history remain saved.
+
 Owner correction: reputation and authenticity take precedence over coverage volume. Public collection and publishing fail closed unless a registry entry has an explicit `official` or `established` review and a verification URL. New providers default to unreviewed. An administrator enabling an unreviewed database row does not bypass the code's collection/publication gate.
 
 Current approved Bangladesh registry: official Alljobs Teletalk and SDF career pages; established Skill.Jobs (documented by Daffodil Group), Prothom Alo and Dhaka Post. Bdjobs and ReliefWeb retain access prerequisites. Existing BRAC and BRAC IT direct employer integrations continue. The other exploratory aggregators/weekly-paper entries are disabled pending evidence review. Their adapters remain available for future assessment. Paused sources are not approved for automatic publishing.
