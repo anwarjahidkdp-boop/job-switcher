@@ -104,7 +104,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>
             <Link className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/setup">Open automatic-jobs setup ({setupDone}/{setupSites.length} sites)</Link>
           </div>
-          {gmailConfigured() ? <GmailPanel email={gmail} status={gmailStatus} /> : null}
+          <GmailPanel email={gmail} status={gmailStatus} ready={gmailConfigured()} />
           <div className="card panel"><h3>Reminder emails</h3>
             <p className="small muted">{st.profile.email_reminders ? "We email you on the reminder dates you set." : "Reminder emails are off; reminders still show in your inbox."}</p>
             <form action={setReminderPrefAction.bind(null, !st.profile.email_reminders)}><button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}>{st.profile.email_reminders ? "Turn off reminder emails" : "Turn on reminder emails"}</button></form>

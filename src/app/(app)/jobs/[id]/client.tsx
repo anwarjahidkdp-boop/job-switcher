@@ -173,12 +173,14 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       <h3>Your application is ready</h3>
       {!em ? <p className="small muted">Complete and submit the form on the employer’s website. JobPao prepares your documents and tracks your confirmation; it does not automatically fill or submit external forms.</p> : !p.gmailReady ? <p className="small muted">Direct Gmail sending is not configured on this server. Use the Email tab to send the application yourself.</p> : null}
       {gmailNote ? <p className="note" style={{ marginTop: 8 }}>{gmailNote}</p> : null}
-      {em && p.gmailReady ? (
+      {em ? (
         <div className="stack" style={{ marginTop: 10, gap: 8 }}>
-          {p.gmail
+          {!p.gmailReady
+            ? <button className="btn btn-ghost" disabled>Gmail setup pending</button>
+            : p.gmail
             ? <button className="btn btn-primary" onClick={() => { setErr(""); setMode("send"); }}>Review and send from {p.gmail}</button>
             : <a className="btn btn-primary" href={`/api/gmail/connect?next=${encodeURIComponent(`/jobs/${p.jobId}`)}`}>Connect Gmail to send applications</a>}
-          <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, JobPao sends each application from your Gmail when you press Apply. We can only send, never read your email."}</p>
+          {p.gmailReady ? <p className="small muted">{p.gmail ? "Sends the email with your tailored CV and cover letter attached, from your own Gmail." : "With your permission, JobPao sends each application from your Gmail after you review and press Send application. We can only send, never read your email."}</p> : null}
           <p className="small muted" style={{ marginTop: 4 }}>Or send it yourself:</p>
         </div>
       ) : null}

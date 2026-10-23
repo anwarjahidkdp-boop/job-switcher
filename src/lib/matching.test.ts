@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bandOf, CAP_SCORE, roleRel, scoreJob, W, yearsFrom, inboxList, scoreAll, skillImpact } from "./matching";
+import { fitLabel, bandOf, CAP_SCORE, roleRel, scoreJob, W, yearsFrom, inboxList, scoreAll, skillImpact } from "./matching";
 import { buildMatchProfile, groundExtraction } from "./facts";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_PREFS, SAMPLE_JOBS_RAW } from "./demo";
 import { guessCategory, sampleToJob } from "./jobs";
@@ -19,6 +19,9 @@ function demoProfile(country = "BD", prefs = DEMO_PREFS): MatchProfile {
 const opts = { today: TODAY, needVisa: true };
 
 describe("weights and bands", () => {
+  it.each([[0, "Explore Further"], [54, "Explore Further"], [55, "Stretch Opportunity"], [69, "Stretch Opportunity"], [70, "Good Fit"], [80, "Best Fit"], [90, "Strong Fit"]])("labels score %s as %s", (score, label) => {
+    expect(fitLabel(score as number)).toBe(label);
+  });
   it("uses the blueprint weights summing to 100", () => {
     expect(W).toEqual({ role: 25, skills: 25, exp: 15, sen: 10, ind: 7, edu: 6, cert: 5, loc: 4, sal: 3 });
     expect(Object.values(W).reduce((a, b) => a + b, 0)).toBe(100);

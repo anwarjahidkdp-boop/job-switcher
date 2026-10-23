@@ -254,7 +254,7 @@ The payment code never activates Pro from the callback's `status` parameter alon
 
 ### 5b. Apply from the user's Gmail (optional)
 
-Users can connect Gmail once (scope `gmail.send` only: send, never read). On a job that takes email applications, pressing **Apply now** shows To/From/attachments and sends only after **Send application**; the tailored CV and cover letter go as Word attachments, and the application is marked applied only after Gmail returns a message id. Refresh tokens are AES-GCM encrypted with `GMAIL_TOKEN_KEY` and stored in `gmail_connections` (RLS on, server-only). The feature stays hidden until these repository secrets exist:
+Users can connect Gmail once (scope `gmail.send` only: send, never read). On a job that takes email applications, pressing **Apply now** shows To/From/attachments and sends only after **Send application**; the tailored CV and cover letter go as Word attachments, and the application is marked applied only after Gmail returns a message id. Refresh tokens are AES-GCM encrypted with `GMAIL_TOKEN_KEY` and stored in `gmail_connections` (RLS on, server-only). The Gmail panel displays a setup-pending state until these repository secrets exist. `/api/health` reports only the boolean `features.gmailSending` (never credential values):
 
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google Cloud → APIs & Services → enable **Gmail API**; OAuth consent screen (External, scope `.../auth/gmail.send`); Credentials → OAuth client ID (Web application) with redirect URI `<app URL>/api/gmail/callback`.
 - `GMAIL_TOKEN_KEY`: 32 random bytes in base64 (`openssl rand -base64 32`).
