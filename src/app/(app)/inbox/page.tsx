@@ -73,7 +73,7 @@ export default async function Inbox() {
   return (
     <>
       <PageHead kicker="Your job assistant" title={<>Welcome back{first ? <>, <span>{first}</span></> : ""}</>} sub={`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${fit.count} ${fit.count === 1 ? "match is" : "matches are"} ${fit.label} (${fit.range}).`} />
-      <ApplicationProfileNotice answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} />
+      <ApplicationProfileNotice country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} />
       {due.map(({ a, job }) => (
         <div key={a.id} className="banner warn" style={{ marginBottom: 14 }}>
           <div><b>Your {job!.company} application is ready.</b> <span className="muted">{job!.deadline ? `Deadline: ${daysUntil(job!.deadline, st.today)} days remaining. ` : ""}Did you submit your application?</span></div>

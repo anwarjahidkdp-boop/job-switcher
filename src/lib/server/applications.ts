@@ -89,7 +89,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
   if (job.active === false) throw new Error("This listing is unavailable while its status or source is reviewed. Choose an active opportunity.");
-  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa);
+  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!safety.safe) throw new ApplicationSafetyError(safety);
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
@@ -148,7 +148,11 @@ export async function setReminder(ctx: Ctx, jobId: string, date: string, today: 
 }
 
 export async function markOpened(ctx: Ctx, jobId: string) {
-  await requireJob(ctx, jobId);
+  const st=await loadState(ctx.db,ctx.userId);
+  if(!st?.P)throw new Error("Finish your profile first.");
+  const job=await requireJob(ctx,jobId);
+  const check=applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
+  if(!check.safe)throw new ApplicationSafetyError(check);
   const app = await ensureApp(ctx, jobId);
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) return;
   await ctx.db.from("applications").update({ status: "waiting" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null);
@@ -161,7 +165,7 @@ export async function confirmApplied(ctx: Ctx, jobId: string) {
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
-  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa);
+  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!safety.safe) throw new ApplicationSafetyError(safety);
   const app = await ensureApp(ctx, jobId);
   // Free trial: one application a day, 5 in all (the Apply Queue shows the rest behind Pro).

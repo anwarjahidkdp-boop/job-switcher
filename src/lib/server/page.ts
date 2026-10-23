@@ -1,3 +1,4 @@
+import { setupRequirements } from "@/lib/eligibility";
 // Helpers for server components: auth gate, state, trial label, signed photo URL.
 import "server-only";
 import { cache } from "react";
@@ -58,6 +59,7 @@ export async function requireAppState(next: string): Promise<{ st: UserState & {
   const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
   if (!st) redirect("/login");
   if (!st.P || !st.master) redirect("/onboarding");
+  if(setupRequirements(st.profile).length)redirect("/onboarding?step=prefs");
   // On the last step the CV is built, so opening any app page (e.g. "My dashboard") finishes onboarding.
   if (st.profile.onboarding_step === "reveal") {
     await supabase.from("profiles").update({ onboarding_step: "done" }).eq("id", user.id);

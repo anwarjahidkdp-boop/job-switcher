@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { missingApplicationFields } from "@/lib/application-profile";
 import type { AnswerLibrary, DealBreakers } from "@/lib/career-safety";
-export function ApplicationProfileNotice({ answers, rules, onProfile = false }: { answers: AnswerLibrary; rules: DealBreakers; onProfile?: boolean }) {
-  const missing = missingApplicationFields(answers,rules);
+export function ApplicationProfileNotice({ answers, rules, onProfile = false, country="BD" }: { answers: AnswerLibrary; rules: DealBreakers; onProfile?: boolean; country?:string }) {
+  const missing = missingApplicationFields(answers,rules,country);
   if (!missing.length) return null;
   const required = missing.filter(f=>f.required).length;
   return <div className="banner application-profile-notice" role="status" style={{ marginTop: 14 }}>

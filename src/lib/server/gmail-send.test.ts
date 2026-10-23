@@ -17,7 +17,7 @@ import { sendApplication } from "./gmail";
 function fixture(opts: { claimError?: string; statusError?: boolean; receiptError?: boolean } = {}) {
   const row = { sending_at: null as string | null, status: "ready" };
   const events: unknown[] = [];
-  const job = { id: "job", company: "Synthetic Employer", title: "Accountant", apply_method: "email", apply_target: "hr@example.invalid", deadline: null };
+  const job = { country:"US",salary_min:70000,salary_max:90000,id: "job", company: "Synthetic Employer", title: "Accountant", apply_method: "email", apply_target: "hr@example.invalid", deadline: null };
   const db = { rpc: async () => {
     if (opts.claimError) return { data: null, error: { code: opts.claimError } };
     if (row.sending_at) return { data: null, error: new Error("A previous send attempt is unresolved") };
@@ -48,7 +48,7 @@ function fixture(opts: { claimError?: string; statusError?: boolean; receiptErro
     };
     return q;
   } } as unknown as SupabaseClient;
-  const state = { today: "2026-10-23", profile: { preferences: null, deal_breakers: {}, answer_library: {}, needs_visa: false }, master: { content: { name: "Synthetic User" } }, apps: { job: { id: "app", status: "ready", pack: { email_body: "Synthetic test", email_subject: "Application", cover_letter: "Letter" } } } };
+  const state = {P:{salaryMin:70000,salaryConfirmed:true,workAuthorization:"yes"}, today: "2026-10-23", profile: { preferences: null, deal_breakers: {}, answer_library: {}, needs_visa: false }, master: { content: { name: "Synthetic User" } }, apps: { job: { id: "app", status: "ready", pack: { email_body: "Synthetic test", email_subject: "Application", cover_letter: "Letter" } } } };
   vi.mocked(loadState).mockResolvedValue(state as unknown as Awaited<ReturnType<typeof loadState>>);
   return { row, events, job, state, ctx: { db, admin: db, userId: "user" } };
 }

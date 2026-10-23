@@ -1,4 +1,6 @@
 "use client";
+import { setupRequirements } from "@/lib/eligibility";
+import type { AnswerLibrary } from "@/lib/career-safety";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
@@ -283,11 +285,17 @@ function NoCvForm({ disabled, onSubmit, onBack }: { disabled: boolean; onSubmit:
 
 export type PersonalField = { k: Exclude<keyof PersonalDetails, "references">; label: string; hint: string };
 const emptyRef = (): Referee => ({ name: "", title: "", org: "", phone: "", email: "", relation: "" });
-export function PrefsStep(props: { editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean; country: string; revision: number; needsVisa: boolean; abroad: boolean }) {
+export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean; country: string; revision: number; needsVisa: boolean; abroad: boolean }) {
   const router = useRouter();
   const [p, setP] = useState({ roles: props.initial.roles || "", locations: props.initial.locations || "", salaryMin: props.initial.salaryMin ?? "", salaryMax: props.initial.salaryMax ?? "", notice: props.initial.notice ?? "", mode: props.initial.mode || "On-site" });
-  const [visa, setVisa] = useState(props.needsVisa);
-  const [pd, setPd] = useState<Record<string, string>>(Object.fromEntries(props.fields.map((f) => [f.k, String(props.personal[f.k] || "")])));
+  const [authorization,setAuthorization]=useState(props.answers?.workAuthorization||"unknown");
+  const [sponsor,setSponsor]=useState<boolean|null>(props.answers?.sponsorshipRequired??null);
+  const [relocate,setRelocate]=useState<boolean|null>(props.answers?.willingToRelocate??null);
+  const [pd, setPd] = useState<Record<string, string>>(Object.fromEntries(props.fields.map((f) => [f.k, String(props.personal[f.k] || (f.k==="dob"?props.answers?.birthDate:"") || "")])));
+  const [personalEdits,setPersonalEdits]=useState<string[]>([]);
+  const initialPersonal=Object.fromEntries(props.fields.map(f=>[f.k,String(props.personal[f.k]||(f.k==="dob"?props.answers?.birthDate:"")||"")]));
+  const knownPersonal=props.fields.filter(f=>initialPersonal[f.k]);
+  const personalInput=(f:PersonalField)=><label key={f.k} className="f" htmlFor={`pd_${f.k}`}>{f.label}{f.k==="dob"&&props.isBD?" · Required":""}<input type={f.k==="dob"?"date":"text"} required={f.k==="dob"&&props.isBD} id={`pd_${f.k}`} value={pd[f.k]||""} onChange={e=>setPd({...pd,[f.k]:e.target.value})} placeholder={f.hint} maxLength={f.k==="address"?200:120}/></label>;
   const [refs, setRefs] = useState<Referee[]>(() => { const r = (props.personal.references || []).map((x) => ({ ...emptyRef(), ...x })); while (r.length < props.refs.count) r.push(emptyRef()); return r.slice(0, props.refs.count); });
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -296,8 +304,11 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
   async function submit() {
     setErr("");
     try {
+      const missing=setupRequirements({target_country:props.country,personal:pd,preferences:{salaryMin:Number(p.salaryMin)||null},answer_library:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:relocate}});
+      if(!p.roles.trim())missing.push("Target roles");
+      if(missing.length)throw new Error(`Complete required matching details: ${missing.join(", ")}.`);
       setBusy("Saving your preferences");
-      await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: props.abroad && visa, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
+      await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: sponsor===true,readiness:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:relocate}, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
       if (props.editing) { start(() => router.push("/profile")); return; }
       setBusy("Preparing your CV for this country using your saved career information.");
       await post("/api/cv/build", {});
@@ -307,11 +318,14 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
   return (
     <>
       <div className="card panel stack" style={{ marginTop: 22 }}>
-        {props.abroad ? <label className="row small"><input type="checkbox" checked={visa} onChange={e => setVisa(e.target.checked)} /> I need employer visa sponsorship in {props.countryLabel}</label> : null}
+        <p className="note small"><b>Required for accurate job recommendations</b><br/>Confirm your target salary, work authorization, sponsorship and relocation preferences. {props.isBD?"Date of birth is also required for Bangladesh age limits.":"Age does not determine your fit for ordinary jobs in this market."}</p>
+        <label className="f">Do you have permission to work in {props.countryLabel}? <select value={authorization} onChange={e=>setAuthorization(e.target.value as "yes"|"no"|"unknown")}><option value="unknown">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label className="f">Do you need employer sponsorship? <select value={sponsor===null?'':sponsor?'yes':'no'} onChange={e=>setSponsor(e.target.value==='yes'?true:e.target.value==='no'?false:null)}><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+        <label className="f">Are you willing to relocate? <select value={relocate===null?'':relocate?'yes':'no'} onChange={e=>setRelocate(e.target.value==='yes'?true:e.target.value==='no'?false:null)}><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
         <label className="f" htmlFor="p_roles">Target roles (comma separated)<input type="text" id="p_roles" value={p.roles} onChange={upd("roles")} /></label>
         <label className="f" htmlFor="p_locs">Preferred cities in {props.countryLabel} (leave blank for anywhere)<input type="text" id="p_locs" value={p.locations} onChange={upd("locations")} /></label>
         <div className="row" style={{ alignItems: "flex-end" }}>
-          <label className="f" htmlFor="p_smin" style={{ flex: 1, minWidth: 140 }}>Expected salary from ({props.currency})<input type="number" id="p_smin" value={p.salaryMin} onChange={upd("salaryMin")} placeholder={props.isBD ? "e.g. 70000" : ""} /></label>
+          <label className="f" htmlFor="p_smin" style={{ flex: 1, minWidth: 140 }}>Expected salary from ({props.currency}) · Required<input required min="1" type="number" id="p_smin" value={p.salaryMin} onChange={upd("salaryMin")} placeholder={props.isBD ? "e.g. 70000" : ""} /></label>
           <label className="f" htmlFor="p_smax" style={{ flex: 1, minWidth: 140 }}>to ({props.currency})<input type="number" id="p_smax" value={p.salaryMax} onChange={upd("salaryMax")} placeholder={props.isBD ? "e.g. 85000" : ""} /></label>
         </div>
         <div className="row" style={{ alignItems: "flex-end" }}>
@@ -321,13 +335,11 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
       </div>
       {props.fields.length ? (
         <div className="card panel stack" style={{ marginTop: 14 }}>
-          <h3 style={{ margin: 0 }}>{props.personalCountry ? "Personal details" : "Work status"} for your {props.countryLabel} CV (optional)</h3>
-          <p className="small muted">{props.personalCountry ? `${props.countryLabel} CVs usually include these.` : `${props.countryLabel} CVs leave out photo, date of birth and marital status, so we only add what employers there expect.`} Leave a box blank to keep it off your CV.</p>
-          <div className="pd-grid">
-            {props.fields.map((f) => (
-              <label key={f.k} className="f" htmlFor={`pd_${f.k}`}>{f.label}<input type="text" id={`pd_${f.k}`} value={pd[f.k] || ""} onChange={(e) => setPd({ ...pd, [f.k]: e.target.value })} placeholder={f.hint} maxLength={f.k === "address" ? 200 : 120} /></label>
-            ))}
-          </div>
+          <h3 style={{ margin: 0 }}>Personal details for your {props.countryLabel} CV</h3>
+          <p className="small muted">Details found in your uploaded CV are filled automatically. Saved edits take priority.</p>
+          {knownPersonal.length ? <div className="stack small" style={{gap:8}}>{knownPersonal.map(f=><div className="qitem" key={f.k}><div><b>{f.label}</b><div>{pd[f.k]}</div></div><button type="button" className="btn btn-text btn-sm" onClick={()=>setPersonalEdits(x=>x.includes(f.k)?x:[...x,f.k])}>Edit</button></div>)}</div>:null}
+          <div className="pd-grid">{props.fields.filter(f=>personalEdits.includes(f.k)||f.k==='dob'&&props.isBD&&!initialPersonal[f.k]).map(personalInput)}</div>
+          {props.fields.some(f=>!initialPersonal[f.k]&&!(f.k==='dob'&&props.isBD)) ? <details><summary>Add other personal details (optional)</summary><div className="pd-grid" style={{marginTop:12}}>{props.fields.filter(f=>!initialPersonal[f.k]&&!(f.k==='dob'&&props.isBD)&&!personalEdits.includes(f.k)).map(personalInput)}</div></details>:null}
         </div>
       ) : null}
       {props.refs.mode === "list" ? (

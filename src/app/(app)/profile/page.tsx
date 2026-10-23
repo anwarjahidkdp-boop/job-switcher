@@ -43,7 +43,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   return (
     <>
       <PageHead kicker="Your profile" title={<>Master career <span>profile</span></>} sub="Every application is built from this verified information." />
-      <ApplicationProfileNotice answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} onProfile />
+      <ApplicationProfileNotice country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} onProfile />
       <div className="dash" style={{ marginTop: 18 }}>
         <div>
           <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc", label: "Your Master CV" }} />
@@ -76,7 +76,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             </div>
             <Link className="btn btn-primary btn-sm" style={{ marginTop: 12, width: "100%" }} href="/onboarding?step=prefs"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/></svg>Edit preferences</Link>
           </div>
-          <ApplicationSafetyForm answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} />
+          <ApplicationSafetyForm country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} />
           <div className="card panel profile-card" data-tone="accent"><ProfileCardTitle icon="sites">Job sites</ProfileCardTitle>
             {setupSites.map((site) => <div key={site} className="qitem"><div><b className="small">{site}</b><div className="small muted">Paste a {site} link or job text and we match it. To apply, open the job on {site} yourself, where you sign in.</div></div><span className="pill p-neutral">No password</span></div>)}
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>

@@ -1,3 +1,4 @@
+import { eligibilityCheck } from "@/lib/eligibility";
 import { PrepareApplicationButton } from "@/components/PrepareApplicationButton";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
@@ -64,7 +65,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const aiLeft = !allowance ? null : allowance.left
     ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
     : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
-  const canPrepare = !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn", "waiting"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
+  const eligibility = eligibilityCheck(job,st.P,st.today);
+  const canPrepare = eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn", "waiting"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -83,6 +85,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {job.minYears != null ? <span className="pill p-neutral">{job.minYears}+ years</span> : null}
               <span className="pill p-neutral">{job.source}{job.isSample ? " · fictional sample" : ""}</span>
             </div>
+            {eligibility.issues.length ? <div className="note small" role="status" style={{marginTop:12}}><b>Eligibility and pay check</b><ul>{eligibility.issues.map(i=><li key={i.code}>{i.message}</li>)}</ul>{eligibility.issues.some(i=>["age_unknown","salary_unknown"].includes(i.code))?<Link className="btn btn-primary btn-sm" href="/onboarding?step=prefs">Complete required details</Link>:null}</div>:null}
             {descRow?.source_kind === 'bdweb' ? <p className="note small" style={{ marginTop: 12 }}>Confirm the employer, full eligibility and application instructions in the linked original advertisement before applying. A source listing does not guarantee an employer or job offer.</p> : null}
             {job.resp.length ? <><h3 style={{ fontSize: 15, marginTop: 18 }}>Main responsibilities</h3><ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>{job.resp.map((x, i) => <li key={i}>{x}</li>)}</ul></> : null}
             <h3 style={{ fontSize: 15, marginTop: 14 }}>Asks for</h3>

@@ -2,6 +2,8 @@
 // Small user mutations as server actions. Each runs as the signed-in user (RLS applies).
 // Actions called from client code only save; the caller refreshes the page in its own request. Re-rendering a page
 // inside the action as well doubles the work of one request, which is what pushed it past the Worker CPU limit.
+import { refreshCareerMatches } from "@/lib/server/matches";
+import { setupRequirements,validBirthDate } from "@/lib/eligibility";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ctx } from "@/lib/server/page";
@@ -47,6 +49,7 @@ export async function finishOnboardingAction(target?: unknown) {
   const c = await ctx("/onboarding");
   const profile = await loadProfile(c.db, c.userId);
   if (!profile || !["reveal", "done"].includes(profile.onboarding_step)) redirect("/onboarding");
+  if(setupRequirements(profile).length)redirect("/onboarding?step=prefs");
   const { data: master } = await c.db.from("master_cvs").select("id").eq("user_id", c.userId).eq("is_current", true).limit(1).maybeSingle();
   if (!master) redirect("/onboarding");
   const { data: finished, error } = await c.db.from("profiles").update({ onboarding_step: "done" }).eq("id", c.userId)
@@ -189,7 +192,13 @@ export async function saveCareerSafetyAction(formData: FormData) {
   };
   const wa = String(formData.get("workAuthorization") || "unknown");
   const tri = (k: string) => { const v = String(formData.get(k) || ""); return v === "yes" ? true : v === "no" ? false : null; };
+  const birthDate=String(formData.get("birthDate")||"").trim();
+  if(birthDate&&!validBirthDate(birthDate))throw new Error("Enter a valid date of birth.");
+  const profile=await loadProfile(c.db,c.userId);
+  if(!profile)throw new Error("Profile missing");
   const answerLibrary = {
+    salaryCountry:profile.target_country,currentSalaryCountry:profile.target_country,
+    birthDate:birthDate||profile.answer_library?.birthDate||profile.personal?.dob||null,
     expectedSalary: formData.get("salaryMode") === "negotiable" ? null : num("expectedSalary"),
     salaryNegotiable: formData.get("salaryMode") === "negotiable",
     noticeDays: num("noticeDays"),
@@ -203,6 +212,8 @@ export async function saveCareerSafetyAction(formData: FormData) {
   };
   const { error } = await c.db.from("profiles").update({ deal_breakers: dealBreakers, answer_library: answerLibrary }).eq("id", c.userId);
   if (error) throw error;
+  await refreshCareerMatches(c.db,c.userId);
   revalidatePath("/profile");
   revalidatePath("/inbox");
+  revalidatePath("/insights");
 }

@@ -9,7 +9,7 @@ import { loadProfile, loadFacts, type ProfileRow } from "./state";
 import { buildMasterCv, setCountry } from "./onboarding";
 
 function fixture(options: { rpcError?: Error; readError?: Error } = {}) {
-  const profile = { target_country: "GB", home_country: "BD", billing_country_locked: true, search_country_version: 2, onboarding_step: "prefs" } as ProfileRow;
+  const profile = {preferences:{salaryMin:60000},answer_library:{workAuthorization:"yes",sponsorshipRequired:false,willingToRelocate:false}, target_country: "GB", home_country: "BD", billing_country_locked: true, search_country_version: 2, onboarding_step: "prefs" } as ProfileRow;
   vi.mocked(loadProfile).mockResolvedValue(profile);
   const rpc = vi.fn(async () => ({ data: "new-master", error: options.rpcError || null }));
   const from = vi.fn((table: string) => {
@@ -44,4 +44,20 @@ describe("destination setup cost and safety", () => {
     await expect(setCountry(x.ctx, "US", true, "US")).rejects.toThrow("fixed");
     expect(x.from).not.toHaveBeenCalled();
   });
+});
+
+it('refuses incomplete matching preferences before any profile mutation',async()=>{
+ const {savePreferences}=await import('./onboarding');const x=fixture();
+ await expect(savePreferences(x.ctx,{roles:'Accountant',salaryMin:null},null,{country:'GB',revision:2})).rejects.toThrow('Expected salary');
+ expect(x.from).not.toHaveBeenCalled();expect(runAI).not.toHaveBeenCalled();
+});
+it('does not require birth date for ordinary UK setup and rechecks valid saved preferences without AI',async()=>{
+ const {savePreferences}=await import('./onboarding');const {refreshCareerMatches}=await import('./matches');const x=fixture();
+ await expect(savePreferences(x.ctx,{roles:'Accountant',salaryMin:70000},null,{country:'GB',revision:2})).resolves.toBeUndefined();
+ expect(refreshCareerMatches).toHaveBeenCalled();expect(runAI).not.toHaveBeenCalled();
+});
+it('requires an actual birth date for Bangladesh setup even if all other answers are present',async()=>{
+ const {savePreferences}=await import('./onboarding');const x=fixture();x.profile.target_country='BD';
+ await expect(savePreferences(x.ctx,{roles:'Accountant',salaryMin:70000},null,{country:'BD',revision:2})).rejects.toThrow('Date of birth');
+ expect(x.from).not.toHaveBeenCalled();
 });

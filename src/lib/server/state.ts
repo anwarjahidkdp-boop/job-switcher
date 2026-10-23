@@ -1,3 +1,5 @@
+import { fillPersonalFromCv } from "../cv/personal-read";
+import type { AnswerLibrary,DealBreakers } from "../career-safety";
 import { applicationInSearch } from "../application-country";
 // Loads everything a signed-in page needs, through a Supabase client (user-scoped with RLS, or admin for cron/inbound).
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -16,7 +18,7 @@ export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
   target_country: string; home_country: string; billing_country_locked: boolean; search_country_version: number; needs_visa: boolean; personal: PersonalDetails; preferences: Preferences | null;
   career_meta: Partial<CareerMeta>; cv_style: CvStyle; photo_path: string | null; onboarding_step: string;
-  setup_steps: Record<string, boolean | string>; dismissed_job_ids: string[]; email_reminders: boolean; deal_breakers: Record<string, unknown>; answer_library: Record<string, unknown>; created_at: string;
+  setup_steps: Record<string, boolean | string>; dismissed_job_ids: string[]; email_reminders: boolean; deal_breakers: DealBreakers; answer_library: AnswerLibrary; created_at: string;
 }
 export interface ApplicationRow {
   id: string; user_id: string; job_id: string; status: AppStatus; pack: ApplicationPack | null; pack_flags: string[]; pack_ai: boolean; pack_model: string | null;
@@ -64,17 +66,20 @@ export async function loadFacts(db: SupabaseClient, userId: string): Promise<Car
 export function profileFrom(profile: ProfileRow, facts: CareerFact[], master: MasterRow | null): MatchProfile | null {
   if (!master) return null;
   const meta = { ...DEFAULT_META, ...(profile.career_meta || {}) } as CareerMeta;
-  const a = profile.answer_library || {};
+  const stored=profile.answer_library||{};
+  const a:AnswerLibrary={...stored,...(stored.salaryCountry&&stored.salaryCountry!==profile.target_country?{expectedSalary:null,salaryNegotiable:false}:{}),...(stored.currentSalaryCountry&&stored.currentSalaryCountry!==profile.target_country?{currentSalary:null}:{})};
   const expected = Number(a.expectedSalary);
   const prefs = { ...(profile.preferences || { roles:"",locations:"",salaryMin:null,salaryMax:null,notice:null,mode:"Any" as const }),
     ...(a.salaryNegotiable === true ? {salaryMin:null,salaryMax:null} : Number.isFinite(expected) && expected>0 ? {salaryMin:expected} : {}),
     ...(typeof a.noticeDays === "number" ? {notice:a.noticeDays} : {}),
   };
-  return buildMatchProfile({ name: profile.full_name || master.content.name, facts, meta, prefs, country: profile.target_country });
+  const P = buildMatchProfile({ name: profile.full_name || master.content.name, facts, meta, prefs, country: profile.target_country });
+  const floor=Math.max(Number(a.currentSalary)||0,Number(a.expectedSalary)||0,Number(profile.deal_breakers?.minSalary)||0,P.salaryMin||0);
+  return {...P,salaryMin:floor||null,salaryConfirmed:floor>0,birthDate:a.birthDate||profile.personal?.dob||null,workAuthorization:a.workAuthorization||"unknown",sponsorshipRequired:a.sponsorshipRequired===true||profile.needs_visa===true,willingToRelocate:a.willingToRelocate,workMode:profile.preferences?.mode,dealBreakers:profile.deal_breakers};
 }
 
 // Everything rowToJob reads; the long description and raw payload stay out of list loads (job pages fetch the full row).
-const LIST_COLS = "id, owner_id, source_kind, source_label, country, title, company, industry, category, location, employment_type, salary_min, salary_max, min_years, max_years, seniority, education, required_skills, preferred_skills, certs, visa_sponsorship, deadline, published_at, apply_method, apply_target, url, responsibilities, is_sample";
+const LIST_COLS = "id, owner_id, source_kind, source_label, country, title, company, industry, category, location, employment_type, salary_min, salary_max, min_years, max_years, seniority, education, required_skills, preferred_skills, certs, visa_sponsorship, deadline, published_at, apply_method, apply_target, url, responsibilities, is_sample, eligibility:raw->eligibility";
 
 const pgQuote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
@@ -140,6 +145,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   if (!profile) return null;
   // A failed read must show the error page, never look like "no CV" (which sends people back to onboarding) or "no jobs".
   for (const r of [cvRes, masterRes, appsRes, checkRes]) if (r.error) throw r.error;
+  profile.personal=fillPersonalFromCv(profile.personal,String(cvRes.data?.text_content||""));
   const country = cc(profile.target_country);
   const today = todayStr(rule(country).timeZone);
   const master = (masterRes.data as MasterRow) || null;
