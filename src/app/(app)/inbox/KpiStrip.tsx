@@ -1,11 +1,11 @@
 "use client";
 // The dashboard's headline numbers: each tile counts up once on first view and jumps to where that number lives.
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { Fragment, type ReactNode, useEffect, useRef } from "react";
 
 export type Kpi = { label: string; n: number; href: string; tone: "gold" | "blue" | "green" | "navy" | "teal"; icon: string; hint?: string };
 
-export function KpiStrip({ items }: { items: Kpi[] }) {
+export function KpiStrip({ items, afterFirst }: { items: Kpi[]; afterFirst?: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const els = [...(box.current?.querySelectorAll<HTMLElement>("[data-n]") || [])];
@@ -21,14 +21,17 @@ export function KpiStrip({ items }: { items: Kpi[] }) {
     return () => cancelAnimationFrame(raf);
   }, []);
   return (
-    <div className="kpis" ref={box}>
-      {items.map((k) => (
+    <div className={`kpis${afterFirst ? " kpis-six" : ""}`} ref={box}>
+      {items.map((k,i) => (
+        <Fragment key={k.label}>
         <Link key={k.label} href={k.href} className={`kpi kpi-${k.tone}`}>
           <span className="kpi-ic" aria-hidden="true" dangerouslySetInnerHTML={{ __html: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${k.icon}</svg>` }} />
           <b className="num" data-n={k.n}>{k.n}</b>
           <span className="kpi-l">{k.label}</span>
           {k.hint ? <span className="kpi-h">{k.hint}</span> : null}
         </Link>
+        {i===0 ? afterFirst : null}
+        </Fragment>
       ))}
     </div>
   );
