@@ -16,7 +16,7 @@ describe("CV templates", () => {
     expect(h).toContain("t-corp");
     expect(h).not.toContain("<img");
     expect(h).not.toContain("Bangladeshi");
-    expect(h).toContain("Open to relocate to UK");
+    expect(h).not.toContain("Open to relocate");
   });
   it("shows personal details and photo where the country expects them", () => {
     const h = renderCvHtml({ master: DEMO_MASTER, country: "AE", personal: { nationality: "Bangladeshi", visa: "Requires employment visa" }, photoUrl: "data:image/jpeg;base64,AAAA" });

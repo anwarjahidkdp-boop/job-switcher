@@ -6,8 +6,9 @@ export async function POST(req: Request) {
   const c = await apiCtx();
   if (!c) return unauthorized();
   try {
-    const b = (await req.json()) as { prefs: Record<string, unknown>; personal?: Record<string, string> | null };
-    await savePreferences(c, b.prefs || {}, b.personal || null);
+    const b = (await req.json()) as { prefs: Record<string, unknown>; personal?: Record<string, string> | null; needsVisa?: boolean; country?: string; revision?: number };
+    if (typeof b.country !== "string" || !Number.isInteger(b.revision)) throw new Error("Reload this page to save your current country's preferences.");
+    await savePreferences(c, b.prefs || {}, b.personal || null, { country: b.country, revision: b.revision!, needsVisa: b.needsVisa });
     return NextResponse.json({ ok: true });
   } catch (e) { return apiError(e); }
 }

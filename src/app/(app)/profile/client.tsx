@@ -1,25 +1,30 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addSkillAction, reviewFactAction, setCountryAction, setHomeCountryAction, setNeedsVisaAction } from "@/app/actions";
+import { addSkillAction, reviewFactAction, setCountryAction, setNeedsVisaAction } from "@/app/actions";
 import { CountrySelect } from "@/components/CountrySelect";
 import { useSave } from "@/components/useSave";
 import { rule } from "@/lib/countries";
 
 export function CountryPanel({ current, needsVisa, homeCountry }: { current: string; needsVisa: boolean; homeCountry: string }) {
   const { pending, err, save } = useSave();
-  const [msg, setMsg] = useState("");
+  const router = useRouter();
+  const [selected, setSelected] = useState(current);
   return (
-    <div className="card panel"><h3>Target country</h3>
+    <div className="card panel"><h3>Job-search country</h3>
+      <p className="small">Subscription country: <b>{rule(homeCountry).name}</b> (fixed). Searching abroad keeps the same subscription.</p>
       <label className="f" htmlFor="countrysel">I am applying for jobs in
-        <CountrySelect id="countrysel" value={current} disabled={pending} label="Target country" first={homeCountry} onChange={(c) => save(() => setCountryAction(c, needsVisa), () => setMsg(`Now applying in ${rule(c).name}. CV format, currency and matches updated.`))} />
+        <CountrySelect id="countrysel" value={selected} disabled={pending} label="Target country" first={homeCountry} onChange={setSelected} />
       </label>
-      <label className="f" htmlFor="homesel" style={{ marginTop: 10 }}>I live in
-        <CountrySelect id="homesel" value={homeCountry} disabled={pending} label="Country you live in" first={homeCountry} onChange={(c) => save(() => setHomeCountryAction(c), () => setMsg("Saved. Visa needs, your Pro price and how you pay follow the country you live in."))} />
-      </label>
+      {selected !== current ? <div className="banner warn" style={{ marginTop: 12 }}><div>
+        <p>Switching to {rule(selected).name} clears your target roles, cities, salary, work preferences, country-specific CV details. Your improved CV will be adapted to the new country’s format, reference conventions and default style using your saved career information. You will set them up again using that country’s currency and questions. Returning to {rule(current).name} also requires fresh setup.</p>
+        <p className="small">Your uploaded CV, verified career facts, Career Safety, Answer Library and previous applications stay saved.</p>
+        <button className="btn btn-primary" disabled={pending} onClick={() => save(() => setCountryAction(selected, selected !== homeCountry), () => router.push("/onboarding"))}>Change country and set up again</button>
+        <button className="btn btn-text" disabled={pending} onClick={() => setSelected(current)}>Cancel</button>
+      </div></div> : null}
       {current !== homeCountry ? <label className="row small" style={{ marginTop: 10, gap: 8, flexWrap: "nowrap" }}><input type="checkbox" checked={needsVisa} disabled={pending} onChange={(e) => { const v = e.target.checked; save(() => setNeedsVisaAction(v)); }} /> I need visa sponsorship</label> : null}
       {err ? <p role="alert" className="err" style={{ marginTop: 8 }}>{err}</p> : null}
-      <p className="small muted" style={{ marginTop: 8 }}>{msg || "Changing it reformats your CV, switches the salary currency and checklist, and shows jobs in that country."}</p>
+      <p className="small muted" style={{ marginTop: 8 }}>One country is active at a time. CV format, salary currency and matching follow your job-search country.</p>
     </div>
   );
 }

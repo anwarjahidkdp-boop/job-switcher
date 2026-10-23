@@ -26,13 +26,15 @@ const newInvoice = () => `JS${new Date().toISOString().slice(2, 10).replace(/-/g
 
 export async function proPlan(db: SupabaseClient): Promise<{ code: string; name: string; priceMinor: number }> {
   const { data } = await db.from("plans").select("code, name, price_minor").eq("code", "pro").maybeSingle();
-  return { code: "pro", name: data?.name || "JobPao Pro", priceMinor: Number(data?.price_minor ?? 19000) };
+  return { code: "pro", name: data?.name || "JobPao Pro", priceMinor: Number(data?.price_minor ?? packPrice("BD").minor) };
 }
 
 /** The price, and so the way to pay, follows the country the user lives in: Bangladesh pays with bKash, everyone else by card. */
 export async function priceForUser(admin: SupabaseClient, userId: string, pack: unknown): Promise<PackPrice> {
-  const { data } = await admin.from("profiles").select("home_country").eq("id", userId).maybeSingle();
-  return packPrice(data?.home_country, pack);
+  const { data, error } = await admin.from("profiles").select("home_country").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  if (!data?.home_country) throw new PaymentError("Complete your subscription-country setup before purchasing.");
+  return packPrice(data.home_country, pack);
 }
 
 async function bkashPrice(ctx: { admin: SupabaseClient; userId: string }, pack: unknown) {

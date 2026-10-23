@@ -1,7 +1,8 @@
 // CV rendering: the three prototype templates (modern sidebar, executive band, classic ATS-safe)
 // as one pure HTML-string renderer used for the on-screen preview, the print-to-PDF page and the .doc export.
 // All user content is HTML-escaped here.
-import { cc, cname, isAccent, isTemplate, rule, ACCENTS, HOME_COUNTRY, type CountryCode, type CvTemplate } from "../countries";
+import { cc, isAccent, isTemplate, rule, ACCENTS, type CountryCode, type CvTemplate } from "../countries";
+import { destinationMaster, destinationProse } from "./destination";
 import { fmtYM } from "../dates";
 import type { ApplicationPack, CvStyle, MasterCV, PersonalDetails } from "../types";
 import { convention, personalRows, cleanReferees, DECLARATION, signDate } from "./conventions";
@@ -82,8 +83,8 @@ const SAFE_IMG = /^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+|https:\/\
 
 export function renderCvHtml(inp: RenderInput): string {
   const { forDoc } = inp;
-  const m = polishMaster(inp.master);
-  const t = inp.tailored ? { ...inp.tailored, summary: inp.tailored.summary ? proAmounts(inp.tailored.summary) : inp.tailored.summary, top_bullets: (inp.tailored.top_bullets || []).map(proAmounts) } : inp.tailored;
+  const m = polishMaster(destinationMaster(inp.master, inp.country));
+  const t = inp.tailored ? { ...inp.tailored, summary: inp.tailored.summary ? proAmounts(destinationProse(inp.tailored.summary, inp.country)) : inp.tailored.summary, top_bullets: (inp.tailored.top_bullets || []).map(b => proAmounts(destinationProse(b, inp.country))) } : inp.tailored;
   const country = cc(inp.country);
   const r = rule(country);
   const { tpl, accent } = resolveStyle(inp.style, country);
@@ -94,7 +95,6 @@ export function renderCvHtml(inp: RenderInput): string {
   const cv = convention(country);
   const personal = personalRows(cv, pd, inp.noticeDays);
   const contact = String(m.contact || "").split(/\s*·\s*/).filter(Boolean);
-  if (country !== (inp.homeCountry || HOME_COUNTRY)) contact.push("Open to relocate to " + cname(country));
   const H = r.doc === "Résumé" ? { sum: "Summary", exp: "Work Experience" } : { sum: "Profile", exp: "Professional Experience" };
   const sumTxt = t && t.summary && t.summary !== m.summary ? (forDoc ? esc(t.summary) : `<mark>${esc(t.summary)}</mark>`) : esc(m.summary);
   const photo = inp.photoUrl && SAFE_IMG.test(inp.photoUrl) ? inp.photoUrl : null;

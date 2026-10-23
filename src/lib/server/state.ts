@@ -13,7 +13,7 @@ export interface AiCheck { fit: AiFit; score: number | null; reason: string }
 
 export interface ProfileRow {
   id: string; email: string | null; full_name: string | null; phone: string | null; city: string | null;
-  target_country: string; home_country: string; needs_visa: boolean; personal: PersonalDetails; preferences: Preferences | null;
+  target_country: string; home_country: string; billing_country_locked: boolean; search_country_version: number; needs_visa: boolean; personal: PersonalDetails; preferences: Preferences | null;
   career_meta: Partial<CareerMeta>; cv_style: CvStyle; photo_path: string | null; onboarding_step: string;
   setup_steps: Record<string, boolean | string>; dismissed_job_ids: string[]; email_reminders: boolean; deal_breakers: Record<string, unknown>; answer_library: Record<string, unknown>; created_at: string;
 }

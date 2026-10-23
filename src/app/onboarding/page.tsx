@@ -53,7 +53,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   const country = st.country, r = rule(country), cn = cname(country);
   // First visit: guess where they live from Cloudflare's country header; they can change it.
   const ip = (await headers()).get("cf-ipcountry");
-  const home = st.homeCountry !== "BD" || !ip ? st.homeCountry : countryFromHeader(ip);
+  const home = st.profile.billing_country_locked || st.homeCountry !== "BD" || !ip ? st.homeCountry : countryFromHeader(ip);
   const demo = sp.demo === "1";
   const trial = await trialLabel(supabase, user.id);
 
@@ -62,7 +62,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   if (step === "country") {
     head = <Head cur="country" kicker="Your 5-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
     body = <div className="ob">
-      <CountryStep current={country === "BD" && home !== "BD" && home !== "XX" && st.profile.onboarding_step === "country" ? home : country} home={home} needsVisa={st.profile.needs_visa} demo={demo} />
+      <CountryStep current={country === "BD" && home !== "BD" && home !== "XX" && st.profile.onboarding_step === "country" ? home : country} home={home} needsVisa={st.profile.needs_visa} demo={demo} billingLocked={st.profile.billing_country_locked} />
     </div>;
   } else if (step === "upload") {
     head = <Head cur="upload" back="country" kicker="Step 2 of 5" title={<>Upload your <span>current CV</span></>} sub={`Even if it is outdated or plain. We read it, ask what is missing, and build a professional ${cn}-format version.`} />;
@@ -87,9 +87,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
-    head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub="We use this to choose which opportunities to bring you. Any category works; we suggested roles from your CV." />;
+    head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub={<>Set your preferences for {cn}. Your existing improved CV will use this destination’s structure, reference conventions and style. Your saved career information will be reused.</>} />;
     body = <div className="ob">
-      <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} />
+      <PrefsStep editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} country={country} revision={st.profile.search_country_version} needsVisa={st.profile.needs_visa} abroad={country !== home} />
     </div>;
   } else if (step === "reveal" && st.master && st.P) {
     const m = st.master.content;

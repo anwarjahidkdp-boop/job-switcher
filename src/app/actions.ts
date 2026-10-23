@@ -20,7 +20,8 @@ export async function setCountryAction(country: string, needsVisa: boolean, home
 
 export async function setHomeCountryAction(country: string) {
   const c = await ctx();
-  await c.db.from("profiles").update({ home_country: cc(country) }).eq("id", c.userId);
+  const { error } = await c.db.from("profiles").update({ home_country: cc(country) }).eq("id", c.userId);
+  if (error) throw error;
 }
 
 export async function setNeedsVisaAction(needsVisa: boolean) {
@@ -44,6 +45,8 @@ export async function backToStepAction(step: "country" | "upload" | "prefs") {
 
 export async function finishOnboardingAction(target?: unknown) {
   const c = await ctx("/onboarding");
+  const profile = await loadProfile(c.db, c.userId);
+  if (!profile || !["reveal", "done"].includes(profile.onboarding_step)) redirect("/onboarding");
   const { data: master } = await c.db.from("master_cvs").select("id").eq("user_id", c.userId).eq("is_current", true).limit(1).maybeSingle();
   if (!master) redirect("/onboarding");
   const { error } = await c.db.from("profiles").update({ onboarding_step: "done" }).eq("id", c.userId);

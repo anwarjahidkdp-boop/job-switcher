@@ -38,6 +38,7 @@ afterAll(async()=>{await db?.close();});
 describe("database transactions and RLS on a disposable PostgreSQL engine",()=>{
   it("replays the full migration chain with a five-day new-user trial",async()=>{
     expect(await scalar<number>("select trial_days from plans where code='trial'")).toBe(5);
+    expect(await scalar<number>("select price_minor from plans where code='pro'")).toBe(65000);
     expect(await scalar<number>("select extract(epoch from trial_ends_at-trial_started_at)::int/86400 from subscriptions where user_id=$1",[U])).toBe(5);
   });
   it("lets the owner save Career Safety but blocks another profile and email mutation",async()=>{
@@ -148,4 +149,62 @@ describe("persisted per-user career report evidence",()=>{
   await role("authenticated",U);expect(await scalar<number>("select count(*)::int from career_reports")).toBe(1);
   await role("postgres");
  });
+});
+
+describe("fixed billing country and destination setup", () => {
+  const W = "33333333-3333-4333-8333-333333333333";
+  it("activates the approved 180-day pack from its immutable synthetic payment", async () => {
+    await role("postgres");
+    const X = "44444444-4444-4444-8444-444444444444";
+    await db.query("insert into auth.users values($1,'pack@example.invalid')", [X]);
+    const id = await scalar<string>("insert into payments(user_id,plan_code,method,amount_minor,currency,invoice,status,period_days,trx_id,payer_msisdn) values($1,'pro','bkash_manual',255000,'BDT','TEST-180-DAYS','pending',180,'SYNTHETIC180','01000000000') returning id", [X]);
+    await role("service_role");
+    const paid = await scalar<{ changed: boolean }>("select settle_payment($1,'bkash_manual',array['pending'],'{\"reviewed_by\":\"synthetic-test\"}')", [id]);
+    expect(paid.changed).toBe(true);
+    expect(await scalar<number>("select round(extract(epoch from current_period_end-now())/86400)::int from subscriptions where user_id=$1", [X])).toBe(180);
+    expect(await scalar<number>("select amount_minor from payments where id=$1", [id])).toBe(255000);
+    await role("postgres");
+  });
+  it("locks initial billing country permanently, including after resetting onboarding", async () => {
+    await role("postgres");
+    await db.query("insert into auth.users values($1,'country@example.invalid')", [W]);
+    await role("authenticated", W);
+    await db.query("update profiles set home_country='BD',onboarding_step='upload' where id=$1", [W]);
+    expect(await scalar<boolean>("select billing_country_locked from profiles where id=$1", [W])).toBe(true);
+    await db.query("update profiles set onboarding_step='country' where id=$1", [W]);
+    await expect(db.query("update profiles set home_country='US' where id=$1", [W])).rejects.toThrow("fixed");
+    await expect(db.query("update profiles set billing_country_locked=false where id=$1", [W])).rejects.toThrow();
+    await expect(db.query("update profiles set search_country_version=0 where id=$1", [W])).rejects.toThrow();
+    await role("postgres");
+  });
+  it("resets only destination setup even for direct REST updates, preserving CVs, safety and history", async () => {
+    await role("authenticated", W);
+    const doc = await scalar<string>("select replace_cv($1,'[]',$2)", [{ text_content: "Existing verified CV", text_source: "paste", extraction: {}, questions: [], answers: {}, is_demo: false }, { career_meta: {} }]);
+    const master = await scalar<string>("select replace_master_cv($1,'{}',false,null,$2)", [{ name: "Synthetic", summary: "Improved CV" }, doc]);
+    await db.query(`update profiles set onboarding_step='done',preferences='{"roles":"Finance","locations":"Dhaka","salaryMin":50000}', personal='{"fatherName":"Saved","visa":"Old work rights"}',cv_style='{"tpl":"modern"}',deal_breakers='{"remoteOnly":true}',answer_library='{"workAuthorization":"Ask me"}' where id=$1`, [W]);
+    await db.query("update profiles set target_country='GB' where id=$1", [W]);
+    const p = (await db.query<Record<string, unknown>>("select * from profiles where id=$1", [W])).rows[0];
+    expect(p).toMatchObject({ home_country: "BD", target_country: "GB", billing_country_locked: true, search_country_version: 1, onboarding_step: "prefs", needs_visa: true, preferences: { roles: "", locations: "", salaryMin: null, salaryMax: null, mode: "Any", notice: null }, personal: {}, cv_style: { tpl: "classic" }, deal_breakers: { remoteOnly: true }, answer_library: { workAuthorization: "Ask me" } });
+    expect(await scalar<string>("select id from cv_documents where is_current", [])).toBe(doc);
+    expect(await scalar<string>("select id from master_cvs where is_current", [])).toBe(master);
+    // Selecting the same country is a no-op; going back does not restore old preferences.
+    await db.query("update profiles set target_country='GB',preferences='{}' where id=$1", [W]);
+    expect(await scalar<number>("select search_country_version from profiles where id=$1", [W])).toBe(1);
+    await db.query("update profiles set target_country='BD' where id=$1", [W]);
+    expect(await scalar<number>("select search_country_version from profiles where id=$1", [W])).toBe(2);
+    expect(await scalar("select cv_style from profiles where id=$1", [W])).toEqual({ tpl: "modern" });
+    await role("postgres");
+  });
+  it("rejects delayed CV publication after a country switch and publishes the current adaptation atomically", async () => {
+    await role("authenticated", W);
+    await expect(db.query("select publish_country_master_cv('{}','{}',false,null,null,'GB',1,true)")).rejects.toThrow("country changed");
+    // Away and back cannot accept an old response for the same country.
+    await expect(db.query("select publish_country_master_cv('{}','{}',false,null,null,'BD',0,true)")).rejects.toThrow("country changed");
+    const m = await scalar<string>("select publish_country_master_cv('{}','{}',false,null,null,'BD',2,true)");
+    expect(await scalar<string>("select id from master_cvs where is_current")).toBe(m);
+    expect(await scalar<string>("select onboarding_step from profiles where id=$1", [W])).toBe("reveal");
+    await role("authenticated", V);
+    await expect(db.query("select publish_country_master_cv('{}','{}',false,null,null,'BD',2,true)")).rejects.toThrow();
+    await role("postgres");
+  });
 });

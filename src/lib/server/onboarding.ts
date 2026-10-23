@@ -25,17 +25,15 @@ export interface Ctx { db: SupabaseClient; admin: SupabaseClient; userId: string
 export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean, homeCountry?: string) {
   const code = cc(country);
   const prev = await loadProfile(ctx.db, ctx.userId);
-  const patch: Record<string, unknown> = { target_country: code, needs_visa: code === "BD" ? true : !!needsVisa };
-  if (homeCountry) patch.home_country = cc(homeCountry);
-  if (prev?.onboarding_step === "country") patch.onboarding_step = "upload";
-  // Changing country resets the currency-dependent salary and the city list (prototype changeCountry()).
-  if (prev && prev.preferences && prev.target_country !== code) {
-    const o = rule(prev.target_country), n = rule(code);
-    const p = { ...prev.preferences };
-    if (o.sym !== n.sym || o.per !== n.per) { p.salaryMin = null; p.salaryMax = null; }
-    p.locations = code === "BD" ? prev.career_meta?.location || "Dhaka" : "";
-    patch.preferences = p;
+  if (!prev) throw new Error("Profile missing");
+  if (homeCountry && cc(homeCountry) !== prev.home_country && prev.billing_country_locked) {
+    throw new Error("Your subscription country is fixed after initial setup.");
   }
+  const home = homeCountry ? cc(homeCountry) : cc(prev.home_country);
+  const patch: Record<string, unknown> = { target_country: code, needs_visa: code === home ? false : !!needsVisa };
+  if (homeCountry) patch.home_country = home;
+  if (prev.onboarding_step === "country") { patch.onboarding_step = "upload"; patch.cv_style = { tpl: rule(code).tpl }; }
+  // The database resets country-specific setup atomically, including direct REST updates.
   const { error } = await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
   if (error) throw error;
 }
@@ -152,7 +150,7 @@ export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {
 }
 
 const num = (v: unknown) => (v === "" || v == null || isNaN(Number(v)) ? null : Math.max(0, Number(v)));
-export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null) {
+export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null, destination?: { country: string; revision: number; needsVisa?: boolean }) {
   const p: Preferences = {
     roles: String(prefs.roles || "").slice(0, 500), locations: String(prefs.locations || "").slice(0, 300),
     salaryMin: num(prefs.salaryMin), salaryMax: num(prefs.salaryMax), notice: num(prefs.notice),
@@ -160,10 +158,16 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   };
   const patch: Record<string, unknown> = { preferences: p };
   if (personal) {
-    const { data } = await ctx.db.from("profiles").select("personal").eq("id", ctx.userId).maybeSingle();
+    const { data, error } = await ctx.db.from("profiles").select("personal").eq("id", ctx.userId).maybeSingle();
+    if (error) throw error;
     patch.personal = mergePersonal((data?.personal as PersonalDetails | null) ?? null, personal);
   }
-  await ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
+  if (typeof destination?.needsVisa === "boolean") patch.needs_visa = destination.needsVisa;
+  let query = ctx.db.from("profiles").update(patch).eq("id", ctx.userId);
+  if (destination) query = query.eq("target_country", destination.country).eq("search_country_version", destination.revision);
+  const { data, error } = await query.select("id").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Your job-search country changed. Reload and complete setup for the current country.");
 }
 
 const verifiedFactsFor = (facts: CareerFact[]) => {
@@ -197,8 +201,8 @@ function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: 
   return { master: dropRemoved(checked.master, src.removed), flags: checked.flags };
 }
 
-async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null) {
-  const { error } = await ctx.db.rpc("replace_master_cv", { p_content: content, p_flags: flags, p_ai: ai, p_model: model, p_document_id: docId });
+async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null, profile: ProfileRow, completeSetup = false) {
+  const { error } = await ctx.db.rpc("publish_country_master_cv", { p_content: content, p_flags: flags, p_ai: ai, p_model: model, p_document_id: docId, p_country: profile.target_country, p_revision: profile.search_country_version, p_complete_setup: completeSetup });
   if (error) throw error;
 }
 
@@ -207,9 +211,19 @@ export async function buildMasterCv(ctx: Ctx) {
   const profile = await loadProfile(ctx.db, ctx.userId);
   if (!profile) throw new Error("profile missing");
   const country: CountryCode = cc(profile.target_country);
-  const { data: docRow } = await ctx.db.from("cv_documents").select("id, text_content, questions, answers, is_demo, extraction").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
+  const { data: docRow, error: docError } = await ctx.db.from("cv_documents").select("id, text_content, questions, answers, is_demo, extraction").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
+  if (docError) throw docError;
   const doc = docRow as (CvDocRow & { extraction: Extraction | null }) | null;
   if (!doc) throw new Error("Upload a CV first.");
+  // Country changes reuse the already improved CV. Country-specific rendering needs no paid AI call.
+  if (profile.onboarding_step === "prefs" && profile.search_country_version > 0) {
+    const { data: existing, error } = await ctx.db.from("master_cvs").select("content, flags, ai, model, source_cv_document_id").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
+    if (error) throw error;
+    if (existing && existing.source_cv_document_id === doc.id) {
+      await saveMaster(ctx, existing.content as MasterCV, existing.flags || [], !!existing.ai, existing.model, doc.id, profile, true);
+      return { flags: existing.flags || [], ai: false, reused: true };
+    }
+  }
   const facts = await loadFacts(ctx.db, ctx.userId);
   const verifiedFacts = verifiedFactsFor(facts);
   const answers = doc.answers || {};
@@ -234,8 +248,7 @@ export async function buildMasterCv(ctx: Ctx) {
   const newSkills = answerSkillFacts(m.extra_skills || [], answersText, existing);
   if (newSkills.length) await ctx.db.from("career_facts").insert(newSkills.map((f: CareerFact) => ({ ...f, user_id: ctx.userId, cv_document_id: doc.id })));
 
-  await saveMaster(ctx, checked.master, checked.flags, ai, model, doc.id);
-  await ctx.db.from("profiles").update({ onboarding_step: profile.onboarding_step === "done" ? "done" : "reveal" }).eq("id", ctx.userId);
+  await saveMaster(ctx, checked.master, checked.flags, ai, model, doc.id, profile, true);
   return { flags: checked.flags, ai };
 }
 
@@ -306,7 +319,7 @@ export async function editMasterCv(ctx: Ctx, instruction: string, language: stri
   const after = await loadFacts(ctx.db, ctx.userId);
   const answersText = Object.values(doc?.answers || {}).filter(Boolean).join("\n");
   const checked = finishMaster(m, verifiedFactsFor(after), after, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed });
-  await saveMaster(ctx, checked.master, checked.flags, true, res.usage.model, doc?.id ?? null);
+  await saveMaster(ctx, checked.master, checked.flags, true, res.usage.model, doc?.id ?? null, profile);
   await ctx.db.from("profiles").update({ career_meta: { ...meta, edits, removed } }).eq("id", ctx.userId);
   const message = String(out.message || "Your CV was updated.").slice(0, 300);
   return { message: readAs ? `We read your request as: "${readAs}". ${message}` : message, flags: checked.flags };
@@ -336,7 +349,7 @@ export async function resolveSuggestion(ctx: Ctx, id: string, option: number | n
   const rest = applied.master.suggestions;
   const checked = finishMaster({ ...applied.master, suggestions: undefined }, verifiedFactsFor(facts), facts, { cvText: doc?.text_content || "", answersText, prefs: profile.preferences, edits, removed: meta.removed || [] });
   checked.master.suggestions = cleanSuggestions(checked.master, rest);
-  await saveMaster(ctx, checked.master, checked.flags, !!masterRow?.ai, (masterRow?.model as string | null) ?? null, doc?.id ?? null);
+  await saveMaster(ctx, checked.master, checked.flags, !!masterRow?.ai, (masterRow?.model as string | null) ?? null, doc?.id ?? null, profile);
   await ctx.db.from("profiles").update({ career_meta: { ...meta, edits } }).eq("id", ctx.userId);
   return { message: "Changed on your CV." };
 }

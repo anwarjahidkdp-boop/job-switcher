@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/env";
 import { headers } from "next/headers";
-import { chargedPrice, countryFromHeader, formatPrice, localHint, packPrice, PACKS, proPrice } from "@/lib/billing/pricing";
+import { chargedPrice, countryFromHeader, formatPrice, localHint, packPrice, packsForCountry, proPrice } from "@/lib/billing/pricing";
 import { AutoFlow } from "./AutoFlow";
 import { HeroStage } from "./HeroStage";
 
@@ -176,7 +176,7 @@ export default async function Landing() {
                 <div><b>{local.currency === "BDT" ? "The price of one cup of tea a day" : "Less than a coffee a day"}</b><span>That is all your personal job assistant costs, and it works for you all day.</span></div>
               </div>
               <div className="packs lp-packgrid">
-                {PACKS.map((k) => {
+                {packsForCountry(local.country).map((k) => {
                   const p = packPrice(local.country, k.id), c = chargedPrice(p), hint = localHint(p), full = chargedPrice(packPrice(local.country, "30d")).minor * (k.days / 30);
                   const save = k.days > 30 ? Math.round((1 - c.minor / full) * 100) : 0;
                   const tag = k.id === "30d" ? "Most popular" : k.id === "365d" ? "Best value" : "";

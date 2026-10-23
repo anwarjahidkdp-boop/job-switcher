@@ -16,7 +16,7 @@ async function post(url: string, body: unknown) {
   return j;
 }
 
-export function CountryStep(props: { current: string; home: string; needsVisa: boolean; demo: boolean }) {
+export function CountryStep(props: { current: string; home: string; needsVisa: boolean; demo: boolean; billingLocked: boolean }) {
   const router = useRouter();
   const [cur, setCur] = useState(props.current);
   const [visa, setVisa] = useState(props.needsVisa);
@@ -46,9 +46,9 @@ export function CountryStep(props: { current: string; home: string; needsVisa: b
         <p className="small muted" style={{ marginTop: -4 }}>{c.doc} · {c.pages} · {c.photo ? "with photo" : "no photo"} · salary per {c.per}</p>
         <ul className="why-list">{c.rules.map((x) => <li key={x}><span className="mk ok">✓</span><span>{x}</span></li>)}</ul>
         <label className="f" htmlFor="obhome" style={{ marginTop: 14 }}>I live in
-          <CountrySelect id="obhome" value={home} onChange={setHome} label="Country you live in" first={props.home} />
+          <CountrySelect id="obhome" value={home} disabled={props.billingLocked} onChange={setHome} label="Country you live in" first={props.home} />
         </label>
-        <p className="small muted" style={{ marginTop: 4 }}>Your Pro price and how you pay follow the country you live in.</p>
+        <p className="small muted" style={{ marginTop: 4 }}>Confirm where you live. Your subscription country is fixed after this step, even if you search for jobs abroad.</p>
         {cur !== home ? <label className="row small" style={{ marginTop: 12, gap: 8, flexWrap: "nowrap", fontWeight: 500 }}><input type="checkbox" checked={visa} onChange={(e) => setVisa(e.target.checked)} /> I will need the employer to sponsor my work visa</label> : null}
       </div>
       {err ? <p role="alert" className="err" style={{ marginTop: 12 }}>{err}</p> : null}
@@ -283,9 +283,10 @@ function NoCvForm({ disabled, onSubmit, onBack }: { disabled: boolean; onSubmit:
 
 export type PersonalField = { k: Exclude<keyof PersonalDetails, "references">; label: string; hint: string };
 const emptyRef = (): Referee => ({ name: "", title: "", org: "", phone: "", email: "", relation: "" });
-export function PrefsStep(props: { editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean }) {
+export function PrefsStep(props: { editing: boolean; initial: Preferences; personal: PersonalDetails; countryLabel: string; currency: string; fields: PersonalField[]; personalCountry: boolean; refs: { mode: "list" | "request" | "none"; count: number }; isBD: boolean; country: string; revision: number; needsVisa: boolean; abroad: boolean }) {
   const router = useRouter();
   const [p, setP] = useState({ roles: props.initial.roles || "", locations: props.initial.locations || "", salaryMin: props.initial.salaryMin ?? "", salaryMax: props.initial.salaryMax ?? "", notice: props.initial.notice ?? "", mode: props.initial.mode || "On-site" });
+  const [visa, setVisa] = useState(props.needsVisa);
   const [pd, setPd] = useState<Record<string, string>>(Object.fromEntries(props.fields.map((f) => [f.k, String(props.personal[f.k] || "")])));
   const [refs, setRefs] = useState<Referee[]>(() => { const r = (props.personal.references || []).map((x) => ({ ...emptyRef(), ...x })); while (r.length < props.refs.count) r.push(emptyRef()); return r.slice(0, props.refs.count); });
   const [busy, setBusy] = useState("");
@@ -296,9 +297,9 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
     setErr("");
     try {
       setBusy("Saving your preferences");
-      await post("/api/onboarding/prefs", { prefs: p, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
+      await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: props.abroad && visa, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
       if (props.editing) { start(() => router.push("/profile")); return; }
-      setBusy("Writing your professional CV. This usually takes under a minute.");
+      setBusy("Preparing your CV for this country using your saved career information.");
       await post("/api/cv/build", {});
       router.refresh();
     } catch (e) { setErr((e as Error).message); setBusy(""); }
@@ -306,6 +307,7 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
   return (
     <>
       <div className="card panel stack" style={{ marginTop: 22 }}>
+        {props.abroad ? <label className="row small"><input type="checkbox" checked={visa} onChange={e => setVisa(e.target.checked)} /> I need employer visa sponsorship in {props.countryLabel}</label> : null}
         <label className="f" htmlFor="p_roles">Target roles (comma separated)<input type="text" id="p_roles" value={p.roles} onChange={upd("roles")} /></label>
         <label className="f" htmlFor="p_locs">Preferred cities in {props.countryLabel} (leave blank for anywhere)<input type="text" id="p_locs" value={p.locations} onChange={upd("locations")} /></label>
         <div className="row" style={{ alignItems: "flex-end" }}>
@@ -347,7 +349,7 @@ export function PrefsStep(props: { editing: boolean; initial: Preferences; perso
       {!props.fields.length ? <p className="note" style={{ marginTop: 14 }}>{props.countryLabel} CVs leave out photo, date of birth and marital status, so we will not add them.</p> : null}
       {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
       {err ? <p role="alert" className="err" style={{ marginTop: 14 }}>{err}</p> : null}
-      <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary" disabled={!!busy} onClick={submit}>{props.editing ? "Save preferences" : "Create my professional CV"}</button></div>
+      <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary" disabled={!!busy} onClick={submit}>{props.editing ? "Save preferences" : `Create my ${props.countryLabel} CV`}</button></div>
     </>
   );
 }
