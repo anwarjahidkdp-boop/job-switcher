@@ -31,7 +31,6 @@ export default async function Inbox() {
   const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
-  const first = (P.name || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(" ")[0];
   const queue = Object.values(st.apps).filter((a) => ["ready", "reminder", "waiting"].includes(a.status)).map((a) => ({ a, job: jobById.get(a.job_id), date: a.status === "reminder" && a.reminder_date ? a.reminder_date : st.today })).filter((x) => x.job).sort((x, y) => x.date.localeCompare(y.date)).slice(0, 4);
   const upcoming = list.filter((x) => (daysUntil(x.job.deadline, st.today) ?? -1) >= 0).sort((a, b) => (a.job.deadline || "").localeCompare(b.job.deadline || "")).slice(0, 3);
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
@@ -73,7 +72,7 @@ export default async function Inbox() {
 
   return (
     <>
-      <PageHead kicker="Your job assistant" title="Career overview" sub={<>Welcome back{first ? `, ${first}` : ""}. {`We analysed ${s.analysed} jobs in ${cname(country)} for you. ${fit.count} ${fit.count === 1 ? "match is" : "matches are"} ${fit.label} (${fit.range}).`}</>} />
+      <PageHead compact kicker="Your job assistant" title="Career overview" />
       <ApplicationProfileNotice country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} />
       {due.map(({ a, job }) => (
         <div key={a.id} className="banner warn" style={{ marginBottom: 14 }}>
