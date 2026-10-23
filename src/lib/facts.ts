@@ -153,7 +153,7 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
     country,
     salaryMin: Number(p?.salaryMin) || null,
     salaryMax: Number(p?.salaryMax) || null,
-    notice: p?.notice ? Number(p.notice) : null,
+    notice: p?.notice != null ? Number(p.notice) : null,
   };
 }
 

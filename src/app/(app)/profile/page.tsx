@@ -1,3 +1,5 @@
+import { ApplicationSafetyForm } from "@/components/ApplicationSafetyForm";
+import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { requireAppState, photoUrl } from "@/lib/server/page";
@@ -8,7 +10,7 @@ import { resolveStyle } from "@/lib/cv/render";
 import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
-import { backToStepAction, setReminderPrefAction, saveCareerSafetyAction } from "@/app/actions";
+import { backToStepAction, setReminderPrefAction } from "@/app/actions";
 import { CountryPanel, SkillAdder, FactReview, DangerZone, GmailPanel } from "./client";
 import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -40,6 +42,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   return (
     <>
       <PageHead kicker="Your profile" title={<>Master career <span>profile</span></>} sub="Every application is built from this verified information." />
+      <ApplicationProfileNotice answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} onProfile />
       <div className="dash" style={{ marginTop: 18 }}>
         <div>
           <ManualCvEditor initial={manualDraft(st.master.content, st.facts)} baseId={st.master.id} country={country} revision={st.profile.search_country_version} />
@@ -66,37 +69,13 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <div className="stack small" style={{ gap: 4 }}>
               <div>Target roles: <b>{P.targetRoles.join(", ")}</b></div>
               <div>Locations: <b>{P.locations.join(", ") || "Anywhere in " + cname(country)}</b></div>
-              <div>Expected salary: <b>{P.salaryMin ? money(P.salaryMin, country) + (P.salaryMax ? "–" + money(P.salaryMax, country) : "+") + perLabel(country) : "Not set"}</b></div>
+              <div>Expected salary: <b>{st.profile.answer_library?.salaryNegotiable === true ? "Negotiable" : P.salaryMin ? money(P.salaryMin, country) + (P.salaryMax ? "–" + money(P.salaryMax, country) : "+") + perLabel(country) : "Not set"}</b></div>
               <div>Experience: <b>{Math.floor(P.years)} years</b> · {LEVEL_NAME[LEVEL[P.seniority]]}</div>
-              <div>Notice period: <b>{P.notice ? P.notice + " days" : "Not set"}</b></div>
+              <div>Notice period: <b>{P.notice != null ? (P.notice === 0 ? "Available immediately" : P.notice + " days") : "Not set"}</b></div>
             </div>
             <Link className="btn btn-text" style={{ marginTop: 6 }} href="/onboarding?step=prefs">Edit preferences</Link>
           </div>
-          <div className="card panel"><h3>Application safety</h3>
-            <p className="small muted">Hard rules stop JobPao from preparing an application that conflicts with what you want. Confirmed answers are reused; unknown answers are never guessed.</p>
-            <form action={saveCareerSafetyAction} className="stack" style={{ marginTop: 10 }}>
-              <label className="f">Minimum salary<input name="minSalary" type="number" defaultValue={String(st.profile.deal_breakers?.minSalary ?? "")} /></label>
-              <label><input name="remoteOnly" type="checkbox" defaultChecked={st.profile.deal_breakers?.remoteOnly === true} /> Remote only</label>
-              <label><input name="noRelocation" type="checkbox" defaultChecked={st.profile.deal_breakers?.noRelocation === true} /> No relocation</label>
-              <label><input name="noContract" type="checkbox" defaultChecked={st.profile.deal_breakers?.noContract === true} /> No contract / temporary work</label>
-              <label><input name="sponsorshipRequired" type="checkbox" defaultChecked={st.profile.deal_breakers?.sponsorshipRequired === true} /> Visa sponsorship required</label>
-              <label><input name="workAuthorizationRequired" type="checkbox" defaultChecked={st.profile.deal_breakers?.workAuthorizationRequired === true} /> Require confirmed work authorization before preparing</label>
-              <label className="f">Excluded industries<input name="excludedIndustries" defaultValue={Array.isArray(st.profile.deal_breakers?.excludedIndustries) ? st.profile.deal_breakers.excludedIndustries.join(", ") : ""} placeholder="gambling, tobacco" /></label>
-              <label className="f">Excluded companies<input name="excludedCompanies" defaultValue={Array.isArray(st.profile.deal_breakers?.excludedCompanies) ? st.profile.deal_breakers.excludedCompanies.join(", ") : ""} /></label>
-              <label className="f">Excluded role types<input name="excludedRoleTypes" defaultValue={Array.isArray(st.profile.deal_breakers?.excludedRoleTypes) ? st.profile.deal_breakers.excludedRoleTypes.join(", ") : ""} placeholder="contract, temporary" /></label>
-              <h3 style={{ marginTop: 8 }}>Answer Library</h3>
-              <label className="f">Work authorization<select name="workAuthorization" defaultValue={String(st.profile.answer_library?.workAuthorization || "unknown")}><option value="unknown">Not confirmed</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-              <label className="f">Expected salary<input name="expectedSalary" type="number" defaultValue={String(st.profile.answer_library?.expectedSalary ?? "")} /></label>
-              <label className="f">Current salary (optional)<input name="currentSalary" type="number" defaultValue={String(st.profile.answer_library?.currentSalary ?? "")} /></label>
-              <label className="f">Notice period (days)<input name="noticeDays" type="number" defaultValue={String(st.profile.answer_library?.noticeDays ?? "")} /></label>
-              <label className="f">Need sponsorship?<select name="answerSponsorship" defaultValue={st.profile.answer_library?.sponsorshipRequired === true ? "yes" : st.profile.answer_library?.sponsorshipRequired === false ? "no" : ""}><option value="">Not confirmed</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-              <label className="f">Willing to relocate?<select name="willingToRelocate" defaultValue={st.profile.answer_library?.willingToRelocate === true ? "yes" : st.profile.answer_library?.willingToRelocate === false ? "no" : ""}><option value="">Not confirmed</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-              <label className="f">People-management experience (years)<input name="managementYears" type="number" defaultValue={String(st.profile.answer_library?.managementYears ?? "")} /></label>
-              <label className="f">Largest team size managed<input name="teamSize" type="number" defaultValue={String(st.profile.answer_library?.teamSize ?? "")} /></label>
-              <label className="f">Willing to travel?<select name="willingToTravel" defaultValue={st.profile.answer_library?.willingToTravel === true ? "yes" : st.profile.answer_library?.willingToTravel === false ? "no" : ""}><option value="">Not confirmed</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-              <button className="btn btn-primary btn-sm">Save application safety</button>
-            </form>
-          </div>
+          <ApplicationSafetyForm answers={st.profile.answer_library || {}} rules={st.profile.deal_breakers || {}} />
           <div className="card panel"><h3>Job sites</h3>
             {setupSites.map((site) => <div key={site} className="qitem"><div><b className="small">{site}</b><div className="small muted">Paste a {site} link or job text and we match it. To apply, open the job on {site} yourself, where you sign in.</div></div><span className="pill p-neutral">No password</span></div>)}
             <p className="small muted" style={{ marginTop: 8 }}>A direct account connection will be added only through an official integration from the job site.</p>

@@ -168,8 +168,16 @@ export async function saveCareerSafetyAction(formData: FormData) {
   const c = await ctx("/profile");
   const csv = (k: string) => String(formData.get(k) || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).slice(0, 50);
   const num = (k: string) => { const v = String(formData.get(k) || "").trim(); return v && Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : null; };
+  for (const key of ["minSalary","expectedSalary","noticeDays","currentSalary","managementYears","teamSize"]) {
+    const raw = String(formData.get(key) || "").trim();
+    if (raw && (!Number.isFinite(Number(raw)) || Number(raw) < 0 || ((key === "minSalary" || key === "expectedSalary") && Number(raw) === 0))) throw new Error("Enter a valid salary or choose no fixed minimum / negotiable. Other numeric answers may be 0.");
+  }
   const dealBreakers = {
-    minSalary: num("minSalary"),
+    minSalary: formData.get("minimumMode") === "none" ? null : num("minSalary"),
+    minSalarySet: formData.get("minimumMode") === "none" || num("minSalary") != null,
+    excludedCompaniesSet: formData.get("excludedCompaniesMode") === "none" || csv("excludedCompanies").length > 0,
+    excludedIndustriesSet: formData.get("excludedIndustriesMode") === "none" || csv("excludedIndustries").length > 0,
+    excludedRoleTypesSet: formData.get("excludedRoleTypesMode") === "none" || csv("excludedRoleTypes").length > 0,
     remoteOnly: formData.get("remoteOnly") === "on",
     noRelocation: formData.get("noRelocation") === "on",
     noContract: formData.get("noContract") === "on",
@@ -182,7 +190,8 @@ export async function saveCareerSafetyAction(formData: FormData) {
   const wa = String(formData.get("workAuthorization") || "unknown");
   const tri = (k: string) => { const v = String(formData.get(k) || ""); return v === "yes" ? true : v === "no" ? false : null; };
   const answerLibrary = {
-    expectedSalary: num("expectedSalary"),
+    expectedSalary: formData.get("salaryMode") === "negotiable" ? null : num("expectedSalary"),
+    salaryNegotiable: formData.get("salaryMode") === "negotiable",
     noticeDays: num("noticeDays"),
     workAuthorization: wa === "yes" || wa === "no" ? wa : "unknown",
     sponsorshipRequired: tri("answerSponsorship"),

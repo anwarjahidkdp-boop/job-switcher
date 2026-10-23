@@ -62,3 +62,12 @@ it('does not count an unsent closed draft as a submitted application',()=>{
 it('personal analysis counts query only the user assessments, not the whole job inventory',async()=>{
  const {db,log}=fakeDb(()=>[]);await countVisibleJobs(db,'u1','BD');expect(log[0].table).toBe('matches');expect(has(log[0].calls,'eq','u1')).toBe(true);expect(has(log[0].calls,'eq','jobs.country')).toBe(true);
 });
+
+it('uses confirmed expected salary and notice answers for matching without an AI call',async()=>{
+ const {profileFrom}=await import('./state');
+ const profile={full_name:'Synthetic',target_country:'BD',career_meta:{},preferences:{roles:'Accountant',locations:'',salaryMin:20000,salaryMax:null,notice:30,mode:'Any'},answer_library:{expectedSalary:45000,noticeDays:0}};
+ const master={content:{name:'Synthetic'}};
+ expect(profileFrom(profile as never,[],master as never)).toMatchObject({salaryMin:45000,notice:0});
+ profile.answer_library={salaryNegotiable:true} as never;
+ expect(profileFrom(profile as never,[],master as never)?.salaryMin).toBeNull();
+});

@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import { CV_SCREEN_CSS } from "@/lib/cv/styles";
 import { InstallApp } from "@/components/InstallApp";
 import { RouteProgress } from "@/components/RouteProgress";
 import { Suspense } from "react";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter", display: "swap" });
-const manrope = Manrope({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-manrope", display: "swap" });
+const inter = localFont({ src: "./fonts/inter-latin.woff2", weight: "400 600", variable: "--font-inter", display: "swap" });
+const manrope = localFont({ src: "./fonts/manrope-latin.woff2", weight: "600 800", variable: "--font-manrope", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "JobPao", template: "%s · JobPao" },

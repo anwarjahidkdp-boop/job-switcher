@@ -26,3 +26,6 @@ describe("applicationSafety", () => {
     expect(normaliseDealBreakers({minSalary:"50000",excludedCompanies:[" ACME "]})).toMatchObject({minSalary:50000,excludedCompanies:["acme"]});
   });
 });
+it("honours an explicit no-fixed-minimum choice instead of falling back to an old salary filter",()=>{
+ expect(applicationSafety(job,{...prefs,salaryMin:100000},{minSalary:null,minSalarySet:true},{},false).issues.some(i=>i.code==='salary')).toBe(false);
+});
