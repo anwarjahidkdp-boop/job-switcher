@@ -1100,3 +1100,7 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .queue-held-item p{margin:6px 0;line-height:1.5}
 .queue-held-item .btn{max-width:100%;white-space:normal;text-align:left}
 .queue-held-item:last-of-type{margin-bottom:12px}
+
+.queue-review-cta{font-weight:700;box-shadow:0 3px 10px color-mix(in srgb,var(--accent) 24%,transparent);min-height:40px}
+.application-workspace{scroll-margin-top:110px}
+@media(max-width:520px){.nav a[href="/queue"] .nav-s{font-size:10px;line-height:1.15;white-space:normal;text-align:center}}

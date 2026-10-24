@@ -1,4 +1,4 @@
-import { eligibilityCheck } from "@/lib/eligibility";
+import { applicationSafety, canPrepareDraft } from "@/lib/career-safety";
 import { PrepareApplicationButton } from "@/components/PrepareApplicationButton";
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
@@ -56,7 +56,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const photo = a?.pack ? await photoUrl(db, st.profile.photo_path) : null;
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
-  const allowance = !a?.pack && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
+  const allowance = safety.safe && !a?.pack && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
   const pro = await isPro(db, st.userId);
@@ -65,8 +66,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const aiLeft = !allowance ? null : allowance.left
     ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
     : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
-  const eligibility = eligibilityCheck(job,st.P,st.today);
-  const canPrepare = eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn", "waiting"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
+  const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
+  const canPrepare = eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -100,11 +101,12 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {job.url ? <a className="btn btn-ghost btn-sm" href={job.url} target="_blank" rel="noopener noreferrer nofollow">Open the original post ↗</a> : null}
               {canPrepare ? <div className="jd-application-group"><PrepareApplicationButton jobId={job.id} /><ActionsPanel compact jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
-              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} /></div> : null}
+              canApply={safety.safe} blockingReason={safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ")} gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} /></div> : null}
             </div> : null}
             {canPrepare && aiLeft ? <p className="small muted jd-ai-note">{aiLeft}</p> : null}
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
+          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Prepare your CV, cover letter and email draft for this job, then review them before applying.</p>{!safety.safe?<p className="note small" role="status">Salary is not disclosed. A standard review draft is available without AI cost. Verify pay before sending.</p>:null}<PrepareApplicationButton jobId={job.id} openPack/></>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;
             // Follow-up emails to employers are not the custom in Bangladesh (owner's call), so they are offered elsewhere only.
@@ -125,7 +127,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade?from=job">Go Pro and apply now</Link>
             </div>
           ) : a?.pack ? (
-            <div className="card panel">
+            <div className="card panel application-workspace" id="application">
               <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: 19 }}>Your application pack</h2><span className="small muted">{a.pack_ai ? "Prepared with Claude from your verified profile" : "Template version"}</span></div>
               {a.pack_flags.length ? <p className="note" style={{ marginTop: 10, borderColor: "var(--warn)" }}>Check before sending: {a.pack_flags.join("; ")}.</p> : null}
               {(() => {
@@ -169,7 +171,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           {lockedPack || canPrepare ? null : <div className="card panel">
             <ActionsPanel jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
-              gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} />
+              canApply={safety.safe} blockingReason={safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ")} gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} />
           </div>}
         </aside>
       </div>

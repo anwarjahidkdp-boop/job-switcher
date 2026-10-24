@@ -5,6 +5,11 @@ export interface DealBreakers { minSalary?: number|null; minSalarySet?: boolean;
 export interface AnswerLibrary { workAuthorizationSource?:"home_country_default"|"user"; sponsorshipSource?:"home_country_default"|"user"; birthDate?:string|null; salaryCountry?:string; currentSalaryCountry?:string; expectedSalary?: number|null; salaryNegotiable?: boolean; noticeDays?: number|null; workAuthorization?: "yes"|"no"|"unknown"; sponsorshipRequired?: boolean|null; willingToRelocate?: boolean|null; currentSalary?: number|null; managementYears?: number|null; teamSize?: number|null; willingToTravel?: boolean|null }
 export interface SafetyIssue { code:string; message:string; blocking:boolean }
 export interface SafetyCheck { safe:boolean; issues:SafetyIssue[] }
+/** Unknown advertised pay can have a review draft; it never clears sending safety. */
+export function canPrepareDraft(check:SafetyCheck):boolean {
+ const blocks=check.issues.filter(i=>i.blocking);
+ return check.safe || (blocks.length>0 && blocks.every(i=>i.code==='salary_unpublished'));
+}
 const low=(v:unknown)=>String(v||"").trim().toLowerCase();
 const list=(v:unknown)=>Array.isArray(v)?v.map(low).filter(Boolean):[];
 const has=(hay:string|null|undefined,needles:string[])=>needles.some(n=>n&&low(hay).includes(n));
