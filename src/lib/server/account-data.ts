@@ -19,7 +19,7 @@ export async function exportAccount(db:SupabaseClient,userId:string){
  const out:Record<string,unknown[]>={};
  for(const table of [...tables,'jobs'] as const){
   const col=table==='profiles'?'id':table==='jobs'?'owner_id':'user_id';const rows:unknown[]=[];
-  for(let from=0;;from+=1000){let q=db.from(table).select('*').eq(col,userId);for(const key of table==='matches'?['job_id']:['id'])q=q.order(key);const {data,error}=await q.range(from,from+999);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<1000)break;}
+  for(let from=0;;from+=1000){let q=db.from(table).select('*').eq(col,userId);for(const key of table==='matches'?['job_id']:table==='match_assessments'?['job_id','computed_at']:['id'])q=q.order(key);const {data,error}=await q.range(from,from+999);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<1000)break;}
   out[table==='jobs'?'private_jobs':table]=rows;
  }
  return out;
