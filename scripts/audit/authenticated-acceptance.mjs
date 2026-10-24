@@ -64,6 +64,7 @@ try{
  const departmentFacts=check(await admin.from('career_facts').select('data').eq('user_id',userId).eq('kind','experience'),'Saved department read failed');
  report('department is available to matching facts',departmentFacts.some(f=>f.data.title==='Manager'&&f.data.department==='Accounts'));
  await probe('/profile',{},(r,t)=>r.status===200&&t.includes('Manager · Accounts')&&!t.includes('<p class="hl">Cost Accountant</p>'));
+ await probe('/insights',{},(r,t)=>r.status===200&&t.includes('Why some jobs are below Good Fit')&&!t.includes('Why opportunities were missed'));
  for(const format of ['doc','print'])await probe(`/api/cv/download?format=${format}`,{},(r,t)=>r.status===200&&t.includes('Synthetic edited summary')&&t.includes('<p class="hl">Manager · Accounts</p>'));
  // Private, disposable job: validates the exact queue → prepare → CV/letter flow without AI.
  const reviewJob=check(await admin.from('jobs').insert({owner_id:userId,source_kind:'paste',source_label:'Synthetic acceptance only',country:'BD',title:'Accounts Manager',company:'Synthetic QA Employer',category:'Finance & Accounting',industry:'services',location:'Dhaka',seniority:'manager',employment_type:'Permanent',min_years:0,required_skills:['financial reporting'],responsibilities:['Prepare financial reports.'],salary_min:null,salary_max:null,active:true,raw:{eligibility:{}},apply_method:'unknown'}).select('id').single(),'Synthetic review job setup failed');
@@ -74,6 +75,7 @@ try{
  await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({standard:true})},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
  const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at,updated_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
  report('review draft contains CV, cover letter and email without submission',!!reviewPack.pack?.summary&&!!reviewPack.pack?.cover_letter&&!!reviewPack.pack?.email_body&&reviewPack.pack_ai===false&&reviewPack.applied_at===null);
+ await probe('/applications',{},(r,t)=>r.status===200&&!t.includes(`data-applied-job="${reviewJob.id}"`)&&!t.includes('Jobs analysed')&&t.includes('No submitted applications yet'));
  await probe(`/jobs/${reviewJob.id}?application=review&prepared=1`,{},(r,t)=>r.status===200&&t.includes('id="application"')&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter document actions')&&t.includes('CV document actions')&&t.includes('Check before sending:'));
  // Application edits are manual and must affect these downloads without changing the master.
  const editedLetter='Dear Hiring Manager,\n\nSynthetic edited cover letter for this application only.';
@@ -126,6 +128,7 @@ try{
  await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'offer',confirm:true})});
  const offered=check(await admin.from('applications').select('status,applied_at,interview_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Synthetic offer read failed');
  report('offer retains interview and immutable applied timestamp',offered.status==='offer'&&!!offered.interview_at&&offered.applied_at===applied.applied_at);
+ await probe('/applications',{},(r,t)=>r.status===200&&t.includes(`data-applied-job="${nextJob.id}"`)&&!t.includes(`data-applied-job="${reviewJob.id}"`)&&t.includes('Job offer')&&t.includes('Received')&&!t.includes('Jobs analysed'));
  const foreign=await user.from('profiles').select('id').neq('id',userId).limit(1);report('cross-user profile access blocked',!foreign.error&&foreign.data.length===0);
  const {count,error}=await admin.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',userId);report('acceptance used no AI calls',!error&&count===0);
  await probe('/api/account/export',{},(r,t)=>r.status===200&&JSON.parse(t).profiles?.[0]?.id===userId);
