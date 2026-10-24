@@ -1104,3 +1104,7 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .queue-review-cta{font-weight:700;box-shadow:0 3px 10px color-mix(in srgb,var(--accent) 24%,transparent);min-height:40px}
 .application-workspace{scroll-margin-top:110px}
 @media(max-width:520px){.nav a[href="/queue"] .nav-s{font-size:10px;line-height:1.15;white-space:normal;text-align:center}}
+
+.job-review-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.job-review-company{flex:1;min-width:0;overflow-wrap:anywhere}
+.job-review-action{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex-shrink:0}

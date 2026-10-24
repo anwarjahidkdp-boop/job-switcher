@@ -1,20 +1,13 @@
 // After each job collection run: for every user, take the strong matches they have not been told about yet,
-// prepare application packs for the best few (Pro and trial users, within their AI allowance) and email one digest.
+// email one digest. Application documents are created only after an explicit Apply click.
 // Preparing is not applying: nothing is ever sent to an employer without the user's own press (see applications.ts).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { aiConfigured, checkBudget, getBudget } from "../ai";
 import { emailProvider } from "../email/send";
 import { newMatchesEmail } from "../email/templates";
-import { ApplicationSafetyError, preparePack } from "./applications";
 import { deliverEmail } from "./email-outbox";
 import { notify } from "./notify";
-import { loadState } from "./state";
-import { AUTO_QUEUE_SIZE, applyQueue, queueSafety } from "../apply-queue";
 
 export const NOTIFY_MIN_SCORE = 70;
-export const PREPARE_PER_RUN = 2;
-/** AI-prepared packs cost money; with this many still waiting unsent, we stop preparing new ones until the person acts. */
-export const PREPARED_WAITING_MAX = 3;
 /** Retained for callers checking an AI assessment; queue selection also enforces current deterministic safety. */
 export const aiVerified = (r: { ai_fit?: string | null; ai_score?: number | null }) => r.ai_fit === "strong" || (r.ai_score ?? 0) >= 70;
 const DIGEST_MAX = 8;
@@ -41,21 +34,7 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
       res.users++;
 
       const ready = new Set<string>();
-      if (opts.prepare !== false && aiConfigured() && !opts.dryRun && (await canSpend(admin, userId))) {
-        const st = await loadState(admin, userId);
-        const ranked = st ? applyQueue(st).filter(x=>queueSafety(st,x.job).safe).slice(0, AUTO_QUEUE_SIZE) : [];
-        const waiting = ranked.filter(x => st?.apps[x.job.id]?.pack).length;
-        const room = Math.max(0, Math.min(PREPARE_PER_RUN, PREPARED_WAITING_MAX - waiting));
-        for (const candidate of ranked.filter(x => !st?.apps[x.job.id]?.pack).slice(0, room)) {
-          const r = {job_id:candidate.job.id};
-          try {
-            const out = await preparePack({ db: admin, admin, userId }, r.job_id);
-            ready.add(r.job_id);
-            res.prepared++;
-            if (!out.ai) break; // out of allowance or AI unavailable: stop spending, the template pack is still saved
-          } catch (e) { if (e instanceof ApplicationSafetyError) { console.info("  auto-prepare skipped by application safety", userId, r.job_id); continue; } console.error("  prepare failed", userId, r.job_id, e); break; }
-        }
-      }
+      // Ranking is automatic; document generation is an explicit Apply action only.
 
       if (!fresh.length) continue;
       if (!opts.dryRun) {
@@ -78,8 +57,4 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
     }
   }
   return res;
-}
-
-async function canSpend(admin: SupabaseClient, userId: string) {
-  try { checkBudget(await getBudget(admin, userId)); return true; } catch { return false; }
 }
