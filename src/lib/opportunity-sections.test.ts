@@ -20,3 +20,10 @@ it('does not recycle a job with an immutable applied timestamp even if a legacy 
  const apps={sent:{status:'ready',applied_at:'2026-10-24'}} as unknown as Parameters<typeof opportunitySections>[2];
  expect(opportunitySections([row('sent',99)],new Set(),apps).featured).toBeNull();
 });
+
+it('limits Home to the highest three and refills the third slot after submission',()=>{
+ const rows=[row('first',95),row('second',88),row('third',79),row('fourth',76),row('fifth',66)];
+ const first=opportunitySections(rows,new Set());expect(first.home.map(x=>x.job.id)).toEqual(['first','second','third']);expect(first.remaining.map(x=>x.job.id)).toEqual(['second','third']);expect(first.ranked).toHaveLength(5);
+ const apps={first:{status:'applied',applied_at:'2026-10-24'}} as unknown as Parameters<typeof opportunitySections>[2];
+ expect(opportunitySections(rows,new Set(),apps).home.map(x=>x.job.id)).toEqual(['second','third','fourth']);
+});

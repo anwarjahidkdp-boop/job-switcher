@@ -54,7 +54,7 @@ try{
  const profile=check(await admin.from('profiles').select('search_country_version').eq('id',userId).single(),'Synthetic profile read failed');
  check(await user.auth.signInWithPassword({email,password}),'Synthetic authentication failed');
  report('authenticated cookie session',jar.size>0);
- for(const path of ['/profile','/inbox','/queue','/applications'])await probe(path,{},r=>path==='/queue'?[200,307,308].includes(r.status):r.status===200);
+ for(const path of ['/profile','/inbox','/queue','/applications','/opportunities'])await probe(path,{},r=>path==='/queue'?[200,307,308].includes(r.status):r.status===200);
  await probe('/api/onboarding/prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({country:'BD',revision:profile.search_country_version,prefs:{locations:'Dhaka',salaryMin:70000,salaryMax:90000,notice:30,mode:'Any'},personal:{dob:'1986-01-15',references:[]}})});
  const cv={...master,experience:master.experience.map(e=>({...e,title:'Manager',department:'Accounts'})),summary:'Synthetic edited summary saved without AI.',education:[{degree:'Bachelors',field:'accounting',institution:'Synthetic QA College',year:'2010',level:'bachelors',result:null}],certifications:[]};
  await probe('/api/cv/manual',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({baseId:initial.id,country:'BD',revision:profile.search_country_version,cv})});
