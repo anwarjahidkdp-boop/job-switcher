@@ -64,6 +64,7 @@ try{
  const departmentFacts=check(await admin.from('career_facts').select('data').eq('user_id',userId).eq('kind','experience'),'Saved department read failed');
  report('department is available to matching facts',departmentFacts.some(f=>f.data.title==='Manager'&&f.data.department==='Accounts'));
  await probe('/profile',{},(r,t)=>r.status===200&&t.includes('Manager · Accounts')&&!t.includes('<p class="hl">Cost Accountant</p>'));
+ await probe('/insights',{},(r,t)=>r.status===200&&t.includes('Why some jobs are below Good Fit')&&!t.includes('Why opportunities were missed'));
  for(const format of ['doc','print'])await probe(`/api/cv/download?format=${format}`,{},(r,t)=>r.status===200&&t.includes('Synthetic edited summary')&&t.includes('<p class="hl">Manager · Accounts</p>'));
  // Private, disposable job: validates the exact queue → prepare → CV/letter flow without AI.
  const reviewJob=check(await admin.from('jobs').insert({owner_id:userId,source_kind:'paste',source_label:'Synthetic acceptance only',country:'BD',title:'Accounts Manager',company:'Synthetic QA Employer',category:'Finance & Accounting',industry:'services',location:'Dhaka',seniority:'manager',employment_type:'Permanent',min_years:0,required_skills:['financial reporting'],responsibilities:['Prepare financial reports.'],salary_min:null,salary_max:null,active:true,raw:{eligibility:{}},apply_method:'unknown'}).select('id').single(),'Synthetic review job setup failed');

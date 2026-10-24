@@ -1156,3 +1156,16 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
  .document-layout .cv .rt .dt{white-space:normal}
  .document-layout .cv .hd{gap:12px}
 }
+
+.fit-reasons-intro{margin:10px 0 6px}
+.fit-reasons-list{list-style:none;padding:0;margin:8px 0 16px}
+.fit-reasons-list>li{padding:16px 0;border-bottom:1px solid var(--line)}
+.fit-reason-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:7px}
+.fit-reason-heading h4{font-size:14px;line-height:1.45;margin:0}
+.fit-reason-count{flex:none;padding:4px 9px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;white-space:nowrap}
+.fit-reasons details{margin-top:9px;font-size:13px}
+.fit-reasons summary{color:var(--accent);cursor:pointer;font-weight:600}
+.fit-reasons details ul{list-style:none;margin:8px 0 0;padding:0}
+.fit-reasons details li{padding:10px;border-radius:8px;background:var(--bg);margin-top:8px;overflow-wrap:anywhere}
+.fit-reasons details li>a{display:block;font-weight:600;line-height:1.45}
+.fit-reasons details li>span{display:block;margin:4px 0}

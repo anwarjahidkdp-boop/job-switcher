@@ -1,3 +1,4 @@
+import {FitReasons} from "@/components/FitReasons";
 import { FitOverviewCard, fitTiles } from "@/components/FitOverviewCard";
 import Link from "next/link";
 import { strongFitGuide } from "@/lib/strong-fit";
@@ -18,9 +19,6 @@ export default async function Insights() {
   const rel = st.scored.filter(x=>x.m.relevant && !x.m.expired);
   const guide = strongFitGuide(rel);
   const max = rows[0]?.n || 1;
-  const missed = rel.filter((x) => x.m.score < 70 && !x.m.expired);
-  const rc: Record<string, { n: number; examples: string[] }> = {};
-  for (const x of missed) { const k = x.m.reason + (x.m.reasonDetail ? ` (${x.m.reasonDetail})` : ""); const r = rc[k] || { n: 0, examples: [] }; r.n++; if (r.examples.length < 2) r.examples.push(`${x.job.title} · ${x.job.company}`); rc[k] = r; }
   const opts = { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry };
   const top = rows.slice(0, 10).map((r) => {
     const imp = r.h.v < 1 ? skillImpact(st.scored, st.P, r.s, opts) : null;
@@ -50,11 +48,7 @@ export default async function Insights() {
         <div className="card panel"><h3>Most requested skills</h3>
           {top.length ? <SkillRows rows={top} aiReady={aiConfigured()} /> : <p className="small muted">No relevant jobs yet.</p>}
         </div>
-        <div className="side"><div className="card panel"><h3>Why opportunities were missed</h3>
-          <p className="small muted" style={{ marginBottom: 8 }}>{missed.length} otherwise relevant jobs scored below 70:</p>
-          {Object.entries(rc).sort((a, b) => b[1].n - a[1].n).map(([k, r]) => <div key={k} className="qitem"><div><span className="small"><b>{k}</b></span><div className="small muted">{r.examples.join(" · ")}</div></div><b className="num">{r.n}</b></div>)}
-          {!missed.length ? <p className="small muted">None.</p> : null}
-        </div></div>
+        <div className="side"><FitReasons rows={rel}/></div>
       </div>
     </>
   );
