@@ -14,7 +14,7 @@ const NAV: [string, string, string, React.ReactNode][] = [
 /** Top tabs on wide screens; on phones the same links become an app-style bar fixed at the bottom. */
 export function NavLinks() {
   const path = usePathname();
-  const cur = path.startsWith("/jobs") ? "/inbox" : path;
+  const cur = path.startsWith("/jobs") ? "/queue" : path;
   return (
     <nav className="nav" aria-label="Main">
       {NAV.map(([href, label, short, icon]) => (
