@@ -19,6 +19,9 @@ async function cleanup(){
  const found=await admin.auth.admin.getUserById(id);
  if(found.error?.status===404)return;
  if(found.error||found.data.user?.user_metadata?.jobpao_acceptance!==tag)throw Error('Synthetic cleanup ownership check failed');
+ const files=await admin.storage.from('cv-files').list(id,{limit:1000});
+ if(files.error)throw Error('Synthetic storage cleanup listing failed');
+ if(files.data?.length){const removedFiles=await admin.storage.from('cv-files').remove(files.data.map(f=>`${id}/${f.name}`));if(removedFiles.error)throw Error('Synthetic storage cleanup failed');}
  const removed=await admin.auth.admin.deleteUser(id);if(removed.error)throw Error('Synthetic cleanup failed');
  report('synthetic account cleanup',true);
 }
@@ -66,8 +69,21 @@ try{
  await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST'},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
  const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
  report('review draft contains CV, cover letter and email without submission',!!reviewPack.pack?.summary&&!!reviewPack.pack?.cover_letter&&!!reviewPack.pack?.email_body&&reviewPack.pack_ai===false&&reviewPack.applied_at===null);
- await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter')&&t.includes('Review before applying'));
+ await probe(`/jobs/${reviewJob.id}?application=review&prepared=1`,{},(r,t)=>r.status===200&&t.includes('id="application"')&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter')&&t.includes('Review before applying'));
  for(const format of ['doc','print'])await probe(`/api/cv/download?document=cover&format=${format}&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Dear Hiring Manager'));
+ // Synthetic JPEG only; never uploads or modifies a real person's photo.
+ const jpeg=Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzWiiivSOA/9k=','base64');let previousPhoto;
+ for(let attempt=0;attempt<2;attempt++){
+  const form=new FormData();form.set('photo',new Blob([jpeg],{type:'image/jpeg'}),'synthetic.jpg');
+  await probe('/api/photo',{method:'POST',body:form});
+  const photoProfile=check(await admin.from('profiles').select('photo_path').eq('id',userId).single(),'Synthetic photo profile read failed');
+  if(attempt===0)previousPhoto=photoProfile.photo_path;
+  else report('replacement photo has a fresh private path',!!photoProfile.photo_path&&photoProfile.photo_path!==previousPhoto&&photoProfile.photo_path.startsWith(`${userId}/photo-`));
+ }
+ const photoFiles=await admin.storage.from('cv-files').list(userId,{limit:100});
+ report('replaced photo object is removed',!photoFiles.error&&photoFiles.data.length===1);
+ await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Change photo')&&t.includes('data-cv-photo-edit'));
+ await probe(`/api/cv/download?format=doc&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('data:image/jpeg;base64,')&&!t.includes('data-cv-photo-edit'));
  const foreign=await user.from('profiles').select('id').neq('id',userId).limit(1);report('cross-user profile access blocked',!foreign.error&&foreign.data.length===0);
  const {count,error}=await admin.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',userId);report('acceptance used no AI calls',!error&&count===0);
  await probe('/api/account/export',{},(r,t)=>r.status===200&&JSON.parse(t).profiles?.[0]?.id===userId);

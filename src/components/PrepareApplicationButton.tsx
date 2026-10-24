@@ -14,8 +14,10 @@ export function PrepareApplicationButton({jobId,label='Prepare Application',open
    const j=await r.json().catch(()=>({}));
    if(!r.ok)throw new Error(j.error || 'Could not prepare the application.');
    if(j.notice)setNotice(j.notice);
-   if(openPack)router.push(`/jobs/${jobId}#application`);
-   router.refresh();
+   if(openPack){
+    // A fresh query loads the saved pack before Next.js resolves its anchor.
+    router.push(`/jobs/${jobId}?application=review&prepared=${Date.now()}#application`);
+   }else router.refresh();
   }catch(e){setError(e instanceof Error ? e.message : 'Could not prepare the application. Try again.');}
   finally{setBusy(false);}
  }

@@ -4,6 +4,15 @@ import { cvDocHtml, cvPrintHtml, pageCss } from "./doc";
 import { DEMO_MASTER } from "../demo";
 
 describe("CV templates", () => {
+  it('offers a photo change beside the preview photo without putting controls in employer documents',()=>{
+    const input={master:DEMO_MASTER,country:'BD',photoUrl:'data:image/jpeg;base64,AAAA',editablePhoto:true};
+    expect(renderCvHtml(input)).toContain('data-cv-photo-edit');
+    expect(renderCvHtml(input)).toContain('Change photo');
+    expect(renderCvHtml({...input,photoUrl:null})).toContain('Add photo');
+    expect(renderCvHtml({...input,country:'GB'})).not.toContain('data-cv-photo-edit');
+    expect(cvDocHtml(input)).not.toContain('data-cv-photo-edit');
+    expect(cvPrintHtml(input)).not.toContain('data-cv-photo-edit');
+  });
   it("renders the modern template with sidebar and accent for Bangladesh, with initials placeholder", () => {
     const h = renderCvHtml({ master: DEMO_MASTER, country: "BD", style: { tpl: "modern", accent: "#1E3A5F" } });
     expect(h).toContain('class="cv t-modern"');
