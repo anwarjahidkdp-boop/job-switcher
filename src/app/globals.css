@@ -1108,3 +1108,8 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .job-review-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .job-review-company{flex:1;min-width:0;overflow-wrap:anywhere}
 .job-review-action{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex-shrink:0}
+
+.application-specific-note{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:14px;background:var(--accent-soft);border-left:3px solid var(--gold);border-radius:10px;color:var(--ink)}
+.application-specific-note>svg{flex-shrink:0;color:var(--gold);margin-top:1px}
+.application-specific-note b{display:block;font-size:14px;line-height:1.4}
+.application-specific-note p{margin-top:5px;font-size:13px;line-height:1.5;color:var(--ink-2);overflow-wrap:anywhere}
