@@ -72,6 +72,8 @@ export interface RenderInput {
   personal?: PersonalDetails | null;
   /** data: URL or short-lived signed URL. Only shown where the country expects a photo. */
   photoUrl?: string | null;
+  /** On-screen photo controls; never included in employer documents. */
+  editablePhoto?: boolean;
   /** Word/print-safe markup (tables instead of grid, no placeholders, no highlight marks). */
   forDoc?: boolean;
   /** Preview-only change marks are omitted from documents sent to employers. */
@@ -101,7 +103,8 @@ export function renderCvHtml(inp: RenderInput): string {
   const H = r.doc === "Résumé" ? { sum: "Summary", exp: "Work Experience" } : { sum: "Profile", exp: "Professional Experience" };
   const sumTxt = t && t.summary && t.summary !== m.summary ? (forDoc || inp.highlightChanges === false ? esc(t.summary) : `<mark>${esc(t.summary)}</mark>`) : esc(m.summary);
   const photo = inp.photoUrl && SAFE_IMG.test(inp.photoUrl) ? inp.photoUrl : null;
-  const ph = !r.photo ? "" : photo ? `<img class="ph" src="${esc(photo)}" alt="Profile photo" width="104" height="104">` : forDoc ? "" : `<div class="ph ph-empty" title="Add a photo from the toolbar">${esc(initials(m.name))}</div>`;
+  const photoMarkup = !r.photo ? "" : photo ? `<img class="ph" src="${esc(photo)}" alt="Profile photo" width="104" height="104">` : forDoc ? "" : `<div class="ph ph-empty" title="Add a photo from the toolbar">${esc(initials(m.name))}</div>`;
+  const ph = r.photo && inp.editablePhoto && !forDoc ? `<div class="cv-photo-edit-slot">${photoMarkup}<button type="button" data-cv-photo-edit class="cv-photo-edit-button">${photo ? "Change photo" : "Add photo"}</button></div>` : photoMarkup;
   const sec = (h: string, body: string) => (body ? `<section class="cs"><h3>${h}</h3>${body}</section>` : "");
   const list = (a: string[] | undefined) => ((a || []).length ? `<ul>${(a || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const chips = (a: string[]) => (!a.length ? "" : forDoc ? `<p>${a.map(esc).join(" · ")}</p>` : `<div class="cvchips">${a.map((x) => `<span>${esc(x)}</span>`).join("")}</div>`);

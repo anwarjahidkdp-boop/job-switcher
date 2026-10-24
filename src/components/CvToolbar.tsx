@@ -1,26 +1,11 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useSave } from "@/components/useSave";
 import { ACCENTS, TEMPLATES, type CvTemplate } from "@/lib/countries";
+import { CvPhotoPicker } from "./CvPhotoPicker";
 import { removePhotoAction } from "@/app/actions";
 
-async function shrinkPhoto(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    const sz = Math.min(img.width, img.height);
-    const c = document.createElement("canvas");
-    c.width = c.height = 320;
-    c.getContext("2d")!.drawImage(img, (img.width - sz) / 2, ((img.height - sz) / 2) * 0.5, sz, sz, 0, 0, 320, 320);
-    return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("encode"))), "image/jpeg", 0.85));
-  } finally { URL.revokeObjectURL(url); }
-}
-
 export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed: boolean; hasPhoto: boolean; countryLabel: string; rules: string[]; downloads?: { doc: string; pdf: string; label?: string } }) {
-  const router = useRouter();
   const { pending, err, save } = useSave();
-  const [msg, setMsg] = useState("");
   const set = (patch: { tpl?: CvTemplate; accent?: string }) => save(async () => {
     const r = await fetch("/api/cv/style", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
     if (!r.ok) throw new Error("save failed");
@@ -41,22 +26,7 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
           ))}
           {props.photoAllowed ? (
             <>
-              <label className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }}>
-                {props.hasPhoto ? "Change photo" : "Add photo"}
-                <input type="file" accept="image/*" className="hide" onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  try {
-                    const blob = await shrinkPhoto(f);
-                    const fd = new FormData();
-                    fd.append("photo", blob, "photo.jpg");
-                    const r = await fetch("/api/photo", { method: "POST", body: fd });
-                    if (!r.ok) throw new Error();
-                    setMsg("Photo added. It is stored privately.");
-                    router.refresh();
-                  } catch { setMsg("Could not read that image."); }
-                }} />
-              </label>
+              <CvPhotoPicker hasPhoto={props.hasPhoto}/>
               {props.hasPhoto ? <button type="button" className="btn-text small" onClick={() => save(() => removePhotoAction())}>Remove</button> : null}
             </>
           ) : null}
@@ -72,7 +42,7 @@ export function CvToolbar(props: { tpl: CvTemplate; accent: string; photoAllowed
       ) : null}
       <p className="small muted" style={{ margin: 0 }}>
         {props.countryLabel} format: {props.rules.join(" · ")}.{!props.photoAllowed && props.hasPhoto ? " Your photo is hidden for this country." : ""}
-        {err ? ` ${err}` : msg ? ` ${msg}` : ""}
+        {err ? ` ${err}` : ""}
       </p>
       </div>
     </>
