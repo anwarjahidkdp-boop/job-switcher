@@ -1,6 +1,6 @@
 import styles from "./TodayCard.module.css";
 import Link from "next/link";
-import { TRIAL_DAYS, type Plan } from "@/lib/today";
+import { type Plan } from "@/lib/today";
 import type { NotificationRow } from "@/lib/server/notify";
 
 /** One step of the work JobPao did: a big figure, what it is, and a short detail line. */
@@ -12,15 +12,17 @@ const Ic = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" width="18" height=
 export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; items: (NotificationRow & { applicationStatus?: string })[]; done: DoneItem[]; summary: [string, number][] }) {
   if (!done.length && !items.length) return null;
   const days = plan && !plan.ended ? plan.day : 0;
+  const appliedItems = items.filter((n) => n.applicationStatus);
+  const otherItems = items.filter((n) => !n.applicationStatus);
+  const applicationCards = appliedItems.map((n) => <Link prefetch={false} key={n.id} href={n.link || "/applications"} className={styles.application}>
+    <span className={styles.badge}>✓ {n.applicationStatus}</span><span className={styles.applicationCopy}><b>{n.title.replace(`${n.applicationStatus} · `, "")}</b><span>{n.link === "/applications" ? "View application →" : "View opportunities →"}</span></span>
+  </Link>);
   return (
     <div className="card panel today" id="trial">
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-        <h3 style={{ margin: 0 }}>{days > 1 ? `Done for you in the last ${days} days` : days === 1 ? "Done for you today" : "Done for you"}</h3>
-        {plan ? <span className="small muted">{plan.ended ? "Your free trial is over" : `Day ${plan.day} of your ${TRIAL_DAYS}-day free trial`}</span> : null}
-      </div>
+      <h3 className={styles.heading}><span aria-hidden="true">↗</span> {days ? `Your progress · Day ${days}` : plan?.ended ? "Your trial progress" : "Your career progress"}</h3>
       {done.length ? <ol className={styles.progress} aria-label="What JobPao did for you">{done.map((d) => {
         const body = <><span className={styles.icon}><Ic d={d.icon} /></span><span className={styles.copy}><span className={styles.label}>{d.label}</span>{d.sub ? <span className={styles.detail}>{d.sub}</span> : null}</span><b className={`${styles.number} num`}>{d.n}</b></>;
-        return <li key={d.label} className={styles.item}>{d.href ? <Link prefetch={false} href={d.href}>{body}</Link> : <div>{body}</div>}</li>;
+        return <li key={d.label} className={styles.item}>{d.href ? <Link prefetch={false} href={d.href} className={styles.metric}>{body}</Link> : <div className={styles.metric}>{body}</div>}{d.label === "Applications submitted" ? applicationCards : null}</li>;
       })}</ol> : null}
       {plan?.summaryTime ? (
         <div className="today-next" style={{ display: "block" }}>
@@ -34,9 +36,7 @@ export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; i
       ) : null}
       {items.length ? (
         <div className="today-items">
-          {items.map((n) => n.applicationStatus ? <Link prefetch={false} key={n.id} href={n.link || "/applications"} className={styles.application}>
-            <span className={styles.badge}>✓ {n.applicationStatus}</span><span className={styles.applicationCopy}><b>{n.title.replace(`${n.applicationStatus} · `, "")}</b><span>{n.link === "/applications" ? "View application →" : "View opportunities →"}</span></span>
-          </Link> : <Link prefetch={false} key={n.id} href={n.link || "/inbox"} className="ntf new"><span className="ntf-dot" aria-hidden="true" /><span style={{ flex: 1, minWidth: 0 }}><b>{n.title}</b>{n.body ? <span className="small muted" style={{ display: "block" }}>{n.body}</span> : null}</span></Link>)}
+          {otherItems.map((n) => <Link prefetch={false} key={n.id} href={n.link || "/inbox"} className="ntf new"><span className="ntf-dot" aria-hidden="true" /><span style={{ flex: 1, minWidth: 0 }}><b>{n.title}</b>{n.body ? <span className="small muted" style={{ display: "block" }}>{n.body}</span> : null}</span></Link>)}
           <Link prefetch={false} className="btn btn-text" href="/notifications">All notifications</Link>
         </div>
       ) : null}
