@@ -9,10 +9,9 @@ import { ApplicationSafetyError, preparePack } from "./applications";
 import { deliverEmail } from "./email-outbox";
 import { notify } from "./notify";
 import { loadState } from "./state";
-import { AUTO_QUEUE_SIZE, applyQueue } from "../apply-queue";
+import { AUTO_QUEUE_SIZE, applyQueue, queueSafety } from "../apply-queue";
 
 export const NOTIFY_MIN_SCORE = 70;
-export const PREPARE_MIN_SCORE = 70;
 export const PREPARE_PER_RUN = 2;
 /** AI-prepared packs cost money; with this many still waiting unsent, we stop preparing new ones until the person acts. */
 export const PREPARED_WAITING_MAX = 3;
@@ -44,7 +43,7 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
       const ready = new Set<string>();
       if (opts.prepare !== false && aiConfigured() && !opts.dryRun && (await canSpend(admin, userId))) {
         const st = await loadState(admin, userId);
-        const ranked = st ? applyQueue(st).slice(0, AUTO_QUEUE_SIZE) : [];
+        const ranked = st ? applyQueue(st).filter(x=>queueSafety(st,x.job).safe).slice(0, AUTO_QUEUE_SIZE) : [];
         const waiting = ranked.filter(x => st?.apps[x.job.id]?.pack).length;
         const room = Math.max(0, Math.min(PREPARE_PER_RUN, PREPARED_WAITING_MAX - waiting));
         for (const candidate of ranked.filter(x => !st?.apps[x.job.id]?.pack).slice(0, room)) {
