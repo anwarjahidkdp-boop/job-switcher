@@ -28,7 +28,7 @@ export const metadata = { title: "Opportunities" };
 export default async function Inbox() {
   const { st, db } = await requireAppState("/inbox");
   const availableScored=st.scored.filter(x=>!isResolvedApplication(st.apps[x.job.id]));
-  const P = st.P, s = stats({...st,scored:availableScored}), country = st.country;
+  const P = st.P, s = stats(st), country = st.country;
   const {ranked:list,featured:best,remaining}=opportunitySections(availableScored,st.dismissed,st.apps);
   const fit = dashboardFitSummary(availableScored);
   const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, remaining.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
