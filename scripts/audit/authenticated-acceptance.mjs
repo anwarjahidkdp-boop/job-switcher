@@ -57,6 +57,14 @@ try{
  const saved=check(await admin.from('master_cvs').select('content').eq('user_id',userId).eq('is_current',true).single(),'Saved synthetic CV read failed');
  report('manual CV persisted',saved.content.summary===cv.summary);
  for(const format of ['doc','print'])await probe(`/api/cv/download?format=${format}`,{},(r,t)=>r.status===200&&t.includes('Synthetic edited summary'));
+ // Private, disposable job: validates the exact queue → prepare → CV/letter flow without AI.
+ const reviewJob=check(await admin.from('jobs').insert({owner_id:userId,source_kind:'paste',source_label:'Synthetic acceptance only',country:'BD',title:'Accounts Manager',company:'Synthetic QA Employer',category:'Finance & Accounting',industry:'services',location:'Dhaka',seniority:'manager',employment_type:'Permanent',min_years:0,required_skills:['financial reporting'],responsibilities:['Prepare financial reports.'],salary_min:null,salary_max:null,active:true,raw:{eligibility:{}},apply_method:'unknown'}).select('id').single(),'Synthetic review job setup failed');
+ await probe('/queue',{},(r,t)=>r.status===200&&t.includes('Ready to')&&t.includes('queue-review-cta'));
+ await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST'},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
+ const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
+ report('review draft contains CV, cover letter and email without submission',!!reviewPack.pack?.summary&&!!reviewPack.pack?.cover_letter&&!!reviewPack.pack?.email_body&&reviewPack.pack_ai===false&&reviewPack.applied_at===null);
+ await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Your application pack')&&t.includes('Cover letter')&&t.includes('Review before applying'));
+ for(const format of ['doc','print'])await probe(`/api/cv/download?document=cover&format=${format}&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Dear Hiring Manager'));
  const foreign=await user.from('profiles').select('id').neq('id',userId).limit(1);report('cross-user profile access blocked',!foreign.error&&foreign.data.length===0);
  const {count,error}=await admin.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',userId);report('acceptance used no AI calls',!error&&count===0);
  await probe('/api/account/export',{},(r,t)=>r.status===200&&JSON.parse(t).profiles?.[0]?.id===userId);

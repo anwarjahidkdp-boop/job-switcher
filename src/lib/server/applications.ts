@@ -14,7 +14,7 @@ import { limitNotice, packAllowance, packLimits, trialApplyRoom } from "../pack-
 import { aiErrCopy } from "../ai/provider";
 import { templatePack } from "../template-pack";
 import type { AppStatus, ApplicationPack, Job } from "../types";
-import { applicationSafety, type SafetyCheck } from "../career-safety";
+import { applicationSafety, canPrepareDraft, type SafetyCheck } from "../career-safety";
 import { loadJob, loadState, type ApplicationRow } from "./state";
 
 export interface Ctx { db: SupabaseClient; admin: SupabaseClient; userId: string }
@@ -89,10 +89,13 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
   if (job.active === false) throw new Error("This listing is unavailable while its status or source is reviewed. Choose an active opportunity.");
+  if (job.deadline && job.deadline < st.today) throw new Error("This vacancy has closed.");
   const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});
-  if (!safety.safe) throw new ApplicationSafetyError(safety);
+  if (!canPrepareDraft(safety)) throw new ApplicationSafetyError(safety);
+  const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
+  if (app.pack) return {flags:app.pack_flags||[],ai:app.pack_ai};
   await event(ctx, app.id, "Preparing application");
   if (app.status !== "reminder") {
     const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
@@ -106,7 +109,8 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const { data: jd } = await ctx.db.from("jobs").select("description").eq("id", jobId).maybeSingle();
   const description = (jd?.description as string | null) || null;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
-  const allowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
+  if (reviewOnly) notice = "Review draft only: salary is not disclosed. Verify pay before applying. No AI allowance was used.";
+  const allowance = !reviewOnly && aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
   if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.${allowance.plan === "trial" ? " Go Pro to get more AI-tailored applications." : ""}`;
   if (allowance?.left) {
     try {
@@ -122,6 +126,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   if (!pack || !pack.cover_letter) { pack = templatePack(job, master, st.P, { needVisa, homeCountry: st.homeCountry }); ai = false; }
   if (!pack.asks?.length) pack.asks = postAsks(description);
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
+  if (reviewOnly) checked.flags.push("Salary not disclosed — verify pay before applying");
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
   const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();

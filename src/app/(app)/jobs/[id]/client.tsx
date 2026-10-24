@@ -68,7 +68,7 @@ export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
 
-export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; compact?: boolean }) {
+export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; canApply?: boolean; blockingReason?:string; compact?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"main" | "later" | "notyet" | "send">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
   const [busy, setBusy] = useState("");
@@ -102,6 +102,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
 
   if (busy) return <><p><Spinner /> {busy}</p></>;
   const gmailNote = p.gmailStatus === "connected" ? "Gmail connected. Review and send this email application." : p.gmailStatus === "failed" ? "Gmail could not be connected. Try again." : p.gmailStatus === "cancelled" ? "Gmail was not connected." : "";
+  if(p.canApply===false && !(p.status && DONE.includes(p.status))) return p.compact ? null : <><h3>Review before applying</h3><p className="note small" role="status">{p.blockingReason || "Application eligibility needs verification."}</p><p className="small muted">{p.hasPack?"Your prepared documents are available for review.":"Prepare a review draft to see your CV and cover letter."} Sending and application confirmation remain paused.</p>{p.url?<a className="btn btn-ghost btn-sm" href={p.url} target="_blank" rel="noopener noreferrer nofollow">Check the original post ↗</a>:null}</>;
   if (mode === "send") return (
     <>
       <h3>Send this application?</h3>

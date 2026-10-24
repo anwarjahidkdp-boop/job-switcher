@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { applicationSafety, normaliseDealBreakers } from "./career-safety";
+import { applicationSafety, canPrepareDraft, normaliseDealBreakers } from "./career-safety";
 import type { Job, Preferences } from "./types";
 
 const job: Job = { id:"j", country:"US", title:"Accountant", company:"Acme", industry:"finance", category:"accounting", location:"New York", type:"On-site", salaryMin:70000, salaryMax:90000, minYears:2, maxYears:null, seniority:"mid", education:null, required:[], preferred:[], certs:[], visa:null, deadline:null, publishedAt:null, apply:{method:"portal",target:null}, url:null, source:"test", resp:[] };
 const prefs: Preferences = { roles:"Accountant", locations:"", salaryMin:null, salaryMax:null, notice:null, mode:"Any" };
 
 describe("applicationSafety", () => {
+  it('permits only an unpublished-pay review draft without clearing application safety',()=>{
+    const pending={safe:false,issues:[{code:'salary_unpublished',message:'Pay unverified',blocking:true}]};
+    expect(canPrepareDraft(pending)).toBe(true);
+    expect(pending.safe).toBe(false);
+    for(const code of ['age','salary','required_skills','work_authorization_unknown'])
+      expect(canPrepareDraft({...pending,issues:[...pending.issues,{code,message:'Blocked',blocking:true}]})).toBe(false);
+  });
   it("blocks hard salary and remote-only conflicts", () => {
     const r=applicationSafety(job,prefs,{minSalary:100000,remoteOnly:true},{workAuthorization:"yes"},false);
     expect(r.safe).toBe(false); expect(r.issues.map(x=>x.code)).toEqual(expect.arrayContaining(["salary","remote"]));

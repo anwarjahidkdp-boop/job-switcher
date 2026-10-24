@@ -63,7 +63,7 @@ export default async function Inbox() {
   const kpis: Kpi[] = [
     { label: "Jobs analysed", n: s.analysed, href: "#matches", tone: "navy", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', hint: `in ${cname(country)}` },
     { label: fit.label, n: fit.count, href: "#matches", tone: fit.tone === "green" ? "green" : fit.tone === "blue" ? "blue" : "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: `Fit score ${fit.range}` },
-    { label: s.queued > s.prepared ? "Apply queue" : "Ready to apply", n: s.queued, href: "/queue", tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: s.verification ? `${s.prepared} prepared · ${s.verification} need verification` : s.queued > s.prepared ? `${s.prepared} prepared · ${s.queued-s.prepared} to prepare` : "CV + cover letter" },
+    { label: "Ready to Apply", n: s.queued, href: "/queue", tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: s.verification ? `${s.prepared} prepared · ${s.verification} need verification` : s.queued > s.prepared ? `${s.prepared} prepared · ${s.queued-s.prepared} to prepare` : "CV + cover letter" },
     { label: "Applied", n: s.applied, href: "/applications", tone: "teal", icon: '<path d="m22 2-7 20-4-9-9-4z"/>' },
     { label: "Interviews", n: s.interviews, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
     { label: "Offers", n: s.offers, href: "/applications", tone: "gold", icon: '<circle cx="12" cy="9" r="6"/><path d="m8 14-1 7 5-3 5 3-1-7M9 9l2 2 4-4"/>', hint: "Job offers received" },
@@ -122,7 +122,7 @@ export default async function Inbox() {
               <Link prefetch={false} className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/setup">{setupDone ? `Set up ${setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p))}` : "Start setup"}</Link>
             </div>
           ) : null}
-          <div className="card panel"><h3>Apply Queue</h3>
+          <div className="card panel"><h3>Ready to Apply</h3>
             {queue.length ? queue.map((x) => <div key={x.job.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job!.company}</div><div className="small muted">{x.m.score}% · {queueSafety(st,x.job).safe ? st.apps[x.job.id]?.pack ? "Prepared" : "Selected automatically" : "Salary verification needed"}</div></div><Link prefetch={false} className="btn btn-text" href={`/jobs/${x.job!.id}`}>Open</Link></div>)
               : <p className="small muted">Your highest eligible matches appear here automatically. <Link prefetch={false} href="/queue">Check eligibility details →</Link></p>}
           </div>

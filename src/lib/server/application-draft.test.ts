@@ -1,0 +1,30 @@
+import {expect,it,vi} from 'vitest';
+import type {SupabaseClient} from '@supabase/supabase-js';
+vi.mock('server-only',()=>({}));
+vi.mock('./state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
+vi.mock('../ai',()=>({aiConfigured:()=>true,getBudget:vi.fn(),runAI:vi.fn()}));
+vi.mock('../template-pack',()=>({templatePack:()=>({summary:'Verified summary',cover_letter:'Review cover letter',email_subject:'Application',email_body:'Review email',top_bullets:[],skills_order:[]})}));
+vi.mock('../numbers-check',()=>({checkPack:(pack:unknown)=>({pack,flags:[]})}));
+import {loadState,loadJob} from './state';
+import {runAI,getBudget} from '../ai';
+import {preparePack,confirmApplied,markOpened} from './applications';
+it('creates and saves an unpublished-pay review pack without AI, while actual application remains blocked',async()=>{
+ const patches:Record<string,unknown>[]=[];
+ const db={from(table:string){
+  let patch:Record<string,unknown>|undefined;
+  const q:Record<string,unknown>={};
+  for(const method of ['select','eq','not','is','maybeSingle','single','insert'])q[method]=()=>q;
+  q.update=(p:Record<string,unknown>)=>{patch=p;return q;};
+  q.then=(resolve:(r:unknown)=>unknown)=>{if(patch)patches.push(patch);return Promise.resolve({error:null,data:table==='profiles'?{target_country:'BD'}:table==='applications'?{id:'app',status:'ready',pack:null}:null}).then(resolve);};
+  return q;
+ }} as unknown as SupabaseClient;
+ vi.mocked(loadState).mockResolvedValue({P:{salaryMin:70000,salaryConfirmed:true,workAuthorization:'yes'},master:{content:{name:'Test'}},today:'2026-10-24',profile:{preferences:null,deal_breakers:{},answer_library:{},needs_visa:false},homeCountry:'BD'} as unknown as NonNullable<Awaited<ReturnType<typeof loadState>>>);
+ vi.mocked(loadJob).mockResolvedValue({id:'j',country:'BD',active:true,minYears:0,salaryMin:null,salaryMax:null} as unknown as NonNullable<Awaited<ReturnType<typeof loadJob>>>);
+ const ctx={db,admin:db,userId:'user'};
+ const result=await preparePack(ctx,'j');
+ expect(result.ai).toBe(false);expect(result.flags).toContain('Salary not disclosed — verify pay before applying');
+ expect(patches.at(-1)).toMatchObject({status:'ready',pack:{cover_letter:'Review cover letter'},pack_ai:false});
+ expect(runAI).not.toHaveBeenCalled();expect(getBudget).not.toHaveBeenCalled();
+ await expect(confirmApplied(ctx,'j')).rejects.toThrow('Salary is not disclosed');
+ await expect(markOpened(ctx,'j')).rejects.toThrow('Salary is not disclosed');
+});
