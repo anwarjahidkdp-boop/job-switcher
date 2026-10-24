@@ -66,7 +66,7 @@ try{
  await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST'},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
  const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
  report('review draft contains CV, cover letter and email without submission',!!reviewPack.pack?.summary&&!!reviewPack.pack?.cover_letter&&!!reviewPack.pack?.email_body&&reviewPack.pack_ai===false&&reviewPack.applied_at===null);
- await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Your application pack')&&t.includes('Cover letter')&&t.includes('Review before applying'));
+ await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter')&&t.includes('Review before applying'));
  for(const format of ['doc','print'])await probe(`/api/cv/download?document=cover&format=${format}&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Dear Hiring Manager'));
  const foreign=await user.from('profiles').select('id').neq('id',userId).limit(1);report('cross-user profile access blocked',!foreign.error&&foreign.data.length===0);
  const {count,error}=await admin.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',userId);report('acceptance used no AI calls',!error&&count===0);
