@@ -16,6 +16,6 @@ export function currentApplicationNotifications(notes: NotificationRow[], apps: 
     if (!a || !isResolvedApplication(a) || !['match', 'ready', 'reminder'].includes(n.kind)) return n;
     const status = ['applied', 'interview', 'offer', 'closed', 'withdrawn'].includes(a.status) ? STATUS_LABEL[a.status] : 'Applied';
     const title = n.title.replace(/^New\s+/i, '');
-    return { ...n, title: `${status} · ${title}`, body: a.applied_at || ['applied', 'interview', 'offer'].includes(a.status) ? 'Application already submitted. View its status in Applied.' : 'This opportunity is closed. Review other available jobs.', link: a.applied_at || ['applied', 'interview', 'offer'].includes(a.status) ? '/applications' : '/opportunities' };
+    return { ...n, applicationStatus: status, title: `${status} · ${title}`, body: a.applied_at || ['applied', 'interview', 'offer'].includes(a.status) ? 'Application already submitted. View its status in Applied.' : 'This opportunity is closed. Review other available jobs.', link: a.applied_at || ['applied', 'interview', 'offer'].includes(a.status) ? '/applications' : '/opportunities' };
   });
 }
