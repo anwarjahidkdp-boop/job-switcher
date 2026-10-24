@@ -1,3 +1,4 @@
+import { applicationProgressCounts, currentApplicationNotifications } from "@/lib/dashboard-progress";
 import {OpportunityRow} from "@/components/OpportunityRow";
 import {isResolvedApplication} from "@/lib/applied-history";
 import { applyQueue } from "@/lib/apply-queue";
@@ -47,6 +48,8 @@ export default async function Inbox() {
   ]);
   const now = nowMs();
   const apps = Object.values(st.apps);
+  const progress = applicationProgressCounts(st.apps);
+  const currentNotes = currentApplicationNotifications(notes, st.apps);
   const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= REPLY_CHECK_DAYS * 86_400_000).length;
   const plan = trialPlan({ status: sub?.status ?? null, trialStart: sub?.trial_started_at ?? null, trialEnd: sub?.trial_ends_at ?? null, now, hasMaster: !!st.master, strong: s.strong, prepared: s.prepared, applied: s.applied, interviews: s.interviews, setupDone: setupDone >= setupSites.length, repliesPending });
   // What JobPao has done so far, in plain lines (the trial's day-by-day plan was more than people needed).
@@ -59,10 +62,10 @@ export default async function Inbox() {
     ...(s.analysed ? [{ n: fmt(s.analysed), label: "Jobs searched", sub: `in ${cname(country)}`, href: "#matches", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>' }] : []),
     ...(s.relevant ? [{ n: fmt(s.relevant), label: "Matched to you", sub: fit.count ? `${fmt(fit.count)} ${fit.label} · ${fit.range}` : "by role and skills", href: "#matches", icon: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' }] : []),
     ...(checked ? [{ n: fmt(checked), label: "Checked by AI", sub: "read against your CV", href: "#matches", icon: '<path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/><path d="M19 15l.8 1.7 1.7.8-1.7.8L19 20l-.8-1.7-1.7-.8 1.7-.8z"/>' }] : []),
-    ...(s.prepared ? [{ n: fmt(s.prepared), label: "Ready to send", sub: "CV + cover letter each", href: readyHref, icon: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>' }] : []),
-    ...(s.applied ? [{ n: fmt(s.applied), label: "Sent by you", sub: "tracked for replies", href: "/applications", icon: '<path d="M20 6 9 17l-5-5"/>' }] : []),
+    { n: fmt(progress.prepared), label: "Applications prepared", sub: "CV + cover letter packs created", href: readyHref, icon: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>' },
+    { n: fmt(progress.applied), label: "Applications submitted", sub: "Applied · track interviews and offers", href: "/applications", icon: '<path d="M20 6 9 17l-5-5"/>' },
   ];
-  const summary: [string, number][] = [["Jobs analysed", s.analysed], [fit.label, fit.count], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
+  const summary: [string, number][] = [["Jobs analysed", s.analysed], [fit.label, fit.count], ["Applications prepared", progress.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
   const kpis: Kpi[] = [
     { label: "Jobs analysed", n: s.analysed, href: "#matches", tone: "navy", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', hint: `in ${cname(country)}` },
     { label: fit.label, n: fit.count, href: "#matches", tone: fit.tone === "green" ? "green" : fit.tone === "blue" ? "blue" : "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: `Fit score ${fit.range}` },
@@ -87,7 +90,7 @@ export default async function Inbox() {
       ))}
       <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(availableScored)[1]} rows={availableScored} guidanceHref="/insights#career-guidance"/>}/>
 
-      <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
+      <TodayCard plan={plan} done={done} items={currentNotes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
 
       {best ? (
         <Link prefetch={false} className="spot" href={`/jobs/${best.job.id}`}>
@@ -140,7 +143,7 @@ export default async function Inbox() {
           </div>
           <div className="card panel"><h3>Your JobPao trial so far</h3>
             <div className="stack small" style={{ gap: 4 }}>
-              {([["Jobs analysed", s.analysed], ["Relevant opportunities", s.relevant], [fit.label, fit.count], ["Applications prepared", s.prepared], ["Applications submitted", s.applied], ["CV improvements made", (st.master.content.improvements || []).length]] as [string, number][]).map(([l, n]) => <div key={l} className="row" style={{ justifyContent: "space-between" }}><span>{l}</span><b className="num">{n}</b></div>)}
+              {([["Jobs analysed", s.analysed], ["Relevant opportunities", s.relevant], [fit.label, fit.count], ["Applications prepared", progress.prepared], ["Applications submitted", s.applied], ["CV improvements made", (st.master.content.improvements || []).length]] as [string, number][]).map(([l, n]) => <div key={l} className="row" style={{ justifyContent: "space-between" }}><span>{l}</span><b className="num">{n}</b></div>)}
             </div>
           </div>
         </aside>
