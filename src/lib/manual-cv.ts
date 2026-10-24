@@ -34,7 +34,7 @@ export function manualContent(input: ManualCv, before: MasterCV, facts: CareerFa
   const original = manualDraft(before, facts);
   const experience = newestExperienceFirst(closeEarlierRoles(input.experience));
   const master: MasterCV = {
-    ...input, experience, headline:careerHeadline(experience,input.headline),
+    ...input, experience, headline:careerHeadline(experience,before.experience.length ? "" : input.headline),
     education: JSON.stringify(input.education) === JSON.stringify(original.education) ? before.education : input.education.map(e => [e.degree + (e.field ? ` in ${e.field}` : ""), e.institution, e.year, e.result ? `(${e.result})` : ""].filter(Boolean).join(", ")),
     certifications: JSON.stringify(input.certifications) === JSON.stringify(original.certifications) ? before.certifications : input.certifications.map(c => `${c.name}${c.status === "partly" ? " (partly qualified)" : c.status === "in_progress" ? " (in progress)" : ""}${c.detail ? ` — ${c.detail}` : ""}`),
     suggestions: [], improvements: before.improvements, extra_skills: [],

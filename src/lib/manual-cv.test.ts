@@ -32,7 +32,7 @@ describe("manual CV editing without AI", () => {
  it("keeps deletions out of both the CV and matching profile", () => {
   const input = manualDraft(master, facts); input.experience = []; input.education = []; input.certifications = []; input.skills_core = []; input.skills_tools = []; input.languages = [];
   const out = manualContent(input, master, facts);
-  expect(out.facts).toEqual([]); expect(out.master.experience).toEqual([]); expect(out.master.education).toEqual([]);
+  expect(out.facts).toEqual([]); expect(out.master.headline).toBe(""); expect(out.master.experience).toEqual([]); expect(out.master.education).toEqual([]);
  });
  it("validates month values, reversed dates and required role fields", () => {
   const input = manualDraft(master, facts); input.experience[1].start = "2021-13";
