@@ -1,9 +1,17 @@
 import {expect,it} from 'vitest';
-import {applicationCv,editApplicationCv} from './application-documents';
+import {applicationCv,editApplicationCv,packBoundToJob,canReusePack} from './application-documents';
 import {manualDraft} from './manual-cv';
 import {DEMO_MASTER} from './demo';
 import type {ApplicationPack} from './types';
 const pack={summary:'Application summary',top_bullets:['Application bullet'],skills_order:[],cover_letter:'Existing letter',emphasis:[],email_subject:'Subject',email_body:'Email',checklist:[]} as ApplicationPack;
+it('never reuses a pack from a different job or an older master CV',()=>{
+ const tagged={...pack,prepared_for:{job_id:'job-a',source_cv_id:'cv-1'}};
+ expect(packBoundToJob(tagged,'job-b')).toBe(false);
+ expect(canReusePack(tagged,'job-b','cv-1')).toBe(false);
+ expect(canReusePack(tagged,'job-a','cv-2')).toBe(false);
+ expect(canReusePack(tagged,'job-a','cv-1')).toBe(true);
+ expect(canReusePack(pack,'job-a','cv-1')).toBe(false);
+});
 it('starts editing from the tailored application content and preserves the master',()=>{
  const before=structuredClone(DEMO_MASTER);
  const draft=manualDraft(applicationCv(before,pack),[]);expect(draft.summary).toBe('Application summary');

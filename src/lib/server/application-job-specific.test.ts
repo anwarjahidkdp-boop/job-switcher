@@ -1,0 +1,43 @@
+import {expect,it,vi} from 'vitest';
+import type {SupabaseClient} from '@supabase/supabase-js';
+import {DEMO_MASTER} from '../demo';
+const {ai}=vi.hoisted(()=>({ai:vi.fn()}));
+vi.mock('server-only',()=>({}));
+vi.mock('./state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
+vi.mock('../ai',()=>({aiConfigured:()=>true,getBudget:async()=>({plan:'trial'}),runAI:ai}));
+vi.mock('../numbers-check',()=>({checkPack:(pack:unknown)=>({pack,flags:[]})}));
+import {loadState,loadJob} from './state';
+import {preparePack} from './applications';
+it('generates the next job from its own post and latest master, then reuses only that exact saved pack',async()=>{
+ const prompts:string[]=[];
+ ai.mockImplementation(async(_db:unknown,_user:string,feature:string,callback:(p:unknown)=>Promise<unknown>)=>callback({generateJSON:async(options:{prompt:string})=>{
+  prompts.push(options.prompt);
+  return {data:feature==='pack'?{summary:'Tailored for B Company',top_bullets:['Verified duty'],skills_order:[],emphasis:[],checklist:[]}:{cover_letter:'Letter for B Company',email_subject:'Job B',email_body:'Email for B Company'},usage:{model:'synthetic-quality-test'}};
+ }}));
+ let app:Record<string,unknown>={id:'app-b',status:'ready',pack:null};
+ const db={from(table:string){
+  let patch:Record<string,unknown>|undefined;
+  const q:Record<string,unknown>={};
+  for(const method of ['select','eq','not','is','maybeSingle','single','gte'])q[method]=()=>q;
+  q.insert=()=>q;q.update=(p:Record<string,unknown>)=>{patch=p;return q;};
+  q.then=(resolve:(r:unknown)=>unknown)=>{if(table==='applications'&&patch)app={...app,...patch};return Promise.resolve({error:null,data:table==='profiles'?{target_country:'BD',home_country:'BD'}:table==='ai_usage'?[]:table==='applications'?app:table==='jobs'?{description:'B Company requires financial reporting.'}:null}).then(resolve);};
+  return q;
+ }} as unknown as SupabaseClient;
+ const oldPack={summary:'OLD_JOB_A_DOCUMENT',prepared_for:{job_id:'a',source_cv_id:'latest-cv'}};
+ const st={P:{salaryMin:70000,salaryConfirmed:true,workAuthorization:'yes'},master:{id:'latest-cv',content:DEMO_MASTER},today:'2026-10-24',profile:{preferences:null,deal_breakers:{},answer_library:{},needs_visa:false},homeCountry:'BD',apps:{a:{pack:oldPack}},dismissed:new Set(['a'])};
+ vi.mocked(loadState).mockResolvedValue(st as never);
+ vi.mocked(loadJob).mockResolvedValue({id:'b',title:'Finance Manager',company:'B Company',country:'BD',active:true,minYears:0,salaryMin:75000,salaryMax:90000,required:[],preferred:[],resp:['Financial reporting']} as never);
+ const ctx={db,admin:db,userId:'user'};
+ const result=await preparePack(ctx,'b');
+ expect(result.ai).toBe(true);expect(ai).toHaveBeenCalledTimes(2);
+ expect(prompts.every(p=>p.includes('B Company')&&!p.includes('OLD_JOB_A_DOCUMENT'))).toBe(true);
+ expect(app.pack).toMatchObject({summary:'Tailored for B Company',cover_letter:'Letter for B Company',prepared_for:{job_id:'b',source_cv_id:'latest-cv'}});
+ await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(2);
+ st.master.id='new-cv';st.master.content={...DEMO_MASTER,summary:'LATEST_MASTER_CONTENT'};
+ vi.mocked(loadJob).mockResolvedValue({id:'b',title:'Finance Manager',company:'B Company',country:'BD',active:true,minYears:0,salaryMin:null,salaryMax:null,required:[],preferred:[],resp:['Financial reporting']} as never);
+ await preparePack(ctx,'b');
+ expect(ai).toHaveBeenCalledTimes(4);
+ expect(prompts.slice(-2).every(p=>p.includes('LATEST_MASTER_CONTENT')&&p.includes('B Company'))).toBe(true);
+ expect(app.pack).toMatchObject({prepared_for:{job_id:'b',source_cv_id:'new-cv'}});
+ expect(st.apps.a.pack).toEqual(oldPack);
+});

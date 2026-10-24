@@ -66,7 +66,7 @@ try{
  await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('job-review-action')&&t.includes('>Apply</button>'));
  const beforeApply=await admin.from('applications').select('id',{count:'exact',head:true}).eq('user_id',userId).eq('job_id',reviewJob.id);
  report('reviewing the job does not prepare a pack',!beforeApply.error&&beforeApply.count===0);
- await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST'},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
+ await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({standard:true})},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
  const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at,updated_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
  report('review draft contains CV, cover letter and email without submission',!!reviewPack.pack?.summary&&!!reviewPack.pack?.cover_letter&&!!reviewPack.pack?.email_body&&reviewPack.pack_ai===false&&reviewPack.applied_at===null);
  await probe(`/jobs/${reviewJob.id}?application=review&prepared=1`,{},(r,t)=>r.status===200&&t.includes('id="application"')&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter document actions')&&t.includes('CV document actions')&&t.includes('Review before applying'));
@@ -97,6 +97,16 @@ try{
  report('replaced photo object is removed',!photoFiles.error&&photoFiles.data.length===1);
  await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Change photo')&&t.includes('data-cv-photo-edit'));
  await probe(`/api/cv/download?format=doc&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('data:image/jpeg;base64,')&&!t.includes('data-cv-photo-edit'));
+ // Removing one recommendation must not carry its edited documents to the next job.
+ const nextJob=check(await admin.from('jobs').insert({owner_id:userId,source_kind:'paste',source_label:'Synthetic acceptance only',country:'BD',title:'Accounts Manager',company:'Synthetic Second Employer',category:'Finance & Accounting',industry:'services',location:'Dhaka',seniority:'manager',employment_type:'Permanent',min_years:0,required_skills:['financial reporting'],responsibilities:['Prepare financial reports.'],salary_min:null,salary_max:null,active:true,raw:{eligibility:{}},apply_method:'unknown'}).select('id').single(),'Second synthetic job setup failed');
+ check(await admin.from('profiles').update({dismissed_job_ids:[reviewJob.id]}).eq('id',userId),'Synthetic recommendation removal failed');
+ await probe('/queue',{},(r,t)=>{const target=r.headers.get('location')||t.match(/url=([^"]+)/i)?.[1]||'';return [200,307,308].includes(r.status)&&target.includes('/jobs/')&&!target.includes(reviewJob.id);});
+ await probe(`/api/applications/${nextJob.id}/prepare`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({standard:true})});
+ const nextPack=check(await admin.from('applications').select('pack,updated_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Second synthetic pack read failed');
+ report('next job uses its own documents, not the removed job edits',nextPack.pack.prepared_for?.job_id===nextJob.id&&nextPack.pack.cover_letter.includes('Synthetic Second Employer')&&!nextPack.pack.cover_letter.includes('Synthetic edited cover letter')&&nextPack.pack.summary===cv.summary&&!nextPack.pack.edited_cv);
+ await probe(`/api/applications/${nextJob.id}/prepare`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({standard:true})});
+ const samePack=check(await admin.from('applications').select('updated_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Idempotent preparation read failed');
+ report('reopening the same fresh pack does not regenerate it',samePack.updated_at===nextPack.updated_at);
  const foreign=await user.from('profiles').select('id').neq('id',userId).limit(1);report('cross-user profile access blocked',!foreign.error&&foreign.data.length===0);
  const {count,error}=await admin.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',userId);report('acceptance used no AI calls',!error&&count===0);
  await probe('/api/account/export',{},(r,t)=>r.status===200&&JSON.parse(t).profiles?.[0]?.id===userId);

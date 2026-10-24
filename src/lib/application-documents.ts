@@ -14,3 +14,7 @@ export function editApplicationCv(master:MasterCV,pack:ApplicationPack,input:Man
  const edited=manualContent(input,applicationCv(master,pack),[]).master;
  return {...pack,edited_cv:edited,summary:edited.summary,top_bullets:edited.experience[0]?.bullets||[],skills_order:[...edited.skills_core,...edited.skills_tools]};
 }
+
+/** Legacy packs are still tied to their application row; tagged packs must match exactly. */
+export function packBoundToJob(pack:ApplicationPack,jobId:string):boolean{return !pack.prepared_for||pack.prepared_for.job_id===jobId;}
+export function canReusePack(pack:ApplicationPack,jobId:string,sourceCvId:string):boolean{return pack.prepared_for?.job_id===jobId&&pack.prepared_for.source_cv_id===sourceCvId;}

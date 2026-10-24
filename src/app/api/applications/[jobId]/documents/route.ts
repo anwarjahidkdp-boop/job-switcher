@@ -4,7 +4,7 @@ import {apiCtx,apiError,unauthorized} from '@/lib/server/api';
 import {loadState} from '@/lib/server/state';
 import {hasPro} from '@/lib/server/applications';
 import {trialApplyRoom,unlockedReady} from '@/lib/pack-limits';
-import {ApplicationDocumentSchema,editApplicationCv} from '@/lib/application-documents';
+import {ApplicationDocumentSchema,editApplicationCv,packBoundToJob} from '@/lib/application-documents';
 
 export async function POST(req:Request,{params}:{params:Promise<{jobId:string}>}){
  const c=await apiCtx();if(!c)return unauthorized();
@@ -17,10 +17,12 @@ export async function POST(req:Request,{params}:{params:Promise<{jobId:string}>}
   const st=await loadState(c.db,c.userId,undefined,{skipMatching:true});
   const app=st?.apps[jobId];
   if(!st?.master||!app?.pack)return NextResponse.json({error:'Prepare this application first.'},{status:404});
+  if(!packBoundToJob(app.pack,jobId))return NextResponse.json({error:'Prepare fresh documents for this job.'},{status:409});
   if(!['ready','reminder','waiting'].includes(app.status))return NextResponse.json({error:'Sent or in-progress applications cannot be edited.'},{status:409});
   if(app.updated_at!==parsed.data.baseUpdatedAt)return NextResponse.json({error:'This application changed. Reload before editing again.'},{status:409});
   if(['ready','reminder'].includes(app.status)&&!(await hasPro(c))&&!unlockedReady(Object.values(st.apps),trialApplyRoom(Object.values(st.apps))).has(jobId))return NextResponse.json({error:'Your application allowance is used. Upgrade or return when your allowance renews.'},{status:402});
   const pack=parsed.data.document==='cv'?editApplicationCv(st.master.content,app.pack,parsed.data.cv):{...app.pack,cover_letter:parsed.data.text};
+  pack.prepared_for={job_id:jobId,source_cv_id:st.master.id};
   const saved=await c.db.from('applications').update({pack}).eq('user_id',c.userId).eq('job_id',jobId).eq('updated_at',parsed.data.baseUpdatedAt).is('sending_at',null).in('status',['ready','reminder','waiting']).select('updated_at').maybeSingle();
   if(saved.error)throw saved.error;
   if(!saved.data)return NextResponse.json({error:'This application changed or is being sent. Reload before editing.'},{status:409});

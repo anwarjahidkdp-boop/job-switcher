@@ -1,3 +1,4 @@
+import { canReusePack } from "../application-documents";
 // Application lifecycle. The app never submits anything without the user's own press: "applied" (and interview/offer/withdrawn)
 // is set only in the user's session, either by their confirmation or after they press Apply and Gmail accepts the email
 // (see gmail.ts). A DB trigger enforces this again.
@@ -84,7 +85,7 @@ export async function packAllowanceFor(admin: Ctx["admin"], userId: string) {
   return { ...packAllowance((rows || []).map((r) => r.created_at as string), packLimits(plan, prof?.home_country as string | undefined)), plan };
 }
 
-export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: string[]; ai: boolean; notice?: string }> {
+export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:boolean}={}): Promise<{ flags: string[]; ai: boolean; notice?: string }> {
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
   const job = await requireJob(ctx, jobId);
@@ -95,7 +96,7 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
-  if (app.pack) return {flags:app.pack_flags||[],ai:app.pack_ai};
+  if (app.pack && canReusePack(app.pack,job.id,st.master.id)) return {flags:app.pack_flags||[],ai:app.pack_ai};
   await event(ctx, app.id, "Preparing application");
   if (app.status !== "reminder") {
     const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
@@ -109,8 +110,8 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   const { data: jd } = await ctx.db.from("jobs").select("description").eq("id", jobId).maybeSingle();
   const description = (jd?.description as string | null) || null;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
-  if (reviewOnly) notice = "Review draft only: salary is not disclosed. Verify pay before applying. No AI allowance was used.";
-  const allowance = !reviewOnly && aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
+  if (opts.standardOnly) notice = "Standard draft requested. No AI allowance was used.";
+  const allowance = !opts.standardOnly && aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
   if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.${allowance.plan === "trial" ? " Go Pro to get more AI-tailored applications." : ""}`;
   if (allowance?.left) {
     try {
@@ -126,6 +127,8 @@ export async function preparePack(ctx: Ctx, jobId: string): Promise<{ flags: str
   if (!pack || !pack.cover_letter) { pack = templatePack(job, master, st.P, { needVisa, homeCountry: st.homeCountry }); ai = false; }
   if (!pack.asks?.length) pack.asks = postAsks(description);
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
+  checked.pack.prepared_for={job_id:job.id,source_cv_id:st.master.id};
+  if(!ai&&!reviewOnly)checked.pack.preparation_note=notice||"Standard draft: AI tailoring is unavailable. Review before applying.";
   if (reviewOnly) checked.flags.push("Salary not disclosed — verify pay before applying");
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";

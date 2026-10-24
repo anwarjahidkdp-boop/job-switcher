@@ -1,12 +1,18 @@
+import {readLimitedText} from "@/lib/request-security";
 import { NextResponse } from "next/server";
 import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
 import { preparePack } from "@/lib/server/applications";
 
 export const maxDuration = 120;
 
-export async function POST(_req: Request, { params }: { params: Promise<{ jobId: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ jobId: string }> }) {
   const c = await apiCtx();
   if (!c) return unauthorized();
   const { jobId } = await params;
-  try { return NextResponse.json(await preparePack(c, jobId)); } catch (e) { return apiError(e); }
+  let standardOnly=false;
+  if(req.body){
+    let raw:string;try{raw=await readLimitedText(req,2048);}catch{return NextResponse.json({error:"Preparation request is too large."},{status:413});}
+    if(raw.trim()){try{const body=JSON.parse(raw);standardOnly=body?.standard===true;}catch{return NextResponse.json({error:"Invalid preparation request."},{status:400});}}
+  }
+  try { return NextResponse.json(await preparePack(c, jobId,{standardOnly})); } catch (e) { return apiError(e); }
 }
