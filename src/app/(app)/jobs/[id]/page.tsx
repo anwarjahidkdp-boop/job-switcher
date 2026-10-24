@@ -74,9 +74,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
       <div className="jobgrid" style={{ marginTop: 10 }}>
         <div className="stack" style={{ gap: 18 }}>
           <div className="card panel">
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
-              <Ring score={m.score} band={m.band} />
+            <div className="job-review-header">
+              <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
+              <div className="job-review-action">{canPrepare?<PrepareApplicationButton jobId={job.id} label="Apply" openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Apply</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Apply</button>}<Ring score={m.score} band={m.band} /></div>
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
@@ -99,14 +99,14 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             {description || job.url || canPrepare ? <div className="jd-actions">
               {description ? <details className="jd"><summary className="btn btn-ghost btn-sm">View job description</summary><div className="jd-text">{description}</div></details> : null}
               {job.url ? <a className="btn btn-ghost btn-sm" href={job.url} target="_blank" rel="noopener noreferrer nofollow">Open the original post ↗</a> : null}
-              {canPrepare ? <div className="jd-application-group"><PrepareApplicationButton jobId={job.id} /><ActionsPanel compact jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
+              {canPrepare ? <div className="jd-application-group"><ActionsPanel compact jobId={job.id} status={a?.status ?? null} hasPack={!!a?.pack} reminderDate={a?.reminder_date ?? null} appliedAt={a?.applied_at ?? null}
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
               canApply={safety.safe} blockingReason={safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ")} gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} /></div> : null}
             </div> : null}
             {canPrepare && aiLeft ? <p className="small muted jd-ai-note">{aiLeft}</p> : null}
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
-          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Prepare your CV, cover letter and email draft for this job, then review them before applying.</p>{!safety.safe?<p className="note small" role="status">Salary is not disclosed. A standard review draft is available without AI cost. Verify pay before sending.</p>:null}<PrepareApplicationButton jobId={job.id} openPack/></>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
+          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Review the company and job details first. Press Apply beside the company name when you are ready to prepare your CV, cover letter and email draft. Reviewing this page does not use AI.</p>{!safety.safe?<p className="note small" role="status">Salary is not disclosed. A standard review draft is available without AI cost. Verify pay before sending.</p>:null}</>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;
             // Follow-up emails to employers are not the custom in Bangladesh (owner's call), so they are offered elsewhere only.
@@ -120,7 +120,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               prep={a.interview_prep ?? null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
           ) : null}
           {lockedPack ? (
-            <div className="card panel upsell">
+            <div className="card panel upsell application-workspace" id="application">
               <p className="eyebrow">Your application is ready</p>
               <h3 style={{ margin: "4px 0 6px" }}>Tailored CV and cover letter for {job.company}</h3>
               <p className="small">Your free trial includes one application a day, and today&apos;s is used. Go Pro to open this one now and apply to as many good matches as you like each day.</p>

@@ -145,7 +145,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
         <button className="btn btn-ghost btn-sm" onClick={() => setMode("main")}>Cancel</button>
       </div>
       {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
-      <p className="small muted" style={{ marginTop: 10 }}>We prepare the application now, so it is ready when the reminder arrives.</p>
+      <p className="small muted" style={{ marginTop: 10 }}>This saves a reminder only. Your documents are prepared when you press Apply.</p>
     </>
   );
   if (p.status === "waiting") return (

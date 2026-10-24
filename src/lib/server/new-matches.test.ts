@@ -12,9 +12,9 @@ vi.mock('./applications',()=>({preparePack:mocks.prepare,ApplicationSafetyError:
 import { processNewMatches } from './new-matches';
 beforeEach(()=>{vi.clearAllMocks();mocks.prepare.mockResolvedValue({ai:true});mocks.load.mockResolvedValue({apps:{old:{pack:{}}}});mocks.queue.mockReturnValue([{job:{id:'best'}},{job:{id:'next'}}]);});
 function db(){return {from:(table:string)=>{const result={data:table==='profiles'?{}:[],error:null};const q={select:()=>q,eq:()=>q,is:()=>q,gte:()=>q,or:()=>q,order:()=>q,limit:()=>q,maybeSingle:async()=>result,then:(resolve:(r:unknown)=>unknown)=>Promise.resolve(result).then(resolve)};return q;}} as unknown as SupabaseClient;}
-it('prepares the current highest matches even when already notified and stale packs exist',async()=>{
+it('keeps automatic discovery from preparing documents or spending AI',async()=>{
  const result=await processNewMatches(db(),['user'],{appUrl:'https://example.com'});
- expect(mocks.prepare.mock.calls.map(c=>c[1])).toEqual(['best','next']);expect(result.prepared).toBe(2);
+ expect(mocks.prepare).not.toHaveBeenCalled();expect(result.prepared).toBe(0);
 });
 it('respects dry-run and explicit no-prepare without spending',async()=>{
  await processNewMatches(db(),['user'],{appUrl:'https://example.com',dryRun:true});
@@ -24,5 +24,10 @@ it('respects dry-run and explicit no-prepare without spending',async()=>{
 it('does not automatically prepare a selected vacancy awaiting salary verification',async()=>{
  mocks.queue.mockReturnValue([{job:{id:'unpublished'}},{job:{id:'best'}}]);
  await processNewMatches(db(),['user'],{appUrl:'https://example.com'});
- expect(mocks.prepare.mock.calls.map(c=>c[1])).toEqual(['best']);
+ expect(mocks.prepare).not.toHaveBeenCalled();
+});
+
+it('does not revive automatic document generation through an old prepare flag',async()=>{
+ await processNewMatches(db(),['user'],{appUrl:'https://example.com',prepare:true});
+ expect(mocks.prepare).not.toHaveBeenCalled();
 });

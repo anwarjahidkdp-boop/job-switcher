@@ -88,7 +88,7 @@ async function main() {
       let checked = 0;
       for (const u of users || []) { try { checked += await checkTopMatches(db, u.id as string); } catch (e) { console.error("  AI match check failed", u.id, errText(e)); } }
       console.log(`ingest: AI-checked ${checked} top match(es)`);
-      const nm = await processNewMatches(db, (users || []).map((u) => u.id as string), { appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://jobpao.app", prepare: !hasFlag("no-prepare") });
+      const nm = await processNewMatches(db, (users || []).map((u) => u.id as string), { appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://jobpao.app" });
       console.log(`ingest: new matches for ${nm.users} user(s): ${nm.notified} job(s), ${nm.prepared} pack(s) prepared, ${nm.emailed} email(s), ${nm.failed} failed`);
     }
   }
