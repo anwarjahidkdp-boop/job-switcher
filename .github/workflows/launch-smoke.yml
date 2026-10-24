@@ -1,0 +1,29 @@
+name: Launch readiness smoke
+on:
+  push:
+    branches: ['audit/**']
+  workflow_run:
+    workflows: [Deploy]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  public-smoke:
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Public routes, access boundaries, headers and PWA
+        run: node scripts/audit/public-smoke.mjs ${{ github.event_name == 'push' && '--preflight' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-launch-smoke
+          path: public-smoke-results.json

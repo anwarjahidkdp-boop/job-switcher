@@ -1,6 +1,6 @@
 # JobPao
 
-A personal AI career agent. It launches in Bangladesh and supports the UAE, Saudi Arabia, Malaysia, the UK, Canada, Australia, the US and "Other". It reads your CV once and builds a verified Master CV. It then scores incoming jobs with a deterministic matcher and prepares an application pack for each job you choose. The pack holds a tailored CV, a cover letter, an email and a checklist. You apply yourself; the app never applies for you.
+A personal AI career agent. It launches in Bangladesh and supports the UAE, Saudi Arabia, Malaysia, the UK, Canada, Australia, the US and "Other". It reads your CV once and builds a verified Master CV. It then scores incoming jobs with a deterministic matcher and automatically ranks the highest eligible 70%+ jobs in Apply Queue and prepares packs within the existing allowance; users can remove choices or select another eligible opportunity. The pack holds a tailored CV, a cover letter, an email and a checklist. You apply yourself; the app never applies for you.
 
 This is a production-shaped MVP that runs on free tiers (Cloudflare Workers, Supabase, Resend/Brevo, GitHub Actions). AI is the only metered cost. The UI and behaviour are ported from `job-switcher-prototype/index.html`.
 
@@ -37,7 +37,7 @@ GitHub Actions cron: scripts/ingest (daily), scripts/reminders (hourly), CI
 - `src/lib/` holds the domain logic: plain TypeScript modules with unit tests.
   - `matching.ts` is the deterministic `scoreJob`, ported from the prototype.
     - Weights: role 25, skills 25, experience 15, seniority 10, industry 7, education 6, certifications 5, location 4, salary 3.
-    - Bands: 85 / 70 / 55.
+    - Bands: Strong Fit 90–100%, Best Fit 80–89%, Good Fit 70–79%, Stretch Opportunity 55–69%.
     - A required certification the user doesn't hold, or no visa sponsorship for a foreign job, caps the score at 69.
   - `facts.ts` handles provenance and grounding.
   - `numbers-check.ts` is the post-check for generated content.
@@ -52,7 +52,7 @@ GitHub Actions cron: scripts/ingest (daily), scripts/reminders (hourly), CI
   - landing, login, onboarding (country, CV upload or demo, questions, preferences, reveal)
   - `inbox` (Opportunities), `jobs/[id]` ("why this job", gaps, application pack, apply later)
   - `queue`, `applications` (tracker), `insights`, `profile`, and `setup` (the 5-step forwarding guide)
-  - `upgrade` (Pro ৳299 for 30 days via bKash) and `admin/payments` (owner-only payment review)
+  - `upgrade` (approved Pro packs via bKash) and `admin/payments` (owner-only payment review)
   - API routes under `src/app/api`
 - `src/middleware.ts` refreshes the session and protects app routes. (Next 16 prefers `proxy.ts`, but OpenNext for Cloudflare needs the Edge `middleware.ts` form.)
 - `supabase/migrations/` holds the schema, RLS, storage buckets and the country_rules and plans seed. `supabase/seed.sql` adds dev-only fictional sample jobs. `supabase/tests/` has an RLS test for plain Postgres.
@@ -62,7 +62,7 @@ GitHub Actions cron: scripts/ingest (daily), scripts/reminders (hourly), CI
 ### Data model (short)
 
 - `profiles` (1:1 with auth user)
-- `subscriptions` and `plans`; a 7-day trial is created on sign-up
+- `subscriptions` and `plans`; a 5-day trial is created on sign-up
 - `payments` (bKash manual or checkout; `pending` until verified)
 - `cv_documents` (`text_source`: file, paste, ocr, demo)
 - `career_facts` (provenance)
@@ -235,9 +235,9 @@ Each user gets an address such as `rahim-3fa9c1@in.jobswitcher.app`. When they a
 
 Verify your sending domain with the provider, then set `EMAIL_PROVIDER`, the API key and `EMAIL_FROM`.
 
-### 5. bKash payments (Pro ৳299 / 30 days)
+### 5. bKash payments (approved Pro packs)
 
-Both paths can be on at once; the upgrade page shows what is configured. Prices per country live in `plan_prices` (৳299 in Bangladesh, AED/SAR 29, RM 15, £7.99, C$12.99, A$14.99, $9.99 in the US, $4.99 elsewhere) and follow the country a user lives in (Profile → I live in); the landing page uses Cloudflare's `CF-IPCountry`. Only taka can be paid today, so bKash is offered only to people living in Bangladesh; other countries need an international card provider. Set `ADMIN_EMAILS` to your own sign-in email first.
+Both paths can be on at once; the upgrade page shows what is configured. Checkout uses approved pack prices in `src/lib/billing/pricing.ts`, follows the fixed subscription country, and offers bKash in Bangladesh and configured card checkout elsewhere. Legacy `plan_prices` seeds do not override approved pack pricing. Set `ADMIN_EMAILS` to your own sign-in email first.
 
 **Manual (personal or merchant number, no bKash API needed).**
 1. Set `BKASH_MANUAL_NUMBER=01XXXXXXXXX` and `BKASH_MANUAL_ACCOUNT_TYPE=personal` (the page tells users to use Send Money) or `merchant` (Payment).

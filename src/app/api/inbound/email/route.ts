@@ -1,3 +1,4 @@
+import { readLimitedText } from "@/lib/request-security";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processInbound } from "@/lib/server/inbound";
@@ -11,7 +12,10 @@ export const maxDuration = 120;
  * Body: {"to": "<alias>@<domain>", "raw": "<base64 RFC822>", "rawKey": "r2:..." | null}, signed with INBOUND_SHARED_SECRET.
  */
 export async function POST(req: Request) {
-  const body = await req.text();
+  if (!/^[0-9a-f]{64}$/i.test(req.headers.get(SIGNATURE_HEADER)||"")) return NextResponse.json({error:"bad signature"},{status:401});
+  let body: string;
+  try { body = await readLimitedText(req, 30_000_000); }
+  catch { return NextResponse.json({error:"too large"},{status:413}); }
   const ok = await verify(process.env.INBOUND_SHARED_SECRET || "", req.headers.get(TIMESTAMP_HEADER), req.headers.get(SIGNATURE_HEADER), body);
   if (!ok) return NextResponse.json({ error: "bad signature" }, { status: 401 });
   if (body.length > 30_000_000) return NextResponse.json({ error: "too large" }, { status: 413 });
