@@ -1184,3 +1184,4 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .applied-job-stages dd{font-size:14px;font-weight:600;margin:0;overflow-wrap:anywhere}
 .applied-job-actions{gap:10px;flex-wrap:wrap}
 @media(max-width:600px){.applied-job-card{padding:16px}.applied-job-heading{flex-wrap:wrap;gap:8px}.applied-job-heading h2{font-size:17px}.applied-job-stages{gap:12px}}
+.job-submitted-status{background:var(--good-soft);color:var(--good);border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));font-weight:700}

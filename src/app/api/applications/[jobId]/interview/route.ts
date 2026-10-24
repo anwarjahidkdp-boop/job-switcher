@@ -1,3 +1,4 @@
+import {revalidatePath} from "next/cache";
 import {readLimitedText} from "@/lib/request-security";
 import { NextResponse } from "next/server";
 import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
@@ -13,6 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ jobId: 
   const { jobId } = await params;
   try {
     await saveInterview(c, jobId, { date: String(b.date || ""), time: b.time ? String(b.time) : null, mode: b.mode as InterviewInput["mode"], where: b.where ? String(b.where) : null, notes: b.notes ? String(b.notes) : null, tzOffsetMin: Number(b.tzOffsetMin) || 0 });
+    revalidatePath("/","layout");
     return NextResponse.json({ ok: true });
   } catch (e) { return apiError(e); }
 }

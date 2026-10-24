@@ -54,7 +54,7 @@ try{
  const profile=check(await admin.from('profiles').select('search_country_version').eq('id',userId).single(),'Synthetic profile read failed');
  check(await user.auth.signInWithPassword({email,password}),'Synthetic authentication failed');
  report('authenticated cookie session',jar.size>0);
- for(const path of ['/profile','/inbox','/queue','/applications'])await probe(path,{},r=>path==='/queue'?[200,307,308].includes(r.status):r.status===200);
+ for(const path of ['/profile','/inbox','/queue','/applications','/opportunities'])await probe(path,{},r=>path==='/queue'?[200,307,308].includes(r.status):r.status===200);
  await probe('/api/onboarding/prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({country:'BD',revision:profile.search_country_version,prefs:{locations:'Dhaka',salaryMin:70000,salaryMax:90000,notice:30,mode:'Any'},personal:{dob:'1986-01-15',references:[]}})});
  const cv={...master,experience:master.experience.map(e=>({...e,title:'Manager',department:'Accounts'})),summary:'Synthetic edited summary saved without AI.',education:[{degree:'Bachelors',field:'accounting',institution:'Synthetic QA College',year:'2010',level:'bachelors',result:null}],certifications:[]};
  await probe('/api/cv/manual',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({baseId:initial.id,country:'BD',revision:profile.search_country_version,cv})});
@@ -121,6 +121,8 @@ try{
  await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})});
  const applied=check(await admin.from('applications').select('status,applied_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Synthetic applied status read failed');
  report('external submission confirmation records applied',applied.status==='applied'&&!!applied.applied_at);
+ await probe(`/jobs/${nextJob.id}`,{},(r,t)=>r.status===200&&t.includes('View application status: Applied')&&!t.includes('>Apply</button>')&&!t.includes('>Apply</a>'));
+ await probe('/inbox',{},(r,t)=>{const cards=t.match(/<a\b[^>]*class="(?:spot|opp)"[^>]*>/g)||[];return r.status===200&&cards.length<=3&&cards.every(tag=>!tag.includes(nextJob.id));});
  await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})});
  await probe(`/api/applications/${reviewJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})},r=>r.status===402);
  const interviewDate=new Date(Date.now()+7*86400000).toISOString().slice(0,10);

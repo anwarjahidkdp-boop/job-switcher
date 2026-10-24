@@ -1,4 +1,6 @@
-import { applyQueue, queueSafety } from "@/lib/apply-queue";
+import {OpportunityRow} from "@/components/OpportunityRow";
+import {isResolvedApplication} from "@/lib/applied-history";
+import { applyQueue } from "@/lib/apply-queue";
 import { FitOverviewCard, fitTiles, dashboardFitSummary } from "@/components/FitOverviewCard";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction } from "@/app/actions";
@@ -6,12 +8,11 @@ import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { subscriptionOf, requireAppState } from "@/lib/server/page";
 import { stats } from "@/lib/server/state";
-import { opportunitySections, type Scored } from "@/lib/matching";
+import { opportunitySections } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
-import { cname, money, perLabel, portals } from "@/lib/countries";
+import { cname, portals } from "@/lib/countries";
 import { daysUntil } from "@/lib/dates";
-import { fitLabel } from "@/lib/matching";
-import { STATUS_LABEL, type Band } from "@/lib/types";
+import { type Band } from "@/lib/types";
 import { Ring, DeadlineChip, BandPill } from "@/components/ui";
 import { appliedAction } from "@/app/actions";
 import { PastePanel } from "./PastePanel";
@@ -26,15 +27,16 @@ export const metadata = { title: "Opportunities" };
 
 export default async function Inbox() {
   const { st, db } = await requireAppState("/inbox");
+  const availableScored=st.scored.filter(x=>!isResolvedApplication(st.apps[x.job.id]));
   const P = st.P, s = stats(st), country = st.country;
-  const {ranked:list,featured:best,remaining}=opportunitySections(st.scored,st.dismissed);
-  const fit = dashboardFitSummary(st.scored);
+  const {ranked:list,home,featured:best,remaining}=opportunitySections(availableScored,st.dismissed,st.apps);
+  const fit = dashboardFitSummary(availableScored);
   const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, remaining.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
-  const queue = applyQueue(st).slice(0, 4);
+  const queue = applyQueue(st);
   const readyHref=queue[0]?`/jobs/${queue[0].job.id}`:"/queue";
-  const upcoming = list.filter((x) => (daysUntil(x.job.deadline, st.today) ?? -1) >= 0).sort((a, b) => (a.job.deadline || "").localeCompare(b.job.deadline || "")).slice(0, 3);
+  const upcoming = home.filter((x) => (daysUntil(x.job.deadline, st.today) ?? -1) >= 0).sort((a, b) => (a.job.deadline || "").localeCompare(b.job.deadline || "")).slice(0, 3);
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
   const setupSites = portals(st.country);
@@ -83,7 +85,7 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/>}/>
+      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(availableScored)[1]} rows={availableScored} guidanceHref="/insights#career-guidance"/>}/>
 
       <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
 
@@ -91,26 +93,28 @@ export default async function Inbox() {
         <Link prefetch={false} className="spot" href={`/jobs/${best.job.id}`}>
           <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>
           <div className="spot-txt">
-            <span className="spot-k">Your best match right now</span>
+            <span className="spot-k">Your next best match</span>
             <b>{best.job.title}</b>
             <span className="spot-m">{best.job.company}{best.job.location ? ` · ${best.job.location}` : ""}</span>
             {best.m.matched.length ? <span className="spot-why">{best.m.matched.slice(0, 3).map((t) => "✓ " + t).join("  ")}</span> : null}
           </div>
-          <span className="spot-go">{st.apps[best.job.id]?.applied_at?"View application →":"Review opportunity →"}</span>
+          <span className="spot-go">Review opportunity →</span>
         </Link>
       ) : null}
       <div className="dash" id="matches">
         <div>
           <div className="card">
             <PastePanel sites={portals(st.country)} />
+            {list.length ? <p className="small muted" style={{padding:"0 18px 12px"}}>Your top {Math.min(3,list.length)} available {list.length===1?"match":"matches"}, highest score first.</p> : null}
             {groups.length ? groups.map(([b, items]) => (
               <div key={b}>
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>
-                {items.map((x) => <OppRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
+                {items.map((x) => <OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
               </div>
-            )) : best ? <p className="muted" style={{padding:16}}>Your highest match is featured above. More suitable opportunities will appear here.</p> : s.analysed
+            )) : !list.length && Object.values(st.apps).some(isResolvedApplication) ? <p className="muted" style={{padding:16}}>You’re up to date. Your submitted applications are in <Link href="/applications">Applied</Link>. New opportunities will appear here.</p> : best ? <p className="muted" style={{padding:16}}>Your highest match is featured above. More suitable opportunities will appear here.</p> : s.analysed
               ? <p className="muted" style={{ padding: 16 }}>No Good Fit or better right now. We checked {s.analysed} jobs; try adding target roles or skills in your profile.</p>
               : <p className="muted" style={{ padding: 16 }}>No jobs in {cname(country)} yet. Paste a job you found, or set up automatic job alerts.</p>}
+            {list.length>3?<div style={{padding:16}}><Link prefetch={false} className="btn btn-ghost btn-sm" href="/opportunities">View all opportunities →</Link></div>:null}
           </div>
         </div>
         <aside className="side">
@@ -123,8 +127,8 @@ export default async function Inbox() {
             </div>
           ) : null}
           <div className="card panel"><h3>Ready to Apply</h3>
-            {queue.length ? queue.map((x) => <div key={x.job.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job!.company}</div><div className="small muted">{x.m.score}% · {queueSafety(st,x.job).safe ? st.apps[x.job.id]?.pack ? "Prepared" : "Selected automatically" : "Salary verification needed"}</div></div><Link prefetch={false} className="btn btn-text" href={`/jobs/${x.job!.id}`}>Open</Link></div>)
-              : <p className="small muted">Your highest eligible matches appear here automatically. <Link prefetch={false} href="/queue">Check eligibility details →</Link></p>}
+            {queue.length ? <><p className="small muted">{queue.length} selected {queue.length===1?'opportunity':'opportunities'} ready for review.</p><Link prefetch={false} className="btn btn-primary btn-sm" style={{marginTop:10}} href={readyHref}>Open Ready to Apply →</Link></> : <p className="small muted">Your highest eligible matches appear here automatically. <Link prefetch={false} href="/queue">Check eligibility details →</Link></p>}
+
           </div>
           <div className="card panel"><h3>Upcoming deadlines</h3>
             {upcoming.length ? upcoming.map((x) => <div key={x.job.id} className="qitem"><div><div style={{ fontWeight: 600, fontSize: 14 }}>{x.job.title}</div><div className="small muted">{x.job.company}</div></div><DeadlineChip deadline={x.job.deadline} today={st.today} /></div>) : <p className="small muted">No upcoming deadlines.</p>}
@@ -142,22 +146,5 @@ export default async function Inbox() {
         </aside>
       </div>
     </>
-  );
-}
-
-function OppRow({ x, today, status, ai }: { x: Scored; today: string; status?: keyof typeof STATUS_LABEL; ai?: { fit: string; reason: string } }) {
-  const { job, m } = x;
-  return (
-    <Link prefetch={false} className="opp" href={`/jobs/${job.id}`}>
-      <Ring score={m.score} band={m.band} />
-      <div style={{ minWidth: 0 }}>
-        <h4>{job.title}</h4>
-        <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{job.salaryMax ? ` · ${money(job.salaryMin, job.country)}–${money(job.salaryMax, job.country)}${perLabel(job.country)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
-        <div className="why">{m.matched.slice(0, 3).map((t) => "✓ " + t).join(" · ")}{m.gaps[0] ? <> · <span style={{ color: "var(--warn)" }}>⚠ {m.gaps[0].t.split(";")[0]}</span></> : null}</div>
-        <span className={`chip-chance ${m.score >= 90 ? "high" : m.score < 70 ? "low" : ""}`}>{fitLabel(m.score)}</span>
-        {ai?.reason ? <div className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`}><b>AI fit check:</b> {ai.reason}</div> : null}
-      </div>
-      <div className="dlc stack" style={{ gap: 6, alignItems: "flex-end" }}><DeadlineChip deadline={job.deadline} today={today} />{status ? <span className="pill p-neutral">{STATUS_LABEL[status]}</span> : null}<span className="hide">{fitLabel(m.score)}</span></div>
-    </Link>
   );
 }
