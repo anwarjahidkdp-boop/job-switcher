@@ -21,7 +21,7 @@ it('creates and saves an unpublished-pay review pack without AI, while actual ap
  vi.mocked(loadState).mockResolvedValue({P:{salaryMin:70000,salaryConfirmed:true,workAuthorization:'yes'},master:{content:{name:'Test'}},today:'2026-10-24',profile:{preferences:null,deal_breakers:{},answer_library:{},needs_visa:false},homeCountry:'BD'} as unknown as NonNullable<Awaited<ReturnType<typeof loadState>>>);
  vi.mocked(loadJob).mockResolvedValue({id:'j',country:'BD',active:true,minYears:0,salaryMin:null,salaryMax:null} as unknown as NonNullable<Awaited<ReturnType<typeof loadJob>>>);
  const ctx={db,admin:db,userId:'user'};
- const result=await preparePack(ctx,'j');
+ const result=await preparePack(ctx,'j',{standardOnly:true});
  expect(result.ai).toBe(false);expect(result.flags).toContain('Salary not disclosed — verify pay before applying');
  expect(patches.at(-1)).toMatchObject({status:'ready',pack:{cover_letter:'Review cover letter'},pack_ai:false});
  expect(runAI).not.toHaveBeenCalled();expect(getBudget).not.toHaveBeenCalled();

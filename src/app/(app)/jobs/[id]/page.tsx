@@ -1,4 +1,4 @@
-import { applicationCv } from "@/lib/application-documents";
+import { applicationCv,packBoundToJob,canReusePack } from "@/lib/application-documents";
 import { manualDraft } from "@/lib/manual-cv";
 import { ManualCvEditor } from "@/components/ManualCvEditor";
 import { QueueDismissButton } from "@/components/QueueDismissButton";
@@ -51,7 +51,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const publicLink = (value: string | null) => { try { const u = new URL(value || ""); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
   const foundAt = [...new Set((occurrences || []).map(o => publicLink(o.discovered_url)).filter((u): u is string => !!u))];
   const original = (occurrences || []).map(o => publicLink(o.original_source_url)).find(Boolean);
-  const a = st.apps[job.id];
+  const storedApp = st.apps[job.id];
+  const a=storedApp?.pack&&!packBoundToJob(storedApp.pack,job.id)?{...storedApp,pack:null}:storedApp;
+  const needsFreshPack=!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
   const packMaster=a?.pack?applicationCv(st.master.content,a.pack):st.master.content;
   // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
   const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
@@ -62,7 +64,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
-  const allowance = safety.safe && !a?.pack && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const allowance = (!a?.pack||needsFreshPack) && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
   const pro = await isPro(db, st.userId);
@@ -72,7 +74,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
     ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
     : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
-  const canPrepare = eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
+  const canPrepare = eligibility.eligible && (!a?.pack||needsFreshPack) && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -81,7 +83,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <div className="job-review-header">
               <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
-              <div className="job-review-action">{canPrepare?<PrepareApplicationButton jobId={job.id} label="Apply" openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Apply</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Apply</button>}<Ring score={m.score} band={m.band} /></div>
+              <div className="job-review-action">{canPrepare?<PrepareApplicationButton key={job.id} jobId={job.id} label="Apply" openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Apply</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Apply</button>}<Ring score={m.score} band={m.band} /></div>
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
@@ -112,7 +114,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <div className="row" style={{marginTop:12}}><Link prefetch={false} className="btn btn-ghost btn-sm" href="/inbox#matches">Choose another job</Link>{!a?.applied_at?<QueueDismissButton jobId={job.id} advance/>:null}</div>
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
-          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Review the company and job details first. Press Apply beside the company name when you are ready to prepare your CV, cover letter and email draft. Reviewing this page does not use AI.</p>{!safety.safe?<p className="note small" role="status">Salary is not disclosed. A standard review draft is available without AI cost. Verify pay before sending.</p>:null}</>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
+          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Review the company and job details first. Press Apply beside the company name when you are ready to prepare your CV, cover letter and email draft. Reviewing this page does not use AI.</p>{!safety.safe?<p className="note small" role="status">Salary is not disclosed. Review your tailored documents and verify pay before sending.</p>:null}</>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;
             // Follow-up emails to employers are not the custom in Bangladesh (owner's call), so they are offered elsewhere only.
@@ -134,8 +136,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             </div>
           ) : a?.pack ? (
             <div className="card panel application-workspace" id="application">
-              <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: 19 }}>Your application pack</h2><span className="small muted">{a.pack_ai ? "Prepared with Claude from your verified profile" : "Template version"}</span></div>
+              <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: 19 }}>Your application pack</h2><span className="small muted">{a.pack_ai ? "AI tailored for this job" : "Standard draft"}</span></div>
               <div className="application-specific-note" role="note"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 14l2 2 5-5"/></svg><div><b>Prepared specifically for this application</b><p>Your CV and cover letter are prepared for the <strong>{job.title}</strong> role at <strong>{job.company}</strong>.</p></div></div>
+              {a.pack.preparation_note?<p className="note small" role="status">{a.pack.preparation_note}</p>:null}
               {a.pack_flags.length ? <p className="note" style={{ marginTop: 10, borderColor: "var(--warn)" }}>Check before sending: {a.pack_flags.join("; ")}.</p> : null}
               {(() => {
                 const rows = askRows(a.pack.asks?.length ? a.pack.asks : postAsks(description), { hasPhoto: !!st.profile.photo_path, photoAllowed: r.photo, notice: st.profile.preferences?.notice ?? null, salaryMin: st.profile.preferences?.salaryMin ?? null });
@@ -147,10 +150,11 @@ export default async function JobPage({ params, searchParams }: { params: Promis
                   </div>
                 ) : <p className="small muted" style={{ marginTop: 10 }}>The post does not list documents, so your tailored CV and cover letter are ready to send.</p>;
               })()}
-              <PackTabs
+              {needsFreshPack?<p className="note small" role="status">Press Apply to prepare fresh documents from your latest CV for this job.</p>:null}
+              <PackTabs key={job.id}
                 canEdit={["ready","reminder","waiting"].includes(a.status)}
                 updatedAt={a.updated_at}
-                cvEditor={<ManualCvEditor initial={manualDraft(packMaster,a.pack.edited_cv?[]:st.facts)} baseId={st.master.id} country={st.country} revision={st.profile.search_country_version} application={{jobId:job.id,updatedAt:a.updated_at}} defaultOpen/>}
+                cvEditor={<ManualCvEditor key={job.id} initial={manualDraft(packMaster,a.pack.edited_cv?[]:st.facts)} baseId={st.master.id} country={st.country} revision={st.profile.search_country_version} application={{jobId:job.id,updatedAt:a.updated_at}} defaultOpen/>}
                 cv={<><CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(job.country)} rules={r.rules} downloads={{ pdf: `/api/cv/download?format=print&jobId=${job.id}`, doc: `/api/cv/download?format=doc&jobId=${job.id}`, label: "CV tailored for this job" }} /><CvPreview master={packMaster} tailored={a.pack.edited_cv?null:a.pack} country={job.country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} /></>}
                 jobId={job.id}
                 cover={a.pack.cover_letter}

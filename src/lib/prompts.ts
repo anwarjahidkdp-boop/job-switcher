@@ -190,7 +190,7 @@ export const PACK_PROMPT = (part: PackPart, m: MasterCV, job: Job, P: MatchProfi
     : `{"cover_letter":string (180-260 words, professional, addressed to the Hiring Manager at the company, no invented facts, mention notice period only if given${post.asks?.some((x) => /salary/i.test(x)) && P.salaryMin ? ", and state the expected salary because the post asks for it" : ""}),
 "email_subject":string (follow the post's required subject line or reference code exactly if it gives one),"email_body":string (short email to send with the CV; list the attachments the post asks for)}`;
   return `You are the application-preparation step of JobPao. The job is in ${r.name}. Country conventions: ${r.prompt}
-Prepare a job-specific application for the person below, using ONLY the verified Master CV. Never add skills, numbers, employers or achievements that are not in it. You may reorder, select and re-word to emphasise what this job asks for.
+Prepare a fresh application for this exact employer and role, using ONLY the verified Master CV. Prioritise its required skills, seniority and responsibilities; do not reuse wording intended for another vacancy. Keep each achievement with its actual employer and dates. top_bullets must come only from the most recent role, never move older achievements into a different role. Never add skills, numbers, employers or achievements that are not in it. You may reorder, select and re-word to emphasise what this job asks for.
 
 Reply with ONLY one JSON object:
 ${shape}

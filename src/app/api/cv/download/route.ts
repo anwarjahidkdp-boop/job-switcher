@@ -1,4 +1,4 @@
-import { applicationCv } from "@/lib/application-documents";
+import { applicationCv,packBoundToJob } from "@/lib/application-documents";
 import { NextResponse } from "next/server";
 import { apiCtx, unauthorized } from "@/lib/server/api";
 import { loadState } from "@/lib/server/state";
@@ -21,6 +21,7 @@ export async function GET(req: Request) {
   if (!["done", "reveal"].includes(st.profile.onboarding_step)) return NextResponse.json({ error: "Complete your current country's setup and rebuild your CV before downloading." }, { status: 409 });
   const app = jobId ? st.apps[jobId] : null;
   if (jobId && !app?.pack) return NextResponse.json({ error: "No application pack for this job." }, { status: 404 });
+  if(app?.pack&&jobId&&!packBoundToJob(app.pack,jobId))return NextResponse.json({error:"Prepare fresh documents for this job."},{status:409});
   // Free trial: a ready application beyond today's one stays locked behind Pro here too (same rule as the job page).
   if (app && (app.status === "ready" || app.status === "reminder") && !(await isPro(c.db, c.userId))) {
     const apps = Object.values(st.apps);
