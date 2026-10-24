@@ -145,3 +145,12 @@ it('exports polished documents without preview-only change highlights or externa
  expect(print).toContain('Tailored professional summary.');
  expect(cvDocHtml(input)).toContain('class="classic"');expect(cvDocHtml(input)).toContain('text-align:left');
 });
+
+it('keeps headline and department in sync in every template, print and Word for legacy CVs',()=>{
+ const master={...DEMO_MASTER,headline:'Cost Accountant',experience:[{title:'Cost Accountant',company:'Old Employer',start:'2015-01',end:'2020-12',location:null,bullets:[]},{title:'Manager',department:'Accounts',company:'New Employer',start:'2021-01',end:null,location:null,bullets:['Managed financial reporting.']}]};
+ for(const tpl of ['corporate','classic','modern','executive'] as const){
+  for(const html of [renderCvHtml({master,country:'BD',style:{tpl}}),cvPrintHtml({master,country:'BD',style:{tpl}}),cvDocHtml({master,country:'BD',style:{tpl}})]){
+   expect(html).toContain('<p class="hl">Manager · Accounts</p>');expect(html).not.toContain('<p class="hl">Cost Accountant</p>');
+  }
+ }
+});

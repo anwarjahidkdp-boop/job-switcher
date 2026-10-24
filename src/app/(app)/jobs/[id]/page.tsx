@@ -81,7 +81,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
-      <div className="jobgrid" style={{ marginTop: 10 }}>
+      <div className="jobgrid document-layout" style={{ marginTop: 10 }}>
         <div className="stack" style={{ gap: 18 }}>
           <div className="card panel">
             <div className="job-review-header">

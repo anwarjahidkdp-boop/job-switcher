@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { closeEarlierRoles } from "@/lib/cv/experience";
+import { careerHeadline, closeEarlierRoles } from "@/lib/cv/experience";
 import { roleSuggestions, experienceNeedsDetails } from "@/lib/cv/role-suggestions";
 import { ManualCvSchema, type ManualCv } from "@/lib/manual-cv";
 
@@ -45,28 +45,28 @@ export function ManualCvEditor({ initial, baseId, country, revision, application
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}><h3>Edit your CV</h3><span className="small muted">{application?"This application only · No AI charge":"No AI charge"}</span></div>
       <fieldset disabled={busy} className="stack" style={{ border: 0, padding: 0, margin: 0, minWidth: 0, gap: 14 }}>
         {field("Full name", cv.name, name => setCv({ ...cv, name }))}
-        {field("Professional headline", cv.headline, headline => setCv({ ...cv, headline }))}
+        <label className="stack small">Professional headline<input value={careerHeadline(cv.experience,cv.headline)} readOnly /><span className="muted">Updates automatically from your latest role and department.</span></label>
         {field("Contact line (email · phone · city)", cv.contact, contact => setCv({ ...cv, contact }))}
         {field("Profile summary", cv.summary, summary => setCv({ ...cv, summary }), true)}
         <h3>Experience</h3>
         {cv.experience.map((e, i) => {
           const change = (patch: Partial<typeof e>) => setCv({ ...cv, experience: closeEarlierRoles(cv.experience.map((x, k) => k === i ? { ...x, ...patch } : x)) });
           return <div className="stack card panel" style={{ gap: 10, scrollMarginTop:90 }} id={`cv-role-${i}`} key={i}>
-            {field("Job title", e.title, title => change({ title }))}{field("Employer", e.company, company => change({ company }))}{field("Location", e.location || "", location => change({ location: location || null }))}
+            {field("Job title", e.title, title => change({ title }))}{field("Department", e.department || "", department => change({ department: department || null }))}{field("Employer", e.company, company => change({ company }))}{field("Location", e.location || "", location => change({ location: location || null }))}
             <div className="row" style={{ alignItems: "start" }}>{field("Start month", e.start || "", start => change({ start: start || null }), false, "month")}{field("End month (blank = Present)", e.end || "", end => change({ end: end || null, autoEnd: false, concurrent: !end }), false, "month")}</div>
             {e.autoEnd ? <p className="small muted" role="status">End month set automatically to the month before your next role starts. You can edit it.</p> : null}
             <label className="small row"><input type="checkbox" checked={!!e.concurrent} onChange={v => change({ concurrent: v.target.checked, ...(v.target.checked ? { end: null, autoEnd: false } : {}) })} />Concurrent role — keep Present alongside another role</label>
             {experienceNeedsDetails(e) ? <p className="note small" role="status"><b>Add details for this role.</b> Select relevant responsibilities below, or write what you did.</p> : null}
             {field("Responsibilities and achievements (one bullet per line)", e.bullets.join("\n"), value => change({ bullets: value.split("\n") }), true)}
-            {roleSuggestions(e.title, e.bullets).length ? <div className="stack" style={{ gap: 6 }} aria-label={`Suggested responsibilities for ${e.title}`}>
+            {roleSuggestions([e.title,e.department].filter(Boolean).join(" "), e.bullets).length ? <div className="stack" style={{ gap: 6 }} aria-label={`Suggested responsibilities for ${e.title}`}>
               <b className="small">Suggested responsibilities</b><p className="small muted">Add only the work you actually did. You can edit each line after adding it. No AI charge.</p>
-              {roleSuggestions(e.title,e.bullets).map(suggestion=><label className="small row cv-responsibility-choice" key={suggestion}><input type="checkbox" checked={(selectedResponsibilities[i]||[]).includes(suggestion)} onChange={event=>setSelectedResponsibilities({...selectedResponsibilities,[i]:event.target.checked ? [...(selectedResponsibilities[i]||[]),suggestion] : (selectedResponsibilities[i]||[]).filter(s=>s!==suggestion)})}/><span>{suggestion}</span></label>)}
-              <button type="button" className="btn btn-ghost btn-sm" disabled={!roleSuggestions(e.title,e.bullets).some(s=>(selectedResponsibilities[i]||[]).includes(s))} onClick={()=>{const picked=roleSuggestions(e.title,e.bullets).filter(s=>(selectedResponsibilities[i]||[]).includes(s));change({bullets:[...e.bullets.filter(b=>b.trim()),...picked]});setSelectedResponsibilities({...selectedResponsibilities,[i]:[]});}}>Add selected responsibilities</button>
+              {roleSuggestions([e.title,e.department].filter(Boolean).join(" "),e.bullets).map(suggestion=><label className="small row cv-responsibility-choice" key={suggestion}><input type="checkbox" checked={(selectedResponsibilities[i]||[]).includes(suggestion)} onChange={event=>setSelectedResponsibilities({...selectedResponsibilities,[i]:event.target.checked ? [...(selectedResponsibilities[i]||[]),suggestion] : (selectedResponsibilities[i]||[]).filter(s=>s!==suggestion)})}/><span>{suggestion}</span></label>)}
+              <button type="button" className="btn btn-ghost btn-sm" disabled={!roleSuggestions([e.title,e.department].filter(Boolean).join(" "),e.bullets).some(s=>(selectedResponsibilities[i]||[]).includes(s))} onClick={()=>{const picked=roleSuggestions([e.title,e.department].filter(Boolean).join(" "),e.bullets).filter(s=>(selectedResponsibilities[i]||[]).includes(s));change({bullets:[...e.bullets.filter(b=>b.trim()),...picked]});setSelectedResponsibilities({...selectedResponsibilities,[i]:[]});}}>Add selected responsibilities</button>
             </div> : null}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCv({ ...cv, experience: closeEarlierRoles(cv.experience.filter((_, k) => k !== i)) })}>Remove this role</button>
           </div>;
         })}
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCv({ ...cv, experience: [...cv.experience, { title: "", company: "", location: null, start: null, end: null, bullets: [] }] })}>Add a role</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCv({ ...cv, experience: [...cv.experience, { title: "", department:null, company: "", location: null, start: null, end: null, bullets: [] }] })}>Add a role</button>
         <h3>Education</h3>
         {cv.education.map((e, i) => {
           const change = (patch: Partial<typeof e>) => setCv({ ...cv, education: cv.education.map((x, k) => k === i ? { ...x, ...patch } : x) });

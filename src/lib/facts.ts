@@ -1,6 +1,6 @@
 // Career facts with provenance. Every fact the generators may use lives here.
 // Rule: generators and matching only ever see facts where verified === true.
-import { closeEarlierRoles, newestExperienceFirst } from "./cv/experience";
+import { experienceLabel, closeEarlierRoles, newestExperienceFirst } from "./cv/experience";
 import { yearsFrom } from "./matching";
 import { cc, type CountryCode } from "./countries";
 import { isEduLevel, isSeniority, LEVEL, normSkill, SKILL_ALIAS, type Seniority } from "./taxonomy";
@@ -76,6 +76,7 @@ export function groundExtraction(x: Extraction, cvText: string): CareerFact[] {
     const data: ExtractedExperience = {
       title: real(e.title), company: real(e.company), industry: real(e.industry) ? real(e.industry).toLowerCase() : null,
       location: e.location ?? null,
+      department: real(e.department) && appearsIn(real(e.department),cvText) ? real(e.department) : null,
       start: yearPresent(e.start, cvText) ? e.start : null,
       end: e.end && yearPresent(e.end, cvText) ? e.end : null,
     };
@@ -139,10 +140,10 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
   const country = cc(input.country);
   return {
     name: input.name,
-    titles: exps.map((e) => e.title),
-    careerBaselineTitle:baseline?.title||"",
+    titles: exps.map(experienceLabel),
+    careerBaselineTitle:baseline?experienceLabel(baseline):"",
     careerBaselineSeniority:baselineSeniority,
-    currentTitle: exps[0]?.title || "",
+    currentTitle: exps[0]?experienceLabel(exps[0]):"",
     currentCompany: exps[0]?.company || "",
     years: yearsFrom(exps),
     seniority: seniorityFromTitle(exps[0]?.title || "") || (isSeniority(input.meta.seniority) ? input.meta.seniority : "mid"),
@@ -151,7 +152,7 @@ export function buildMatchProfile(input: { name: string; facts: CareerFact[]; me
     education: edu.map((e) => ({ degree: e.degree, field: e.field, level: e.level, institution: e.institution, year: e.year, result: e.result })),
     certs: certs.map((c) => ({ name: String(c.name), status: c.status || "qualified" })),
     skills,
-    targetRoles: baseline?.title ? [baseline.title] : input.meta.target_roles || [],
+    targetRoles: baseline?.title ? [experienceLabel(baseline)] : input.meta.target_roles || [],
     locations: locs.length ? locs : country === "BD" ? [input.meta.location || "Dhaka"] : [],
     country,
     salaryMin: Number(p?.salaryMin) || null,

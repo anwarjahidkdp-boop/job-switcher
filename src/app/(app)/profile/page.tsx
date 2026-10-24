@@ -1,3 +1,4 @@
+import {experienceLabel} from "@/lib/cv/experience";
 import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { ApplicationSafetyForm } from "@/components/ApplicationSafetyForm";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
@@ -22,7 +23,7 @@ import { manualDraft } from "@/lib/manual-cv";
 export const metadata = { title: "Profile" };
 
 function describeFact(kind: string, d: Record<string, unknown>): string {
-  if (kind === "experience") return `${d.title}${d.company ? " at " + d.company : " (employer not named on your CV)"}`;
+  if (kind === "experience") return `${experienceLabel({title:String(d.title||""),department:d.department?String(d.department):null})}${d.company ? " at " + d.company : " (employer not named on your CV)"}`;
   if (kind === "education") return `${d.degree}${d.field ? " in " + d.field : ""}${d.institution ? ", " + d.institution : ""}`;
   if (kind === "certification") return `${d.name} (${d.status})`;
   if (kind === "skill") return skillLabel(String(d.name));
@@ -43,7 +44,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
     <>
       <PageHead kicker="Your profile" title={<>Master career <span>profile</span></>} sub="Every application is built from this verified information." />
       <ApplicationProfileNotice country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} onProfile />
-      <div className="dash" style={{ marginTop: 18 }}>
+      <div className="dash document-layout" style={{ marginTop: 18 }}>
         <div>
           <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc", label: "Your Master CV" }} />
           <ManualCvEditor initial={manualDraft(st.master.content, st.facts)} baseId={st.master.id} country={country} revision={st.profile.search_country_version} />
