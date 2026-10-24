@@ -7,7 +7,7 @@ vi.mock('../email/templates',()=>({newMatchesEmail:vi.fn()}));
 vi.mock('./email-outbox',()=>({deliverEmail:vi.fn()}));
 vi.mock('./notify',()=>({notify:vi.fn()}));
 vi.mock('./state',()=>({loadState:mocks.load}));
-vi.mock('../apply-queue',()=>({AUTO_QUEUE_SIZE:3,applyQueue:mocks.queue}));
+vi.mock('../apply-queue',()=>({AUTO_QUEUE_SIZE:3,applyQueue:mocks.queue,queueSafety:(_st:unknown,job:{id:string})=>({safe:job.id!=='unpublished'})}));
 vi.mock('./applications',()=>({preparePack:mocks.prepare,ApplicationSafetyError:class extends Error{}}));
 import { processNewMatches } from './new-matches';
 beforeEach(()=>{vi.clearAllMocks();mocks.prepare.mockResolvedValue({ai:true});mocks.load.mockResolvedValue({apps:{old:{pack:{}}}});mocks.queue.mockReturnValue([{job:{id:'best'}},{job:{id:'next'}}]);});
@@ -20,4 +20,9 @@ it('respects dry-run and explicit no-prepare without spending',async()=>{
  await processNewMatches(db(),['user'],{appUrl:'https://example.com',dryRun:true});
  await processNewMatches(db(),['user'],{appUrl:'https://example.com',prepare:false});
  expect(mocks.prepare).not.toHaveBeenCalled();
+});
+it('does not automatically prepare a selected vacancy awaiting salary verification',async()=>{
+ mocks.queue.mockReturnValue([{job:{id:'unpublished'}},{job:{id:'best'}}]);
+ await processNewMatches(db(),['user'],{appUrl:'https://example.com'});
+ expect(mocks.prepare.mock.calls.map(c=>c[1])).toEqual(['best']);
 });
