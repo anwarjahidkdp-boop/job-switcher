@@ -121,6 +121,8 @@ try{
  await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})});
  const applied=check(await admin.from('applications').select('status,applied_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Synthetic applied status read failed');
  report('external submission confirmation records applied',applied.status==='applied'&&!!applied.applied_at);
+ await probe(`/jobs/${nextJob.id}`,{},(r,t)=>r.status===200&&t.includes('View application status: Applied')&&!t.includes('>Apply</button>')&&!t.includes('>Apply</a>'));
+ await probe('/inbox',{},(r,t)=>r.status===200&&!(t.match(/<a\b[^>]*class="spot"[^>]*>/)?.[0]||'').includes(nextJob.id));
  await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})});
  await probe(`/api/applications/${reviewJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})},r=>r.status===402);
  const interviewDate=new Date(Date.now()+7*86400000).toISOString().slice(0,10);

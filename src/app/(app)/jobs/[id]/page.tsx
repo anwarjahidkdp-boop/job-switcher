@@ -1,3 +1,5 @@
+import {isResolvedApplication} from "@/lib/applied-history";
+import {JobApplicationAction} from "@/components/JobApplicationAction";
 import { ApplicationProgress } from "@/components/ApplicationProgress";
 import { applicationCv,packBoundToJob,canReusePack } from "@/lib/application-documents";
 import { manualDraft } from "@/lib/manual-cv";
@@ -54,8 +56,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const original = (occurrences || []).map(o => publicLink(o.original_source_url)).find(Boolean);
   const storedApp = st.apps[job.id];
   const a=storedApp?.pack&&!packBoundToJob(storedApp.pack,job.id)?{...storedApp,pack:null}:storedApp;
-  const sourceNeedsRefresh=!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
-  const canUpgradeStandard=!!a?.pack&&!a.pack_ai&&!a.pack.user_edited&&aiConfigured();
+  const resolved=isResolvedApplication(a);
+  const sourceNeedsRefresh=!resolved&&!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
+  const canUpgradeStandard=!resolved&&!!a?.pack&&!a.pack_ai&&!a.pack.user_edited&&aiConfigured();
   const packMaster=a?.pack?applicationCv(st.master.content,a.pack):st.master.content;
   // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
   const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
@@ -66,7 +69,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
-  const allowance = (!a?.pack||sourceNeedsRefresh||canUpgradeStandard) && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const allowance = !resolved&&(!a?.pack||sourceNeedsRefresh||canUpgradeStandard) && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
   const needsFreshPack=sourceNeedsRefresh||(canUpgradeStandard&&!!allowance?.left);
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
@@ -77,7 +80,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
     ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
     : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
-  const canPrepare = eligibility.eligible && (!a?.pack||needsFreshPack) && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
+  const canPrepare = !resolved && eligibility.eligible && (!a?.pack||needsFreshPack) && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
       <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
@@ -86,7 +89,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <div className="job-review-header">
               <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
-              <div className="job-review-action">{canPrepare?<PrepareApplicationButton key={job.id} jobId={job.id} label="Apply" openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Apply</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Apply</button>}<Ring score={m.score} band={m.band} /></div>
+              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?<PrepareApplicationButton key={job.id} jobId={job.id} label="Apply" openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Apply</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Apply</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />

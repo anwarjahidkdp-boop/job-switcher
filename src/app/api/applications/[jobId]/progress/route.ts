@@ -1,3 +1,4 @@
+import {revalidatePath} from "next/cache";
 import {NextResponse} from 'next/server';
 import {apiCtx,apiError,unauthorized} from '@/lib/server/api';
 import {readLimitedText} from '@/lib/request-security';
@@ -11,6 +12,7 @@ export async function POST(req:Request,{params}:{params:Promise<{jobId:string}>}
  if(body?.confirm!==true||!['applied','offer','closed','withdrawn'].includes(String(body.action)))return NextResponse.json({error:'Confirm the application update.'},{status:400});
  try{
   if(body.action==='applied')await confirmExternalApplied(c,jobId);else await updateStatus(c,jobId,String(body.action));
+  revalidatePath("/","layout");
   return NextResponse.json({ok:true},{headers:{'Cache-Control':'private, no-store'}});
  }catch(e){if(e instanceof TrialLimit)return NextResponse.json({error:e.message,code:'trial_limit'},{status:402});return apiError(e);}
 }

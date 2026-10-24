@@ -155,6 +155,7 @@ export async function snoozeAction(jobId: string, date: string) {
 export async function statusAction(jobId: string, status: string) {
   const c = await ctx();
   await updateStatus(c, jobId, status);
+  revalidatePath("/","layout");
 }
 
 export async function setReminderPrefAction(on: boolean) {

@@ -1,3 +1,4 @@
+import {revalidatePath} from "next/cache";
 import { NextResponse } from "next/server";
 import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
 import { GmailError, sendApplication } from "@/lib/server/gmail";
@@ -10,7 +11,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ jobId: 
   const body = (await req.json().catch(() => ({}))) as { confirm?: boolean };
   if (body.confirm !== true) return NextResponse.json({ error: "Press Apply to confirm sending." }, { status: 400 });
   const { jobId } = await params;
-  try { return NextResponse.json(await sendApplication(c, jobId)); }
+  try { const result=await sendApplication(c,jobId);revalidatePath("/","layout");return NextResponse.json(result); }
   catch (e) {
     if (e instanceof TrialLimit) return NextResponse.json({ error: e.message, code: "trial_limit" }, { status: 402 });
     if (e instanceof GmailError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.code === "google" ? 502 : 409 });

@@ -1,3 +1,4 @@
+import {isResolvedApplication} from "@/lib/applied-history";
 import { applyQueue, queueSafety } from "@/lib/apply-queue";
 import { FitOverviewCard, fitTiles, dashboardFitSummary } from "@/components/FitOverviewCard";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
@@ -26,9 +27,10 @@ export const metadata = { title: "Opportunities" };
 
 export default async function Inbox() {
   const { st, db } = await requireAppState("/inbox");
-  const P = st.P, s = stats(st), country = st.country;
-  const {ranked:list,featured:best,remaining}=opportunitySections(st.scored,st.dismissed);
-  const fit = dashboardFitSummary(st.scored);
+  const availableScored=st.scored.filter(x=>!isResolvedApplication(st.apps[x.job.id]));
+  const P = st.P, s = stats({...st,scored:availableScored}), country = st.country;
+  const {ranked:list,featured:best,remaining}=opportunitySections(availableScored,st.dismissed,st.apps);
+  const fit = dashboardFitSummary(availableScored);
   const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, remaining.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
@@ -83,7 +85,7 @@ export default async function Inbox() {
           </div>
         </div>
       ))}
-      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(st.scored)[1]} rows={st.scored} guidanceHref="/insights#career-guidance"/>}/>
+      <KpiStrip items={kpis} afterFirst={<FitOverviewCard compact tile={fitTiles(availableScored)[1]} rows={availableScored} guidanceHref="/insights#career-guidance"/>}/>
 
       <TodayCard plan={plan} done={done} items={notes.filter((n) => !n.read_at).slice(0, 3)} summary={summary} />
 
@@ -91,12 +93,12 @@ export default async function Inbox() {
         <Link prefetch={false} className="spot" href={`/jobs/${best.job.id}`}>
           <div className="spot-ring"><Ring score={best.m.score} band={best.m.band} /></div>
           <div className="spot-txt">
-            <span className="spot-k">Your best match right now</span>
+            <span className="spot-k">Your next best match</span>
             <b>{best.job.title}</b>
             <span className="spot-m">{best.job.company}{best.job.location ? ` · ${best.job.location}` : ""}</span>
             {best.m.matched.length ? <span className="spot-why">{best.m.matched.slice(0, 3).map((t) => "✓ " + t).join("  ")}</span> : null}
           </div>
-          <span className="spot-go">{st.apps[best.job.id]?.applied_at?"View application →":"Review opportunity →"}</span>
+          <span className="spot-go">Review opportunity →</span>
         </Link>
       ) : null}
       <div className="dash" id="matches">
@@ -108,7 +110,7 @@ export default async function Inbox() {
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>
                 {items.map((x) => <OppRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
               </div>
-            )) : best ? <p className="muted" style={{padding:16}}>Your highest match is featured above. More suitable opportunities will appear here.</p> : s.analysed
+            )) : !list.length && Object.values(st.apps).some(isResolvedApplication) ? <p className="muted" style={{padding:16}}>You’re up to date. Your submitted applications are in <Link href="/applications">Applied</Link>. New opportunities will appear here.</p> : best ? <p className="muted" style={{padding:16}}>Your highest match is featured above. More suitable opportunities will appear here.</p> : s.analysed
               ? <p className="muted" style={{ padding: 16 }}>No Good Fit or better right now. We checked {s.analysed} jobs; try adding target roles or skills in your profile.</p>
               : <p className="muted" style={{ padding: 16 }}>No jobs in {cname(country)} yet. Paste a job you found, or set up automatic job alerts.</p>}
           </div>

@@ -1,3 +1,5 @@
+import {isResolvedApplication} from "./applied-history";
+import type {ApplicationRow} from "./server/state";
 import { eligibilityCheck } from "./eligibility";
 import { seniorityFromTitle } from "./jobs";
 // Deterministic job matching, ported faithfully from the prototype's scoreJob().
@@ -227,8 +229,8 @@ export function inboxList(scored: Scored[], dismissed: Set<string>): Scored[] {
 }
 
 /** Feature the current highest fit once; preparation state must never outrank fit. */
-export function opportunitySections(scored:Scored[],dismissed:Set<string>){
- const ranked=inboxList(scored,dismissed);
+export function opportunitySections(scored:Scored[],dismissed:Set<string>,apps:Record<string,ApplicationRow>={}){
+ const ranked=inboxList(scored.filter(x=>!isResolvedApplication(apps[x.job.id])),dismissed);
  return {ranked,featured:ranked[0]||null,remaining:ranked.slice(1)};
 }
 
