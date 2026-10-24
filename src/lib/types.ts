@@ -145,6 +145,7 @@ export interface ApplicationPack {
   edited_cv?: MasterCV;
   prepared_for?: {job_id:string;source_cv_id:string};
   preparation_note?:string;
+  user_edited?:boolean;
   summary: string;
   top_bullets: string[];
   skills_order: string[];

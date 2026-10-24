@@ -96,7 +96,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
-  if (app.pack && canReusePack(app.pack,job.id,st.master.id)) return {flags:app.pack_flags||[],ai:app.pack_ai};
+  if (app.pack && canReusePack(app.pack,job.id,st.master.id) && (app.pack_ai || app.pack.user_edited || opts.standardOnly || !aiConfigured())) return {flags:app.pack_flags||[],ai:app.pack_ai};
   await event(ctx, app.id, "Preparing application");
   if (app.status !== "reminder") {
     const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
@@ -183,6 +183,22 @@ export async function confirmApplied(ctx: Ctx, jobId: string) {
   if (error) throw error;
   await ctx.db.from("reminders").delete().eq("application_id", app.id).is("sent_at", null);
   await event(ctx, app.id, "You confirmed: applied", "applied");
+}
+
+/** Records a user's explicit report of an external submission; it never sends an application. */
+export async function confirmExternalApplied(ctx:Ctx,jobId:string){
+ const job=await requireJob(ctx,jobId);
+ const app=await getApp(ctx,job.id);
+ if(!app?.pack)throw new Error('Prepare this application first.');
+ if(SUBMITTED.includes(app.status))return;
+ if(!['ready','reminder','waiting'].includes(app.status))throw new Error('This application is still being prepared.');
+ await assertCanApply(ctx);
+ const saved=await ctx.db.from('applications').update({status:'applied'}).eq('id',app.id).eq('user_id',ctx.userId).is('sending_at',null).in('status',['ready','reminder','waiting']).select('id').maybeSingle();
+ if(isTrialLimitError(saved.error))throw new TrialLimit(TRIAL_LIMIT_COPY);
+ if(saved.error)throw saved.error;
+ if(!saved.data)throw new Error('This application changed or is being sent. Reload its status before confirming.');
+ await ctx.db.from('reminders').delete().eq('application_id',app.id).is('sent_at',null);
+ await event(ctx,app.id,'You confirmed: applied externally','applied');
 }
 
 const LATER: AppStatus[] = ["interview", "offer", "closed", "withdrawn"];

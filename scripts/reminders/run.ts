@@ -1,3 +1,4 @@
+import {sendDeadlineAlerts} from '../../src/lib/server/deadlines';
 // Sends due "apply later" reminders (GitHub Actions: .github/workflows/reminders.yml).
 //   npm run reminders [-- --dry-run]
 import { scriptAdmin, hasFlag } from "../lib/admin";
@@ -12,8 +13,10 @@ async function main() {
   console.log(`reminders: checked ${r.checked}, sent ${r.sent}, skipped ${r.skipped}, failed ${r.failed}`);
   const n = await sendNudges(scriptAdmin(), { appUrl, dryRun: hasFlag("dry-run") });
   console.log(`nudges: ${n.notified} notification(s), ${n.emailed} email(s), ${n.failed} failed`);
+  const deadlines=await sendDeadlineAlerts(scriptAdmin(),{appUrl,dryRun:hasFlag("dry-run")});
+  console.log(`deadlines: ${deadlines.users} user(s), ${deadlines.notified} notification(s), ${deadlines.emailChecks} email check(s), ${deadlines.failed} failed`);
   const outbox = hasFlag("dry-run") ? { failed: 0 } : await flushEmailOutbox(scriptAdmin());
-  if (r.failed || n.failed || outbox.failed) process.exitCode = 1;
+  if (r.failed || n.failed || deadlines.failed || outbox.failed) process.exitCode = 1;
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

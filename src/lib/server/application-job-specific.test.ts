@@ -39,5 +39,9 @@ it('generates the next job from its own post and latest master, then reuses only
  expect(ai).toHaveBeenCalledTimes(4);
  expect(prompts.slice(-2).every(p=>p.includes('LATEST_MASTER_CONTENT')&&p.includes('B Company'))).toBe(true);
  expect(app.pack).toMatchObject({prepared_for:{job_id:'b',source_cv_id:'new-cv'}});
+ app={...app,pack_ai:false};
+ await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(6);
+ app={...app,pack_ai:false,pack:{...(app.pack as Record<string,unknown>),user_edited:true}};
+ await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(6);
  expect(st.apps.a.pack).toEqual(oldPack);
 });

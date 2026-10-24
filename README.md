@@ -299,3 +299,12 @@ Inbox and Profile show outstanding application answers. Salary preferences suppo
 The opportunity list always explains the 90% Strong Fit threshold. When no relevant open match reaches it, it shows the closest current score, evidenced skill gaps, other known barriers and learning/profile links. It never fabricates missing skills or promises a particular score increase. All guidance and completion checks are deterministic.
 
 Inter and Manrope Latin font assets are bundled locally with their OFL licenses, removing the Google-font build step that intermittently failed in Turbopack.
+
+
+### Application progress and deadline alerts
+
+Ready to Apply opens the selected job directly. Reviewing never prepares documents: Apply explicitly prepares a job-specific snapshot, then opens the application pack. CV and cover letter each have View, Edit and Download. Manual document edits stay with that application. Replacing a recommendation cannot reuse another job's documents.
+
+After sending externally, choose **I've applied** in the pack. This records the user's confirmation and consumes the shared application allowance; downloading or copying alone never marks an application as sent. Add interview details to track an interview, then choose **Offer received** when appropriate. These are user-reported milestones, not a claim that an employer received an email.
+
+The hourly reminder runner checks selected, eligible jobs after 08:00 in the current search country's timezone. In-app deadline alerts occur three days before, one day before and on the closing date. Email reminders require opt-in and a confirmed account email, with one deadline digest per country/local date. Repeated runs deduplicate alerts. Delivery rechecks current country, selection and deadline; removed, applied, expired or closed jobs are excluded. Unknown dates are never invented. A date-only deadline asks the user to check the exact closing time on the original post. These are in-app and email alerts; native phone push is not implemented.

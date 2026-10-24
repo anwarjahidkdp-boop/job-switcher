@@ -1,3 +1,4 @@
+import { ApplicationProgress } from "@/components/ApplicationProgress";
 import { applicationCv,packBoundToJob,canReusePack } from "@/lib/application-documents";
 import { manualDraft } from "@/lib/manual-cv";
 import { ManualCvEditor } from "@/components/ManualCvEditor";
@@ -53,7 +54,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const original = (occurrences || []).map(o => publicLink(o.original_source_url)).find(Boolean);
   const storedApp = st.apps[job.id];
   const a=storedApp?.pack&&!packBoundToJob(storedApp.pack,job.id)?{...storedApp,pack:null}:storedApp;
-  const needsFreshPack=!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
+  const sourceNeedsRefresh=!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
+  const canUpgradeStandard=!!a?.pack&&!a.pack_ai&&!a.pack.user_edited&&aiConfigured();
   const packMaster=a?.pack?applicationCv(st.master.content,a.pack):st.master.content;
   // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
   const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
@@ -64,7 +66,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
-  const allowance = (!a?.pack||needsFreshPack) && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const allowance = (!a?.pack||sourceNeedsRefresh||canUpgradeStandard) && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const needsFreshPack=sourceNeedsRefresh||(canUpgradeStandard&&!!allowance?.left);
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
   const pro = await isPro(db, st.userId);
@@ -123,10 +126,6 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             const fu = to ? followUpDraft({ jobTitle: job.title, company: job.company, appliedOn: a.applied_at, name: st.profile.full_name || st.master.content.name, currentTitle: st.P.currentTitle || null, email: st.profile.email, phone: st.profile.phone }) : null;
             return <ReplyPanel jobId={job.id} company={job.company} daysSince={since} followUp={fu} to={to} canFollowUp={since >= FOLLOWUP_DAYS} followUps={followUps} />;
           })() : null}
-          {a && ["applied", "interview", "offer"].includes(a.status) ? (
-            <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
-              prep={a.interview_prep ?? null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
-          ) : null}
           {lockedPack ? (
             <div className="card panel upsell application-workspace" id="application">
               <p className="eyebrow">Your application is ready</p>
@@ -163,7 +162,12 @@ export default async function JobPage({ params, searchParams }: { params: Promis
                 to={job.apply.method === "email" ? job.apply.target : null}
                 checklist={a.pack.checklist || []}
               />
+              <ApplicationProgress key={`progress-${job.id}`} jobId={job.id} status={a.status} appliedAt={a.applied_at} interviewAt={a.interview_at} history={a.application_events||[]} trial={!pro} remaining={room}/>
             </div>
+          ) : null}
+          {a && ["applied", "interview", "offer"].includes(a.status) ? (
+            <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
+              prep={a.interview_prep ?? null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
           ) : null}
         </div>
         <aside className="side">

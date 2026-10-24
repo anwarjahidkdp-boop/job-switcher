@@ -1,13 +1,16 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("../email/send", async (original) => ({ ...await original<typeof import("../email/send")>(), sendEmail: vi.fn() }));
+vi.mock("./state",()=>({loadState:vi.fn()}));
+import {loadState} from "./state";
+import type {UserState} from "./state";
 import { EmailDeliveryError, sendEmail } from "../email/send";
 import { deliverEmail, flushEmailOutbox } from "./email-outbox";
 
 function fixture() {
   const rows: Record<string, unknown>[] = [];
   const state = { ackError: false, optedOut: false };
-  const db = { from(table: string) {
+  const db = { auth:{admin:{getUserById:async()=>({data:{user:{email:'verified@example.invalid',email_confirmed_at:'2026-01-01'}},error:null})}}, from(table: string) {
     let patch: Record<string,unknown>|undefined, insert: Record<string,unknown>|undefined;
     const filters: ((r: Record<string,unknown>)=>boolean)[] = [];
     const q = { select:()=>q, maybeSingle:()=>q, limit:()=>q,
@@ -29,7 +32,7 @@ function fixture() {
 }
 const message={to:'test@example.invalid',subject:'Synthetic test',html:'test',text:'test'};
 beforeEach(()=>{vi.mocked(sendEmail).mockReset();vi.mocked(sendEmail).mockResolvedValue({id:'provider-id'});});
-afterEach(()=>vi.restoreAllMocks());
+afterEach(()=>{vi.useRealTimers();vi.restoreAllMocks();});
 describe('durable email delivery',()=>{
   it('only delivers once across concurrent workers and repeated scheduling',async()=>{
     const x=fixture();await Promise.all([deliverEmail(x.db,'u','key',message),deliverEmail(x.db,'u','key',message)]);
@@ -63,4 +66,29 @@ describe('durable email delivery',()=>{
     q.then=(r:(x:unknown)=>unknown)=>r({error:new Error('read failed')});
     await expect(flushEmailOutbox({from:()=>q} as unknown as SupabaseClient)).rejects.toThrow('read failed');
   });
+});
+
+describe('deadline email delivery revalidation',()=>{
+ const payload={...message,deadlineContext:{country:'BD',date:'2026-10-24',jobIds:['j'],appUrl:'https://jobpao.app'}};
+ function current(){return {P:{salaryMin:null,workAuthorization:'yes'},country:'BD',today:'2026-10-24',profile:{preferences:null,deal_breakers:{},answer_library:{},needs_visa:false},dismissed:new Set(),apps:{},scored:[{job:{id:'j',deadline:'2026-10-27',country:'BD',active:true,title:'Current Accounts Manager',company:'Current Employer',minYears:0},m:{score:79,relevant:true,expired:false}}]} as unknown as UserState;}
+ beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));});
+ it('rebuilds the digest from current selection and confirmed account email',async()=>{
+  const x=fixture();vi.mocked(loadState).mockResolvedValue(current());
+  expect(await deliverEmail(x.db,'u','deadline',payload)).toBe('sent');
+  expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({to:'verified@example.invalid',text:expect.stringContaining('Current Accounts Manager')}),expect.any(String));
+ });
+ it('cancels removed jobs permanently without sending',async()=>{
+  const x=fixture(),st=current();st.dismissed.add('j');vi.mocked(loadState).mockResolvedValue(st);
+  expect(await deliverEmail(x.db,'u','deadline',payload)).toBe('canceled');
+  expect(await deliverEmail(x.db,'u','deadline',payload)).toBe('canceled');expect(sendEmail).not.toHaveBeenCalled();
+ });
+ it('cancels a country change without sending',async()=>{
+  const x=fixture(),st=current();st.country='GB';vi.mocked(loadState).mockResolvedValue(st);
+  expect(await deliverEmail(x.db,'u','deadline',payload)).toBe('canceled');expect(sendEmail).not.toHaveBeenCalled();
+ });
+ it('keeps a failed validation pending without contacting the provider',async()=>{
+  const x=fixture();vi.mocked(loadState).mockRejectedValue(new Error('read unavailable'));
+  await expect(deliverEmail(x.db,'u','deadline',payload)).rejects.toThrow('read unavailable');
+  expect(x.rows[0].status).toBe('pending');expect(sendEmail).not.toHaveBeenCalled();
+ });
 });
