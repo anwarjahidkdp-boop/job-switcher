@@ -1093,3 +1093,10 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 
 .apply-queue-item{grid-template-columns:minmax(0,1fr) auto}
 @media(max-width:760px){.apply-queue-item{grid-template-columns:minmax(0,1fr)}.apply-queue-item>.row{flex-wrap:wrap}}
+
+/* Eligibility-review rows have no score-ring column; keep their content full width. */
+.queue-held-item{min-width:0;margin-top:12px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow-wrap:anywhere}
+.queue-held-item h4{font-size:14px;line-height:1.45;margin:0 0 6px}
+.queue-held-item p{margin:6px 0;line-height:1.5}
+.queue-held-item .btn{max-width:100%;white-space:normal;text-align:left}
+.queue-held-item:last-of-type{margin-bottom:12px}
