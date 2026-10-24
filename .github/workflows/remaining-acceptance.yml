@@ -1,0 +1,43 @@
+name: Remaining launch acceptance
+on:
+  push:
+    branches: ['acceptance/**']
+permissions:
+  contents: read
+concurrency:
+  group: launch-acceptance
+  cancel-in-progress: false
+jobs:
+  authenticated-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      JOBPAO_ACCEPTANCE_ACK: synthetic-only
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GMAIL_TOKEN_KEY: ${{ secrets.GMAIL_TOKEN_KEY }}
+      LEMONSQUEEZY_API_KEY: ${{ secrets.LEMONSQUEEZY_API_KEY }}
+      LEMONSQUEEZY_STORE_ID: ${{ secrets.LEMONSQUEEZY_STORE_ID }}
+      LEMONSQUEEZY_VARIANT_ID: ${{ secrets.LEMONSQUEEZY_VARIANT_ID }}
+      LEMONSQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMONSQUEEZY_WEBHOOK_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Disposable authenticated acceptance without AI or external application submission
+        run: node scripts/audit/authenticated-acceptance.mjs
+      - name: Ensure only our marked synthetic account is removed
+        if: always()
+        run: node scripts/audit/authenticated-acceptance.mjs --cleanup
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: authenticated-acceptance
+          path: authenticated-acceptance-results.json
