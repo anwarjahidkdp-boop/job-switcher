@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import {readLimitedText} from '@/lib/request-security';
 import {apiCtx,apiError,unauthorized} from '@/lib/server/api';
 import {loadState} from '@/lib/server/state';
 import {hasPro} from '@/lib/server/applications';
@@ -9,7 +10,7 @@ export async function POST(req:Request,{params}:{params:Promise<{jobId:string}>}
  const c=await apiCtx();if(!c)return unauthorized();
  const {jobId}=await params;
  if(!/^[0-9a-f-]{36}$/i.test(jobId))return NextResponse.json({error:'Invalid application.'},{status:400});
- const raw=await req.text();if(raw.length>200000)return NextResponse.json({error:'This document is too large.'},{status:413});
+ let raw:string;try{raw=await readLimitedText(req,200000);}catch{return NextResponse.json({error:'This document is too large.'},{status:413});}
  let body:unknown;try{body=JSON.parse(raw);}catch{return NextResponse.json({error:'Invalid document.'},{status:400});}
  const parsed=ApplicationDocumentSchema.safeParse(body);if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message||'Check the document fields.'},{status:400});
  try{

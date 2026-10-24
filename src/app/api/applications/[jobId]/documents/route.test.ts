@@ -37,3 +37,8 @@ it('stores a full CV override inside the application rather than changing the ma
  const r=await POST(request({document:'cv',baseUpdatedAt:'v1',cv}),params);expect(r.status).toBe(200);
  expect(x.writes[0]).toMatchObject({pack:{edited_cv:{summary:cv.summary},summary:cv.summary,cover_letter:'Original'}});
 });
+
+it("bounds document reads before parsing oversized content",async()=>{
+ fixture();const r=await POST(new Request("https://jobpao.app/api/applications/"+id+"/documents",{method:"POST",body:"x".repeat(200001)}),params);
+ expect(r.status).toBe(413);expect(loadState).not.toHaveBeenCalled();
+});
