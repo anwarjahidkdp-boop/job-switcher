@@ -1,4 +1,4 @@
-name: Send apply-later reminders
+name: Send reminders and deadline alerts
 on:
   schedule:
     - cron: "0 * * * *"    # hourly; each user gets reminders on their own local morning

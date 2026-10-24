@@ -1,3 +1,4 @@
+import {sendDeadlineAlerts} from "@/lib/server/deadlines";
 import { NextResponse } from "next/server";
 import { safeEqual } from "@/lib/server/api";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,5 +13,6 @@ export async function GET(req: Request) {
   const auth = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!secret || !safeEqual(auth, secret)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const r = await sendDueReminders(createAdminClient(), { appUrl: publicEnv.appUrl });
-  return NextResponse.json(r);
+  const deadlines=await sendDeadlineAlerts(createAdminClient(),{appUrl:publicEnv.appUrl});
+  return NextResponse.json({...r,deadlines});
 }

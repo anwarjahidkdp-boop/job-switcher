@@ -1,6 +1,7 @@
 // Disposable owner QA only. Never sends mail, calls an AI model, charges money or visits employer sites.
 import {createClient} from '@supabase/supabase-js';
 import {createServerClient} from '@supabase/ssr';
+import {execFileSync} from 'node:child_process';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 const origin='https://jobpao.app', expected='hplxsueitluutdbkbupi';
@@ -107,6 +108,20 @@ try{
  await probe(`/api/applications/${nextJob.id}/prepare`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({standard:true})});
  const samePack=check(await admin.from('applications').select('updated_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Idempotent preparation read failed');
  report('reopening the same fresh pack does not regenerate it',samePack.updated_at===nextPack.updated_at);
+ // Only this explicitly marked disposable account is used for progress/deadline QA.
+ const deadlineQA=JSON.parse(execFileSync('node_modules/.bin/tsx',['--conditions=react-server','scripts/audit/deadline-acceptance.ts'],{encoding:'utf8',env:{...process.env,NEXT_PUBLIC_SUPABASE_URL:url,QA_OWNER_ID:userId,QA_TAG:tag,QA_JOB_ID:nextJob.id}}).trim());
+ report('selected deadline alerts deduplicate without email',deadlineQA.pass===true);
+ await probe(`/jobs/${nextJob.id}`,{},(r,t)=>r.status===200&&t.includes('Track your application')&&t.includes('Email draft'));
+ await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})});
+ const applied=check(await admin.from('applications').select('status,applied_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Synthetic applied status read failed');
+ report('external submission confirmation records applied',applied.status==='applied'&&!!applied.applied_at);
+ await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})});
+ await probe(`/api/applications/${reviewJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'applied',confirm:true})},r=>r.status===402);
+ const interviewDate=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+ await probe(`/api/applications/${nextJob.id}/interview`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({date:interviewDate,time:'10:00',mode:'phone',tzOffsetMin:0,notes:'Synthetic interview tracking only'})});
+ await probe(`/api/applications/${nextJob.id}/progress`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'offer',confirm:true})});
+ const offered=check(await admin.from('applications').select('status,applied_at,interview_at').eq('user_id',userId).eq('job_id',nextJob.id).single(),'Synthetic offer read failed');
+ report('offer retains interview and immutable applied timestamp',offered.status==='offer'&&!!offered.interview_at&&offered.applied_at===applied.applied_at);
  const foreign=await user.from('profiles').select('id').neq('id',userId).limit(1);report('cross-user profile access blocked',!foreign.error&&foreign.data.length===0);
  const {count,error}=await admin.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',userId);report('acceptance used no AI calls',!error&&count===0);
  await probe('/api/account/export',{},(r,t)=>r.status===200&&JSON.parse(t).profiles?.[0]?.id===userId);

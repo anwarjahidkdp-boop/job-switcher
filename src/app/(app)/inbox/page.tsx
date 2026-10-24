@@ -6,7 +6,7 @@ import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { subscriptionOf, requireAppState } from "@/lib/server/page";
 import { stats } from "@/lib/server/state";
-import { inboxList, type Scored } from "@/lib/matching";
+import { opportunitySections, type Scored } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
 import { cname, money, perLabel, portals } from "@/lib/countries";
 import { daysUntil } from "@/lib/dates";
@@ -27,9 +27,9 @@ export const metadata = { title: "Opportunities" };
 export default async function Inbox() {
   const { st, db } = await requireAppState("/inbox");
   const P = st.P, s = stats(st), country = st.country;
-  const list = inboxList(st.scored, st.dismissed);
+  const {ranked:list,featured:best,remaining}=opportunitySections(st.scored,st.dismissed);
   const fit = dashboardFitSummary(st.scored);
-  const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  const groups = (["ex", "st", "po", "lo"] as Band[]).map((b) => [b, remaining.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
   const queue = applyQueue(st).slice(0, 4);
@@ -69,7 +69,6 @@ export default async function Inbox() {
     { label: "Interviews", n: s.interviews, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
     { label: "Offers", n: s.offers, href: "/applications", tone: "gold", icon: '<circle cx="12" cy="9" r="6"/><path d="m8 14-1 7 5-3 5 3-1-7M9 9l2 2 4-4"/>', hint: "Job offers received" },
   ];
-  const best = list.find((x) => !st.apps[x.job.id]) || list[0];
 
   return (
     <>
@@ -97,7 +96,7 @@ export default async function Inbox() {
             <span className="spot-m">{best.job.company}{best.job.location ? ` · ${best.job.location}` : ""}</span>
             {best.m.matched.length ? <span className="spot-why">{best.m.matched.slice(0, 3).map((t) => "✓ " + t).join("  ")}</span> : null}
           </div>
-          <span className="spot-go">Review opportunity →</span>
+          <span className="spot-go">{st.apps[best.job.id]?.applied_at?"View application →":"Review opportunity →"}</span>
         </Link>
       ) : null}
       <div className="dash" id="matches">
@@ -109,7 +108,7 @@ export default async function Inbox() {
                 <div className="group-h"><BandPill band={b} /><span className="small muted">{items.length}</span></div>
                 {items.map((x) => <OppRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
               </div>
-            )) : s.analysed
+            )) : best ? <p className="muted" style={{padding:16}}>Your highest match is featured above. More suitable opportunities will appear here.</p> : s.analysed
               ? <p className="muted" style={{ padding: 16 }}>No Good Fit or better right now. We checked {s.analysed} jobs; try adding target roles or skills in your profile.</p>
               : <p className="muted" style={{ padding: 16 }}>No jobs in {cname(country)} yet. Paste a job you found, or set up automatic job alerts.</p>}
           </div>

@@ -226,6 +226,12 @@ export function inboxList(scored: Scored[], dismissed: Set<string>): Scored[] {
   return scored.filter((x) => x.m.relevant && !x.m.expired && !dismissed.has(x.job.id) && x.m.score >= 55).sort((a, b) => b.m.score - a.m.score);
 }
 
+/** Feature the current highest fit once; preparation state must never outrank fit. */
+export function opportunitySections(scored:Scored[],dismissed:Set<string>){
+ const ranked=inboxList(scored,dismissed);
+ return {ranked,featured:ranked[0]||null,remaining:ranked.slice(1)};
+}
+
 export function skillDemand(scored: Scored[], P: MatchProfile) {
   const rel = scored.filter((x) => x.m.relevant);
   const set = hasSkillSet(P);

@@ -1127,3 +1127,12 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .application-document-card .row{gap:7px;flex-wrap:wrap;margin-top:12px}
 .application-document-panel{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
 @media(max-width:600px){.application-document-grid{grid-template-columns:minmax(0,1fr)}}
+
+.application-email-card{margin-top:16px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-left:4px solid var(--gold);border-radius:12px;background:var(--accent-soft)}
+.application-email-card h3{font-size:17px;color:var(--ink)}
+.application-email-card p{margin:7px 0 12px}
+.application-progress{margin-top:18px;padding:16px;border:1px solid var(--line);border-top:3px solid var(--good);border-radius:12px;scroll-margin-top:110px}
+.application-progress p{margin:10px 0;line-height:1.5}
+.application-progress-steps{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.application-progress-steps span{font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg);color:var(--ink-2)}
+.application-progress-steps span[data-reached="true"]{background:var(--good-soft);color:var(--good);font-weight:700}
