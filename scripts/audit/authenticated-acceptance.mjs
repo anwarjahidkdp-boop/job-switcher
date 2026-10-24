@@ -53,7 +53,7 @@ try{
  const profile=check(await admin.from('profiles').select('search_country_version').eq('id',userId).single(),'Synthetic profile read failed');
  check(await user.auth.signInWithPassword({email,password}),'Synthetic authentication failed');
  report('authenticated cookie session',jar.size>0);
- for(const path of ['/profile','/inbox','/queue','/applications'])await probe(path);
+ for(const path of ['/profile','/inbox','/queue','/applications'])await probe(path,{},r=>path==='/queue'?[200,307,308].includes(r.status):r.status===200);
  await probe('/api/onboarding/prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({country:'BD',revision:profile.search_country_version,prefs:{locations:'Dhaka',salaryMin:70000,salaryMax:90000,notice:30,mode:'Any'},personal:{dob:'1986-01-15',references:[]}})});
  const cv={...master,summary:'Synthetic edited summary saved without AI.',education:[{degree:'Bachelors',field:'accounting',institution:'Synthetic QA College',year:'2010',level:'bachelors',result:null}],certifications:[]};
  await probe('/api/cv/manual',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({baseId:initial.id,country:'BD',revision:profile.search_country_version,cv})});
@@ -62,15 +62,28 @@ try{
  for(const format of ['doc','print'])await probe(`/api/cv/download?format=${format}`,{},(r,t)=>r.status===200&&t.includes('Synthetic edited summary'));
  // Private, disposable job: validates the exact queue → prepare → CV/letter flow without AI.
  const reviewJob=check(await admin.from('jobs').insert({owner_id:userId,source_kind:'paste',source_label:'Synthetic acceptance only',country:'BD',title:'Accounts Manager',company:'Synthetic QA Employer',category:'Finance & Accounting',industry:'services',location:'Dhaka',seniority:'manager',employment_type:'Permanent',min_years:0,required_skills:['financial reporting'],responsibilities:['Prepare financial reports.'],salary_min:null,salary_max:null,active:true,raw:{eligibility:{}},apply_method:'unknown'}).select('id').single(),'Synthetic review job setup failed');
- await probe('/queue',{},(r,t)=>r.status===200&&t.includes('Ready to')&&t.includes('queue-review-cta'));
+ await probe('/queue',{},(r,t)=>[200,307,308].includes(r.status)&&(r.headers.get('location')||t.match(/url=([^"]+)/i)?.[1]||'').includes('/jobs/'));
  await probe(`/jobs/${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('job-review-action')&&t.includes('>Apply</button>'));
  const beforeApply=await admin.from('applications').select('id',{count:'exact',head:true}).eq('user_id',userId).eq('job_id',reviewJob.id);
  report('reviewing the job does not prepare a pack',!beforeApply.error&&beforeApply.count===0);
  await probe(`/api/applications/${reviewJob.id}/prepare`,{method:'POST'},(r,t)=>r.status===200&&JSON.parse(t).ai===false&&JSON.parse(t).flags.some(f=>f.includes('Salary not disclosed')));
- const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
+ const reviewPack=check(await admin.from('applications').select('pack,pack_ai,applied_at,updated_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Synthetic review pack read failed');
  report('review draft contains CV, cover letter and email without submission',!!reviewPack.pack?.summary&&!!reviewPack.pack?.cover_letter&&!!reviewPack.pack?.email_body&&reviewPack.pack_ai===false&&reviewPack.applied_at===null);
- await probe(`/jobs/${reviewJob.id}?application=review&prepared=1`,{},(r,t)=>r.status===200&&t.includes('id="application"')&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter')&&t.includes('Review before applying'));
- for(const format of ['doc','print'])await probe(`/api/cv/download?document=cover&format=${format}&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Dear Hiring Manager'));
+ await probe(`/jobs/${reviewJob.id}?application=review&prepared=1`,{},(r,t)=>r.status===200&&t.includes('id="application"')&&t.includes('Your application pack')&&t.includes('Prepared specifically for this application')&&t.includes('Synthetic QA Employer')&&t.includes('Cover letter document actions')&&t.includes('CV document actions')&&t.includes('Review before applying'));
+ // Application edits are manual and must affect these downloads without changing the master.
+ const editedLetter='Dear Hiring Manager,\n\nSynthetic edited cover letter for this application only.';
+ await probe(`/api/applications/${reviewJob.id}/documents`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({document:'cover',baseUpdatedAt:reviewPack.updated_at,text:editedLetter})});
+ const afterLetter=check(await admin.from('applications').select('pack,updated_at').eq('user_id',userId).eq('job_id',reviewJob.id).single(),'Edited letter read failed');
+ report('manual cover letter persisted',afterLetter.pack.cover_letter===editedLetter);
+ const applicationCv={...cv,summary:'Synthetic application-only CV summary.'};
+ await probe(`/api/applications/${reviewJob.id}/documents`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({document:'cv',baseUpdatedAt:afterLetter.updated_at,cv:applicationCv})});
+ await probe(`/api/applications/${reviewJob.id}/documents`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({document:'cover',baseUpdatedAt:reviewPack.updated_at,text:'Stale edit must fail'})},r=>r.status===409);
+ const unchangedMaster=check(await admin.from('master_cvs').select('content').eq('user_id',userId).eq('is_current',true).single(),'Master CV isolation read failed');
+ report('application CV edit preserves master CV',unchangedMaster.content.summary===cv.summary);
+ for(const format of ['doc','print']){
+  await probe(`/api/cv/download?format=${format}&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes(applicationCv.summary));
+  await probe(`/api/cv/download?document=cover&format=${format}&jobId=${reviewJob.id}`,{},(r,t)=>r.status===200&&t.includes('Synthetic edited cover letter'));
+ }
  // Synthetic JPEG only; never uploads or modifies a real person's photo.
  const jpeg=Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzWiiivSOA/9k=','base64');let previousPhoto;
  for(let attempt=0;attempt<2;attempt++){

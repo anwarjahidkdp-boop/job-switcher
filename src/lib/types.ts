@@ -141,6 +141,8 @@ export interface InterviewPrep {
 }
 
 export interface ApplicationPack {
+  /** User-edited CV for this application only; the master profile is unchanged. */
+  edited_cv?: MasterCV;
   summary: string;
   top_bullets: string[];
   skills_order: string[];

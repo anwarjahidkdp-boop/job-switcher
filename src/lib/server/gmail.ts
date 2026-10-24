@@ -1,3 +1,4 @@
+import { applicationCv } from "../application-documents";
 // "Send from my Gmail": Google OAuth with the gmail.send scope only (we can send, never read the mailbox),
 // and sending one application when the user presses Apply. Nothing is ever sent without that press.
 import "server-only";
@@ -97,8 +98,8 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
     const { data } = await ctx.db.storage.from("cv-files").download(st.profile.photo_path);
     if (data) photoUrl = "data:image/jpeg;base64," + Buffer.from(await data.arrayBuffer()).toString("base64");
   }
-  const master = st.master.content;
-  const cv = cvDocHtml({ master, tailored: app.pack, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, noticeDays: st.profile.preferences?.notice ?? null, photoUrl });
+  const master = applicationCv(st.master.content,app.pack);
+  const cv = cvDocHtml({ master, tailored: app.pack.edited_cv?null:app.pack, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, noticeDays: st.profile.preferences?.notice ?? null, photoUrl });
   const base = safeFileName(master.name) + (job.company ? "-" + safeFileName(job.company) : "");
   const raw = buildMime({
     from: fromHeader(master.name, conn.google_email), to, subject: app.pack.email_subject, text: app.pack.email_body,

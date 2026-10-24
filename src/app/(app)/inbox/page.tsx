@@ -33,6 +33,7 @@ export default async function Inbox() {
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const due = Object.values(st.apps).filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
   const queue = applyQueue(st).slice(0, 4);
+  const readyHref=queue[0]?`/jobs/${queue[0].job.id}`:"/queue";
   const upcoming = list.filter((x) => (daysUntil(x.job.deadline, st.today) ?? -1) >= 0).sort((a, b) => (a.job.deadline || "").localeCompare(b.job.deadline || "")).slice(0, 3);
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
@@ -56,14 +57,14 @@ export default async function Inbox() {
     ...(s.analysed ? [{ n: fmt(s.analysed), label: "Jobs searched", sub: `in ${cname(country)}`, href: "#matches", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>' }] : []),
     ...(s.relevant ? [{ n: fmt(s.relevant), label: "Matched to you", sub: fit.count ? `${fmt(fit.count)} ${fit.label} · ${fit.range}` : "by role and skills", href: "#matches", icon: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' }] : []),
     ...(checked ? [{ n: fmt(checked), label: "Checked by AI", sub: "read against your CV", href: "#matches", icon: '<path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/><path d="M19 15l.8 1.7 1.7.8-1.7.8L19 20l-.8-1.7-1.7-.8 1.7-.8z"/>' }] : []),
-    ...(s.prepared ? [{ n: fmt(s.prepared), label: "Ready to send", sub: "CV + cover letter each", href: "/queue", icon: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>' }] : []),
+    ...(s.prepared ? [{ n: fmt(s.prepared), label: "Ready to send", sub: "CV + cover letter each", href: readyHref, icon: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>' }] : []),
     ...(s.applied ? [{ n: fmt(s.applied), label: "Sent by you", sub: "tracked for replies", href: "/applications", icon: '<path d="M20 6 9 17l-5-5"/>' }] : []),
   ];
   const summary: [string, number][] = [["Jobs analysed", s.analysed], [fit.label, fit.count], ["Applications prepared", s.prepared], ["Applied", s.applied], ["Interviews", s.interviews]];
   const kpis: Kpi[] = [
     { label: "Jobs analysed", n: s.analysed, href: "#matches", tone: "navy", icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', hint: `in ${cname(country)}` },
     { label: fit.label, n: fit.count, href: "#matches", tone: fit.tone === "green" ? "green" : fit.tone === "blue" ? "blue" : "gold", icon: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>', hint: `Fit score ${fit.range}` },
-    { label: "Ready to Apply", n: s.queued, href: "/queue", tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: s.verification ? `${s.prepared} prepared · ${s.verification} need verification` : s.queued > s.prepared ? `${s.prepared} prepared · ${s.queued-s.prepared} to prepare` : "CV + cover letter" },
+    { label: "Ready to Apply", n: s.queued, href: readyHref, tone: "blue", icon: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/>', hint: s.verification ? `${s.prepared} prepared · ${s.verification} need verification` : s.queued > s.prepared ? `${s.prepared} prepared · ${s.queued-s.prepared} to prepare` : "CV + cover letter" },
     { label: "Applied", n: s.applied, href: "/applications", tone: "teal", icon: '<path d="m22 2-7 20-4-9-9-4z"/>' },
     { label: "Interviews", n: s.interviews, href: "/applications", tone: "green", icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>' },
     { label: "Offers", n: s.offers, href: "/applications", tone: "gold", icon: '<circle cx="12" cy="9" r="6"/><path d="m8 14-1 7 5-3 5 3-1-7M9 9l2 2 4-4"/>', hint: "Job offers received" },

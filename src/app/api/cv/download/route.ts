@@ -1,3 +1,4 @@
+import { applicationCv } from "@/lib/application-documents";
 import { NextResponse } from "next/server";
 import { apiCtx, unauthorized } from "@/lib/server/api";
 import { loadState } from "@/lib/server/state";
@@ -25,11 +26,12 @@ export async function GET(req: Request) {
     const apps = Object.values(st.apps);
     if (!unlockedReady(apps, trialApplyRoom(apps)).has(app.job_id)) return NextResponse.redirect(new URL("/upgrade?from=trial", req.url));
   }
+  const master=app?.pack?applicationCv(st.master.content,app.pack):st.master.content;
   if (cover) {
     if (!app?.pack?.cover_letter) return NextResponse.json({ error: 'No cover letter for this application.' }, { status: 404 });
     const headers = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' };
-    if (format === 'print') return new NextResponse(coverLetterPrintHtml(st.master.content.name, app.pack.cover_letter, st.country, u.searchParams.get('auto') === '1'), { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
-    return new NextResponse(coverLetterDocHtml(st.master.content.name, app.pack.cover_letter), { headers: { ...headers, 'Content-Type': 'application/msword', 'Content-Disposition': `attachment; filename="${safeFileName(st.master.content.name)}-Cover-Letter.doc"` } });
+    if (format === 'print') return new NextResponse(coverLetterPrintHtml(master.name, app.pack.cover_letter, st.country, u.searchParams.get('auto') === '1'), { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
+    return new NextResponse(coverLetterDocHtml(master.name, app.pack.cover_letter), { headers: { ...headers, 'Content-Type': 'application/msword', 'Content-Disposition': `attachment; filename="${safeFileName(master.name)}-Cover-Letter.doc"` } });
   }
   let photoUrl: string | null = null;
   if (st.profile.photo_path) {
@@ -37,11 +39,11 @@ export async function GET(req: Request) {
     const { data } = await c.db.storage.from("cv-files").download(st.profile.photo_path);
     if (data) photoUrl = "data:image/jpeg;base64," + Buffer.from(await data.arrayBuffer()).toString("base64");
   }
-  const input = { master: st.master.content, tailored: app?.pack ?? null, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, noticeDays: st.profile.preferences?.notice ?? null, photoUrl };
+  const input = { master, tailored: app?.pack?.edited_cv?null:app?.pack??null, country: st.country, homeCountry: st.homeCountry, style: st.profile.cv_style, personal: st.profile.personal, noticeDays: st.profile.preferences?.notice ?? null, photoUrl };
   const headers = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex" };
   if (format === "print") return new NextResponse(cvPrintHtml(input, { autoPrint: u.searchParams.get("auto") === "1" }), { headers: { ...headers, "Content-Type": "text/html; charset=utf-8" } });
   let company = "";
   if (jobId) { const { data } = await c.db.from("jobs").select("company").eq("id", jobId).maybeSingle(); company = data?.company || ""; }
-  const name = safeFileName(st.master.content.name) + (company ? "-" + safeFileName(company) : "") + "-CV.doc";
+  const name = safeFileName(master.name) + (company ? "-" + safeFileName(company) : "") + "-CV.doc";
   return new NextResponse(cvDocHtml(input), { headers: { ...headers, "Content-Type": "application/msword", "Content-Disposition": `attachment; filename="${name}"` } });
 }

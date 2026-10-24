@@ -32,38 +32,28 @@ export function GapList({ gaps }: { gaps: { t: string; skill: string | null; lab
   );
 }
 
-export function PackTabs(props: { emphasis: string[]; cv: React.ReactNode; jobId: string; cover: string; subject: string; email: string; to: string | null; checklist: string[] }) {
-  const [t, setT] = useState<"cv" | "cover" | "email" | "check">("cv");
-  const tabs: [typeof t, string][] = [["cv", "Tailored CV"], ["cover", "Cover letter"], ["email", "Email"], ["check", "Checklist"]];
-  return (
-    <>
-      <div className="tabs" role="tablist" style={{ marginTop: 12 }}>
-        {tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={t === k} onClick={() => setT(k)}>{l}</button>)}
-      </div>
-      <div style={{ marginTop: 14 }}>
-        <div hidden={t !== "cv"}>
-          {props.emphasis.length ? <div className="note" style={{ marginBottom: 12 }}>{props.emphasis.map((e, i) => <div key={i}>{e}</div>)}</div> : null}
-          {props.cv}
-          <div className="row" style={{ marginTop: 12 }}>
-            <a className="btn btn-ghost btn-sm" href={`/api/cv/download?format=doc&jobId=${props.jobId}`}>Download tailored CV (Word)</a>
-            <a className="btn btn-ghost btn-sm" href={`/api/cv/download?format=print&jobId=${props.jobId}`} target="_blank" rel="noopener">Save as PDF</a>
-          </div>
-        </div>
-        {t === "cover" ? <><div className="copybox">{props.cover}</div><div className="row" style={{ marginTop: 10 }}><a className="btn btn-ghost btn-sm" href={`/api/cv/download?document=cover&format=print&auto=1&jobId=${props.jobId}`} target="_blank" rel="noopener">Save cover letter as PDF</a><a className="btn btn-ghost btn-sm" href={`/api/cv/download?document=cover&format=doc&jobId=${props.jobId}`}>Download cover letter (Word)</a><CopyButton text={props.cover} label="Copy cover letter" /></div></> : null}
-        {t === "email" ? <>
-          <p className="small muted">To: {props.to || "(the employer's address, if they accept email)"}</p>
-          <p className="small" style={{ margin: "6px 0" }}><b>Subject:</b> {props.subject}</p>
-          <div className="copybox">{props.email}</div>
-          <div className="row" style={{ marginTop: 10 }}>
-            <CopyButton text={props.subject} label="Copy subject" /><CopyButton text={props.email} label="Copy email" />
-            {props.to ? <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a> : null}
-          </div>
-          <p className="small muted" style={{ marginTop: 8 }}>When you send it yourself, paste the email body and attach your tailored CV plus the cover letter when requested. Save both as PDF from their tabs, or use Word if the employer accepts it. Opening your email app does not attach files automatically. JobPao never sends anything without your press.</p>
-        </> : null}
-        {t === "check" ? <ul className="why-list">{props.checklist.map((c) => <li key={c}><span className="mk ok">✓</span><span>{c}</span></li>)}</ul> : null}
-      </div>
-    </>
-  );
+export function PackTabs(props: {cv:React.ReactNode;cvEditor:React.ReactNode;canEdit?:boolean;updatedAt:string;jobId:string;cover:string;subject:string;email:string;to:string|null;checklist:string[]}) {
+ const router=useRouter();
+ const [panel,setPanel]=useState<{doc:'cv'|'cover';mode:'view'|'edit'|'download'}|null>(null);
+ const [extra,setExtra]=useState<'email'|'check'|null>(null);
+ const [draft,setDraft]=useState(props.cover),[version,setVersion]=useState(props.updatedAt),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ function open(doc:'cv'|'cover',mode:'view'|'edit'|'download') {setError('');setPanel({doc,mode});if(doc==='cover'&&mode==='edit'){setDraft(props.cover);setVersion(props.updatedAt);}}
+ async function saveCover(){
+  setBusy(true);setError('');
+  try{const r=await fetch(`/api/applications/${props.jobId}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({document:'cover',baseUpdatedAt:version,text:draft})});const j=await r.json();if(!r.ok)throw new Error(j.error||'Could not save.');setPanel(null);router.refresh();}
+  catch(e){setError(e instanceof Error?e.message:'Could not save.');}finally{setBusy(false);}
+ }
+ return <>
+  <div className="application-document-grid">{(['cv','cover'] as const).map(doc=><section className="application-document-card" key={doc} aria-label={doc==='cv'?'CV document actions':'Cover letter document actions'}><h3>{doc==='cv'?'CV':'Cover letter'}</h3><p className="small muted">Prepared for this application</p><div className="row"><button className="btn btn-primary btn-sm" onClick={()=>open(doc,'view')}>View</button><button className="btn btn-ghost btn-sm" disabled={props.canEdit===false} title={props.canEdit===false?"Sent applications cannot be edited":undefined} onClick={()=>open(doc,'edit')}>Edit</button><button className="btn btn-ghost btn-sm" onClick={()=>open(doc,'download')}>Download</button></div></section>)}</div>
+  {panel?<section className="application-document-panel" aria-label={`${panel.doc==='cv'?'CV':'Cover letter'} ${panel.mode}`}><div className="row" style={{justifyContent:'space-between'}}><h3>{panel.mode==='view'?'View':panel.mode==='edit'?'Edit':'Download'} {panel.doc==='cv'?'CV':'cover letter'}</h3><button className="btn btn-text btn-sm" onClick={()=>setPanel(null)}>Close</button></div>
+   {panel.mode==='view'?(panel.doc==='cv'?props.cv:<><div className="copybox">{props.cover}</div><CopyButton text={props.cover} label="Copy cover letter"/></>):null}
+   {panel.mode==='edit'?(panel.doc==='cv'?props.cvEditor:<form onSubmit={e=>{e.preventDefault();void saveCover();}}><label className="f">Cover letter<textarea rows={14} value={draft} maxLength={16000} onChange={e=>setDraft(e.target.value)} required disabled={busy}/></label><p className="small muted">Changes apply to this application only. No AI charge.</p><div className="row"><button className="btn btn-primary btn-sm" disabled={busy}>{busy?'Saving…':'Save changes'}</button><button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={()=>setPanel(null)}>Cancel</button></div>{error?<p role="alert" className="err small">{error}</p>:null}</form>):null}
+   {panel.mode==='download'?<div className="row" style={{marginTop:12}}><a className="btn btn-primary btn-sm" href={`/api/cv/download?format=print&jobId=${props.jobId}${panel.doc==='cover'?'&document=cover':''}`} target="_blank" rel="noopener">Download PDF</a><a className="btn btn-ghost btn-sm" href={`/api/cv/download?format=doc&jobId=${props.jobId}${panel.doc==='cover'?'&document=cover':''}`}>Download Word</a></div>:null}
+  </section>:null}
+  <div className="row" style={{marginTop:14}}><button className="btn btn-ghost btn-sm" onClick={()=>setExtra(extra==='email'?null:'email')}>Email draft</button><button className="btn btn-ghost btn-sm" onClick={()=>setExtra(extra==='check'?null:'check')}>Checklist</button></div>
+  {extra==='email'?<div className="application-document-panel"><p className="small muted">To: {props.to||"Employer's email address"}</p><p><b>Subject:</b> {props.subject}</p><div className="copybox">{props.email}</div><div className="row"><CopyButton text={props.subject} label="Copy subject"/><CopyButton text={props.email} label="Copy email"/>{props.to?<a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a>:null}</div><p className="small muted">Attach the CV and cover letter downloads yourself when sending from your email app.</p></div>:null}
+  {extra==='check'?<ul className="why-list">{props.checklist.map(c=><li key={c}><span className="mk ok">✓</span><span>{c}</span></li>)}</ul>:null}
+ </>;
 }
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];

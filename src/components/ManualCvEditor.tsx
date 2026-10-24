@@ -5,11 +5,12 @@ import { closeEarlierRoles } from "@/lib/cv/experience";
 import { roleSuggestions, experienceNeedsDetails } from "@/lib/cv/role-suggestions";
 import { ManualCvSchema, type ManualCv } from "@/lib/manual-cv";
 
-export function ManualCvEditor({ initial, baseId, country, revision }: { initial: ManualCv; baseId: string; country: string; revision: number }) {
+export function ManualCvEditor({ initial, baseId, country, revision, application, defaultOpen=false }: { initial: ManualCv; baseId: string; country: string; revision: number; application?:{jobId:string;updatedAt:string};defaultOpen?:boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [cv, setCv] = useState(initial);
   const [savedId, setSavedId] = useState(baseId);
+  const [savedVersion,setSavedVersion]=useState(application?.updatedAt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -32,16 +33,16 @@ export function ManualCvEditor({ initial, baseId, country, revision }: { initial
     if (!check.success) { const i = check.error.issues[0]; setError(`${i.path.join(" → ")}: ${i.message}`); return; }
     setBusy(true); setError("");
     try {
-      const r = await fetch("/api/cv/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ baseId: savedId, country, revision, cv: check.data }) });
+      const r = await fetch(application?`/api/applications/${application.jobId}/documents`:"/api/cv/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(application?{document:"cv",baseUpdatedAt:savedVersion,cv:check.data}:{ baseId: savedId, country, revision, cv: check.data }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Could not save. Your edits are still here; try again.");
-      setSavedId(j.id); setOpen(false); setNotice(j.message); router.refresh();
+      if(j.id)setSavedId(j.id);if(j.updatedAt)setSavedVersion(j.updatedAt); setOpen(false); setNotice(j.message); router.refresh();
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   const field = (label: string, value: string, change: (v: string) => void, multiline = false, type = "text") => <label className="stack small" style={{ gap: 4 }}><span>{label}</span>{multiline ? <textarea rows={4} value={value} onChange={e => change(e.target.value)} /> : <input type={type} value={value} onChange={e => change(e.target.value)} />}</label>;
   return <section className={open ? "card panel" : undefined} style={{ marginBottom: open ? 14 : 8 }} aria-label="Edit your CV">
     {!open ? <><div className="row" style={{ justifyContent: "flex-end" }}><button type="button" className="btn btn-primary btn-sm" aria-expanded={open} onClick={()=>start()}><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/></svg>Edit CV</button></div>{incompleteRoles.length ? <div className="note small cv-role-notice" role="status"><b>Experience details need attention</b><p>{incompleteRoles.map(({e})=>e.title).join(" · ")}</p><button type="button" className="btn btn-ghost btn-sm" onClick={()=>start(incompleteRoles[0].i)}>Choose responsibilities to add</button></div> : null}{notice ? <p role="status" className="note" style={{ marginTop: 8 }}>{notice}</p> : null}</> : <form onSubmit={e => { e.preventDefault(); save(); }}>
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}><h3>Edit your CV</h3><span className="small muted">No AI charge</span></div>
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}><h3>Edit your CV</h3><span className="small muted">{application?"This application only · No AI charge":"No AI charge"}</span></div>
       <fieldset disabled={busy} className="stack" style={{ border: 0, padding: 0, margin: 0, minWidth: 0, gap: 14 }}>
         {field("Full name", cv.name, name => setCv({ ...cv, name }))}
         {field("Professional headline", cv.headline, headline => setCv({ ...cv, headline }))}
