@@ -25,3 +25,17 @@ export function closeEarlierRoles<T extends { company: string; title: string; st
     return { ...role, end: `${Math.floor(end / 12)}-${String(end % 12 + 1).padStart(2,"0")}`, autoEnd: true };
   });
 }
+
+
+/** The department gives a generic designation its professional context without duplicating it. */
+export function experienceLabel(role:{title:string;department?:string|null}):string{
+ const title=role.title.trim(),department=role.department?.trim();
+ if(!department)return title;
+ const normalized=(s:string)=>s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+ return normalized(title).includes(normalized(department))?title:`${title} · ${department}`;
+}
+/** The name-line follows the latest role, including legacy CVs with an outdated stored headline. */
+export function careerHeadline(experience:readonly {title:string;department?:string|null;start:string|null;end:string|null}[]=[],fallback=''):string{
+ const role=newestExperienceFirst(experience).find(e=>e.title.trim());
+ return role?experienceLabel(role):fallback;
+}

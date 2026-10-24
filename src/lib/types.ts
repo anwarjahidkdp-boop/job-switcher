@@ -91,7 +91,7 @@ export interface MatchResult {
 }
 
 // ---------- CV extraction ----------
-export interface ExtractedExperience { title: string; company: string; start: string | null; end: string | null; industry?: string | null; location?: string | null }
+export interface ExtractedExperience { department?: string | null; title: string; company: string; start: string | null; end: string | null; industry?: string | null; location?: string | null }
 export interface ExtractedEducation { degree: string; field: string; institution: string; year: string; level: EduLevel; result: string | null }
 export interface ExtractedCert { name: string; status: "qualified" | "partly" | "in_progress"; detail: string | null }
 export interface CvQuestion { id: string; question: string; placeholder: string }
@@ -113,7 +113,7 @@ export interface Extraction {
 }
 
 // ---------- Master CV ----------
-export interface MasterExperience { title: string; company: string; location: string | null; start: string | null; end: string | null; bullets: string[]; autoEnd?: boolean; concurrent?: boolean }
+export interface MasterExperience { department?: string | null; title: string; company: string; location: string | null; start: string | null; end: string | null; bullets: string[]; autoEnd?: boolean; concurrent?: boolean }
 export interface MasterCV {
   name: string;
   headline: string;

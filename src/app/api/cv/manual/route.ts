@@ -1,3 +1,5 @@
+import {readLimitedText} from "@/lib/request-security";
+import {revalidatePath} from "next/cache";
 import { refreshMatches } from "@/lib/server/matches";
 import { NextResponse } from "next/server";
 import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
@@ -8,8 +10,7 @@ import type { MasterCV } from "@/lib/types";
 export async function POST(req: Request) {
   const c = await apiCtx();
   if (!c) return unauthorized();
-  const raw = await req.text();
-  if (raw.length > 200000) return NextResponse.json({ error: "This CV is too large. Shorten it and try again." }, { status: 413 });
+  let raw:string;try{raw=await readLimitedText(req,200000);}catch{return NextResponse.json({error:"This CV is too large. Shorten it and try again."},{status:413});}
   let body: unknown;
   try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "Invalid CV data." }, { status: 400 }); }
   const parsed = ManualSaveSchema.safeParse(body);
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
     const updated = manualContent(input.cv, current.content as MasterCV, facts);
     const { data: id, error: saveError } = await c.db.rpc("save_manual_cv", { p_base_id: input.baseId, p_country: input.country, p_revision: input.revision, p_content: updated.master, p_facts: updated.facts });
     if (saveError) throw saveError;
+    revalidatePath("/", "layout");
     let matchingRefreshed=true;
     try { await refreshMatches(c.db,c.userId,{invalidateAi:true}); }
     catch(e) { matchingRefreshed=false;console.error("CV saved; full match refresh pending",e); }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { manualContent, manualDraft, ManualCvSchema } from "./manual-cv";
 import { DEMO_MASTER } from "./demo";
-import type { CareerFact } from "./facts";
+import {buildMatchProfile, type CareerFact} from "./facts";
 
 const master = { ...DEMO_MASTER, experience: [
  { title: "Cost Accountant", company: "Gentle Park", start: "2018-01", end: "2021-10", location: "Dhaka", bullets: ["Prepared cost reports."] },
@@ -42,4 +42,16 @@ describe("manual CV editing without AI", () => {
   input.experience[1].end = null; input.experience[1].company = "";
   expect(ManualCvSchema.safeParse(input).success).toBe(false);
  });
+});
+
+it('saves department and refreshes a stale headline after a promotion, without rewriting user prose',()=>{
+ const input=manualDraft({...master,headline:'Cost Accountant'},facts);
+ input.experience[0].title='Manager';input.experience[0].department='Accounts';input.headline='Cost Accountant';
+ input.summary='My personally written career summary.';
+ const out=manualContent(ManualCvSchema.parse(input),master,facts);
+ const profile=buildMatchProfile({name:out.master.name,facts:out.facts.map(f=>({...f,verified:true,provenance:'user' as const})),meta:{industries:[],categories:['Finance & Accounting'],seniority:'manager',target_roles:['Cost Accountant'],location:'Dhaka'},prefs:null,country:'BD'});
+ expect(profile.currentTitle).toBe('Manager · Accounts');expect(profile.targetRoles).toEqual(['Manager · Accounts']);
+ expect(out.master.headline).toBe('Manager · Accounts');expect(out.master.summary).toBe(input.summary);
+ expect(out.facts.find(f=>f.kind==='experience')?.data).toMatchObject({title:'Manager',department:'Accounts'});
+ expect(manualDraft(out.master,out.facts.map(f=>({...f,verified:true,provenance:'user' as const}))).experience[0].department).toBe('Accounts');
 });

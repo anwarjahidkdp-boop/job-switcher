@@ -1,3 +1,5 @@
+vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
+import {revalidatePath} from "next/cache";
 vi.mock("@/lib/server/matches",()=>({refreshMatches:vi.fn().mockResolvedValue(4)}));
 import { refreshMatches } from "@/lib/server/matches";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,7 +21,7 @@ describe("manual editor API", () => {
  it("rejects signed-out writes", async()=>{vi.mocked(apiCtx).mockResolvedValue(null);expect((await POST(request(body()))).status).toBe(401);expect(rpc).not.toHaveBeenCalled();});
  it("rejects invalid fields before saving",async()=>{const b=body();b.cv.experience[0].start="wrong";expect((await POST(request(b))).status).toBe(400);expect(rpc).not.toHaveBeenCalled();});
  it("blocks a stale or foreign base version",async()=>{q.maybeSingle.mockResolvedValue({data:null,error:null});expect((await POST(request(body()))).status).toBe(409);expect(rpc).not.toHaveBeenCalled();});
- it("uses a single atomic RPC with user-derived CV and facts",async()=>{const b=body();b.cv.summary="My own words";const r=await POST(request(b));expect(r.status).toBe(200);expect(refreshMatches).toHaveBeenCalledWith(expect.anything(),"u",{invalidateAi:true});expect(r.headers.get("cache-control")).toBe("no-store");expect(rpc).toHaveBeenCalledWith("save_manual_cv",expect.objectContaining({p_base_id:id,p_country:"BD",p_content:expect.objectContaining({summary:"My own words"}),p_facts:expect.any(Array)}));});
+ it("uses a single atomic RPC with user-derived CV and facts",async()=>{const b=body();b.cv.summary="My own words";const r=await POST(request(b));expect(r.status).toBe(200);expect(revalidatePath).toHaveBeenCalledWith("/","layout");expect(refreshMatches).toHaveBeenCalledWith(expect.anything(),"u",{invalidateAi:true});expect(r.headers.get("cache-control")).toBe("no-store");expect(rpc).toHaveBeenCalledWith("save_manual_cv",expect.objectContaining({p_base_id:id,p_country:"BD",p_content:expect.objectContaining({summary:"My own words"}),p_facts:expect.any(Array)}));});
  it("retires paid chat editing even for stale browser tabs",async()=>{const r=await retired();expect(r.status).toBe(410);expect((await r.json()).error).toContain("Edit CV");expect(rpc).not.toHaveBeenCalled();});
 });
 

@@ -1136,3 +1136,23 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .application-progress-steps{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
 .application-progress-steps span{font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg);color:var(--ink-2)}
 .application-progress-steps span[data-reached="true"]{background:var(--good-soft);color:var(--good);font-weight:700}
+
+/* A wider document workspace with one page scroll, rather than nested frames. */
+.document-layout{grid-template-columns:minmax(0,3fr) minmax(260px,1fr)}
+.document-layout>div{min-width:0}
+.document-layout:has(.document-panel-view){grid-template-columns:minmax(0,1fr)}
+.application-document-panel.document-panel-view{padding:0;border:0;border-radius:0;max-height:none;overflow:visible}
+.document-panel-view>.row{margin-bottom:10px}
+.document-panel-view .copybox{padding:18px 20px;line-height:1.65;overflow-wrap:anywhere;max-height:none;overflow:visible}
+.document-panel-view .cv-preview-frame{box-shadow:none}
+@media(max-width:900px){.document-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){
+ .application-workspace{padding:12px}
+ .application-document-panel{padding:10px}
+ .document-panel-view .copybox{padding:14px 12px}
+ .document-layout .cv-preview-heading{padding:10px 12px;gap:6px;flex-wrap:wrap}
+ .document-layout .cv-preview-frame .t-corp,.document-layout .cv-preview-frame .t-classic{padding:16px 12px}
+ .document-layout .cv .rt{flex-wrap:wrap;gap:3px 8px}
+ .document-layout .cv .rt .dt{white-space:normal}
+ .document-layout .cv .hd{gap:12px}
+}

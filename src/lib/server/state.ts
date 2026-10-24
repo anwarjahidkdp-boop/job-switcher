@@ -1,3 +1,4 @@
+import {careerHeadline} from "../cv/experience";
 import { applyQueue, queueSafety } from "../apply-queue";
 import { localSearchAnswers } from "../application-defaults";
 import { fillPersonalFromCv } from "../cv/personal-read";
@@ -153,6 +154,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   const country = cc(profile.target_country);
   const today = todayStr(rule(country).timeZone);
   const master = (masterRes.data as MasterRow) || null;
+  if(master)master.content={...master.content,headline:careerHeadline(master.content.experience,master.content.headline)};
   const P = profileFrom(profile, facts, master);
   const [jobs, analysed] = P && !opts.skipMatching ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
   // Drop previous-country drafts from all active views; retain sent history for account-wide limits.

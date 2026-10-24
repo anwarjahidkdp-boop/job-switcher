@@ -14,3 +14,9 @@ it('removes the detail recommendation once concrete responsibilities are saved',
  const cv=input();cv.experience[0].bullets=['Managed accounting operations.','Reviewed financial reporting and team activities.'];
  const html=renderToStaticMarkup(React.createElement(ManualCvEditor,{initial:cv,baseId:'cv',country:'BD',revision:0}));expect(html).not.toContain('Experience details need attention');
 });
+
+it('offers department separately and explains the live derived headline in the editor',()=>{
+ const cv=input();cv.experience[0].title='Manager';cv.experience[0].department='Accounts';
+ const html=renderToStaticMarkup(React.createElement(ManualCvEditor,{initial:cv,baseId:'cv',country:'BD',revision:0,defaultOpen:true}));
+ expect(html).toContain('Department');expect(html).toContain('Manager · Accounts');expect(html).toContain('Updates automatically from your latest role and department.');
+});

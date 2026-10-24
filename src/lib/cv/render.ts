@@ -3,7 +3,7 @@
 // All user content is HTML-escaped here.
 import { cc, isAccent, isTemplate, rule, ACCENTS, type CountryCode, type CvTemplate } from "../countries";
 import { destinationMaster, destinationProse } from "./destination";
-import { closeEarlierRoles, newestExperienceFirst } from "./experience";
+import { careerHeadline, experienceLabel, closeEarlierRoles, newestExperienceFirst } from "./experience";
 import { fmtYM } from "../dates";
 import type { ApplicationPack, CvStyle, MasterCV, PersonalDetails } from "../types";
 import { convention, personalRows, cleanReferees, DECLARATION, signDate } from "./conventions";
@@ -127,11 +127,11 @@ export function renderCvHtml(inp: RenderInput): string {
     const dt = `${fmtYM(e.start)} – ${fmtYM(e.end)}`;
     const co = esc(e.company) + (e.location ? " · " + esc(e.location) : "");
     const head = forDoc
-      ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td><b>${esc(e.title)}</b><br><span class="co">${co}</span></td><td align="right" valign="top" class="dt">${dt}</td></tr></table>`
-      : `<div class="rt"><div><b>${esc(e.title)}</b><div class="co">${co}</div></div><span class="dt">${dt}</span></div>`;
+      ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td><b>${esc(experienceLabel(e))}</b><br><span class="co">${co}</span></td><td align="right" valign="top" class="dt">${dt}</td></tr></table>`
+      : `<div class="rt"><div><b>${esc(experienceLabel(e))}</b><div class="co">${co}</div></div><span class="dt">${dt}</span></div>`;
     return `<div class="role">${head}<ul>${e.bullets.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
   }).join("");
-  const nameBlock = `<h2>${esc(m.name)}</h2><p class="hl">${esc(m.headline || "")}</p>`;
+  const nameBlock = `<h2>${esc(m.name)}</h2><p class="hl">${esc(careerHeadline(exp,m.headline || ""))}</p>`;
   const acc = esc(accent);
 
   if (tpl === "corporate") {
@@ -152,8 +152,8 @@ export function renderCvHtml(inp: RenderInput): string {
     const bl = (b: string[]) => (b.length ? `<ul>${b.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
     const roles = groups.map((g) => {
       const co = esc(g.company) + (g.location ? `, ${esc(g.location)}` : "");
-      if (g.roles.length === 1) { const e = g.roles[0]; return `<div class="role">${line(esc(e.title), `${fmtYM(e.start)} – ${fmtYM(e.end)}`, "rtl")}<p class="co">${co}</p>${bl(e.bullets)}</div>`; }
-      return `<div class="role grp">${line(co, span(g.roles), "co co-h")}${g.roles.map((e) => `<div class="sub">${line(esc(e.title), `${fmtYM(e.start)} – ${fmtYM(e.end)}`, "rtl")}${bl(e.bullets)}</div>`).join("")}</div>`;
+      if (g.roles.length === 1) { const e = g.roles[0]; return `<div class="role">${line(esc(experienceLabel(e)), `${fmtYM(e.start)} – ${fmtYM(e.end)}`, "rtl")}<p class="co">${co}</p>${bl(e.bullets)}</div>`; }
+      return `<div class="role grp">${line(co, span(g.roles), "co co-h")}${g.roles.map((e) => `<div class="sub">${line(esc(experienceLabel(e)), `${fmtYM(e.start)} – ${fmtYM(e.end)}`, "rtl")}${bl(e.bullets)}</div>`).join("")}</div>`;
     }).join("");
     const expertise = !skills.length ? "" : forDoc
       ? `<p>${skills.map(esc).join(" &nbsp;|&nbsp; ")}</p>`
