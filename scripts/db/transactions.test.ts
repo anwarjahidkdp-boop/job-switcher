@@ -266,3 +266,31 @@ describe('public Bangladesh job identity and source evidence', () => {
     await role("postgres");
   });
  });
+
+describe('application allowance cannot be reset through direct owner REST writes',()=>{
+ const Q='77777777-7777-4777-8777-777777777777';let first:string,second:string;
+ it('normalizes forged dates and rejects a second same-day confirmation',async()=>{
+  await role('postgres');await db.query("insert into auth.users values($1,'quota-integrity@example.invalid')",[Q]);
+  const jobs=(await db.query<{id:string}>("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method) values($1,'paste','synthetic','BD','one','test','portal'),($1,'paste','synthetic','BD','two','test','portal') returning id",[Q])).rows;
+  await role('authenticated',Q);
+  first=await scalar<string>("insert into applications(user_id,job_id,status,applied_at) values($1,$2,'applied',now()-interval '10 days') returning id",[Q,jobs[0].id]);
+  expect(await scalar<boolean>("select applied_at>now()-interval '1 minute' from applications where id=$1",[first])).toBe(true);
+  second=await scalar<string>("insert into applications(user_id,job_id,status) values($1,$2,'ready') returning id",[Q,jobs[1].id]);
+  await expect(db.query("update applications set status='applied' where id=$1",[second])).rejects.toThrow('one application a day');
+  await expect(db.query("update applications set status='interview' where id=$1",[second])).rejects.toThrow('one application a day');
+  await expect(db.query("update applications set applied_at=now()-interval '10 days' where id=$1",[second])).rejects.toThrow('one application a day');
+  await role('postgres');
+ });
+ it('preserves submitted usage on delete/status/date changes but permits deleting an unsent choice',async()=>{
+  await role('authenticated',Q);
+  await expect(db.query('delete from applications where id=$1',[first])).rejects.toThrow('cannot be deleted');
+  await db.query("update applications set status='ready',applied_at=null where id=$1",[first]);
+  expect(await scalar<boolean>('select applied_at is not null from applications where id=$1',[first])).toBe(true);
+  await expect(db.query('delete from applications where id=$1',[first])).rejects.toThrow('cannot be deleted');
+  await db.query('delete from applications where id=$1',[second]);
+  await role('postgres');
+  // Account deletion through the trusted Auth admin must still cascade cleanly.
+  await db.query('delete from auth.users where id=$1',[Q]);
+  expect(await scalar<number>('select count(*)::int from applications where user_id=$1',[Q])).toBe(0);
+ });
+});

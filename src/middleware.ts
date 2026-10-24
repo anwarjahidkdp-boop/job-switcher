@@ -1,3 +1,4 @@
+import { trustedMutation } from "./lib/request-security";
 // Refreshes the Supabase session cookie on every request and keeps signed-out visitors out of app pages.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -5,6 +6,9 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED = ["/onboarding", "/inbox", "/notifications", "/jobs", "/queue", "/applications", "/insights", "/profile", "/setup", "/upgrade", "/admin", "/account"];
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  if (path.startsWith("/api/") && path !== "/api/billing/lemonsqueezy" && !trustedMutation(request))
+    return NextResponse.json({error:"This request must come from JobPao."},{status:403});
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
@@ -21,7 +25,6 @@ export async function middleware(request: NextRequest) {
   // getClaims refreshes the session like getUser, but verifies the token locally when the project signs with
   // asymmetric keys (one round trip less per page). Pages still check the user themselves.
   const { data } = await supabase.auth.getClaims();
-  const path = request.nextUrl.pathname;
   if (!data?.claims?.sub && PROTECTED.some((p) => path === p || path.startsWith(p + "/"))) {
     const to = request.nextUrl.clone();
     to.pathname = "/login";

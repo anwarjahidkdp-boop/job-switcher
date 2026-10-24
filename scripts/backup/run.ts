@@ -9,7 +9,7 @@ import { flagValue, scriptAdmin } from "../lib/admin";
 export const TABLES = [
   "profiles", "subscriptions", "payments", "plans", "plan_prices", "country_rules", "cv_documents", "career_facts", "master_cvs",
   "applications", "application_events", "reminders", "matches", "notifications", "jobs", "ingestion_sources",
-  "forwarding_addresses", "inbound_emails", "ai_usage", "gmail_connections", "email_deliveries", "career_reports", "match_assessments", "ingestion_source_quarantine",
+  "forwarding_addresses", "inbound_emails", "ai_usage", "gmail_connections", "email_deliveries", "career_reports", "match_assessments", "ingestion_source_quarantine", "source_documents", "job_source_occurrences", "job_canonical_keys",
 ];
 const PAGE = 1000;
 
