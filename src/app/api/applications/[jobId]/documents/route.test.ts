@@ -1,9 +1,9 @@
 import {beforeEach,expect,it,vi} from 'vitest';
 vi.mock('@/lib/server/api',()=>({apiCtx:vi.fn(),apiError:()=>new Response(null,{status:500}),unauthorized:()=>new Response(null,{status:401})}));
-vi.mock('@/lib/server/state',()=>({loadState:vi.fn()}));
+vi.mock('@/lib/server/state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
 vi.mock('@/lib/server/applications',()=>({hasPro:vi.fn().mockResolvedValue(true)}));
 import {apiCtx} from '@/lib/server/api';
-import {loadState} from '@/lib/server/state';
+import {loadState,loadJob} from '@/lib/server/state';
 import {POST} from './route';
 import {DEMO_MASTER} from '@/lib/demo';
 import {manualDraft} from '@/lib/manual-cv';
@@ -15,7 +15,8 @@ function fixture(opts:{status?:string;version?:string;race?:boolean;foreign?:boo
  const q:Record<string,unknown>={update:(p:Record<string,unknown>)=>{writes.push(p);return q;},select:()=>q,maybeSingle:async()=>({data:opts.race?null:{updated_at:'new-version'},error:null})};
  for(const method of ['eq','is','in'])q[method]=(...args:unknown[])=>{filters.push([method,...args]);return q;};
  vi.mocked(apiCtx).mockResolvedValue({userId:'owner',db:{from:()=>q},admin:{}} as never);
- vi.mocked(loadState).mockResolvedValue({master:{content:DEMO_MASTER},apps:opts.foreign?{}:{[id]:{status:opts.status||'ready',updated_at:opts.version||'v1',pack:{summary:'Tailored',top_bullets:[],cover_letter:'Original'}}}} as never);
+ vi.mocked(loadState).mockResolvedValue({P:{},today:"2026-10-25",profile:{preferences:{}},master:{id:"cv",content:DEMO_MASTER},apps:opts.foreign?{}:{[id]:{status:opts.status||'ready',updated_at:opts.version||'v1',pack:{prepared_for:{job_id:id,source_cv_id:'cv'},skills_order:[],summary:'Tailored',top_bullets:[],cover_letter:'Original'}}}} as never);
+ vi.mocked(loadJob).mockResolvedValue({id,title:'Accountant'} as never);
  return {filters,writes};
 }
 beforeEach(()=>vi.clearAllMocks());

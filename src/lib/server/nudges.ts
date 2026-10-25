@@ -36,11 +36,12 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   };
 
   // 1. Applied 5+ days ago and we have not asked yet: "Any reply?"
-  const { data: applied } = await admin.from("applications").select("id, user_id, job_id, applied_at, jobs!inner(title, company, country)")
-    .eq("status", "applied").is("reply_checked_at", null).lte("applied_at", new Date(now.getTime() - REPLY_CHECK_DAYS * DAY).toISOString()).limit(500);
-  for (const a of (applied || []) as unknown as { id: string; user_id: string; job_id: string; jobs: { title: string; company: string; country: string } }[]) {
+  const { data: applied } = await admin.from("applications").select("id, user_id, job_id, applied_at, reply_checked_at, jobs!inner(title, company, country)")
+    .eq("status", "applied").lte("applied_at", new Date(now.getTime() - REPLY_CHECK_DAYS * DAY).toISOString()).limit(500);
+  for (const a of (applied || []) as unknown as { id: string; user_id: string; job_id: string; reply_checked_at?:string|null; jobs: { title: string; company: string; country: string } }[]) {
+    if(a.reply_checked_at&&Date.parse(a.reply_checked_at)>now.getTime()-FOLLOWUP_DAYS*DAY)continue;
     const followUp = a.jobs.country !== "BD" ? " No reply yet? We have a short follow-up email ready for you to send." : "";
-    add(a.user_id, { kind: "reply", title: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title}. Tell us if you got an interview call, and we will prepare you for it.`, link: `/jobs/${a.job_id}#reply`, key: `reply:${a.id}` },
+    add(a.user_id, { kind: "reply", title: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title}. Tell us if you got an interview call, and we will prepare you for it.`, link: `/jobs/${a.job_id}#reply`, key: `reply:${a.id}:${a.reply_checked_at||"first"}` },
       { subject: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title} at ${a.jobs.company} a few days ago. Got an interview call? Tell us in one tap and we will prepare your interview answers.${followUp}`, button: "Update my application" });
   }
 
@@ -109,7 +110,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
       try {
         const fresh = await notify(admin, userId, [it.n]);
         if (fresh) res.notified++;
-        if (it.n.kind === "reply") await admin.from("applications").update({ reply_checked_at: now.toISOString() }).eq("id", it.n.key.slice(6));
+        if (it.n.kind === "reply") await admin.from("applications").update({ reply_checked_at: now.toISOString() }).eq("id", it.n.key.split(":")[1]);
         const p = profs.get(userId);
         if (it.email && canEmail && p?.email && p.email_reminders !== false) {
           const delivery = await deliverEmail(admin, userId, it.n.key, { to: p.email, ...nudgeEmail({ name: p.full_name || "", ...it.email, link: base + (it.n.link || "/inbox") }) });

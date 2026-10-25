@@ -48,7 +48,7 @@ function fixture(opts: { claimError?: string; statusError?: boolean; receiptErro
     };
     return q;
   } } as unknown as SupabaseClient;
-  const state = {P:{salaryMin:70000,salaryConfirmed:true,workAuthorization:"yes"}, today: "2026-10-23", profile: { preferences: null, deal_breakers: {}, answer_library: {}, needs_visa: false }, master: { content: { name: "Synthetic User" } }, apps: { job: { id: "app", status: "ready", pack: { email_body: "Synthetic test", email_subject: "Application", cover_letter: "Letter" } } } };
+  const state = {P:{salaryMin:70000,salaryConfirmed:true,workAuthorization:"yes"}, today: "2026-10-23", profile: { preferences: null, deal_breakers: {}, answer_library: {}, needs_visa: false }, master: { id: "cv-current", content: { name: "Synthetic User" } }, apps: { job: { id: "app", status: "ready", pack: { prepared_for: {job_id:"job",source_cv_id:"cv-current"}, email_body: "Synthetic test", email_subject: "Application", cover_letter: "Letter" } } } };
   vi.mocked(loadState).mockResolvedValue(state as unknown as Awaited<ReturnType<typeof loadState>>);
   return { row, events, job, state, ctx: { db, admin: db, userId: "user" } };
 }
@@ -127,3 +127,5 @@ describe("Gmail send delivery boundary (no external requests)", () => {
     await expect(sendApplication(x.ctx, "job")).rejects.toThrow("limit"); expect(f).not.toHaveBeenCalled();
   });
 });
+
+it("refuses a pack prepared from an older CV before contacting Gmail",async()=>{const x=fixture();x.state.master.id="cv-new";const f=google();await expect(sendApplication(x.ctx,"job")).rejects.toThrow("fresh documents");expect(f).not.toHaveBeenCalled();});

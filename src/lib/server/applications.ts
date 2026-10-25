@@ -170,35 +170,13 @@ export async function markOpened(ctx: Ctx, jobId: string) {
 /** The user tells us they submitted. This is the only path to "applied". */
 
 export async function confirmApplied(ctx: Ctx, jobId: string) {
-  const st = await loadState(ctx.db, ctx.userId);
-  if (!st || !st.P) throw new Error("Finish your profile first.");
-  const job = await requireJob(ctx, jobId);
-  const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});
-  if (!safety.safe) throw new ApplicationSafetyError(safety);
-  const app = await ensureApp(ctx, jobId);
-  // Free trial: one application a day, 5 in all (the Apply Queue shows the rest behind Pro).
-  if (!["applied", "interview", "offer"].includes(app.status)) await assertCanApply(ctx);
-  const { error } = await ctx.db.from("applications").update({ status: "applied" }).eq("id", app.id);
-  if (isTrialLimitError(error)) throw new TrialLimit(TRIAL_LIMIT_COPY);
-  if (error) throw error;
-  await ctx.db.from("reminders").delete().eq("application_id", app.id).is("sent_at", null);
-  await event(ctx, app.id, "You confirmed: applied", "applied");
+  return confirmExternalApplied(ctx, jobId);
 }
 
-/** Records a user's explicit report of an external submission; it never sends an application. */
-export async function confirmExternalApplied(ctx:Ctx,jobId:string){
- const job=await requireJob(ctx,jobId);
- const app=await getApp(ctx,job.id);
- if(!app?.pack)throw new Error('Prepare this application first.');
- if(SUBMITTED.includes(app.status))return;
- if(!['ready','reminder','waiting'].includes(app.status))throw new Error('This application is still being prepared.');
- await assertCanApply(ctx);
- const saved=await ctx.db.from('applications').update({status:'applied'}).eq('id',app.id).eq('user_id',ctx.userId).is('sending_at',null).in('status',['ready','reminder','waiting']).select('id').maybeSingle();
- if(isTrialLimitError(saved.error))throw new TrialLimit(TRIAL_LIMIT_COPY);
- if(saved.error)throw saved.error;
- if(!saved.data)throw new Error('This application changed or is being sent. Reload its status before confirming.');
- await ctx.db.from('reminders').delete().eq('application_id',app.id).is('sent_at',null);
- await event(ctx,app.id,'You confirmed: applied externally','applied');
+/** Explicit user confirmation records history; it never sends or spends AI allowance. */
+export async function confirmExternalApplied(ctx: Ctx, jobId: string) {
+  const { error } = await ctx.db.rpc("confirm_external_application", { p_job: jobId });
+  if (error) throw error;
 }
 
 const LATER: AppStatus[] = ["interview", "offer", "closed", "withdrawn"];

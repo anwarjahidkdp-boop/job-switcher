@@ -28,9 +28,9 @@ export function numbersFlag(bad: string[]): string[] {
   return bad.length ? [`the number${bad.length > 1 ? "s" : ""} ${bad.join(", ")} ${bad.length > 1 ? "do" : "does"} not appear in your profile`] : [];
 }
 
-/** Prototype-equivalent pack check: numbers in the pack must come from the master CV, the job, the preferences or today's date. */
+/** Prototype-equivalent pack check: numbers in the pack must come from the master CV or the preferences or today's date. */
 export function packNumbersCheck(pack: Pick<ApplicationPack, "summary" | "top_bullets" | "cover_letter" | "email_body">, src: { master: unknown; job: unknown; prefs: unknown; today: string }): string[] {
-  const sources = JSON.stringify(src.master) + JSON.stringify(src.job || {}) + JSON.stringify(src.prefs || {}) + src.today;
+  const sources = JSON.stringify(src.master) + JSON.stringify(src.prefs || {}) + src.today;
   return numbersFlag(unknownNumbers([pack.summary, ...(pack.top_bullets || []), pack.cover_letter, pack.email_body], sources));
 }
 

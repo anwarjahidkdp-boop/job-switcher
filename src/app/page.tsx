@@ -105,7 +105,7 @@ export default async function Landing() {
           </div>
 
           <section className="lp-sec lp-auto">
-            <p className="lp-kicker">Your career on autopilot</p>
+            <p className="lp-kicker">Your career, thoughtfully supported</p>
             <h2>We do it all. You just review and approve.</h2>
             <AutoFlow us={US} you={YOU} />
           </section>

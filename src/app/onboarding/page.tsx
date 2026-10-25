@@ -102,7 +102,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "reveal" && st.master && st.P) {
     const m = st.master.content;
     const nm = inboxList(st.scored, new Set());
-    const strong = nm.filter((x) => x.m.score >= 70).length;
+    const strong = nm.filter((x) => x.m.score >= 90).length;
     const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
     const photo = await photoUrl(supabase, st.profile.photo_path);
     head = <Head cur="reveal" back="prefs" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>}

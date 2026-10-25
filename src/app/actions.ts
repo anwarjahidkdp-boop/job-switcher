@@ -214,7 +214,7 @@ export async function saveCareerSafetyAction(formData: FormData) {
   };
   const { error } = await c.db.from("profiles").update({ deal_breakers: dealBreakers, answer_library: answerLibrary }).eq("id", c.userId);
   if (error) throw error;
-  await refreshCareerMatches(c.db,c.userId);
+  await refreshCareerMatches(c.admin,c.userId);
   revalidatePath("/profile");
   revalidatePath("/inbox");
   revalidatePath("/insights");

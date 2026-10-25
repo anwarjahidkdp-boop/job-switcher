@@ -184,7 +184,7 @@ describe("fixed billing country and destination setup", () => {
     await db.query(`update profiles set onboarding_step='done',preferences='{"roles":"Finance","locations":"Dhaka","salaryMin":50000}', personal='{"fatherName":"Saved","visa":"Old work rights"}',cv_style='{"tpl":"modern"}',deal_breakers='{"remoteOnly":true}',answer_library='{"workAuthorization":"Ask me"}' where id=$1`, [W]);
     await db.query("update profiles set target_country='GB' where id=$1", [W]);
     const p = (await db.query<Record<string, unknown>>("select * from profiles where id=$1", [W])).rows[0];
-    expect(p).toMatchObject({ home_country: "BD", target_country: "GB", billing_country_locked: true, search_country_version: 1, onboarding_step: "prefs", needs_visa: true, preferences: { roles: "", locations: "", salaryMin: null, salaryMax: null, mode: "Any", notice: null }, personal: {}, cv_style: { tpl: "classic" }, deal_breakers: { remoteOnly: true }, answer_library: { workAuthorization: "Ask me" } });
+    expect(p).toMatchObject({ home_country: "BD", target_country: "GB", billing_country_locked: true, search_country_version: 1, onboarding_step: "prefs", needs_visa: true, preferences: { roles: "", locations: "", salaryMin: null, salaryMax: null, mode: "Any", notice: null }, personal: {fatherName:"Saved",visa:"Old work rights"}, cv_style: { tpl: "classic" }, deal_breakers: { remoteOnly: true }, answer_library: { workAuthorization: "Ask me" } });
     expect(await scalar<string>("select id from cv_documents where is_current", [])).toBe(doc);
     expect(await scalar<string>("select id from master_cvs where is_current", [])).toBe(master);
     // Selecting the same country is a no-op; going back does not restore old preferences.
@@ -269,16 +269,17 @@ describe('public Bangladesh job identity and source evidence', () => {
 
 describe('application allowance cannot be reset through direct owner REST writes',()=>{
  const Q='77777777-7777-4777-8777-777777777777';let first:string,second:string;
- it('normalizes forged dates and rejects a second same-day confirmation',async()=>{
+ it('normalizes forged dates while recording multiple genuine external confirmations',async()=>{
   await role('postgres');await db.query("insert into auth.users values($1,'quota-integrity@example.invalid')",[Q]);
   const jobs=(await db.query<{id:string}>("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method) values($1,'paste','synthetic','BD','one','test','portal'),($1,'paste','synthetic','BD','two','test','portal') returning id",[Q])).rows;
   await role('authenticated',Q);
   first=await scalar<string>("insert into applications(user_id,job_id,status,applied_at) values($1,$2,'applied',now()-interval '10 days') returning id",[Q,jobs[0].id]);
   expect(await scalar<boolean>("select applied_at>now()-interval '1 minute' from applications where id=$1",[first])).toBe(true);
   second=await scalar<string>("insert into applications(user_id,job_id,status) values($1,$2,'ready') returning id",[Q,jobs[1].id]);
-  await expect(db.query("update applications set status='applied' where id=$1",[second])).rejects.toThrow('one application a day');
-  await expect(db.query("update applications set status='interview' where id=$1",[second])).rejects.toThrow('one application a day');
-  await expect(db.query("update applications set applied_at=now()-interval '10 days' where id=$1",[second])).rejects.toThrow('one application a day');
+  const confirmed=await scalar<string>("select confirm_external_application($1)",[jobs[1].id]);
+  expect(confirmed).toBe(second);
+  expect(await scalar<string>("select confirm_external_application($1)",[jobs[1].id])).toBe(second);
+  expect(await scalar<number>("select count(*)::int from application_events where application_id=$1",[second])).toBe(1);
   await role('postgres');
  });
  it('preserves submitted usage on delete/status/date changes but permits deleting an unsent choice',async()=>{
@@ -287,10 +288,39 @@ describe('application allowance cannot be reset through direct owner REST writes
   await db.query("update applications set status='ready',applied_at=null where id=$1",[first]);
   expect(await scalar<boolean>('select applied_at is not null from applications where id=$1',[first])).toBe(true);
   await expect(db.query('delete from applications where id=$1',[first])).rejects.toThrow('cannot be deleted');
-  await db.query('delete from applications where id=$1',[second]);
+  await expect(db.query('delete from applications where id=$1',[second])).rejects.toThrow('cannot be deleted');
   await role('postgres');
   // Account deletion through the trusted Auth admin must still cascade cleanly.
   await db.query('delete from auth.users where id=$1',[Q]);
   expect(await scalar<number>('select count(*)::int from applications where user_id=$1',[Q])).toBe(0);
+ });
+});
+
+describe('audit reliability boundaries',()=>{
+ it('expires only abandoned holds and lets the user reserve again',async()=>{
+  await role('postgres');
+  await db.query("update ai_usage set model='__settled__',cost_micro_usd=0 where user_id=$1",[U]);
+  const id=await scalar<string>("insert into ai_usage(user_id,feature,provider,model,cost_micro_usd,ok,created_at) values($1,'__reservation__','test','__reserved__',1000000,false,now()-interval '11 minutes') returning id",[U]);
+  await role('service_role');expect(await scalar<number>('select expire_ai_reservations()')).toBeGreaterThan(0);
+  expect(await scalar<string>('select model from ai_usage where id=$1',[id])).toBe('__expired_unknown__');
+  const hold=await scalar<number>("select reserve_ai_call($1,'cv_edit','test')",[U]);
+  expect(await scalar<number>('select expire_ai_reservations()')).toBe(0);
+  await expect(db.query("select reserve_ai_call($1,'cv_edit','test')",[U])).rejects.toThrow('unresolved');
+  await db.query("update ai_usage set model='test',cost_micro_usd=10 where id=$1",[hold]);await role('postgres');
+ });
+ it('prevents match forgery and private-job visibility through a forged application',async()=>{
+  await role('postgres');const j=await scalar<string>("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method) values($1,'paste','private','BD','Secret role','Secret employer','portal') returning id",[V]);
+  await role('authenticated',U);
+  await expect(db.query("insert into matches(user_id,job_id,score,band) values($1,$2,100,'ex')",[U,j])).rejects.toThrow();
+  await db.query("insert into applications(user_id,job_id,status) values($1,$2,'waiting')",[U,j]);
+  expect(await scalar<number>("select count(*)::int from jobs where id=$1",[j])).toBe(0);
+  await expect(db.query('select confirm_external_application($1)',[j])).rejects.toThrow('Job not found');await role('postgres');
+ });
+ it('keeps one daily assessment even after repeated recalculation',async()=>{
+  await role('postgres');const j=await scalar<string>("insert into jobs(source_kind,source_label,country,title,company,apply_method) values('paste','test','BD','Daily role','Test','portal') returning id");
+  await db.query("insert into matches(user_id,job_id,score,band,relevant,computed_at) values($1,$2,80,'st',true,now())",[U,j]);
+  await db.query("update matches set score=90,computed_at=now()+interval '1 minute' where user_id=$1 and job_id=$2",[U,j]);
+  expect(await scalar<number>('select count(*)::int from match_assessments where user_id=$1 and job_id=$2',[U,j])).toBe(1);
+  expect(await scalar<number>('select score from match_assessments where user_id=$1 and job_id=$2',[U,j])).toBe(90);
  });
 });

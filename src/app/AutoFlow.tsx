@@ -19,7 +19,7 @@ export function AutoFlow({ us, you }: { us: string[]; you: string[] }) {
         <div className="lp-share-you" style={{ flexGrow: you.length }}><b>You</b> {you.length}</div>
       </div>
       <div className="lp-us">
-        <div className="lp-count"><b>{us.length}</b><span>jobs JobPao does for you, until you&apos;re hired</span></div>
+        <div className="lp-count"><b>{us.length}</b><span>ways JobPao supports your job search</span></div>
         <ol className="lp-tl">
           {us.map((x, i) => (
             <li key={x} style={{ "--i": i } as React.CSSProperties}>

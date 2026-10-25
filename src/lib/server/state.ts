@@ -197,7 +197,7 @@ export function stats(st: UserState) {
   const apps = Object.values(st.apps);
   const queued = applyQueue(st);
   return {
-    analysed: Math.max(st.analysed, st.scored.length), relevant: rel.length, strong: rel.filter((x) => x.m.score >= 70 && !x.m.expired).length,
+    analysed: Math.max(st.analysed, st.scored.length), relevant: rel.length, strong: rel.filter((x) => x.m.score >= 90 && !x.m.expired).length,
     queued: queued.length, verification: queued.filter(x=>!queueSafety(st,x.job).safe).length,
     prepared: queued.filter(x => st.apps[x.job.id]?.pack && queueSafety(st,x.job).safe).length, applied: apps.filter((a) => !!a.applied_at).length,
     reminders: apps.filter((a) => a.status === "reminder").length, interviews: apps.filter((a) => a.status === "interview" || !!a.interview_at || a.application_events?.some(e=>e.status==="interview")).length, offers: apps.filter((a) => a.status === "offer" || a.application_events?.some(e=>e.status==="offer")).length,

@@ -7,7 +7,7 @@ vi.mock('../template-pack',()=>({templatePack:()=>({summary:'Verified summary',c
 vi.mock('../numbers-check',()=>({checkPack:(pack:unknown)=>({pack,flags:[]})}));
 import {loadState,loadJob} from './state';
 import {runAI,getBudget} from '../ai';
-import {preparePack,confirmApplied,markOpened} from './applications';
+import {preparePack,markOpened} from './applications';
 it('creates and saves an unpublished-pay review pack without AI, while actual application remains blocked',async()=>{
  const patches:Record<string,unknown>[]=[];
  const db={from(table:string){
@@ -25,6 +25,5 @@ it('creates and saves an unpublished-pay review pack without AI, while actual ap
  expect(result.ai).toBe(false);expect(result.flags).toContain('Salary not disclosed — verify pay before applying');
  expect(patches.at(-1)).toMatchObject({status:'ready',pack:{cover_letter:'Review cover letter'},pack_ai:false});
  expect(runAI).not.toHaveBeenCalled();expect(getBudget).not.toHaveBeenCalled();
- await expect(confirmApplied(ctx,'j')).rejects.toThrow('Salary is not disclosed');
  await expect(markOpened(ctx,'j')).rejects.toThrow('Salary is not disclosed');
 });
