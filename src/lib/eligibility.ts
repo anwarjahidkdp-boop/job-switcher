@@ -67,7 +67,7 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
  const floor=P.salaryMin;
  if(floor&&job.salaryMax!=null&&job.salaryMax<floor)add('salary',`Published salary tops out at ${job.salaryMax}; your minimum is ${floor} ${rule(job.country).sym.trim()} per ${rule(job.country).per}.`,true,0);
  else if(P.salaryConfirmed===false)add('salary_unknown','Enter your expected salary or current salary before salary suitability can be confirmed.',true,79);
- else if(floor&&job.salaryMax==null)add('salary_unpublished','Salary is not disclosed. Confirm pay before applying; salary suitability is unverified.',true,79);
+ else if(floor&&job.salaryMax==null)add('salary_unpublished','Salary is not disclosed and is excluded from the fit score. Confirm pay before applying; salary suitability is unverified.',true,100);
  else if(floor&&job.salaryMin!=null&&job.salaryMin<floor)add('salary_range','Only the upper part of the advertised salary range meets your minimum. Confirm the actual offer; higher pay is not established.',false,79);
  return {issues,scoreCap:cap,reason,eligible:!issues.some(i=>i.blocking),blocked:cap===0};
 }
