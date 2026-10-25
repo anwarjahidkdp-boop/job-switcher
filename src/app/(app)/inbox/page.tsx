@@ -13,7 +13,7 @@ import { completeness } from "@/lib/facts";
 import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
-import { BandPill, Ring } from "@/components/ui";
+import { BandPill } from "@/components/ui";
 import { PastePanel } from "./PastePanel";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { courseLinks, nowMs } from "@/lib/today";
@@ -84,6 +84,8 @@ export default async function Inbox() {
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
   const BANDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["lo", "Stretch", "55–69%"], ["other", "Other matches", "Below 55%"]] as const;
   const barOf = today?.total ? today : all;
+  const matchedToday = today ? today.total - today.other : 0;
+  const matchedAll = all.total - all.other;
   const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
 
@@ -112,6 +114,14 @@ export default async function Inbox() {
             <p className={s.sub}>{today ? <>Today we checked <b>{fmt(today.total)} new {today.total === 1 ? "job" : "jobs"} in {cname(country)}</b> for you.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
           </div>
           <div className={s.cta}>
+            <div className={s.allTime} aria-label="All time">
+              <span className={s.atK}>All time</span>
+              <span className={s.atRow}>
+                <span><b>{fmt(all.total)}</b>Searched</span>
+                <span><b>{fmt(matchedAll)}</b>Matched</span>
+                <span><b>{fmt(progress.applied)}</b>Applied</span>
+              </span>
+            </div>
             {sx.prepared ? <Link prefetch={false} className={s.gold} href={readyHref}>Review {sx.prepared} ready {sx.prepared === 1 ? "application" : "applications"} →</Link>
               : featured ? <Link prefetch={false} className={s.gold} href={`/jobs/${featured.job.id}`}>See your best match →</Link>
               : <a className={s.gold} href="#matches">Paste a job you found →</a>}
@@ -119,13 +129,15 @@ export default async function Inbox() {
         </div>
       </section>
 
-      <section className={s.summary} aria-labelledby="summary-h">
-        <div className={s.sumHead}>
-          <h2 id="summary-h" className={s.sumToday}>Today <span>{today ? `${fmt(today.total)} jobs checked` : "Not counted yet"} · {fmt(appliedToday)} applied</span></h2>
-          <p className={s.sumAll}>All time: <b>{fmt(all.total)}</b> jobs checked · <b>{fmt(progress.applied)}</b> applied</p>
-        </div>
+      <section className={s.summary} aria-label="Today's job search">
         {barOf.total ? <div className={s.stack} role="img" aria-label={BANDS.map(([b, l]) => `${l} ${pct(barOf[b], barOf.total)}%`).join(", ")}>{BANDS.map(([b]) => barOf[b] ? <i key={b} className={BAND_CLASS[b]} style={{ width: `${(100 * barOf[b]) / barOf.total}%` }} /> : null)}</div> : null}
         <div className={s.fits}>
+          <div className={`${s.fit} ${s.todayTile}`}>
+            <span className={s.fitTop}><span className={s.fitLabel}>Today</span></span>
+            <span className={s.tdRow}><span>Searched</span><b>{today ? fmt(today.total) : "–"}</b></span>
+            <span className={s.tdRow}><span>Matched</span><b>{today ? fmt(matchedToday) : "–"}</b></span>
+            <span className={s.tdRow}><span>Applied</span><b>{fmt(appliedToday)}</b></span>
+          </div>
           {BANDS.map(([b, label, range]) => {
             const n = today ? today[b] : 0;
             const body = <>
@@ -158,19 +170,6 @@ export default async function Inbox() {
               </div>
             </div>
           ))}
-
-          {featured ? (
-            <Link prefetch={false} className={s.spot} href={`/jobs/${featured.job.id}`}>
-              <Ring score={featured.m.score} band={featured.m.band} />
-              <span style={{ minWidth: 0 }}>
-                <span className={s.spotK}>Your best match right now</span>
-                <span className={s.spotT}>{featured.job.title}</span>
-                <span className={s.muted}>{featured.job.company}{featured.job.location ? ` · ${featured.job.location}` : ""}{featured.job.deadline ? ` · Deadline ${fmtDate(featured.job.deadline)}` : ""}</span>
-                <span className={s.why}>{featured.m.matched.slice(0, 3).map((t) => <span key={t} className={s.ok}>✓ {t}</span>)}{featured.m.gaps[0] ? <span className={s.gap}>Gap: {featured.m.gaps[0].t.split(";")[0]}</span> : null}</span>
-              </span>
-              <span className={s.spotGo}>{st.apps[featured.job.id]?.pack ? <span className={s.readyPill}>CV + cover letter ready</span> : null}<span className={s.goBtn}>{st.apps[featured.job.id]?.pack ? "Review & apply →" : "See why it fits →"}</span></span>
-            </Link>
-          ) : null}
 
           <div className={s.card} id="matches">
             <PastePanel sites={setupSites} />
