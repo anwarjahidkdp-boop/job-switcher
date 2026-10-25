@@ -48,10 +48,10 @@ describe("career home", () => {
     const html = renderToStaticMarkup(await Inbox());
     if (process.env.DUMP_HOME) writeFileSync(process.env.DUMP_HOME, html);
     expect(html.match(/Senior Accounts Manager/g)?.length).toBeLessThanOrEqual(2);
-    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch", "Other matches", "Career guide"].map((l) => html.indexOf(l));
+    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best opportunity right now", "All time"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
-    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Matched", ">1,248<", ">177<", ">10<", "83%", "All time 1,071 · 86%"]) expect(html).toContain(t);
+    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Matched", ">1,248<", ">97<", ">6<", ">54<", ">1,151<", "90%", "92%"]) expect(html).toContain(t);
   });
 
   it("counts trial applications instead of AI packs when not on Pro", async () => {
@@ -69,6 +69,6 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).toContain(">1,248<");
-    expect(html).not.toContain("Your best match right now");
+    expect(html).not.toContain("Other matches");
   });
 });
