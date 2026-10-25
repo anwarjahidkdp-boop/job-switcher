@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cc, rule } from "../countries";
 import { todayStr } from "../dates";
+import { emailProvider } from "../email/send";
 import { deliverEmail } from "./email-outbox";
 import { reminderEmail } from "../email/templates";
 import { notify } from "./notify";
@@ -43,7 +44,7 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     const today = todayStr(tz, now);
     // Due today or earlier in the user's time zone, and not before 08:00 local time.
     if (r.due_date > today || (r.due_date === today && localHour(tz, now) < SEND_FROM_HOUR)) { res.skipped++; continue; }
-    if (r.applications.status !== "reminder" || r.jobs.country !== p?.target_country || !p?.email || p.email_reminders === false) {
+    if (r.applications.status !== "reminder" || r.jobs.country !== p?.target_country || !p) {
       if (!opts.dryRun) await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: "skipped" }).eq("id", r.id);
       res.skipped++;
       continue;
@@ -51,12 +52,13 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     const msg = reminderEmail({ name: p.full_name || "", jobTitle: r.jobs.title, company: r.jobs.company, deadline: r.jobs.deadline, link: `${opts.appUrl.replace(/\/$/, "")}/jobs/${r.job_id}`, packReady: !!r.applications.pack });
     if (opts.dryRun) { res.sent++; continue; }
     try {
-      const delivery = await deliverEmail(admin, r.user_id, `reminder:${r.id}:${r.due_date}`, { to: p.email, ...msg, applicationId: r.application_id, dueDate: r.due_date });
-      if (delivery !== "sent") { res.failed++; continue; }
-      // The email went out: if this record fails, say so loudly, because the next run would send it again.
+      await notify(admin, r.user_id, [{ kind: "reminder", title: `Reminder: apply to ${r.jobs.company}`, body: `${r.jobs.title}. ${r.applications.pack ? "Your application is ready." : "Open it to prepare your application."}`, link: `/jobs/${r.job_id}`, key: `reminder:${r.id}:${r.due_date}` }]);
+      if (p.email && p.email_reminders !== false && emailProvider()) {
+        const delivery = await deliverEmail(admin, r.user_id, `reminder:${r.id}:${r.due_date}`, { to: p.email, ...msg, applicationId: r.application_id, dueDate: r.due_date });
+        if (delivery !== "sent") { res.failed++; continue; }
+      }
       const { error: ue } = await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: null }).eq("id", r.id);
-      if (ue) console.error("reminder sent but not recorded", r.id, ue);
-      await notify(admin, r.user_id, [{ kind: "reminder", title: `Reminder: apply to ${r.jobs.company}`, body: `${r.jobs.title}. ${r.applications.pack ? "Your application is ready." : "Open it to prepare your application."}`, link: `/jobs/${r.job_id}`, key: `reminder:${r.id}` }]).catch(() => 0);
+      if (ue) throw ue;
       res.sent++;
     } catch (e) {
       await admin.from("reminders").update({ send_error: String(e).slice(0, 300) }).eq("id", r.id);

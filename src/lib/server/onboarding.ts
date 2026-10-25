@@ -145,16 +145,23 @@ export async function transcribeCv(ctx: Ctx, pages: Uint8Array[]) {
 }
 
 export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {
-  const { data: doc } = await ctx.db.from("cv_documents").select("id, questions").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
+  const { data: doc,error:docError } = await ctx.db.from("cv_documents").select("id, questions, text_content, is_demo").eq("user_id", ctx.userId).eq("is_current", true).maybeSingle();
+  if(docError)throw docError;
   if (!doc) throw new Error("Upload a CV first.");
   const qs = (doc.questions || []) as CvQuestion[];
   const clean: Record<string, string> = {};
   for (const q of qs) clean[q.id] = String(answers[q.id] || "").trim().slice(0, 1000);
-  await ctx.db.from("cv_documents").update({ answers: clean }).eq("id", doc.id);
-  await ctx.db.from("career_facts").delete().eq("user_id", ctx.userId).eq("kind", "answer");
-  const rows = qs.filter((q) => clean[q.id]).map((q) => ({ user_id: ctx.userId, cv_document_id: doc.id, kind: "answer", provenance: "answer", verified: true, data: { questionId: q.id, question: q.question, answer: clean[q.id] } }));
-  if (rows.length) await ctx.db.from("career_facts").insert(rows);
-  await ctx.db.from("profiles").update({ onboarding_step: "prefs" }).eq("id", ctx.userId);
+  let extraction:Extraction|null=null,facts:CareerFact[]|null=null;
+  if(!doc.is_demo&&(clean.fresh_role||clean.fresh_new)){
+    const profile=await loadProfile(ctx.db,ctx.userId);
+    const source=String(doc.text_content||"")+"\nUser-confirmed updates (supersede older CV details):\n"+qs.filter(q=>clean[q.id]).map(q=>q.question+"\n"+clean[q.id]).join("\n");
+    const result=await runAI(ctx.admin,ctx.userId,"cv_extract",p=>p.generateJSON({tier:"fast",system:SYSTEM_RULES,prompt:EXTRACT_PROMPT(source,cc(profile?.target_country))+"\nApply the user's explicit corrections to previous roles and include newly confirmed roles and qualifications. Never guess missing months or dates.",schema:ExtractionSchema}));
+    extraction=cleanExtraction(result.data as Extraction);
+    facts=groundExtraction(extraction,source).map(f=>({...f,provenance:"answer" as const}));
+  }
+  const answerFacts=qs.filter(q=>clean[q.id]).map(q=>({kind:"answer" as const,provenance:"answer" as const,verified:true,data:{questionId:q.id,question:q.question,answer:clean[q.id]}}));
+  const saved=await ctx.db.rpc("save_cv_answers",{p_document:doc.id,p_answers:clean,p_facts:facts?[...facts,...answerFacts]:answerFacts,p_extraction:extraction});
+  if(saved.error)throw saved.error;
 }
 
 const num = (v: unknown) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.max(0, Number(v)));
@@ -186,7 +193,7 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   const { data, error } = await query.select("id").maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Your job-search country changed. Reload and complete setup for the current country.");
-  await refreshCareerMatches(ctx.db,ctx.userId);
+  await refreshCareerMatches(ctx.admin,ctx.userId);
 }
 
 const verifiedFactsFor = (facts: CareerFact[]) => {
@@ -209,7 +216,7 @@ const metaOf = (p: ProfileRow): CareerMeta => ({ ...DEFAULT_META, ...(p.career_m
 function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: { cvText: string; answersText: string; prefs: unknown; edits: string[]; removed: RemovedItem[] }) {
   // Dates always come from verified facts, never from the generator.
   m.experience = (m.experience || []).map((e) => {
-    const f = vf.experiences.find((x) => appearsIn(x.company, e.company) || appearsIn(e.company, x.company));
+    const f = vf.experiences.find((x) => (appearsIn(x.company, e.company) || appearsIn(e.company, x.company)) && (appearsIn(x.title, e.title) || appearsIn(e.title, x.title)));
     return f ? { ...e, start: f.start, end: f.end } : e;
   });
   const userFacts = verifiedOnly(facts).filter((f) => f.provenance === "user").map((f) => f.data);
@@ -223,7 +230,7 @@ function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: 
 async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null, profile: ProfileRow, completeSetup = false) {
   const { error } = await ctx.db.rpc("publish_country_master_cv", { p_content: content, p_flags: flags, p_ai: ai, p_model: model, p_document_id: docId, p_country: profile.target_country, p_revision: profile.search_country_version, p_complete_setup: completeSetup });
   if (error) throw error;
-  await refreshCareerMatches(ctx.db,ctx.userId);
+  await refreshCareerMatches(ctx.admin,ctx.userId);
 }
 
 /** Generate the Master CV from verified facts only, then run the deterministic post-checks. */
@@ -312,7 +319,7 @@ export async function addUserSkill(ctx: Ctx, skill: string) {
   const pending = facts.find((f) => f.kind === "skill" && !f.verified && normSkill((f.data as { name: string }).name) === name);
   if (pending?.id) await ctx.db.from("career_facts").update({ verified: true, provenance: "user" }).eq("id", pending.id);
   else await ctx.db.from("career_facts").insert({ user_id: ctx.userId, kind: "skill", data: { name }, provenance: "user", verified: true });
-  await refreshCareerMatches(ctx.db,ctx.userId);
+  await refreshCareerMatches(ctx.admin,ctx.userId);
 }
 
 /** The user confirms (or removes) a CV fact we could not find in their CV text. */
@@ -326,5 +333,5 @@ export async function reviewFact(ctx: Ctx, factId: string, keep: boolean) {
   }
   if (keep) await ctx.db.from("career_facts").update({ verified: true }).eq("id", factId).eq("user_id", ctx.userId);
   else await ctx.db.from("career_facts").delete().eq("id", factId).eq("user_id", ctx.userId);
-  await refreshCareerMatches(ctx.db,ctx.userId);
+  await refreshCareerMatches(ctx.admin,ctx.userId);
 }

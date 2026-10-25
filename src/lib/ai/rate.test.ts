@@ -42,3 +42,8 @@ describe("runAI rate limit", () => {
    a.db.rpc=vi.fn(async(name:string,...args:unknown[])=>name === "reserve_ai_call" ? {data:null,error:{message:"rate_limited"}} : old(name,...args)) as unknown as typeof a.db.rpc;
    await expect(runAI(a.db,"u1","cv_edit",fn)).rejects.toMatchObject({code:"rate_limited"});expect(fn).not.toHaveBeenCalled();
  });
+
+it("releases an unknown provider failure without deleting its audit record",async()=>{
+ const a=admin(0);await expect(runAI(a.db,"u1","cv_edit",async()=>{throw new Error("timeout");})).rejects.toThrow("timeout");
+ expect(a.inserts).toContainEqual(expect.objectContaining({model:"__failed_unknown__",cost_micro_usd:0,ok:false}));
+});

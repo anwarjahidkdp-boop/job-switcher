@@ -35,7 +35,8 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
   ]);
   const home = profRes.data?.home_country;
   const pack = isPack(sp.pack) && packsForCountry(home).some(p => p.id === sp.pack) ? sp.pack : DEFAULT_PACK;
-  const local = packPrice(home, pack);
+  const selectedPack=packsForCountry(home).some(p=>p.id===pack)?pack:DEFAULT_PACK;
+  const local = packPrice(home, selectedPack);
   const month = packPrice(home, "30d");
   const payable = PAYABLE_CURRENCIES.includes(local.currency);
   const cfg = payable ? billingConfig() : { manual: null, checkout: false };
@@ -57,7 +58,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
         {banner ? <p className="note" style={{ marginTop: 14, borderColor: banner[0] === "ok" ? "var(--accent)" : "var(--warn)" }}>{banner[1]}</p> : null}
         <div className="card panel" style={{ marginTop: 18 }}>
           <h3>Your plan</h3>
-          <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds {span} after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts {span} of Pro today.</> : <>You are on the free plan. Paying starts {span} of Pro.</>}</p>
+          <p>{activeUntil ? <>Pro is active until <b>{fmtDate(activeUntil.slice(0, 10))} {activeUntil.slice(0, 4)}</b>. Paying now adds {span} after that.</> : sub?.status === "trialing" ? <>Free trial{sub.trial_ends_at ? <> until <b>{fmtDate(sub.trial_ends_at.slice(0, 10))}</b></> : null}. Paying now starts {span} of Pro today.</> : <>Your trial or paid access has ended. Paying starts {span} of Pro.</>}</p>
         </div>
         {(() => { const l = packLimits("pro", home); return <p className="small muted" style={{ marginTop: 10 }}>Pro includes up to <b>{l.day} AI-tailored applications a day</b> (CV + cover letter for one job), up to {l.week} a week and {l.month} a month. After that you still get the standard version, free.</p>; })()}
         <div className="packs" role="radiogroup" aria-label="Choose your Pro pack">

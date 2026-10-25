@@ -74,6 +74,10 @@ async function main() {
   }
 
   if (!dry) {
+    const maintenance = await db.rpc("prune_match_assessments");
+    if (maintenance.error) throw maintenance.error;
+    const expired=await db.rpc("expire_ai_reservations");
+    if(expired.error)throw expired.error;
     // Expire public listings whose deadline has passed everywhere: a day's grace, because at 00:30 UTC it is still
     // yesterday in the Americas, where a job closing "today" UTC-wise is open until the end of the local day.
     const yesterday = new Date(Date.parse(today + "T12:00:00Z") - 86_400_000).toISOString().slice(0, 10);

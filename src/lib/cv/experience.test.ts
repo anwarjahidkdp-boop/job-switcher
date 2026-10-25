@@ -41,45 +41,20 @@ describe("experience chronology after manual date edits", () => {
 });
 
 import { closeEarlierRoles } from "./experience";
-describe("automatic role end dates", () => {
- it("ends a previous Present role in the month before the new role, across employers", () => {
-  const rows = closeEarlierRoles([old, { ...recent, company: "Different Company" }]);
-  expect(rows[0]).toMatchObject({ end: "2021-09", autoEnd: true });
-  expect(rows[1].end).toBeNull(); expect(old.end).toBeNull();
+describe("explicit role dates", () => {
+ it("preserves simultaneous current roles, including promotions at the same employer",()=>{
+  const rows=closeEarlierRoles([old,recent,{...old,company:"Third",start:"2024-04"}]);
+  expect(rows.map(e=>e.end)).toEqual([null,null,null]);expect(rows[0]).not.toBe(old);
  });
- it("closes each preceding role across three employers, even for identical job titles", () => {
-  const rows = closeEarlierRoles([old, { ...old, company: "Second", start: "2021-01" }, { ...old, company: "Third", start: "2024-04" }]);
-  expect(rows.map(e=>e.end)).toEqual(["2020-12", "2024-03", null]);
+ it("removes legacy inferred dates but preserves explicit dates",()=>{
+  expect(closeEarlierRoles([{...old,end:"2021-09",autoEnd:true},recent])[0]).toMatchObject({end:null,autoEnd:false});
+  expect(closeEarlierRoles([{...old,end:"2021-09"},recent])[0].end).toBe("2021-09");
  });
- it("updates automatic end dates when the successor's start date changes", () => {
-  const rows = closeEarlierRoles(closeEarlierRoles([old,recent]).map(e => e.title === recent.title ? { ...e, start: "2022-01" } : e));
-  expect(rows[0].end).toBe("2021-12");
- });
- it("restores Present when an automatically closing successor is removed", () => {
-  const rows = closeEarlierRoles(closeEarlierRoles([old,recent]).filter(e=>e.title===old.title));
-  expect(rows[0]).toMatchObject({ end: null, autoEnd: false });
- });
- it("preserves explicitly entered end dates, concurrent roles and unknown or equal starts", () => {
-  expect(closeEarlierRoles([{ ...old, end: "2020-03" },recent])[0].end).toBe("2020-03");
-  expect(closeEarlierRoles([{ ...old, concurrent: true },recent])[0].end).toBeNull();
-  expect(closeEarlierRoles([{ ...old, start: null },recent])[0].end).toBeNull();
-  expect(closeEarlierRoles([old,{ ...recent, start: old.start }])[0].end).toBeNull();
- });
- it("keeps a user-restored Present role current after save and reopening", () => {
-  const before = { ...DEMO_MASTER, experience: [old,recent] };
-  const draft = manualDraft(before, []);
-  const prior = draft.experience.find(e=>e.title===old.title)!;
-  prior.end = null; prior.autoEnd = false; prior.concurrent = true;
-  const saved = manualContent(draft,before,[]);
-  const reopened = manualDraft(saved.master, saved.facts.map(f=>({...f,verified:true,provenance:"user" as const})));
-  expect(reopened.experience.find(e=>e.title===old.title)).toMatchObject({end:null,concurrent:true});
-  expect(saved.facts.find(f=>f.kind==='experience' && f.data.title===old.title)?.data.concurrent).toBe(true);
- });
- it("persists inferred dates in the master and matching facts and displays them in every export", () => {
-  const before = { ...DEMO_MASTER, experience: [old,recent] };
-  const out = manualContent({ ...manualDraft(before,[]), experience: [old,recent] }, before, []);
-  expect(out.master.experience[1]).toMatchObject({end:"2021-09",autoEnd:true});
-  expect(out.facts.filter(f=>f.kind==='experience')[1].data.end).toBe("2021-09");
-  for(const html of [renderCvHtml({master:before,country:"BD"}), cvDocHtml({master:before,country:"BD"}),cvPrintHtml({master:before,country:"BD"})]) expect(html).toContain("Sep 2021");
+ it("preserves current dates in saved facts and exports",()=>{
+  const before={...DEMO_MASTER,experience:[old,recent]};
+  const out=manualContent({...manualDraft(before,[]),experience:[old,recent]},before,[]);
+  expect(out.master.experience.every(e=>e.end===null)).toBe(true);
+  expect(out.facts.filter(f=>f.kind==='experience').every(f=>f.data.end===null)).toBe(true);
+  for(const html of [renderCvHtml({master:before,country:"BD"}),cvDocHtml({master:before,country:"BD"}),cvPrintHtml({master:before,country:"BD"})])expect(html).not.toContain("Sep 2021");
  });
 });

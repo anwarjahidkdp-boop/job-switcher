@@ -29,6 +29,8 @@ export const INTL_PRO_CAP_MICRO_USD = 2_000_000;
 export interface Budget { spent: number; cap: number; plan: string; status: string; trialEndsAt: string | null; periodEnd?: string | null }
 
 export async function getBudget(admin: SupabaseClient, userId: string): Promise<Budget | null> {
+  const expired = await admin.rpc("expire_ai_reservations");
+  if (expired.error) return null;
   const { data, error } = await admin.rpc("ai_budget", { p_user: userId });
   if (error || !data || !data[0]) return null;
   const r = data[0] as { spent_micro_usd: number; cap_micro_usd: number; plan_code: string; status: string; trial_ends_at: string | null; current_period_end?: string | null };
@@ -80,7 +82,11 @@ export async function runAI<T extends { usage: AIUsage }>(admin: SupabaseClient,
     } else if (e instanceof AIError && (e.code === "not_configured" || e.code === "rate_limited")) {
       const { error } = await admin.from("ai_usage").update({ feature, model: "__rejected__", cost_micro_usd: 0, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
       if (error) console.error("AI rejected reservation reconciliation failed", reservation, error);
-    } else console.error("AI result unresolved; reconcile reservation with provider usage", reservation, userId, feature);
+    } else {
+      // Keep an auditable failed attempt, but never hold the entire allowance forever.
+      const { error } = await admin.from("ai_usage").update({ feature, model: "__failed_unknown__", cost_micro_usd: 0, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
+      if (error) console.error("AI failure release pending expiry", reservation, error);
+    }
     throw e;
   }
   const { data: settled, error } = await admin.from("ai_usage").update({

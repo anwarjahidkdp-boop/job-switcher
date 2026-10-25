@@ -144,7 +144,9 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const edu = /\b(phd|doctorate)\b/.test(low) ? "phd" : /\b(master'?s|mba|m\.?sc|m\.?com)\b/.test(low) ? "masters" : /\b(bachelor'?s|bba|b\.?sc|b\.?com|graduate degree|degree in)\b/.test(low) ? "bachelors" : /\bdiploma\b/.test(low) ? "diploma" : null;
   const fieldM = low.match(/(?:degree|bachelor'?s|master'?s|mba|bba)[^.\n]{0,30}?\b(accounting|finance|business|computer science|engineering|marketing|human resources|economics)\b/);
   const certs: JobCert[] = [];
-  const certHits = CERT_NAMES.filter((c) => new RegExp(`\\b${c}\\b`).test(text));
+  const certHits = CERT_NAMES.filter((c) => c === "CA"
+    ? /\bchartered accountant\b|\bCA\s*(?:qualified|qualification|certification|degree|is required|is mandatory)|(?:qualification|certification|required|qualified)\s*[:：]?\s*CA\b|\b(?:ACCA|CPA|CMA)\s*(?:or|\/)\s*CA\b/i.test(text)
+    : new RegExp(`\\b${c}\\b`).test(text));
   if (certHits.length) {
     const required = /\b(must|required|mandatory|essential)\b[^.\n]{0,60}\b(ACCA|CIMA|CMA|CPA|CA|CFA|PMP|SHRM|CIPD)\b|\b(ACCA|CIMA|CMA|CPA|CA|CFA|PMP|SHRM|CIPD)\b[^.\n]{0,30}\b(required|mandatory|is a must)\b/.test(text);
     certs.push({ names: certHits, required });
@@ -157,7 +159,7 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const preferred = preferredBlock ? skillsInText(preferredBlock).filter((s) => !skillsInText(low.split(/preferred|nice to have|desirable|bonus|advantage/)[0]).includes(s)) : [];
   const required = [...allSkills.filter((s) => !preferred.includes(s)), ...languagesRequired(text).filter((l) => !allSkills.includes(l))];
   const resp = text.split(/\n/).map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter((l) => l.length > 25 && l.length < 180).slice(0, 3);
-  const industry = INDUSTRY_LIST.find((i) => low.includes(i)) || null;
+  const industry = INDUSTRY_LIST.find((i) => new RegExp(`\\b${i.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\b`,"i").test(low)) || null;
   // A literal labelled date is source evidence, including common employer dates such as 31 Oct 2026.
   const humanDeadline=text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{1,2})[\s-]+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[\s,-]+(\d{4})\b/i);
   let labelledDate:string|null=null;
