@@ -144,8 +144,8 @@ export default async function Inbox() {
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
-            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} /><span><b>Connect Bdjobs</b><em>Get Bangladesh’s best jobs · 4 easy steps →</em></span></Link> : null}
-            {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} /><span><b>{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete</b><em>Complete now →</em></span></Link> : null}
+            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} />Connect Bdjobs<em>· 4 easy steps</em></Link> : null}
+            {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} />{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete<em>· Complete now</em></Link> : null}
           </div>
         </div>
       </section>
