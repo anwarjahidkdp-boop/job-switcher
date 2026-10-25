@@ -8,9 +8,9 @@ import { backToStepAction, appliedAction } from "@/app/actions";
 import Link from "next/link";
 import { subscriptionOf, requireAppState } from "@/lib/server/page";
 import { stats, loadJob } from "@/lib/server/state";
-import { opportunitySections, skillDemand, type Scored } from "@/lib/matching";
+import { opportunitySections, skillDemand } from "@/lib/matching";
 import { completeness } from "@/lib/facts";
-import { cname, portals } from "@/lib/countries";
+import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { BandPill, Ring } from "@/components/ui";
@@ -22,12 +22,13 @@ import { TRIAL_APPLY } from "@/lib/pack-limits";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiConfigured } from "@/lib/ai";
+import { searchSummary, dayStart, type BandCounts } from "@/lib/server/search-summary";
 import s from "./Home.module.css";
 
 export const metadata = { title: "Opportunities" };
 
 const DAY = 86_400_000;
-const BAND_CLASS: Record<Band, string> = { ex: s.ex, st: s.st, po: s.po, lo: s.lo };
+const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.po, lo: s.lo, other: s.other };
 const GROUP_CLASS: Record<Band, string> = { ex: s.gex, st: s.gst, po: s.gpo, lo: s.glo };
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
@@ -57,7 +58,8 @@ export default async function Inbox() {
   const now = nowMs();
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
-  const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const since = dayStart(rule(country).timeZone, new Date(now));
+  const [allowance, summary] = await Promise.all([pro && aiConfigured() ? packAllowanceFor(createAdminClient(), st.userId) : null, searchSummary(db, st.userId, country, since)]);
   const progress = applicationProgressCounts(st.apps);
   const latestApp = submittedApplications(st.apps).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
@@ -74,14 +76,14 @@ export default async function Inbox() {
     ? [["Today", allowance.limits.day - allowance.used.day, allowance.limits.day], ["This week", allowance.limits.week - allowance.used.week, allowance.limits.week], ["This month", allowance.limits.month - allowance.used.month, allowance.limits.month]]
     : pro ? [] : [["Today", Math.min(TRIAL_APPLY.day - sent.filter((t) => now - t < DAY).length, TRIAL_APPLY.total - sent.length), TRIAL_APPLY.day], ["In trial", TRIAL_APPLY.total - sent.length, TRIAL_APPLY.total]];
 
-  // Fit bands in order. "New" means posted in the last 7 days.
-  const recent = (x: Scored) => !!x.job.publishedAt && (daysUntil(x.job.publishedAt.slice(0, 10), st.today) ?? -99) >= -7;
+  // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
-  const bandTiles = ([["ex", tiles[1]], ["st", tiles[2]], ["po", tiles[3]], ["lo", tiles[4]]] as const).map(([b, t]) => {
-    const min = b === "ex" ? 90 : b === "st" ? 80 : b === "po" ? 70 : 55, max = b === "ex" ? 101 : min + (b === "lo" ? 15 : 10);
-    const fresh = relevant.filter((x) => x.m.score >= min && x.m.score < max && recent(x)).length;
-    return { b, t, fresh };
-  });
+  const today: BandCounts | null = summary?.today ?? null;
+  const all: BandCounts = summary?.all ?? { total: sx.analysed, ex: tiles[1].count, st: tiles[2].count, po: tiles[3].count, lo: tiles[4].count, other: Math.max(0, sx.analysed - tiles[1].count - tiles[2].count - tiles[3].count - tiles[4].count) };
+  const appliedToday = sent.filter((t) => t >= since.getTime()).length;
+  const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
+  const BANDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["lo", "Stretch", "55–69%"], ["other", "Other matches", "Below 55%"]] as const;
+  const barOf = today?.total ? today : all;
   const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
   const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
 
@@ -107,38 +109,35 @@ export default async function Inbox() {
           <div>
             <p className={s.kicker}>Your job assistant</p>
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
-            <p className={s.sub}>{sx.analysed ? <>We checked <b>{fmt(sx.analysed)} jobs in {cname(country)}</b>. <b>{fmt(relevant.length)} match you</b>.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
-            <div className={s.chips}>
-              {bandTiles.slice(0, 3).map(({ b, t }) => <a key={b} className={s.chip} href={`#band-${b}`}><i style={{ background: b === "ex" ? "#F2C46B" : b === "st" ? "#5BD08A" : "#7FB0F0" }} />{t.count} {t.label}</a>)}
-              {queue.some((x) => (daysUntil(x.job.deadline, st.today) ?? 99) <= 2) ? <a className={s.chip} href="#agenda"><i style={{ background: "#FF7A5F" }} />Deadline within 2 days</a> : null}
-            </div>
+            <p className={s.sub}>{today ? <>Today we checked <b>{fmt(today.total)} new {today.total === 1 ? "job" : "jobs"} in {cname(country)}</b> for you.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
           </div>
           <div className={s.cta}>
-            {planLine ? <Link prefetch={false} className={s.plan} href="/upgrade">{planLine.label}{planLine.left != null ? <> · <b>{planLine.left} {planLine.left === 1 ? "day" : "days"} left</b></> : null}</Link> : <Link prefetch={false} className={s.plan} href="/upgrade">Trial ended · <b>Go Pro</b></Link>}
             {sx.prepared ? <Link prefetch={false} className={s.gold} href={readyHref}>Review {sx.prepared} ready {sx.prepared === 1 ? "application" : "applications"} →</Link>
               : featured ? <Link prefetch={false} className={s.gold} href={`/jobs/${featured.job.id}`}>See your best match →</Link>
               : <a className={s.gold} href="#matches">Paste a job you found →</a>}
-            <a className={s.guide} href="#career-guide"><span className={s.gi}><Svg d={ICON.grow} /></span>Career guide {guide.length ? <em>{guide.length} {guide.length === 1 ? "skill" : "skills"} to grow</em> : null}<Svg className={s.ar} d={ICON.arrow} /></a>
           </div>
         </div>
       </section>
 
-      <div className={s.fits}>
-        {bandTiles.map(({ b, t, fresh }) => (
-          <a key={b} className={`${s.fit} ${BAND_CLASS[b]}`} href={b === "lo" ? "#career-guide" : `#band-${b}`}>
-            <span className={s.fitTop}><span className={s.fitLabel}>{b === "lo" ? "Stretch" : t.label}</span><span className={s.range}>{t.range}</span></span>
-            <b className={s.count}>{fmt(t.count)}</b>
-            <span className={s.fitNote}>{b === "lo" ? "Grow a skill to move up →" : fresh ? `+${fresh} new this week` : t.count ? "Open now" : "None yet"}</span>
-          </a>
-        ))}
-        {limits.length ? (
-          <div className={s.limits}>
-            <h3>{pro ? "AI applications left" : "Applications left"}</h3>
-            {limits.map(([label, left, max]) => { const l = Math.max(0, left); return <div key={label} className={s.lim}><span>{label}</span><span className={s.bar}><i style={{ width: `${Math.round((100 * l) / Math.max(1, max))}%` }} /></span><b>{l} of {max}</b></div>; })}
-            {!pro ? <Link prefetch={false} className={s.limNote} href="/upgrade">Pro: 2 a day, 10 a week, 40 a month →</Link> : null}
-          </div>
-        ) : null}
-      </div>
+      <section className={s.summary} aria-labelledby="summary-h">
+        <div className={s.sumHead}>
+          <h2 id="summary-h" className={s.sumToday}>Today <span>{today ? `${fmt(today.total)} jobs checked` : "Not counted yet"} · {fmt(appliedToday)} applied</span></h2>
+          <p className={s.sumAll}>All time: <b>{fmt(all.total)}</b> jobs checked · <b>{fmt(progress.applied)}</b> applied</p>
+        </div>
+        {barOf.total ? <div className={s.stack} role="img" aria-label={BANDS.map(([b, l]) => `${l} ${pct(barOf[b], barOf.total)}%`).join(", ")}>{BANDS.map(([b]) => barOf[b] ? <i key={b} className={BAND_CLASS[b]} style={{ width: `${(100 * barOf[b]) / barOf.total}%` }} /> : null)}</div> : null}
+        <div className={s.fits}>
+          {BANDS.map(([b, label, range]) => {
+            const n = today ? today[b] : 0;
+            const body = <>
+              <span className={s.fitTop}><span className={s.fitLabel}>{label}</span><span className={s.range}>{range}</span></span>
+              <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, today?.total || 0)}%</span></span>
+              <span className={s.fitNote}>All time {fmt(all[b])} · {pct(all[b], all.total)}%</span>
+            </>;
+            return b === "other" ? <Link prefetch={false} key={b} className={`${s.fit} ${BAND_CLASS[b]}`} href="/opportunities">{body}</Link> : <a key={b} className={`${s.fit} ${BAND_CLASS[b]}`} href={b === "lo" ? "#career-guide" : `#band-${b}`}>{body}</a>;
+          })}
+        </div>
+        <a className={s.guide} href="#career-guide"><span className={s.gi}><Svg d={ICON.grow} /></span>Career guide{guide.length ? <em>{guide.length} {guide.length === 1 ? "skill" : "skills"} that can lift your matches</em> : null}<Svg className={s.ar} d={ICON.arrow} /></a>
+      </section>
 
       <div className={s.progress}>
         <Link prefetch={false} className={`${s.pg} ${s.ready}`} href="/queue"><span className={s.pgIc}><Svg d={ICON.ready} /></span><span><b className={s.pgN}>{fmt(sx.prepared)}</b><span className={s.pgL}>Ready to apply</span><span className={s.pgS}>CV + cover letter done</span></span></Link>
@@ -205,6 +204,14 @@ export default async function Inbox() {
         </div>
 
         <aside className={s.col}>
+          <section className={s.card}>
+            <div className={s.head}><h3>{planLine ? <>{planLine.label}{planLine.left != null ? ` · ${planLine.left} ${planLine.left === 1 ? "day" : "days"} left` : ""}</> : "Trial ended"}</h3><Link prefetch={false} className={s.link} href="/upgrade">{pro ? "Plan" : "Go Pro"}</Link></div>
+            {limits.length ? <div className={s.limits}>
+              <p className={s.limTitle}>{pro ? "AI applications left" : "Applications left"}</p>
+              {limits.map(([label, left, max]) => { const l = Math.max(0, left); return <div key={label} className={s.lim}><span>{label}</span><span className={s.bar}><i style={{ width: `${Math.round((100 * l) / Math.max(1, max))}%` }} /></span><b>{l} of {max}</b></div>; })}
+              {!pro ? <Link prefetch={false} className={s.limNote} href="/upgrade">Pro: 2 a day, 10 a week, 40 a month →</Link> : null}
+            </div> : null}
+          </section>
           <section className={s.card} id="agenda">
             <div className={s.head} style={{ ["--hc" as string]: "var(--coral)" }}><h3>Deadlines &amp; queue</h3><Link prefetch={false} className={s.link} href="/queue">Open queue</Link></div>
             {agenda.length ? agenda.map((x) => { const w = when(x.date); return <Link prefetch={false} key={x.key} className={s.qi} href={x.href}><span className={`${s.when} ${w.c}`}>{w.t}</span><span><b>{x.title}</b><span className={s.muted}>{x.sub}</span></span></Link>; })

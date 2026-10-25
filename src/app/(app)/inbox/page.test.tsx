@@ -3,10 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync } from "node:fs";
 import type { UserState } from "@/lib/server/state";
 
-const h = vi.hoisted(() => ({ st: null as unknown as UserState, sub: null as Record<string, unknown> | null, allowance: null as unknown }));
+const h = vi.hoisted(() => ({ st: null as unknown as UserState, sub: null as Record<string, unknown> | null, allowance: null as unknown, summary: null as unknown }));
 vi.mock("@/lib/server/page", () => ({ requireAppState: async () => ({ st: h.st, db: {} }), subscriptionOf: async () => ({ data: h.sub }) }));
 vi.mock("@/lib/server/state", async (orig) => ({ ...(await orig<typeof import("@/lib/server/state")>()), loadJob: async () => undefined }));
 vi.mock("@/lib/server/applications", () => ({ packAllowanceFor: async () => h.allowance }));
+vi.mock("@/lib/server/search-summary", async (orig) => ({ ...(await orig<typeof import("@/lib/server/search-summary")>()), searchSummary: async () => h.summary }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 vi.mock("@/lib/ai", () => ({ aiConfigured: () => true }));
 vi.mock("@/app/actions", () => ({ appliedAction: () => undefined, backToStepAction: () => undefined }));
@@ -40,16 +41,16 @@ function state(): UserState {
 }
 
 describe("career home", () => {
-  beforeEach(() => { h.st = state(); h.sub = { plan_code: "pro", status: "active", current_period_end: "2026-11-12T00:00:00Z" }; h.allowance = { limits: { day: 2, week: 10, month: 40 }, used: { day: 1, week: 4, month: 11 }, left: 1, reason: null }; });
+  beforeEach(() => { h.st = state(); h.sub = { plan_code: "pro", status: "active", current_period_end: "2026-11-12T00:00:00Z" }; h.summary = { today: { total: 60, ex: 1, st: 2, po: 3, lo: 4, other: 50 }, all: { total: 1248, ex: 12, st: 30, po: 55, lo: 80, other: 1071 } }; h.allowance = { limits: { day: 2, week: 10, month: 40 }, used: { day: 1, week: 4, month: 11 }, left: 1, reason: null }; });
 
   it("shows fit bands in order, progress, best match and career guide", async () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     if (process.env.DUMP_HOME) writeFileSync(process.env.DUMP_HOME, html);
-    const order = ["Strong Fit", "Best Fit", "Good Fit", "Stretch"].map((l) => html.indexOf(l));
+    const order = ["Strong Fit", "Best Fit", "Good Fit", "Stretch", "Other matches", "Career guide"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
-    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Your best match right now", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Career guide"]) expect(html).toContain(t);
+    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Your best match right now", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "60 jobs checked", "All time: <b>1,248</b>", "83%", "All time 1,071 · 86%"]) expect(html).toContain(t);
   });
 
   it("counts trial applications instead of AI packs when not on Pro", async () => {
@@ -60,5 +61,13 @@ describe("career home", () => {
     expect(html).toContain("In trial");
     expect(html).toContain("5 of 5");
     expect(html).not.toContain("AI applications left");
+  });
+
+  it("falls back to stored totals when the summary query fails", async () => {
+    h.summary = null;
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    expect(html).toContain("Not counted yet");
+    expect(html).toContain("All time: <b>1,248</b>");
   });
 });
