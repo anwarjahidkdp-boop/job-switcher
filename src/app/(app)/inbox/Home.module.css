@@ -3,27 +3,32 @@
 .home{--strong:#9C6F1C;--strongBg:#F6EEDD;--best:#2E7D32;--bestBg:#E6F2E7;--good:#1D5FB8;--goodBg:#E3EDFA;--stretch:#6D4AE0;--stretchBg:#ECE7FD;--teal:#0F9F8F;--tealBg:#DDF5F1;--coral:#E2553C;--heroA:#0E1B45;--heroB:#0B6E6A}
 
 .hero{position:relative;overflow:hidden;margin:-28px calc(50% - 50vw) 0;padding:26px calc(50vw - 50%) 74px;color:#fff;
-  background:radial-gradient(560px 240px at 88% -10%,rgba(255,255,255,.22),transparent 70%),radial-gradient(480px 220px at 4% 115%,rgba(247,213,139,.24),transparent 70%),radial-gradient(420px 200px at 55% 130%,rgba(236,112,160,.16),transparent 70%),linear-gradient(115deg,#24418F 0%,#2D5CB4 38%,#2A73C2 62%,#167E86 100%);
+  background:radial-gradient(560px 260px at 90% -20%,rgba(247,200,90,.38),transparent 68%),radial-gradient(520px 240px at 0% 120%,rgba(52,211,153,.30),transparent 70%),radial-gradient(420px 200px at 50% -40%,rgba(94,234,212,.18),transparent 70%),linear-gradient(115deg,#0A1A45 0%,#0F2D6B 34%,#0D4F5C 66%,#0B6B55 100%);
   background-size:100% 100%,100% 100%,100% 100%,220% 100%;animation:heroShift 18s ease-in-out infinite alternate}
 @keyframes heroShift{from{background-position:0 0,0 0,0 0,0% 0}to{background-position:0 0,0 0,0 0,100% 0}}
 .heroIn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center}
 .kicker{margin:0;font-family:var(--display);font-size:13px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:#E1E9FA}
 .kJob{font-weight:900;background:linear-gradient(90deg,#F7D58B,#E3A93F);-webkit-background-clip:text;background-clip:text;color:transparent}
-.kAsst{font-weight:900;background:linear-gradient(90deg,#B4F4EA,#DCE9FF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kAsst{font-weight:900;background:linear-gradient(90deg,#6EE7B7,#7DD3FC);-webkit-background-clip:text;background-clip:text;color:transparent}
 .title{font-size:clamp(24px,3.4vw,32px);line-height:1.15;font-weight:800;margin-top:6px;color:#fff}
 .name{background:linear-gradient(90deg,#F7D58B,#E3B55B 60%,#7EE6D6);-webkit-background-clip:text;background-clip:text;color:transparent}
-.warnBtn{display:inline-flex;align-items:center;gap:10px;padding:8px 14px 8px 10px;border-radius:12px;text-decoration:none;color:#fff;background:rgba(10,24,64,.28);border:1px solid rgba(255,255,255,.3);border-left:3px solid #F5B942;backdrop-filter:blur(6px);box-shadow:0 8px 20px -14px rgba(5,15,40,.9)}
-.warnBtn svg{width:20px;height:20px;flex:none;stroke:#F5B942}
-.warnBtn span{display:grid;line-height:1.25}
-.warnBtn b{font-size:13.5px;font-weight:700}
-.warnBtn em{font-style:normal;font-size:12px;color:#FBE3A6;font-weight:600}
-.warnBtn:hover{background:rgba(10,24,64,.4)}
-.cta{display:flex;flex-direction:column;gap:9px;align-items:flex-end}
+.warnBtn,.bdBtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px 0 13px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:700;line-height:1;white-space:nowrap;box-shadow:0 1px 2px rgba(5,15,40,.25),0 6px 16px -10px rgba(5,15,40,.6);transition:background-color .15s ease,filter .15s ease}
+.bdBtn{color:#0F2D6B;background:#fff;border:1px solid #fff}
+.warnBtn{color:#3A2104;background:linear-gradient(135deg,#F9D77E 0%,#F1A93C 100%);border:1px solid rgba(255,255,255,.45)}
+.warnBtn svg,.bdBtn svg{width:18px;height:18px;flex:none}
+.bdBtn svg{stroke:#0E9F6E}
+.warnBtn svg{stroke:#8A4A06}
+.warnBtn em,.bdBtn em{font-style:normal;font-size:13px;font-weight:600;opacity:.72}
+.bdBtn:hover{background:#F1F6FF}
+.warnBtn:hover{filter:brightness(1.04)}
+.warnBtn:focus-visible,.bdBtn:focus-visible{outline:2px solid #F7D58B;outline-offset:2px}
+.cta{display:flex;gap:10px;justify-content:flex-end}
 
 /* Today/all-time summary rises into the hero: header, proportional bar, five band tiles, career guide link. */
 .summary{position:relative;margin-top:14px;padding:16px 18px 14px;border-radius:16px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);display:grid;gap:12px}
 .pct{font-size:13px;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums}
-.summary.pToday{margin-top:-50px;border-top:4px solid var(--teal)}
+.summary.pToday{margin-top:-50px;border-top:0;position:relative;overflow:hidden}
+.summary.pToday::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#0EA5A0,#10B981 30%,#2563EB 65%,#E3A93F)}
 .summary.pAll{border-top:4px solid #E3A93F}
 .panelHead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px 16px}
 .panelTitle{font-family:var(--display);font-size:20px;font-weight:800;color:var(--ink);display:grid}
@@ -34,6 +39,7 @@
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:min(100%,420px)}
 .stat{display:grid;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease;padding:8px 14px;border-radius:12px;font-size:12px;font-weight:600;color:var(--sc);background:var(--sb);border:1px solid color-mix(in srgb,var(--sc) 18%,transparent)}
 .stat:hover{transform:translateY(-1px);box-shadow:0 6px 14px -10px var(--sc)}
+.stat small{font-size:10.5px;font-weight:600;opacity:.75}
 .stat b{font-family:var(--display);font-size:22px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
 .sFound{--sc:#1B2F6E;--sb:#E7ECF8}
 .sMatch{--sc:#0B766C;--sb:var(--tealBg)}
@@ -65,13 +71,14 @@
 .pgN{font-family:var(--display);font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
 .interview{--acc:#5EEAD4;background:linear-gradient(90deg,#0B4A4F 0%,#11706F 100%)}
 .pgAr{width:18px;height:18px;flex:none;opacity:.9}
-.offer{--acc:#FDE68A;background:linear-gradient(90deg,#6E4E10 0%,#A0771F 100%)}
-.duo{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr);margin-top:12px}
-.duoCard{position:relative;overflow:hidden;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;min-height:62px;padding:10px 18px;color:#fff;text-decoration:none;transition:transform .15s ease,filter .15s ease}
-.duoCard:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.offer{--acc:#F9A8D4;background:linear-gradient(90deg,#4C1D95 0%,#7C3AED 55%,#A855F7 100%)}
+.duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:12px;filter:drop-shadow(0 12px 18px rgba(10,29,69,.18))}
+.duoCard{position:relative;overflow:hidden;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;min-height:72px;padding:12px 20px;color:#fff;text-decoration:none;transition:filter .15s ease}
+.duoCard:hover{filter:brightness(1.08)}
 .duoCard::after{content:"";position:absolute;right:-30px;bottom:-70px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%);pointer-events:none}
-.duoGuide{border-radius:14px 0 0 14px;padding-right:34px;clip-path:polygon(0 0,100% 0,calc(100% - 22px) 100%,0 100%);background:linear-gradient(135deg,#3B2F86 0%,#6243CF 60%,#8B5CF6 100%)}
-.duoBest{grid-template-columns:auto minmax(0,1fr) auto auto;margin-left:-16px;padding-left:36px;border-radius:0 14px 14px 0;clip-path:polygon(22px 0,100% 0,100% 100%,0 100%);background:linear-gradient(110deg,#13306E 0%,#1C4A94 45%,#0F7A72 100%)}
+/* Guide: wide on top, narrow at the bottom. Best match: the mirror. A 10px gap runs along the slant between them. */
+.duoGuide{border-radius:14px 0 0 14px;padding-right:46px;clip-path:polygon(0 0,100% 0,calc(100% - 40px) 100%,0 100%);background:linear-gradient(135deg,#3B2F86 0%,#6243CF 60%,#8B5CF6 100%)}
+.duoBest{grid-template-columns:auto minmax(0,1fr) auto auto;margin-left:-30px;padding-left:52px;border-radius:0 14px 14px 0;clip-path:polygon(40px 0,100% 0,100% 100%,0 100%);background:linear-gradient(110deg,#0F2D6B 0%,#13509A 45%,#0B7A66 100%)}
 .duoIc{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2)}
 .duoIc svg{width:17px;height:17px}
 .duoBest .duoIc{color:#F7D58B}
@@ -104,9 +111,6 @@
 .muted{color:var(--ink-3);font-size:12.5px}
 
 
-.group{display:flex;align-items:center;gap:10px;padding:9px 16px;border-top:1px solid var(--line);background:linear-gradient(90deg,var(--gb),var(--card) 60%)}
-.gex{--gb:var(--strongBg)}.gst{--gb:var(--bestBg)}.gpo{--gb:var(--goodBg)}.glo{--gb:var(--stretchBg)}
-.group .link{margin-left:auto}
 .empty{padding:16px;color:var(--ink-2)}
 
 .skill{display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:12px;align-items:center;padding:11px 16px;border-top:1px solid var(--line)}
@@ -139,14 +143,20 @@
   .hero{padding-top:18px;padding-bottom:64px}
   .heroIn{grid-template-columns:minmax(0,1fr)}
   .cta{align-items:stretch}
-  .warnBtn{justify-content:flex-start}
-  .duo{grid-template-columns:minmax(0,1fr)}
-  .duoCard{gap:10px;min-height:0;padding:9px 12px}
-  .duoGuide{border-radius:14px 14px 0 0;padding-bottom:20px;clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),0 100%)}
-  .duoBest{grid-template-columns:auto minmax(0,1fr) auto;margin:-12px 0 0;padding:20px 12px 10px;border-radius:0 0 14px 14px;clip-path:polygon(0 12px,100% 0,100% 100%,0 100%)}
-  .duoBest .duoGo{grid-column:1/-1;justify-self:stretch;text-align:center}
-  .duoScore{font-size:19px}
-  .duoT{font-size:14px}
+  .cta{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  .warnBtn,.bdBtn{justify-content:center;height:44px}
+  .duo{gap:0}
+  .duoCard{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"ic score" "tx tx" "go go";align-content:space-between;align-items:start;gap:8px;min-height:0;padding:12px}
+  .duoIc{grid-area:ic;width:28px;height:28px}
+  .duoTx{grid-area:tx}
+  .duoScore{grid-area:score;justify-self:end;font-size:19px;line-height:28px}
+  .duoGo{grid-area:go;justify-self:start;font-size:12px;padding:6px 10px}
+  .duoT{font-size:14px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .duoT small{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .duoK{font-size:9.5px;letter-spacing:.08em}
+  .duoGuide{padding-right:30px;clip-path:polygon(0 0,100% 0,calc(100% - 24px) 100%,0 100%)}
+  .duoBest{grid-template-columns:auto minmax(0,1fr);margin-left:-16px;padding-left:34px;clip-path:polygon(24px 0,100% 0,100% 100%,0 100%)}
+  .duoBest .duoGo{justify-self:stretch;text-align:center;margin-left:-22px}
   .summary{padding:12px;gap:10px}
   .fits{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
   .countRow{flex-direction:column;align-items:center;gap:0}
