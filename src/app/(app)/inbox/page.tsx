@@ -103,14 +103,17 @@ export default async function Inbox() {
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={`${s.stats} ${outcomes ? s.stats4 : ""}`}>
-            {outcomes ? <Link prefetch={false} className={s.navy} href={jobsHref("found")}><span className={s.navyIc}><Svg d={ICON.search} /></span><b>{c ? fmt(c.total) : "–"}</b><span className={s.navyL}>Jobs found</span></Link>
-              : <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><Svg className={s.mini} d={ICON.search} /><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>}
-            {outcomes ? null : <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><Svg className={s.mini} d={ICON.target} /><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>}
-            {outcomes ? <>
-              <Link prefetch={false} className={s.navy} href="/applications"><span className={s.navyIc}><Svg d={ICON.send} /></span><b>{fmt(applied)}</b><span className={s.navyL}>Applied</span></Link>
-              <Link prefetch={false} className={s.navy} href="/applications?status=interview"><span className={s.navyIc}><Svg d={ICON.people} /></span><b>{fmt(sx.interviews)}</b><span className={s.navyL}>Interviewed</span></Link>
-              <Link prefetch={false} className={s.navy} href="/applications?status=offer"><span className={s.navyIc}><Svg d={ICON.trophy} /></span><b>{fmt(sx.offers)}</b><span className={s.navyL}>Offer received</span></Link>
-            </> : <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href="/applications?when=today"><Svg className={s.mini} d={ICON.send} /><b>{fmt(applied)}</b>Applied</Link>}
+            {(outcomes
+              ? [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
+                 ["/applications", ICON.send, fmt(applied), "Applied", null],
+                 ["/applications?status=interview", ICON.people, fmt(sx.interviews), "Interviewed", null],
+                 ["/applications?status=offer", ICON.trophy, fmt(sx.offers), "Offer received", null]]
+              : [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
+                 [jobsHref("matched"), ICON.target, f ? fmt(f.ex + f.st + f.po) : "–", "Top match", "70% and above"],
+                 ["/applications?when=today", ICON.send, fmt(applied), "Applied", null]]
+            ).map(([href, icon, n, label, note]) => (
+              <Link prefetch={false} key={label} className={s.navy} href={href!}><span className={s.navyIc}><Svg d={icon!} /></span><b>{n}</b><span className={s.navyL}>{label}{note ? <small>{note}</small> : null}</span></Link>
+            ))}
           </div>
         </div>
         <div className={s.fits}>
@@ -138,7 +141,10 @@ export default async function Inbox() {
   // Career guide speaks to how many Strong Fits (90%+) the person has, and points them to the guide to grow that number.
   const strongN = all ? all.ex : 0;
   const guideLine = strongN ? `Only ${fmt(strongN)} Strong ${strongN === 1 ? "Fit" : "Fits"}` : "No Strong Fit yet";
-  const guideCall = strongN ? "Unlock more" : "Develop your career";
+  const gaps = guide.length;
+  const guideCall = gaps
+    ? `${strongN ? "Unlock more" : "Reach 90%+"} by closing ${gaps} skill ${gaps === 1 ? "gap" : "gaps"}`
+    : strongN ? "Keep your profile sharp to unlock more" : "Strengthen your profile to reach 90%+";
 
   // Deadlines and the next interview, nearest first.
   const nextInterview = apps.filter((a) => a.interview_at && Date.parse(a.interview_at) >= now - DAY / 2).sort((a, b) => a.interview_at!.localeCompare(b.interview_at!))[0];
@@ -175,8 +181,8 @@ export default async function Inbox() {
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
           <span className={s.duoIc}><Svg d={ICON.grow} /></span>
-          <span className={s.duoTx}><span className={s.duoK}>Career guide · {guideCall}</span><span className={s.duoT}><b className={strongN ? s.flagGold : s.flagRed}>{guideLine}</b> <small>· {guide.length ? `${guide.length} ${guide.length === 1 ? "skill lifts" : "skills lift"} your matches` : "Skills for your roles"}</small></span></span>
-          <span className={s.duoGo} aria-hidden="true">→</span>
+          <span className={s.duoTx}><span className={s.duoK}>Career guide</span><span className={s.duoHead}><b className={strongN ? s.flagGold : s.flagRed}>{guideLine}</b></span><span className={s.duoSub}>{guideCall}</span></span>
+          <span className={s.duoGo}>Open guide →</span>
         </span></span></a>
         <Link prefetch={false} className={`${s.duoFrame} ${s.fBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoBest}`}>
           <span className={s.duoIc}><Svg d={ICON.star} /></span>

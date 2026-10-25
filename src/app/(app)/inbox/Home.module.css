@@ -41,19 +41,8 @@
 .panelTitle>span:last-child{font-family:inherit;font-size:12.5px;font-weight:500;color:var(--ink-3)}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:min(100%,420px)}
 .stats4{grid-template-columns:repeat(4,minmax(0,1fr));min-width:min(100%,540px)}
-/* Each count card wears a two-tone ribbon border: navy-gold, green-yellow, gold-blue, teal-blue, purple-gold. */
-.stat{position:relative;display:grid;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease;padding:8px 14px;border-radius:12px;font-size:12px;font-weight:700;color:var(--sc);border:2px solid transparent;
-  background:linear-gradient(160deg,#fff 0%,var(--sb) 100%) padding-box,linear-gradient(135deg,var(--r1),var(--r2)) border-box;box-shadow:0 6px 16px -12px var(--r1)}
-.stat:hover{transform:translateY(-1px);box-shadow:0 10px 20px -12px var(--r1)}
-.stat small{font-size:10.5px;font-weight:600;opacity:.75}
-.stat b{font-family:var(--display);font-size:22px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
-.sFound{--sc:#1B2F6E;--sb:#E7ECF8;--r1:#14275A;--r2:#E3A93F}
-.sMatch{--sc:#0B6E4F;--sb:#DCF5EA;--r1:#059669;--r2:#EAB308}
-.sApplied{--sc:#8A5A0B;--sb:#FBF1DC;--r1:#E3A93F;--r2:#1D4ED8}
-.sOffer{--sc:#5B21B6;--sb:#F0E9FE;--r1:#7C3AED;--r2:#F59E0B}
 /* A small corner icon on every count card; it never adds height. */
 .mini{position:absolute;top:8px;right:9px;width:15px;height:15px;opacity:.75;pointer-events:none}
-.stat .mini{color:var(--r1)}
 .fit .mini{color:var(--c)}
 /* Lifetime outcomes use the navy-and-gold progress card look: deep navy with a gold glow, gold icon tile, white figures. */
 .navy{position:relative;overflow:hidden;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"ic n" "l l";align-items:center;gap:4px 10px;padding:9px 12px;border-radius:12px;text-decoration:none;color:#fff;
@@ -62,7 +51,9 @@
 .navyIc{grid-area:ic;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#F7D58B;background:rgba(255,255,255,.08);border:1px solid rgba(247,213,139,.22)}
 .navyIc svg{width:16px;height:16px}
 .navy b{grid-area:n;justify-self:end;font-family:var(--display);font-size:22px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.navyL{grid-area:l;font-size:12px;font-weight:700;color:#DCE5F7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.navyL{grid-area:l;display:grid;font-size:12px;font-weight:700;color:#DCE5F7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.navyL small{font-size:10.5px;font-weight:600;color:#F7D58B;opacity:.9}
+.stats .navy{min-height:64px}
 .fits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .countRow{display:flex;align-items:baseline;gap:6px}
 .fit{position:relative;display:grid;gap:2px;padding:12px 14px;border-radius:13px;border:1px solid var(--line);border-top:4px solid var(--c);background:linear-gradient(160deg,var(--cb) 0%,var(--card) 75%);color:var(--ink);text-decoration:none;box-shadow:var(--shadow);transition:transform .15s ease}
@@ -93,7 +84,9 @@
 .duoCard::after{content:"";position:absolute;right:-30px;bottom:-70px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%);pointer-events:none}
 .duoGuide{border-radius:12px 0 0 12px;padding-right:46px;background:linear-gradient(135deg,#2E2470 0%,#5136B8 60%,#7C4DEB 100%)}
 .duoBest{grid-template-columns:auto minmax(0,1fr) auto auto;padding-left:50px;border-radius:0 12px 12px 0;background:linear-gradient(110deg,#0C2763 0%,#13509A 45%,#0A6E5C 100%)}
-.flagRed,.flagGold{display:inline-block;white-space:nowrap;font-weight:800;padding:1px 7px;border-radius:6px}
+.duoHead{display:block;margin:2px 0 1px;line-height:1.2}
+.duoSub{display:block;font-size:12.5px;font-weight:500;color:#DDD6FE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flagRed,.flagGold{display:inline-block;white-space:nowrap;font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.01em;padding:2px 9px;border-radius:7px}
 .flagRed{color:#fff;background:linear-gradient(135deg,#EF4444,#B91C1C)}
 .flagGold{color:#1B1405;background:linear-gradient(135deg,#F7D58B,#E3A93F)}
 .duoIc{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2)}
@@ -181,6 +174,7 @@
   .duoT small{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .duoK{font-size:9.5px;letter-spacing:.08em}
   .flagRed,.flagGold{font-size:12.5px;padding:1px 6px}
+  .duoSub{white-space:normal;font-size:11.5px;line-height:1.3}
   .duoGuide{padding-right:30px}
   .duoBest{grid-template-columns:auto minmax(0,1fr);padding-left:34px}
   .duoBest .duoGo{justify-self:stretch;text-align:center;margin-left:-22px}
@@ -189,13 +183,13 @@
   .countRow{flex-direction:column;align-items:center;gap:0}
   .pct{font-size:11px}
   .stats{min-width:100%;gap:6px}
-  .stat{padding:7px 10px}
-  .stat b{font-size:19px}
   .navy{grid-template-columns:minmax(0,1fr);grid-template-areas:"n" "l";padding:7px 8px;gap:3px}
   .navyIc{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:5px}
   .navyIc svg{width:11px;height:11px}
   .navy b{justify-self:start}
-  .fit .mini{top:auto;bottom:6px;right:6px;width:12px;height:12px}
+  .fit .mini{top:-11px;right:auto;left:50%;margin-left:-11px;width:22px;height:22px;padding:4px;border-radius:50%;background:var(--card);border:1.5px solid var(--c);opacity:1}
+  .fit{overflow:visible;padding-top:15px}
+  .fits{margin-top:8px;row-gap:14px}
   .navy b{font-size:16px;margin-top:8px}
   .navyL{font-size:10.5px;white-space:normal;line-height:1.2}
   .fit{padding:8px 3px;text-align:center;justify-items:center;border-top-width:3px}
@@ -207,4 +201,4 @@
   .skill{grid-template-columns:minmax(0,1fr) auto;padding:10px 12px}
   .demand{display:none}
 }
-@media (prefers-reduced-motion:reduce){.hero{animation:none}.fit,.stat,.ar{transition:none}.fit:hover,.stat:hover{transform:none}}
+@media (prefers-reduced-motion:reduce){.hero{animation:none}.fit,.navy,.ar{transition:none}.fit:hover,.navy:hover{transform:none}}
