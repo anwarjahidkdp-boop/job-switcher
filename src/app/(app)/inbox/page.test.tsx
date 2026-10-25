@@ -55,9 +55,9 @@ describe("career home", () => {
     const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "All time", "Interviewed"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
-    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Best match", "70% and above", "Job offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
+    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Best match", "70% and above", "Offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
     // Every summary number opens the jobs behind it; the best match asks for review before any AI work.
-    for (const h of ['href="/opportunities?fit=found&amp;when=today"', 'href="/opportunities?fit=ex&amp;when=today"', 'href="/opportunities?fit=rest"', 'href="/opportunities?fit=matched"', 'href="/applications?when=today"', 'href="/applications?status=interview"', 'href="/applications?status=offer"', "Review &amp; apply →"]) expect(html).toContain(h);
+    for (const h of ['href="/opportunities?fit=found&amp;when=today"', 'href="/opportunities?fit=ex&amp;when=today"', 'href="/opportunities?fit=rest"', 'href="/opportunities?fit=matched&amp;when=today"', 'href="/applications?when=today"', 'href="/applications?status=interview"', 'href="/applications?status=offer"', "Review &amp; apply →"]) expect(html).toContain(h);
     expect(html).not.toContain("Open &amp; apply");
   });
 
@@ -83,13 +83,17 @@ describe("career home", () => {
     expect(pos.every((p, i) => p > 0 && (i === 0 || p > pos[i - 1]))).toBe(true);
     expect(opps).not.toContain("Head of Accounts");
     expect(opps).not.toMatch(/Strong Fit|Good Fit|Best Fit/);
+    // All time counts outcomes instead of a second Best match tile.
+    const allTime = html.slice(html.indexOf('id="all-h"'), html.indexOf('id="matches"'));
+    expect(allTime).not.toContain("Best match");
+    for (const t of [">Applied<", "Interviewed", "Offer received"]) expect(allTime).toContain(t);
   });
   it("leaves applications from an earlier search country out of the dashboard", async () => {
     const st = h.st as unknown as { apps: Record<string, unknown> };
     st.apps = { ...st.apps, old: { id: "9", job_id: "old", status: "interview", pack: {}, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", applied_at: "2026-10-02T00:00:00Z", reminder_date: null, jobs: { country: "GB" } } };
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toMatch(/Interviewed<\/span><span[^>]*>[^<]*<\/span><\/span><b[^>]*>0<\/b>/);
+    expect(html).toMatch(/<b>0<\/b>Interviewed/);
     expect(html).toMatch(/<b>0<\/b>Applied/);
   });
 });
