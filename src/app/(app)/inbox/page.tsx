@@ -13,7 +13,7 @@ import { completeness } from "@/lib/facts";
 import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
-import { PastePanel } from "./PastePanel";
+import { listNotifications } from "@/lib/server/notify";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { courseLinks, nowMs } from "@/lib/today";
 import { skillLabel } from "@/lib/taxonomy";
@@ -31,9 +31,8 @@ const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.p
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
   applied: '<path d="M20 6 9 17l-5-5"/>',
-  interview: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
-  offer: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   warn: '<path d="m12 3 10 18H2Z"/><path d="M12 9v5M12 17h.01"/>',
   star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   grow: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
@@ -88,6 +87,7 @@ export default async function Inbox() {
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
   const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string, isToday: boolean) => {
+    const outcomes = !isToday;
     const f = c ? four(c) : null;
     // Every number opens the jobs behind it.
     const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? "&when=today" : ""}`;
@@ -95,10 +95,14 @@ export default async function Inbox() {
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
-          <div className={s.stats}>
+          <div className={`${s.stats} ${outcomes ? s.stats4 : ""}`}>
             <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>
-            <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>
+            {outcomes ? null : <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>}
             <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href={isToday ? "/applications?when=today" : "/applications"}><b>{fmt(applied)}</b>Applied</Link>
+            {outcomes ? <>
+              <Link prefetch={false} className={`${s.stat} ${s.sInterview}`} href="/applications?status=interview"><b>{fmt(sx.interviews)}</b>Interviewed</Link>
+              <Link prefetch={false} className={`${s.stat} ${s.sOffer}`} href="/applications?status=offer"><b>{fmt(sx.offers)}</b>Offer received</Link>
+            </> : null}
           </div>
         </div>
         <div className={s.fits}>
@@ -122,6 +126,10 @@ export default async function Inbox() {
   const { rows } = skillDemand(relevant, P);
   const guide = rows.filter((r) => r.h.v < 1).slice(0, 3).map((r) => ({ s: r.s, n: r.n, lift: relevant.filter((x) => x.m.score < 90 && [...(x.job.required || []), ...(x.job.preferred || [])].includes(r.s)).length }));
   const maxN = guide[0]?.n || 1;
+  // Career guide speaks to how many Strong Fits (90%+) the person has, and points them to the guide to grow that number.
+  const strongN = all ? all.ex : 0;
+  const guideLine = strongN ? `Only ${fmt(strongN)} Strong ${strongN === 1 ? "Fit" : "Fits"}` : "No Strong Fit yet";
+  const guideCall = strongN ? "Unlock more" : "Develop your career";
 
   // Deadlines and the next interview, nearest first.
   const nextInterview = apps.filter((a) => a.interview_at && Date.parse(a.interview_at) >= now - DAY / 2).sort((a, b) => a.interview_at!.localeCompare(b.interview_at!))[0];
@@ -133,6 +141,8 @@ export default async function Inbox() {
   const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= 14 * DAY).length;
   // Bangladesh: most good jobs come through Bdjobs alerts, so connecting it is the first thing we ask for.
   const bdjobsNeeded = country === "BD" && setupSites.includes("Bdjobs") && !siteDone(st.profile.setup_steps || {}, "Bdjobs");
+  // Once Bdjobs is connected its button leaves the hero; the newest unread notification takes its place.
+  const note = bdjobsNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
   const nextSite = setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p));
 
   return (
@@ -144,7 +154,8 @@ export default async function Inbox() {
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
-            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} />Connect Bdjobs<em>· 4 easy steps</em></Link> : null}
+            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} />Connect Bdjobs<em>· 4 easy steps</em></Link>
+              : note ? <Link prefetch={false} className={s.noteBtn} href={note.link || "/notifications"}><Svg d={ICON.bell} /><span className={s.noteTx}>{note.title}</span></Link> : null}
             {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} />{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete<em>· Complete now</em></Link> : null}
           </div>
         </div>
@@ -153,25 +164,21 @@ export default async function Inbox() {
       {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }), true)}
 
       <div className={s.duo}>
-        <a className={`${s.duoCard} ${s.duoGuide}`} href="#career-guide">
+        <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
           <span className={s.duoIc}><Svg d={ICON.grow} /></span>
-          <span className={s.duoTx}><span className={s.duoK}>Career guide</span><span className={s.duoT}>{guide.length ? `${guide.length} ${guide.length === 1 ? "skill lifts" : "skills lift"} your matches` : "Skills for your roles"}</span></span>
+          <span className={s.duoTx}><span className={s.duoK}>Career guide · {guideCall}</span><span className={s.duoT}><b className={strongN ? s.flagGold : s.flagRed}>{guideLine}</b> <small>· {guide.length ? `${guide.length} ${guide.length === 1 ? "skill lifts" : "skills lift"} your matches` : "Skills for your roles"}</small></span></span>
           <span className={s.duoGo} aria-hidden="true">→</span>
-        </a>
-        <Link prefetch={false} className={`${s.duoCard} ${s.duoBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}>
+        </span></span></a>
+        <Link prefetch={false} className={`${s.duoFrame} ${s.fBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoBest}`}>
           <span className={s.duoIc}><Svg d={ICON.star} /></span>
           <span className={s.duoTx}><span className={s.duoK}>Your best match · Ready to apply</span><span className={s.duoT}>{featured ? <>{featured.job.title} <small>· {featured.job.company}</small></> : "No match yet"}</span></span>
           {featured ? <b className={s.duoScore}>{featured.m.score}%</b> : null}
-          <span className={s.duoGo}>{featured ? "Review & apply →" : "Paste a job →"}</span>
-        </Link>
+          <span className={s.duoGo}>{featured ? "Review & apply →" : "See opportunities →"}</span>
+        </span></span></Link>
       </div>
 
-      {panel("all-h", "All time", "Every job we have checked for you", all, progress.applied, s.pAll, "Since you joined", false)}
+      {panel("all-h", "Lifetime", "Every job we have checked for you", all, progress.applied, s.pAll, "Since you joined", false)}
 
-      <div className={s.progress}>
-        <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications?status=interview"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span className={s.pgTxt}><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span><b className={s.pgN}>{fmt(sx.interviews)}</b></Link>
-        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications?status=offer"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer received</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
-      </div>
 
       <div className={s.grid}>
         <div className={s.col}>
@@ -185,14 +192,14 @@ export default async function Inbox() {
             </div>
           ))}
 
-          <div className={s.card} id="matches">
-            <PastePanel sites={setupSites} />
+          <div className={`${s.card} ${s.oppCard}`} id="matches">
+            <div className={s.oppHead}><h2>Your Opportunities</h2><span className={s.muted}>Highest match first</span></div>
             {top.length ? top.map((x) => <OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} hideFit />) : apps.some(isResolvedApplication) && !list.length
               ? <p className={s.empty}>You’re up to date. Your submitted applications are in <Link href="/applications">Applied</Link>. New opportunities will appear here.</p>
               : sx.analysed
                 ? <p className={s.empty}>No Good Fit or better right now. We checked {fmt(sx.analysed)} jobs; try adding target roles or skills in your profile.</p>
                 : <p className={s.empty}>No jobs in {cname(country)} yet. Paste a job you found, or set up automatic job alerts.</p>}
-            {list.length ? <div className={s.foot}><Link prefetch={false} className={s.link} href="/opportunities">View all {fmt(list.length)} opportunities →</Link></div> : null}
+            {list.length ? <div className={s.foot}><Link prefetch={false} className={s.link} href="/opportunities">View all opportunities →</Link></div> : null}
           </div>
 
           <section className={s.card} id="career-guide" aria-labelledby="guide-h">

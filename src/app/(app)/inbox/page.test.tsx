@@ -3,10 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync } from "node:fs";
 import type { UserState } from "@/lib/server/state";
 
-const h = vi.hoisted(() => ({ st: null as unknown as UserState, sub: null as Record<string, unknown> | null, allowance: null as unknown }));
+const h = vi.hoisted(() => ({ st: null as unknown as UserState, sub: null as Record<string, unknown> | null, allowance: null as unknown, notes: [] as Record<string, unknown>[] }));
 vi.mock("@/lib/server/page", () => ({ requireAppState: async () => ({ st: h.st, db: {} }), subscriptionOf: async () => ({ data: h.sub }) }));
 vi.mock("@/lib/server/state", async (orig) => ({ ...(await orig<typeof import("@/lib/server/state")>()), loadJob: async () => undefined }));
 vi.mock("@/lib/server/applications", () => ({ packAllowanceFor: async () => h.allowance }));
+vi.mock("@/lib/server/notify", () => ({ listNotifications: async () => h.notes }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 vi.mock("@/lib/ai", () => ({ aiConfigured: () => true }));
 vi.mock("@/app/actions", () => ({ appliedAction: () => undefined, backToStepAction: () => undefined }));
@@ -52,12 +53,12 @@ describe("career home", () => {
     expect(html).not.toContain("Paste a job you found");
     expect(html).toMatch(/\d+ details incomplete/);
     expect(html).toContain(`href="/jobs/a"`);
-    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "All time", "Interviewed"].map((l) => html.indexOf(l));
+    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "Lifetime", "Interviewed"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
-    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Best match", "70% and above", "Job offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
+    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Best match", "70% and above", "Offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
     // Every summary number opens the jobs behind it; the best match asks for review before any AI work.
-    for (const h of ['href="/opportunities?fit=found&amp;when=today"', 'href="/opportunities?fit=ex&amp;when=today"', 'href="/opportunities?fit=rest"', 'href="/opportunities?fit=matched"', 'href="/applications?when=today"', 'href="/applications?status=interview"', 'href="/applications?status=offer"', "Review &amp; apply →"]) expect(html).toContain(h);
+    for (const h of ['href="/opportunities?fit=found&amp;when=today"', 'href="/opportunities?fit=ex&amp;when=today"', 'href="/opportunities?fit=rest"', 'href="/opportunities?fit=matched&amp;when=today"', 'href="/applications?when=today"', 'href="/applications?status=interview"', 'href="/applications?status=offer"', "Review &amp; apply →"]) expect(html).toContain(h);
     expect(html).not.toContain("Open &amp; apply");
   });
 
@@ -83,13 +84,36 @@ describe("career home", () => {
     expect(pos.every((p, i) => p > 0 && (i === 0 || p > pos[i - 1]))).toBe(true);
     expect(opps).not.toContain("Head of Accounts");
     expect(opps).not.toMatch(/Strong Fit|Good Fit|Best Fit/);
+    // Lifetime counts outcomes instead of a second Best match tile.
+    const allTime = html.slice(html.indexOf('id="all-h"'), html.indexOf('id="matches"'));
+    expect(allTime).not.toContain("Best match");
+    for (const t of [">Applied<", "Interviewed", "Offer received"]) expect(allTime).toContain(t);
+    // No paste button on Home, a plain "View all", and the best match links to the top-scoring open job.
+    expect(html).not.toContain(">Paste a job<");
+    expect(html).toContain("View all opportunities →");
+    expect(html).toMatch(/fBest[^"]*" href="\/jobs\/a"/);
+    // Career guide names how many Strong Fits there are.
+    expect(html).toContain("Only 2 Strong Fits");
+  });
+  it("says when there is no Strong Fit and shows the newest notice once Bdjobs is connected", async () => {
+    const st = h.st as unknown as { scored: { m: { score: number; band: string } }[]; profile: { setup_steps: Record<string, unknown> } };
+    st.scored = st.scored.filter((x) => x.m.score < 90);
+    st.profile.setup_steps = { forward: true, "alerts:Bdjobs": true, "filter:Bdjobs": true };
+    h.notes = [{ id: "n1", kind: "match", title: "3 new matches today", body: null, link: "/opportunities", created_at: NOW, read_at: null }];
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    expect(html).toContain("No Strong Fit yet");
+    expect(html).toContain("Develop your career");
+    expect(html).not.toContain("Connect Bdjobs");
+    expect(html).toContain("3 new matches today");
+    h.notes = [];
   });
   it("leaves applications from an earlier search country out of the dashboard", async () => {
     const st = h.st as unknown as { apps: Record<string, unknown> };
     st.apps = { ...st.apps, old: { id: "9", job_id: "old", status: "interview", pack: {}, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", applied_at: "2026-10-02T00:00:00Z", reminder_date: null, jobs: { country: "GB" } } };
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toMatch(/Interviewed<\/span><span[^>]*>[^<]*<\/span><\/span><b[^>]*>0<\/b>/);
+    expect(html).toMatch(/<b>0<\/b>Interviewed/);
     expect(html).toMatch(/<b>0<\/b>Applied/);
   });
 });
