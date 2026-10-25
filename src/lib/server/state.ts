@@ -82,7 +82,7 @@ export function profileFrom(profile: ProfileRow, facts: CareerFact[], master: Ma
 }
 
 // Everything rowToJob reads; the long description and raw payload stay out of list loads (job pages fetch the full row).
-const LIST_COLS = "id, owner_id, source_kind, source_label, country, title, company, industry, category, location, employment_type, salary_min, salary_max, min_years, max_years, seniority, education, required_skills, preferred_skills, certs, visa_sponsorship, deadline, published_at, apply_method, apply_target, url, responsibilities, is_sample, eligibility:raw->eligibility";
+const LIST_COLS = "id, owner_id, source_kind, source_label, country, title, company, industry, category, location, employment_type, salary_min, salary_max, min_years, max_years, seniority, education, required_skills, preferred_skills, certs, visa_sponsorship, deadline, published_at, apply_method, apply_target, url, responsibilities, is_sample, created_at, eligibility:raw->eligibility";
 
 const pgQuote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 

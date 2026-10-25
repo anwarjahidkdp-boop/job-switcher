@@ -2,7 +2,6 @@ import { applicationProgressCounts } from "@/lib/dashboard-progress";
 import { OpportunityRow } from "@/components/OpportunityRow";
 import { isResolvedApplication, submittedApplications } from "@/lib/applied-history";
 import { applyQueue } from "@/lib/apply-queue";
-import { fitTiles } from "@/components/FitOverviewCard";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction, appliedAction } from "@/app/actions";
 import Link from "next/link";
@@ -13,7 +12,7 @@ import { completeness } from "@/lib/facts";
 import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
-import { BandPill } from "@/components/ui";
+import { BandPill, Ring } from "@/components/ui";
 import { PastePanel } from "./PastePanel";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { courseLinks, nowMs } from "@/lib/today";
@@ -45,7 +44,6 @@ export default async function Inbox() {
   const available = st.scored.filter((x) => !isResolvedApplication(st.apps[x.job.id]));
   const P = st.P, sx = stats(st), country = st.country;
   const { ranked: list, featured } = opportunitySections(available, st.dismissed, st.apps);
-  const tiles = fitTiles(available);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const apps = Object.values(st.apps);
   const due = apps.filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
@@ -59,7 +57,8 @@ export default async function Inbox() {
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const since = dayStart(rule(country).timeZone, new Date(now));
-  const [allowance, summary] = await Promise.all([pro && aiConfigured() ? packAllowanceFor(createAdminClient(), st.userId) : null, searchSummary(db, st.userId, country, since)]);
+  const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const { today, all } = searchSummary(st.scored, since, sx.analysed);
   const progress = applicationProgressCounts(st.apps);
   const latestApp = submittedApplications(st.apps).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
@@ -78,15 +77,41 @@ export default async function Inbox() {
 
   // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
-  const today: BandCounts | null = summary?.today ?? null;
-  const all: BandCounts = summary?.all ?? { total: sx.analysed, ex: tiles[1].count, st: tiles[2].count, po: tiles[3].count, lo: tiles[4].count, other: Math.max(0, sx.analysed - tiles[1].count - tiles[2].count - tiles[3].count - tiles[4].count) };
   const appliedToday = sent.filter((t) => t >= since.getTime()).length;
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
-  const BANDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["lo", "Stretch", "55–69%"], ["other", "Other matches", "Below 55%"]] as const;
-  const matchedToday = today ? today.total - today.other : 0;
-  const matchedAll = all.total - all.other;
-  const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
-  const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
+  const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
+  const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
+  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, children?: React.ReactNode) => {
+    const f = c ? four(c) : null;
+    return (
+      <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
+        <div className={s.panelHead}>
+          <h2 id={id} className={s.panelTitle}>{title}<span>{sub}</span></h2>
+          <div className={s.stats}>
+            <span className={`${s.stat} ${s.sFound}`}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</span>
+            <span className={`${s.stat} ${s.sMatch}`}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Matched</span>
+            <span className={`${s.stat} ${s.sApplied}`}><b>{fmt(applied)}</b>Applied</span>
+          </div>
+        </div>
+        <div className={s.fits}>
+          {CARDS.map(([b, label, range]) => {
+            const n = f ? f[b] : 0;
+            const body = <>
+              <span className={s.fitTop}><span className={s.fitLabel}>{label}</span><span className={s.range}>{range}</span></span>
+              <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, c?.total || 0)}%</span></span>
+            </>;
+            const cls = `${s.fit} ${b === "rest" ? s.lo : BAND_CLASS[b]}`;
+            return b === "rest" ? <Link prefetch={false} key={b} className={cls} href="/opportunities">{body}</Link> : <a key={b} className={cls} href={`#band-${b}`}>{body}</a>;
+          })}
+        </div>
+        {children}
+      </section>
+    );
+  };
+  const others = featured ? list.filter((x) => x.job.id !== featured.job.id) : list;
+  const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, others.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, others.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
 
   // Career guide: skills your matches ask for that the profile lacks, and how many lower matches ask for them.
   const { rows } = skillDemand(relevant, P);
@@ -113,14 +138,6 @@ export default async function Inbox() {
             <p className={s.sub}>{today ? <>Today we found <b>{fmt(today.total)} new {today.total === 1 ? "job" : "jobs"} in {cname(country)}</b> for you.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
           </div>
           <div className={s.cta}>
-            <div className={s.allTime} aria-label="All time">
-              <span className={s.atK}>All time</span>
-              <span className={s.atRow}>
-                <span><b>{fmt(all.total)}</b>Jobs found</span>
-                <span><b>{fmt(matchedAll)}</b>Matched</span>
-                <span><b>{fmt(progress.applied)}</b>Applied</span>
-              </span>
-            </div>
             {sx.prepared ? <Link prefetch={false} className={s.gold} href={readyHref}>Review {sx.prepared} ready {sx.prepared === 1 ? "application" : "applications"} →</Link>
               : featured ? <Link prefetch={false} className={s.gold} href={`/jobs/${featured.job.id}`}>See your best match →</Link>
               : <a className={s.gold} href="#matches">Paste a job you found →</a>}
@@ -128,32 +145,27 @@ export default async function Inbox() {
         </div>
       </section>
 
-      <section className={s.summary} aria-label="Today's job search">
-        <div className={s.fits}>
-          <div className={`${s.fit} ${s.todayTile}`}>
-            <span className={s.fitTop}><span className={s.fitLabel}>Today</span></span>
-            <span className={s.tdRow}><span>Jobs found</span><b>{today ? fmt(today.total) : "–"}</b></span>
-            <span className={s.tdRow}><span>Matched</span><b>{today ? fmt(matchedToday) : "–"}</b></span>
-            <span className={s.tdRow}><span>Applied</span><b>{fmt(appliedToday)}</b></span>
-          </div>
-          {BANDS.map(([b, label, range]) => {
-            const n = today ? today[b] : 0;
-            const body = <>
-              <span className={s.fitTop}><span className={s.fitLabel}>{label}</span><span className={s.range}>{range}</span></span>
-              <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, today?.total || 0)}%</span></span>
-              <span className={s.fitNote}>All time {fmt(all[b])} · {pct(all[b], all.total)}%</span>
-            </>;
-            return b === "other" ? <Link prefetch={false} key={b} className={`${s.fit} ${BAND_CLASS[b]}`} href="/opportunities">{body}</Link> : <a key={b} className={`${s.fit} ${BAND_CLASS[b]}`} href={b === "lo" ? "#career-guide" : `#band-${b}`}>{body}</a>;
-          })}
-        </div>
-        <a className={s.guide} href="#career-guide"><span className={s.gi}><Svg d={ICON.grow} /></span>Career guide{guide.length ? <em>{guide.length} {guide.length === 1 ? "skill" : "skills"} that can lift your matches</em> : null}<Svg className={s.ar} d={ICON.arrow} /></a>
-      </section>
+      {panel("today-h", "Today", today ? `New jobs in ${cname(country)}` : "Not counted yet", today, appliedToday, s.pToday, <a className={s.guide} href="#career-guide"><span className={s.gi}><Svg d={ICON.grow} /></span>Career guide{guide.length ? <em>{guide.length} {guide.length === 1 ? "skill" : "skills"} that can lift your matches</em> : null}<Svg className={s.ar} d={ICON.arrow} /></a>)}
+
+      {featured ? (
+        <Link prefetch={false} className={s.spot} href={`/jobs/${featured.job.id}`}>
+          <Ring score={featured.m.score} band={featured.m.band} />
+          <span style={{ minWidth: 0 }}>
+            <span className={s.spotK}>Your best opportunity right now</span>
+            <span className={s.spotT}>{featured.job.title}</span>
+            <span className={s.muted}>{featured.job.company}{featured.job.location ? ` · ${featured.job.location}` : ""}{featured.job.deadline ? ` · Deadline ${fmtDate(featured.job.deadline)}` : ""}</span>
+            <span className={s.why}>{featured.m.matched.slice(0, 3).map((t) => <span key={t} className={s.ok}>✓ {t}</span>)}{featured.m.gaps[0] ? <span className={s.gap}>Gap: {featured.m.gaps[0].t.split(";")[0]}</span> : null}</span>
+          </span>
+          <span className={s.spotGo}>{st.apps[featured.job.id]?.pack ? <span className={s.readyPill}>CV + cover letter ready</span> : null}<span className={s.goBtn}>{st.apps[featured.job.id]?.pack ? "Review & apply →" : "See why it fits →"}</span></span>
+        </Link>
+      ) : null}
+
+      {panel("all-h", "All time", "Since you joined", all, progress.applied, s.pAll)}
 
       <div className={s.progress}>
-        <Link prefetch={false} className={`${s.pg} ${s.ready}`} href="/queue"><span className={s.pgIc}><Svg d={ICON.ready} /></span><span><b className={s.pgN}>{fmt(sx.prepared)}</b><span className={s.pgL}>Ready to apply</span><span className={s.pgS}>CV + cover letter done</span></span></Link>
-        <Link prefetch={false} className={`${s.pg} ${s.applied}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.applied} /></span><span><b className={s.pgN}>{fmt(progress.applied)}</b><span className={s.pgL}>Applied</span><span className={s.pgS}>{repliesPending ? `${repliesPending} waiting for a reply` : "Tracked for replies"}</span></span></Link>
-        <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span><b className={s.pgN}>{fmt(sx.interviews)}</b><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span></Link>
-        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span><b className={s.pgN}>{fmt(sx.offers)}</b><span className={s.pgL}>Job offer</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span></Link>
+        <Link prefetch={false} className={`${s.pg} ${s.ready}`} href="/queue"><span className={s.pgIc}><Svg d={ICON.ready} /></span><span className={s.pgTxt}><span className={s.pgL}>Ready to apply</span><span className={s.pgS}>CV + cover letter done</span></span><b className={s.pgN}>{fmt(sx.prepared)}</b></Link>
+        <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span className={s.pgTxt}><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span><b className={s.pgN}>{fmt(sx.interviews)}</b></Link>
+        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
       </div>
 
       <div className={s.grid}>
