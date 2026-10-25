@@ -1,25 +1,32 @@
-.progress{list-style:none;display:flex;flex-direction:column;gap:10px;padding:0;margin:18px 0 0}
+.progress{list-style:none;display:flex;flex-direction:column;gap:10px;padding:0;margin:14px auto 0;width:94%;box-sizing:border-box}
 .item{min-width:0}
-.metric{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:16px;min-height:88px;padding:18px 22px;border:1px solid #ffffff18;border-radius:15px;background:radial-gradient(ellipse at 100% 0%,#d3ac5780 0%,transparent 34%),linear-gradient(115deg,#102c50 0%,#152e51 52%,#254f73 100%);color:#203b57;text-decoration:none;box-shadow:0 3px 9px #102c5012;transition:filter .18s,transform .18s}
+.metric{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:72px;padding:12px 16px;border:1px solid #ffffff18;border-radius:15px;background:radial-gradient(ellipse at 100% 0%,#d3ac5780 0%,transparent 34%),linear-gradient(115deg,#102c50 0%,#152e51 52%,#254f73 100%);color:#203b57;text-decoration:none;box-shadow:0 3px 9px #102c5012;transition:filter .18s,transform .18s}
 /* Shared blue and champagne palette; each stage has its own composition. */
-.item:nth-child(1) .metric{background:radial-gradient(ellipse at 100% 10%,#ead39b 0%,transparent 65%),linear-gradient(115deg,#cbdff0,#e7edf0 55%,#efdbaf);border-color:#c6cfd2;border-left:4px solid #b58b39}
-.item:nth-child(2) .metric{background:linear-gradient(115deg,#f4e6c5 0%,#f7f0df 55%,#d4e3ef);border-color:#dfcfaa}
-.item:nth-child(3) .metric{background:radial-gradient(ellipse at 0% 100%,#d6b76e55,transparent 65%),linear-gradient(105deg,#edf3f8,#dbe7f2);border-color:#cddce8}
-.item:nth-child(4) .metric{background:linear-gradient(125deg,#e0ebf4 0%,#eaf0f2 48%,#ebd4a0 100%);border-color:#d6d6ca}
-.item:nth-child(5) .metric{background:linear-gradient(100deg,#f2e5c9 0%,#f8f5ed 45%,#e4edf4 100%);border-color:#e0d7c4}
+.item:nth-child(1) .metric{background:linear-gradient(#0000000d,#0000000d),radial-gradient(ellipse at 100% 10%,#ead39b 0%,transparent 65%),linear-gradient(115deg,#cbdff0,#e7edf0 55%,#efdbaf);border-color:#c6cfd2;border-left:4px solid #b58b39}
+.item:nth-child(2) .metric{background:linear-gradient(#0000000d,#0000000d),linear-gradient(115deg,#f4e6c5 0%,#f7f0df 55%,#d4e3ef);border-color:#dfcfaa}
+.item:nth-child(3) .metric{background:linear-gradient(#0000000d,#0000000d),radial-gradient(ellipse at 0% 100%,#d6b76e55,transparent 65%),linear-gradient(105deg,#edf3f8,#dbe7f2);border-color:#cddce8}
+.item:nth-child(4) .metric{background:linear-gradient(#0000000d,#0000000d),linear-gradient(125deg,#e0ebf4 0%,#eaf0f2 48%,#ebd4a0 100%);border-color:#d6d6ca}
+.item:nth-child(5) .metric{background:linear-gradient(#0000000d,#0000000d),linear-gradient(100deg,#f2e5c9 0%,#f8f5ed 45%,#e4edf4 100%);border-color:#e0d7c4}
 .metric:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .metric:focus-visible,.application:focus-visible{outline:3px solid #c99e42;outline-offset:3px}
-.icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#ffffff80;color:#8a6525;border:1px solid #b7934930}
-.icon svg{width:24px;height:24px}
+.icon{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:#ffffff80;color:#8a6525;border:1px solid #b7934930}
+.icon svg{width:21px;height:21px}
 .copy{display:flex;flex-direction:column;gap:4px;min-width:0}
 .label{font-size:16px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
 .detail{font-size:13px;color:#496078;line-height:1.45;overflow-wrap:anywhere}
-.number{font-size:32px;font-weight:800;line-height:1.1;text-align:right;font-variant-numeric:tabular-nums}
-.application{display:flex;align-items:center;gap:14px;padding:18px 16px;margin:8px 0 0 18px;background:linear-gradient(110deg,#f5fbf8,#fff);border:1px solid #dce8e2;border-left:4px solid #219267;border-radius:13px;text-decoration:none;color:#182d47;box-shadow:0 3px 10px #102c5008}
-.badge{display:inline-flex;align-items:center;flex-shrink:0;padding:8px 10px;border-radius:9px;background:#e1f3e9;color:#176044;font-size:13px;font-weight:700}
-.applicationCopy{display:flex;flex-direction:column;gap:6px;min-width:0;overflow-wrap:anywhere;font-size:14px}
-.applicationCopy>span{font-size:12px;font-weight:600;color:#315e8a}
-@media(max-width:480px){.metric{grid-template-columns:36px minmax(0,1fr) auto;gap:10px;min-height:82px;padding:14px 12px}.icon{width:36px;height:40px;border-radius:10px}.icon svg{width:21px;height:21px}.label{font-size:14px}.detail{font-size:12px}.number{font-size:27px}.application{gap:10px;padding:14px 10px}.badge{font-size:12px;padding:7px 8px}}
+.number{font-size:28px;font-weight:800;line-height:1.1;text-align:right;font-variant-numeric:tabular-nums}
+.withPocket .metric{padding-bottom:48px;align-items:start}
+.pocket{position:relative;width:max(33.333%,145px);max-width:calc(100% - 32px);margin:-34px 10px 0 auto;padding:0 5px 5px;isolation:isolate}
+/* The curved lip conceals the top edge, so the card emerges from the parent. */
+.pocket::before{content:"";position:absolute;z-index:2;top:-5px;left:-12px;right:-7px;height:22px;border-radius:32px 17px 0 0;border-top:2px solid #adb9b5;border-left:2px solid #bec8c2;box-shadow:0 -3px 5px #203b5710;pointer-events:none}
+.application{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:22px 12px 12px;background:linear-gradient(135deg,#f7fbf8,#eaf4ef);border:1px solid #b7cec5;border-radius:7px 7px 14px 14px;text-decoration:none;color:#182d47;box-shadow:0 6px 12px #102c501a;min-width:0;overflow-wrap:anywhere}
+.ribbon{position:absolute;top:15px;right:-1px;width:9px;height:34px;background:linear-gradient(90deg,#c39b4c,#e5cb8e);clip-path:polygon(0 12%,100% 0,100% 100%,0 86%);border-radius:4px 0 0 4px}
+.latest{font-size:11px;color:#536b78;padding-right:4px;line-height:1.4}
+.badge{display:inline-flex;align-items:center;padding:4px 7px;border-radius:7px;background:#dcefe4;color:#176044;font-size:12px;font-weight:700;max-width:100%;box-sizing:border-box}
+.applicationTitle{font-size:13px;line-height:1.4;font-weight:650}
+.match{font-size:12px;color:#496078}
+.applicationLink{font-size:11px;font-weight:600;color:#315e8a;line-height:1.4}
+@media(max-width:480px){.progress{width:96%;gap:9px}.metric{grid-template-columns:30px minmax(0,1fr) auto;gap:8px;min-height:68px;padding:11px 10px}.icon{width:30px;height:34px;border-radius:9px}.icon svg{width:19px;height:19px}.label{font-size:14px}.detail{font-size:12px}.number{font-size:25px}.pocket{margin-right:5px}.withPocket .metric{padding-bottom:46px}}
 @media(prefers-reduced-motion:reduce){.metric{transition:none}.metric:hover{transform:none}}
 
 .heading{display:flex;align-items:center;gap:9px;margin:0;color:#29445f;font-size:clamp(14px,3.8vw,18px);font-weight:650;letter-spacing:-.02em;line-height:1.4}

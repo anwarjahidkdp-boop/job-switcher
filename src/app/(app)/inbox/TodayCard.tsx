@@ -13,16 +13,25 @@ export function TodayCard({ plan, items, done, summary }: { plan: Plan | null; i
   if (!done.length && !items.length) return null;
   const days = plan && !plan.ended ? plan.day : 0;
   const appliedItems = items.filter((n) => n.applicationStatus);
-  const otherItems = items.filter((n) => !n.applicationStatus);
-  const applicationCards = appliedItems.map((n) => <Link prefetch={false} key={n.id} href={n.link || "/applications"} className={styles.application}>
-    <span className={styles.badge}>✓ {n.applicationStatus}</span><span className={styles.applicationCopy}><b>{n.title.replace(`${n.applicationStatus} · `, "")}</b><span>{n.link === "/applications" ? "View application →" : "View opportunities →"}</span></span>
-  </Link>);
+  const otherItems = items.filter((n) => n !== appliedItems[0]);
+  const applicationCards = appliedItems.slice(0, 1).map((n) => {
+    const title = n.title.replace(`${n.applicationStatus} · `, "");
+    const match = title.match(/^(\d+(?:\.\d+)?% match):?\s*/i);
+    return <Link prefetch={false} key={n.id} href={n.link || "/applications"} className={styles.application}>
+      <span className={styles.ribbon} aria-hidden="true" />
+      <span className={styles.latest}>Latest application</span>
+      <span className={styles.badge}>✓ {n.applicationStatus}</span>
+      <b className={styles.applicationTitle}>{match ? title.slice(match[0].length) : title}</b>
+      {match ? <span className={styles.match}>{match[1]}</span> : null}
+      <span className={styles.applicationLink}>{n.link === "/applications" ? "View application →" : "View opportunities →"}</span>
+    </Link>;
+  });
   return (
     <div className="card panel today" id="trial">
       <h3 className={styles.heading}><span aria-hidden="true">↗</span> {days ? `Your progress · Day ${days}` : plan?.ended ? "Your trial progress" : "Your career progress"}</h3>
       {done.length ? <ol className={styles.progress} aria-label="What JobPao did for you">{done.map((d) => {
         const body = <><span className={styles.icon}><Ic d={d.icon} /></span><span className={styles.copy}><span className={styles.label}>{d.label}</span>{d.sub ? <span className={styles.detail}>{d.sub}</span> : null}</span><b className={`${styles.number} num`}>{d.n}</b></>;
-        return <li key={d.label} className={styles.item}>{d.href ? <Link prefetch={false} href={d.href} className={styles.metric}>{body}</Link> : <div className={styles.metric}>{body}</div>}{d.label === "Applications submitted" ? applicationCards : null}</li>;
+        return <li key={d.label} className={`${styles.item}${d.label === "Applications submitted" && applicationCards.length ? ` ${styles.withPocket}` : ""}`}>{d.href ? <Link prefetch={false} href={d.href} className={styles.metric}>{body}</Link> : <div className={styles.metric}>{body}</div>}{d.label === "Applications submitted" && applicationCards.length ? <div className={styles.pocket}>{applicationCards}</div> : null}</li>;
       })}</ol> : null}
       {plan?.summaryTime ? (
         <div className="today-next" style={{ display: "block" }}>
