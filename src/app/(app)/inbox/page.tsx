@@ -83,7 +83,6 @@ export default async function Inbox() {
   const appliedToday = sent.filter((t) => t >= since.getTime()).length;
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
   const BANDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["lo", "Stretch", "55–69%"], ["other", "Other matches", "Below 55%"]] as const;
-  const barOf = today?.total ? today : all;
   const matchedToday = today ? today.total - today.other : 0;
   const matchedAll = all.total - all.other;
   const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
@@ -111,13 +110,13 @@ export default async function Inbox() {
           <div>
             <p className={s.kicker}>Your job assistant</p>
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
-            <p className={s.sub}>{today ? <>Today we checked <b>{fmt(today.total)} new {today.total === 1 ? "job" : "jobs"} in {cname(country)}</b> for you.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
+            <p className={s.sub}>{today ? <>Today we found <b>{fmt(today.total)} new {today.total === 1 ? "job" : "jobs"} in {cname(country)}</b> for you.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
           </div>
           <div className={s.cta}>
             <div className={s.allTime} aria-label="All time">
               <span className={s.atK}>All time</span>
               <span className={s.atRow}>
-                <span><b>{fmt(all.total)}</b>Searched</span>
+                <span><b>{fmt(all.total)}</b>Jobs found</span>
                 <span><b>{fmt(matchedAll)}</b>Matched</span>
                 <span><b>{fmt(progress.applied)}</b>Applied</span>
               </span>
@@ -130,11 +129,10 @@ export default async function Inbox() {
       </section>
 
       <section className={s.summary} aria-label="Today's job search">
-        {barOf.total ? <div className={s.stack} role="img" aria-label={BANDS.map(([b, l]) => `${l} ${pct(barOf[b], barOf.total)}%`).join(", ")}>{BANDS.map(([b]) => barOf[b] ? <i key={b} className={BAND_CLASS[b]} style={{ width: `${(100 * barOf[b]) / barOf.total}%` }} /> : null)}</div> : null}
         <div className={s.fits}>
           <div className={`${s.fit} ${s.todayTile}`}>
             <span className={s.fitTop}><span className={s.fitLabel}>Today</span></span>
-            <span className={s.tdRow}><span>Searched</span><b>{today ? fmt(today.total) : "–"}</b></span>
+            <span className={s.tdRow}><span>Jobs found</span><b>{today ? fmt(today.total) : "–"}</b></span>
             <span className={s.tdRow}><span>Matched</span><b>{today ? fmt(matchedToday) : "–"}</b></span>
             <span className={s.tdRow}><span>Applied</span><b>{fmt(appliedToday)}</b></span>
           </div>
