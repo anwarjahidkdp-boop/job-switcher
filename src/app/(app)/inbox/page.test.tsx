@@ -49,7 +49,10 @@ describe("career home", () => {
     if (process.env.DUMP_HOME) writeFileSync(process.env.DUMP_HOME, html);
     expect(html).not.toContain("Your best opportunity right now");
     expect(html).not.toContain("Today we found");
-    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "See your best match", "Career guide", "All time", "Ready to apply"].map((l) => html.indexOf(l));
+    expect(html).not.toContain("Paste a job you found");
+    expect(html).toMatch(/\d+ details incomplete/);
+    expect(html).toContain(`href="/jobs/a"`);
+    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "All time", "Interviewed"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
     for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Matched", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);

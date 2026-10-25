@@ -3,7 +3,7 @@ import { OpportunityRow } from "@/components/OpportunityRow";
 import { isResolvedApplication, submittedApplications } from "@/lib/applied-history";
 import { currentCountryApps } from "@/lib/application-country";
 import { applyQueue } from "@/lib/apply-queue";
-import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
+import { missingApplicationFields } from "@/lib/application-profile";
 import { backToStepAction, appliedAction } from "@/app/actions";
 import Link from "next/link";
 import { subscriptionOf, requireAppState } from "@/lib/server/page";
@@ -32,10 +32,10 @@ const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.p
 const GROUP_CLASS: Record<Band, string> = { ex: s.gex, st: s.gst, po: s.gpo, lo: s.glo };
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
-  ready: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
   applied: '<path d="M20 6 9 17l-5-5"/>',
   interview: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
   offer: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  warn: '<path d="m12 3 10 18H2Z"/><path d="M12 9v5M12 17h.01"/>',
   star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   grow: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
@@ -46,13 +46,13 @@ export default async function Inbox() {
   const available = st.scored.filter((x) => !isResolvedApplication(st.apps[x.job.id]));
   // Counts on this page come from the current search country only; earlier-country history stays on the Applied page.
   const here = currentCountryApps(st.apps, st.country);
+  const missing = missingApplicationFields({ ...st.profile.answer_library, birthDate: st.profile.answer_library?.birthDate || st.profile.personal?.dob }, st.profile.deal_breakers || {}, st.country);
   const P = st.P, sx = stats({ ...st, apps: here }), country = st.country;
   const { ranked: list, featured } = opportunitySections(available, st.dismissed, st.apps);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const apps = Object.values(here);
   const due = apps.filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
   const queue = applyQueue(st);
-  const readyHref = queue[0] ? `/jobs/${queue[0].job.id}` : "/queue";
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
   const setupSites = portals(country);
@@ -88,13 +88,12 @@ export default async function Inbox() {
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
-  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, ribbon?: string) => {
+  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string) => {
     const f = c ? four(c) : null;
     return (
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
-          {ribbon ? <h2 id={id} className={s.panelTitle}><span className={s.ribbonWrap}><span className={s.ribbon}>{title}<em>{ribbon}</em></span></span><span>{sub}</span></h2>
-            : <h2 id={id} className={s.panelTitle}>{title}<span>{sub}</span></h2>}
+          <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={s.stats}>
             <span className={`${s.stat} ${s.sFound}`}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</span>
             <span className={`${s.stat} ${s.sMatch}`}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Matched</span>
@@ -138,34 +137,43 @@ export default async function Inbox() {
       <section className={s.hero}>
         <div className={s.heroIn}>
           <div>
-            <p className={s.kicker}>Your job assistant</p>
+            <p className={s.kicker}>Your <b className={s.kJob}>Job</b> <b className={s.kAsst}>Assistant</b></p>
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
-            {sx.prepared ? <Link prefetch={false} className={s.gold} href={readyHref}>Review {sx.prepared} ready {sx.prepared === 1 ? "application" : "applications"} →</Link>
-              : <a className={s.gold} href="#matches">Paste a job you found →</a>}
+            {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} /><span><b>{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete</b><em>Complete now →</em></span></Link> : null}
           </div>
         </div>
       </section>
 
       {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }))}
 
-      <div className={s.progress}>
-        <Link prefetch={false} className={`${s.pg} ${s.best}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.pgIc}><Svg d={ICON.star} /></span><span className={s.pgTxt}><span className={s.pgL}>See your best match</span><span className={s.pgS}>{featured ? `${featured.job.title} · ${featured.job.company}` : "Paste a job or add skills to find one"}</span></span>{featured ? <b className={s.pgN}>{featured.m.score}%</b> : null}<Svg className={s.pgAr} d={ICON.arrow} /></Link>
-        <a className={`${s.pg} ${s.guideBar}`} href="#career-guide"><span className={s.pgIc}><Svg d={ICON.grow} /></span><span className={s.pgTxt}><span className={s.pgL}>Career guide</span><span className={s.pgS}>{guide.length ? `${guide.length} ${guide.length === 1 ? "skill" : "skills"} that can lift your matches` : "Skills and courses for your target roles"}</span></span><Svg className={s.pgAr} d={ICON.arrow} /></a>
+      <div className={s.duo}>
+        <a className={`${s.duoCard} ${s.duoGuide}`} href="#career-guide">
+          <span className={s.duoIc}><Svg d={ICON.grow} /></span>
+          <span className={s.duoK}>Career guide</span>
+          <span className={s.duoT}>{guide.length ? `${guide.length} ${guide.length === 1 ? "skill" : "skills"} that can lift your matches` : "Skills and courses for your target roles"}</span>
+          <span className={s.duoGo}>Open guide →</span>
+        </a>
+        <Link prefetch={false} className={`${s.duoCard} ${s.duoBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}>
+          <span className={s.duoIc}><Svg d={ICON.star} /></span>
+          <span className={s.duoK}>Your best match · {featured && st.apps[featured.job.id]?.pack ? "Ready to apply" : "Apply next"}</span>
+          <span className={s.duoT}>{featured ? featured.job.title : "No match yet"}</span>
+          <span className={s.duoS}>{featured ? `${featured.job.company}${sx.prepared ? ` · ${sx.prepared} ready to apply` : ""}` : "Paste a job or add skills to find one"}</span>
+          {featured ? <b className={s.duoScore}>{featured.m.score}%</b> : null}
+          <span className={s.duoGo}>{featured && st.apps[featured.job.id]?.pack ? "Review & apply →" : featured ? "Open & apply →" : "Paste a job →"}</span>
+        </Link>
       </div>
 
-      {panel("all-h", "All time", "Every job we have checked for you", all, progress.applied, s.pAll)}
+      {panel("all-h", "All time", "Every job we have checked for you", all, progress.applied, s.pAll, "Since you joined")}
 
       <div className={s.progress}>
-        <Link prefetch={false} className={`${s.pg} ${s.ready}`} href="/queue"><span className={s.pgIc}><Svg d={ICON.ready} /></span><span className={s.pgTxt}><span className={s.pgL}>Ready to apply</span><span className={s.pgS}>CV + cover letter done</span></span><b className={s.pgN}>{fmt(sx.prepared)}</b></Link>
         <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span className={s.pgTxt}><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span><b className={s.pgN}>{fmt(sx.interviews)}</b></Link>
         <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
       </div>
 
       <div className={s.grid}>
         <div className={s.col}>
-          <ApplicationProfileNotice country={st.country} answers={{ ...st.profile.answer_library, birthDate: st.profile.answer_library?.birthDate || st.profile.personal?.dob }} rules={st.profile.deal_breakers || {}} />
           {due.map(({ a, job }) => (
             <div key={a.id} className="banner warn">
               <div><b>Did you apply to {job!.company}?</b> <span className="muted">{job!.deadline ? `Deadline: ${daysUntil(job!.deadline, st.today)} days remaining.` : "Your application is ready."}</span></div>
