@@ -15,18 +15,28 @@
 .label{font-size:16px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
 .detail{font-size:13px;color:#496078;line-height:1.45;overflow-wrap:anywhere}
 .number{font-size:28px;font-weight:800;line-height:1.1;text-align:right;font-variant-numeric:tabular-nums}
-.withPocket .metric{padding-bottom:48px;align-items:start}
-.pocket{position:relative;width:max(33.333%,145px);max-width:calc(100% - 32px);margin:-34px 10px 0 auto;padding:0 5px 5px;isolation:isolate}
-/* The curved lip conceals the top edge, so the card emerges from the parent. */
-.pocket::before{content:"";position:absolute;z-index:2;top:-5px;left:-12px;right:-7px;height:22px;border-radius:32px 17px 0 0;border-top:2px solid #adb9b5;border-left:2px solid #bec8c2;box-shadow:0 -3px 5px #203b5710;pointer-events:none}
-.application{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:22px 12px 12px;background:linear-gradient(135deg,#f7fbf8,#eaf4ef);border:1px solid #b7cec5;border-radius:7px 7px 14px 14px;text-decoration:none;color:#182d47;box-shadow:0 6px 12px #102c501a;min-width:0;overflow-wrap:anywhere}
-.ribbon{position:absolute;top:15px;right:-1px;width:9px;height:34px;background:linear-gradient(90deg,#c39b4c,#e5cb8e);clip-path:polygon(0 12%,100% 0,100% 100%,0 86%);border-radius:4px 0 0 4px}
-.latest{font-size:11px;color:#536b78;padding-right:4px;line-height:1.4}
-.badge{display:inline-flex;align-items:center;padding:4px 7px;border-radius:7px;background:#dcefe4;color:#176044;font-size:12px;font-weight:700;max-width:100%;box-sizing:border-box}
-.applicationTitle{font-size:13px;line-height:1.4;font-weight:650}
-.match{font-size:12px;color:#496078}
-.applicationLink{font-size:11px;font-weight:600;color:#315e8a;line-height:1.4}
-@media(max-width:480px){.progress{width:96%;gap:9px}.metric{grid-template-columns:30px minmax(0,1fr) auto;gap:8px;min-height:68px;padding:11px 10px}.icon{width:30px;height:34px;border-radius:9px}.icon svg{width:19px;height:19px}.label{font-size:14px}.detail{font-size:12px}.number{font-size:25px}.pocket{margin-right:5px}.withPocket .metric{padding-bottom:46px}}
+.overview{border:1px solid #d5deea!important;background:linear-gradient(145deg,#fff,#f8fafc)!important;box-shadow:0 12px 32px #19375808!important;margin-bottom:20px}
+.sectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reportLink{font-size:12px;color:#526680;white-space:nowrap;text-decoration:none}
+.withPocket{position:relative;border-radius:15px;background:linear-gradient(115deg,#ccdce8,#e5e7df 65%,#e9d6a9);padding-bottom:8px;box-shadow:0 3px 9px #102c5012}
+.withPocket .metric{padding-bottom:18px;box-shadow:none;border-bottom:0;border-radius:15px 15px 7px 7px}
+.pocket{position:relative;width:calc(100% - 48px);margin:-5px 0 0 auto;padding:0 8px 0 0;isolation:isolate}
+.pocket::before{content:"";position:absolute;left:-9px;top:0;bottom:0;width:14px;border-radius:14px 0 0 14px;background:linear-gradient(90deg,#8c9da32a,transparent);pointer-events:none}
+.application{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 15px;background:linear-gradient(110deg,#f9fbfd,#edf3f8);border:1px solid #bacbd8;border-top:2px solid #b5924f;border-radius:9px;text-decoration:none;color:#203b57;box-shadow:0 3px 8px #19375812;min-width:0}
+.ribbon{position:absolute;top:10px;right:-1px;width:4px;height:27px;background:#b79349;border-radius:3px 0 0 3px}
+.applicationCopy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.latest{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;font-size:10px;color:#52667a;line-height:1.4;letter-spacing:.02em}
+.badge{font-size:10px;color:#356953;font-weight:650}
+.applicationTitle{font-size:13px;line-height:1.35;font-weight:650;overflow-wrap:anywhere}
+.company{font-size:11px;color:#62758a;overflow-wrap:anywhere}
+.applicationLink{display:flex;flex-direction:column;align-items:flex-end;gap:2px;color:#526b87;flex-shrink:0}.applicationLink b{font-size:18px;font-variant-numeric:tabular-nums;color:#29445f}.applicationLink span{font-size:10px}
+.outcomes{display:flex;align-items:center;gap:20px;margin:16px 3% 0;padding:14px 0 0;border-top:1px solid #dde5ec}
+.outcomes a{display:flex;align-items:center;gap:7px;text-decoration:none;color:#52667d;font-size:12px;min-height:32px}
+.outcomes b{font-size:19px;color:#203b57;font-variant-numeric:tabular-nums}
+.outcomes .track{margin-left:auto;color:#45668d}
+.trialEnd{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:12px;padding-top:14px;color:#52667a}
+.trialEnd a{color:#315e8a;font-weight:650}
+@media(max-width:480px){.progress{width:100%;gap:8px}.metric{grid-template-columns:28px minmax(0,1fr) auto;gap:8px;min-height:64px;padding:10px 12px}.icon{width:28px;height:30px;border-radius:8px}.icon svg{width:18px;height:18px}.label{font-size:13px}.detail{font-size:11px}.number{font-size:24px}.pocket{width:calc(100% - 28px)}.application{padding:9px 11px}.outcomes{margin-inline:0;gap:12px;flex-wrap:wrap}.outcomes .track{font-size:11px}.sectionHead{gap:8px}.reportLink{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.metric{transition:none}.metric:hover{transform:none}}
 
 .heading{display:flex;align-items:center;gap:9px;margin:0;color:#29445f;font-size:clamp(14px,3.8vw,18px);font-weight:650;letter-spacing:-.02em;line-height:1.4}
