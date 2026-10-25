@@ -29,6 +29,8 @@ export interface ApplicationRow {
   interview_at?: string | null; interview_mode?: "in_person" | "phone" | "video" | null; interview_where?: string | null; interview_notes?: string | null;
   interview_prep?: InterviewPrep | null; interview_prep_ai?: boolean;
   application_events?: { event: string; status: string | null; actor: string; created_at: string }[];
+  /** Joined when loaded with the person's state: the job's country. */
+  jobs?: { country: string } | null;
 }
 export interface CvDocRow { id: string; text_content: string; questions: CvQuestion[]; answers: Record<string, string>; is_demo: boolean; file_name: string | null; storage_path: string | null; created_at: string }
 export interface MasterRow { id: string; content: MasterCV; flags: string[]; ai: boolean; model: string | null; created_at: string; version: number }
