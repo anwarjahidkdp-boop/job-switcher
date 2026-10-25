@@ -113,7 +113,7 @@ describe("career home", () => {
     st.apps = { ...st.apps, old: { id: "9", job_id: "old", status: "interview", pack: {}, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", applied_at: "2026-10-02T00:00:00Z", reminder_date: null, jobs: { country: "GB" } } };
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toMatch(/<b>0<\/b>Interviewed/);
+    expect(html).toMatch(/<b>0<\/b><span[^>]*>Interviewed/);
     expect(html).toMatch(/<b>0<\/b>Applied/);
   });
 });

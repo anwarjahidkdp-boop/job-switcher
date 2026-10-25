@@ -1103,7 +1103,6 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 
 .queue-review-cta{font-weight:700;box-shadow:0 3px 10px color-mix(in srgb,var(--accent) 24%,transparent);min-height:40px}
 .application-workspace{scroll-margin-top:110px}
-@media(max-width:520px){.nav a[href="/queue"] .nav-s{font-size:10px;line-height:1.15;white-space:normal;text-align:center}}
 
 .job-review-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .job-review-company{flex:1;min-width:0;overflow-wrap:anywhere}
@@ -1185,3 +1184,14 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .applied-job-actions{gap:10px;flex-wrap:wrap}
 @media(max-width:600px){.applied-job-card{padding:16px}.applied-job-heading{flex-wrap:wrap;gap:8px}.applied-job-heading h2{font-size:17px}.applied-job-stages{gap:12px}}
 .job-submitted-status{background:var(--good-soft);color:var(--good);border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));font-weight:700}
+
+/* Phone tab bar in the JobPao navy-and-gold card style: deep navy bar with a gold glow, gold icons in soft tiles,
+   and the current tab lit as a gold tile. */
+@media (max-width:760px){
+  :root .nav{background:radial-gradient(260px 90px at 100% 0%,rgba(214,166,62,.32),transparent 70%),linear-gradient(100deg,#0A1A40 0%,#102A63 55%,#14275A 100%);border-top:1px solid rgba(247,213,139,.35);box-shadow:0 -10px 24px rgba(10,21,51,.28)}
+  :root .nav a{gap:4px;padding:5px 2px;color:#C9D6F2;font-weight:600}
+  :root .nav .nav-ic{display:grid;place-items:center;width:34px;height:30px;border-radius:9px;color:#F7D58B;background:rgba(255,255,255,.07);border:1px solid rgba(247,213,139,.18)}
+  :root .nav .nav-ic svg{width:18px;height:18px}
+  :root[data-theme] .nav a[aria-current="page"]{color:#fff;background:none}
+  :root[data-theme] .nav a[aria-current="page"] .nav-ic{color:#14275A;background:linear-gradient(135deg,#F9DC94,#E3A93F);border-color:transparent;box-shadow:0 4px 12px -4px rgba(227,169,63,.7)}
+}

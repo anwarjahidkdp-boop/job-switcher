@@ -36,6 +36,12 @@ const ICON = {
   warn: '<path d="m12 3 10 18H2Z"/><path d="M12 9v5M12 17h.01"/>',
   star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   grow: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  send: '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
 };
 
@@ -86,6 +92,7 @@ export default async function Inbox() {
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
+  const FIT_ICON = { ex: ICON.star, st: ICON.target, po: ICON.check, rest: ICON.grow };
   const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string, isToday: boolean) => {
     const outcomes = !isToday;
     const f = c ? four(c) : null;
@@ -96,19 +103,21 @@ export default async function Inbox() {
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={`${s.stats} ${outcomes ? s.stats4 : ""}`}>
-            <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>
-            {outcomes ? null : <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>}
-            <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href={isToday ? "/applications?when=today" : "/applications"}><b>{fmt(applied)}</b>Applied</Link>
+            {outcomes ? <Link prefetch={false} className={s.navy} href={jobsHref("found")}><span className={s.navyIc}><Svg d={ICON.search} /></span><b>{c ? fmt(c.total) : "–"}</b><span className={s.navyL}>Jobs found</span></Link>
+              : <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><Svg className={s.mini} d={ICON.search} /><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>}
+            {outcomes ? null : <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><Svg className={s.mini} d={ICON.target} /><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>}
             {outcomes ? <>
-              <Link prefetch={false} className={`${s.stat} ${s.sInterview}`} href="/applications?status=interview"><b>{fmt(sx.interviews)}</b>Interviewed</Link>
-              <Link prefetch={false} className={`${s.stat} ${s.sOffer}`} href="/applications?status=offer"><b>{fmt(sx.offers)}</b>Offer received</Link>
-            </> : null}
+              <Link prefetch={false} className={s.navy} href="/applications"><span className={s.navyIc}><Svg d={ICON.send} /></span><b>{fmt(applied)}</b><span className={s.navyL}>Applied</span></Link>
+              <Link prefetch={false} className={s.navy} href="/applications?status=interview"><span className={s.navyIc}><Svg d={ICON.people} /></span><b>{fmt(sx.interviews)}</b><span className={s.navyL}>Interviewed</span></Link>
+              <Link prefetch={false} className={s.navy} href="/applications?status=offer"><span className={s.navyIc}><Svg d={ICON.trophy} /></span><b>{fmt(sx.offers)}</b><span className={s.navyL}>Offer received</span></Link>
+            </> : <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href="/applications?when=today"><Svg className={s.mini} d={ICON.send} /><b>{fmt(applied)}</b>Applied</Link>}
           </div>
         </div>
         <div className={s.fits}>
           {CARDS.map(([b, label, range]) => {
             const n = f ? f[b] : 0;
             const body = <>
+              <Svg className={s.mini} d={FIT_ICON[b]} />
               <span className={s.fitTop}><span className={s.fitLabel}>{label}</span><span className={s.range}>{range}</span></span>
               <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, c?.total || 0)}%</span></span>
             </>;
