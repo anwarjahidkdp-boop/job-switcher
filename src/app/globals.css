@@ -1201,3 +1201,11 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .sf-col a::before,.sf-col .sf-link::before{content:"";position:absolute;left:0;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:2px;background:linear-gradient(135deg,#F7D58B,#E3A93F);opacity:.7;transition:transform .15s ease,opacity .15s ease}
 .sf-col a:hover::before,.sf-col .sf-link:hover::before{opacity:1;transform:translateX(3px)}
 .sf-col b{padding-bottom:6px;border-bottom:1px solid rgba(247,213,139,.25);align-self:stretch}
+
+/* LinkedIn profile helper */
+.li-steps{margin:12px 0 0;padding-left:20px;display:grid;gap:4px}
+.li-role{border:1px solid var(--line);border-radius:10px;padding:12px}
+.li-done{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ivpractice .ivprep{margin-top:0;padding-top:0;border-top:0}
+/* Fake-job warning on the job page */
+.scam-note{border-left-color:var(--warn)}.scam-note ul{margin:6px 0;padding-left:18px;list-style:disc}.scam-high{border-left-color:#DC2626}.scam-high>b{color:#DC2626}

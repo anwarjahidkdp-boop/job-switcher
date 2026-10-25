@@ -15,6 +15,7 @@ import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { listNotifications } from "@/lib/server/notify";
 import { siteDone, sitesDone } from "@/lib/setup";
+import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
 import { courseLinks, nowMs } from "@/lib/today";
 import { skillLabel } from "@/lib/taxonomy";
 import { TRIAL_APPLY } from "@/lib/pack-limits";
@@ -44,6 +45,8 @@ const ICON = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
+  linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
 };
 
 export default async function Inbox() {
@@ -160,6 +163,10 @@ export default async function Inbox() {
   // Once Bdjobs is connected its button leaves the hero; the newest unread notification takes its place.
   const note = bdjobsNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
   const nextSite = setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p));
+  // LinkedIn helper for every country: shown until the person says they updated their profile.
+  const liSteps = st.profile.setup_steps || {};
+  const liNeeded = typeof liSteps[LINKEDIN_DONE] !== "string";
+  const liConnected = typeof liSteps[LINKEDIN_URL] === "string";
 
   return (
     <div className={s.home}>
@@ -172,6 +179,7 @@ export default async function Inbox() {
           <div className={s.cta}>
             {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} />Connect Bdjobs<em>· 4 easy steps</em></Link>
               : note ? <Link prefetch={false} className={s.noteBtn} href={note.link || "/notifications"}><Svg d={ICON.bell} /><span className={s.noteTx}>{note.title}</span></Link> : null}
+            {liNeeded ? <Link prefetch={false} className={s.liBtn} href="/linkedin"><Svg d={ICON.linkedin} />{liConnected ? "Update LinkedIn profile" : "Connect LinkedIn"}<em>· {liConnected ? "ready to copy" : "build your profile"}</em></Link> : null}
             {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} />{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete<em>· Complete now</em></Link> : null}
           </div>
         </div>
@@ -253,6 +261,7 @@ export default async function Inbox() {
             <section className={s.card}>
               <div className={s.head} style={{ ["--hc" as string]: "var(--teal)" }}><h3>Latest application</h3><Link prefetch={false} className={s.link} href="/applications">Applied</Link></div>
               <Link prefetch={false} className={s.latest} style={{ display: "block", textDecoration: "none" }} href={`/jobs/${latestJob.id}`}><b>{latestJob.title}</b>, {latestJob.company} · {["applied", "interview", "offer", "closed", "withdrawn"].includes(latestApp.status) ? STATUS_LABEL[latestApp.status] : "Applied"}{repliesPending ? `. ${repliesPending} ${repliesPending === 1 ? "employer has" : "employers have"} not replied after 14 days; we’ll remind you to follow up.` : "."}</Link>
+              {["applied", "interview", "offer"].includes(latestApp.status) ? <Link prefetch={false} className={s.ivLink} href={`/jobs/${latestJob.id}#interview`}><Svg d={ICON.mic} />{latestApp.interview_prep ? "Your interview prep is ready" : "Practise interview questions for this job"}<span>Salary answers included →</span></Link> : null}
             </section>
           ) : null}
 

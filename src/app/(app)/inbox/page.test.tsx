@@ -116,4 +116,16 @@ describe("career home", () => {
     expect(html).toMatch(/<b>0<\/b><span[^>]*>Interviewed/);
     expect(html).toMatch(/<b>0<\/b><span[^>]*>Applied/);
   });
+  it("offers LinkedIn beside Bdjobs until the person has updated their profile", async () => {
+    const { default: Inbox } = await import("./page");
+    let html = renderToStaticMarkup(await Inbox());
+    expect(html).toMatch(/Connect Bdjobs[\s\S]*href="\/linkedin"[^>]*>[\s\S]*Connect LinkedIn/);
+    const st = h.st as unknown as { profile: { setup_steps: Record<string, unknown> } };
+    st.profile.setup_steps = { "linkedin:url": "https://www.linkedin.com/in/rahim" };
+    html = renderToStaticMarkup(await Inbox());
+    expect(html).toContain("Update LinkedIn profile");
+    st.profile.setup_steps = { "linkedin:url": "https://www.linkedin.com/in/rahim", "linkedin:updated": NOW };
+    html = renderToStaticMarkup(await Inbox());
+    expect(html).not.toContain('href="/linkedin"');
+  });
 });

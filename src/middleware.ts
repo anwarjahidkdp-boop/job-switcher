@@ -3,7 +3,7 @@ import { trustedMutation } from "./lib/request-security";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED = ["/onboarding", "/inbox", "/notifications", "/jobs", "/queue", "/applications", "/insights", "/profile", "/setup", "/upgrade", "/admin", "/account"];
+const PROTECTED = ["/onboarding", "/inbox", "/notifications", "/jobs", "/queue", "/applications", "/insights", "/linkedin", "/profile", "/setup", "/upgrade", "/admin", "/account"];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;

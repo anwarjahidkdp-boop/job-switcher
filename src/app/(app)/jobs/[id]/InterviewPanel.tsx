@@ -58,6 +58,40 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
     router.refresh();
   }
 
+  const prepBlock = (
+    <div className="ivprep">
+      {busy ? <p><Spinner /> {busy}</p> : !p.prep ? (
+        <>
+          <h3>Prepare for this interview</h3>
+          <p className="small muted" style={{ marginTop: 4 }}>We read the job description and your CV, then list the questions you are likely to get, with sample answers you can practise.</p>
+          <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={prepare}>Prepare me for this interview</button>
+        </>
+      ) : (
+        <>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <h3>Likely questions ({p.prep.questions.length})</h3>
+            <span className="small muted">{p.prepAi ? "Prepared with Claude from this job and your CV" : "Standard preparation"}</span>
+          </div>
+          <p className="small muted" style={{ marginTop: 4 }}>Answers use only what is in your CV. Replace anything in [brackets] with your own real example, then practise out loud.</p>
+          <div className="ivqs">
+            {p.prep.questions.map((q, i) => (
+              <details key={i} className="ivq" open={i === 0}>
+                <summary><span className="ivtopic">{TOPIC[q.topic] || "Question"}</span><span>{q.question}</span></summary>
+                <p className="small muted" style={{ marginTop: 8 }}><b>Why they ask:</b> {q.why}</p>
+                <div className="copybox" style={{ marginTop: 8 }}>{q.answer}</div>
+              </details>
+            ))}
+          </div>
+          {p.prep.ask_them.length ? <><h3 style={{ marginTop: 16 }}>Questions you can ask them</h3><ul className="why-list">{p.prep.ask_them.map((x) => <li key={x}><span className="mk ok">?</span><span>{x}</span></li>)}</ul></> : null}
+          {p.prep.checklist.length ? <><h3 style={{ marginTop: 16 }}>Before the interview</h3><ul className="why-list">{p.prep.checklist.map((x) => <li key={x}><span className="mk ok">✓</span><span>{x}</span></li>)}</ul></> : null}
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={prepare}>{p.aiReady && !p.prepAi ? "Prepare again with Claude" : "Prepare again"}</button>
+        </>
+      )}
+      {notice ? <p className="note" style={{ marginTop: 10 }}>{notice}</p> : null}
+      {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+    </div>
+  );
+
   const label = MODES.find((m) => m[0] === f.mode)![2];
   if (editing) return (
     <div className="card panel" id="interview">
@@ -77,14 +111,19 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
     </div>
   );
 
+  // Practice can start before any call: likely questions, salary answers for this job and a checklist.
   if (!p.at) return (
-    <div className="card panel ivcall" id="interview">
-      <div>
-        <h2 style={{ fontSize: 19 }}>Got an interview call?</h2>
-        <p className="small muted" style={{ marginTop: 4 }}>Add it here. We keep track of it and prepare you: likely questions for this job, sample answers from your own CV, and a checklist.</p>
+    <>
+      <div className="card panel ivcall" id="interview">
+        <div>
+          <h2 style={{ fontSize: 19 }}>Got an interview call?</h2>
+          <p className="small muted" style={{ marginTop: 4 }}>Add it here. We keep track of it and prepare you: likely questions for this job, sample answers from your own CV, salary answers for this job, and a checklist.</p>
+          {p.prep || busy ? null : <button type="button" className="btn btn-text btn-sm" style={{ marginTop: 6, paddingLeft: 0 }} onClick={prepare}>No call yet? Practise likely questions now →</button>}
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={open}>Add interview call</button>
       </div>
-      <button className="btn btn-primary btn-sm" onClick={open}>Add interview call</button>
-    </div>
+      {p.prep || busy || err || notice ? <div className="card panel ivpractice">{prepBlock}</div> : null}
+    </>
   );
 
   const href = p.where && /^https?:\/\//i.test(p.where) ? p.where : null;
@@ -104,37 +143,7 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
       </div>
       {p.notes ? <p className="note" style={{ marginTop: 10 }}>{p.notes}</p> : null}
 
-      <div className="ivprep">
-        {busy ? <p><Spinner /> {busy}</p> : !p.prep ? (
-          <>
-            <h3>Prepare for this interview</h3>
-            <p className="small muted" style={{ marginTop: 4 }}>We read the job description and your CV, then list the questions you are likely to get, with sample answers you can practise.</p>
-            <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={prepare}>Prepare me for this interview</button>
-          </>
-        ) : (
-          <>
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <h3>Likely questions ({p.prep.questions.length})</h3>
-              <span className="small muted">{p.prepAi ? "Prepared with Claude from this job and your CV" : "Standard preparation"}</span>
-            </div>
-            <p className="small muted" style={{ marginTop: 4 }}>Answers use only what is in your CV. Replace anything in [brackets] with your own real example, then practise out loud.</p>
-            <div className="ivqs">
-              {p.prep.questions.map((q, i) => (
-                <details key={i} className="ivq" open={i === 0}>
-                  <summary><span className="ivtopic">{TOPIC[q.topic] || "Question"}</span><span>{q.question}</span></summary>
-                  <p className="small muted" style={{ marginTop: 8 }}><b>Why they ask:</b> {q.why}</p>
-                  <div className="copybox" style={{ marginTop: 8 }}>{q.answer}</div>
-                </details>
-              ))}
-            </div>
-            {p.prep.ask_them.length ? <><h3 style={{ marginTop: 16 }}>Questions you can ask them</h3><ul className="why-list">{p.prep.ask_them.map((x) => <li key={x}><span className="mk ok">?</span><span>{x}</span></li>)}</ul></> : null}
-            {p.prep.checklist.length ? <><h3 style={{ marginTop: 16 }}>Before the interview</h3><ul className="why-list">{p.prep.checklist.map((x) => <li key={x}><span className="mk ok">✓</span><span>{x}</span></li>)}</ul></> : null}
-            <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={prepare}>{p.aiReady && !p.prepAi ? "Prepare again with Claude" : "Prepare again"}</button>
-          </>
-        )}
-        {notice ? <p className="note" style={{ marginTop: 10 }}>{notice}</p> : null}
-        {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
-      </div>
+      {prepBlock}
     </div>
   );
 }

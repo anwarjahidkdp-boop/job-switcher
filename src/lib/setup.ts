@@ -4,6 +4,9 @@ export type SetupSteps = Record<string, boolean | string>;
 export const SITE_STEPS = ["alerts", "filter", "test"] as const;
 export type SiteStep = (typeof SITE_STEPS)[number];
 
+/** LinkedIn profile helper, kept beside the job-site steps: the saved profile link and when the person updated it. */
+export const LINKEDIN_URL = "linkedin:url", LINKEDIN_DONE = "linkedin:updated";
+
 export const siteKey = (step: SiteStep, site: string) => `${step}:${site}`;
 /** A site is set up once its alert and filter are on, or once an alert email from it has arrived. */
 export const siteDone = (s: SetupSteps, site: string) => !!s[siteKey("test", site)] || (!!s[siteKey("alerts", site)] && !!s[siteKey("filter", site)]);
