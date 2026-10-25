@@ -72,7 +72,14 @@ jobs:
             rm -f "$RUNNER_TEMP/worker-secrets.json"
           fi
       # Settings first, so the new code never starts with old settings. Roll back a bad release with: npx wrangler rollback
-      - run: npx wrangler deploy
+      - name: Deploy the Worker
+        run: |
+          set -o pipefail
+          # Job logs can be hard to reach; surface Wrangler's errors as annotations too.
+          npx wrangler deploy 2>&1 | tee "$RUNNER_TEMP/deploy.log" || {
+            grep -iE "error|✘|exceed|limit" "$RUNNER_TEMP/deploy.log" | head -20 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
       - name: Verify production health
         env:
           APP_ORIGIN: ${{ secrets.APP_URL || 'https://jobpao.app' }}
