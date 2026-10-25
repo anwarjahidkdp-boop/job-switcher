@@ -1195,3 +1195,9 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
   :root[data-theme] .nav a[aria-current="page"]{color:#fff;background:none}
   :root[data-theme] .nav a[aria-current="page"] .nav-ic{color:#14275A;background:linear-gradient(135deg,#F9DC94,#E3A93F);border-color:transparent;box-shadow:0 4px 12px -4px rgba(227,169,63,.7)}
 }
+
+/* Footer links read as links: a gold marker that slides on hover. */
+.sf-col a,.sf-col .sf-link{position:relative;padding-left:14px}
+.sf-col a::before,.sf-col .sf-link::before{content:"";position:absolute;left:0;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:2px;background:linear-gradient(135deg,#F7D58B,#E3A93F);opacity:.7;transition:transform .15s ease,opacity .15s ease}
+.sf-col a:hover::before,.sf-col .sf-link:hover::before{opacity:1;transform:translateX(3px)}
+.sf-col b{padding-bottom:6px;border-bottom:1px solid rgba(247,213,139,.25);align-self:stretch}

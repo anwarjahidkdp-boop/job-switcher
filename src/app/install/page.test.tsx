@@ -7,7 +7,7 @@ import InstallPage from './page';
 it('renders a permanent public install entry and account recovery guidance without a native prompt',()=>{
  const oldFlag=vi.fn(()=>'1');vi.stubGlobal('localStorage',{getItem:oldFlag});
  const html=renderToStaticMarkup(<InstallPage/>);
- expect(html).toContain('Install JobPao');expect(html).toContain('Install / reinstall app');
+ expect(html).toContain('Install JobPao');expect(html).toContain('>Install app<');
  expect(html).toContain('same email and sign-in method');
  expect(html).toContain('Removing the app or clearing browser storage does not delete');
  expect(html).toContain('reinstalling will not restore it');

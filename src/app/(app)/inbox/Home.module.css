@@ -120,7 +120,9 @@
 /* Body */
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;margin-top:18px;align-items:start}
 .col{display:grid;gap:16px;min-width:0;align-content:start}
-.card{background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden}
+/* Lower plates: a thin navy-gold-green ribbon outline so each block reads as its own premium card. */
+.card{--fill:var(--card);border:1.5px solid transparent;border-radius:14px;overflow:hidden;box-shadow:0 12px 26px -20px rgba(20,39,90,.55);
+  background:linear-gradient(var(--fill),var(--fill)) padding-box,linear-gradient(135deg,#14275A 0%,#E3A93F 55%,#10B981 100%) border-box}
 .head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
 .head h2,.head h3{font-size:15.5px;display:flex;align-items:center;gap:8px}
 .head h2::before,.head h3::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--hc,var(--teal))}
@@ -138,7 +140,7 @@
 .gain{display:inline-block;font-weight:700;font-size:12px;color:var(--best);background:var(--bestBg);border-radius:999px;padding:2px 9px;white-space:nowrap}
 .courses{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}
 .courses a{font-size:12px;font-weight:600;color:var(--accent);text-decoration:none}
-.oppCard{background:#F5F8FF;border-color:#C9D8F5;box-shadow:0 10px 26px -18px rgba(20,39,90,.45)}
+.oppCard{--fill:#F5F8FF}
 .oppCard :global(.opp){background:transparent}
 .oppCard :global(.opp:hover){background:#fff}
 .oppHead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:16px 16px 8px;border-bottom:1px solid #DCE6F8;background:linear-gradient(90deg,#E8EFFC,#F3F7FF)}

@@ -11,24 +11,26 @@ export function SiteFooter({ signedIn }: { signedIn?: boolean }) {
           <p>Your personal job assistant. We find your best-matched jobs, prepare every application and get you ready for the interview.</p>
         </div>
         <nav className="sf-col" aria-label="JobPao">
-          <b>JobPao</b>
-          <Link href={signedIn ? "/inbox" : "/login?mode=signup&next=/onboarding"}>{signedIn ? "My jobs" : "Start free"}</Link>
+          <b>Product</b>
+          <Link href={signedIn ? "/inbox" : "/login?mode=signup&next=/onboarding"}>{signedIn ? "My dashboard" : "Start free"}</Link>
+          {signedIn ? <Link href="/opportunities">Opportunities</Link> : null}
           <Link href={signedIn ? "/upgrade" : "/#pricing"}>Pricing</Link>
           <Link href="/setup">Setup guide</Link>
-          <Link href="/install">Install / reinstall app</Link>
+          <Link href="/install">Install app</Link>
         </nav>
-        <nav className="sf-col" aria-label="Help">
-          <b>Help</b>
-          <a href="mailto:hello@jobpao.app">hello@jobpao.app</a>
+        <nav className="sf-col" aria-label="Support and legal">
+          <b>Support</b>
+          <a href="mailto:hello@jobpao.app">Contact us</a>
+          <a href="mailto:billing@jobpao.app">Billing questions</a>
+          <Link href="/refund">Refund policy</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
-          <Link href="/refund">Refunds</Link>
           {signedIn ? <form action="/auth/signout" method="post"><button className="sf-link">Sign out</button></form> : <Link href="/login?next=/inbox">Log in</Link>}
         </nav>
       </div>
       <div className="wrap sf-bot">
         <span>© {new Date().getFullYear()} JobPao · A product of <a className="sf-parent" href="https://yourtechai.com/" target="_blank" rel="noopener">YourTech AI</a></span>
-        <span>We never ask for your job-site passwords, and nothing is sent without your OK. Your data is yours: export or delete it any time.</span>
+        <span><Link className="sf-parent" href="/privacy">We never ask for your job-site passwords</Link>, and nothing is sent without your OK. <Link className="sf-parent" href={signedIn ? "/profile" : "/privacy"}>Your data is yours: export or delete it any time.</Link></span>
       </div>
     </footer>
   );
