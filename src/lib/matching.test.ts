@@ -190,3 +190,25 @@ describe('career level guardrails after a promotion',()=>{
   expect(p.currentTitle).toBe('Accounts Manager');expect(p.seniority).toBe('manager');
  });
 });
+
+
+describe("undisclosed salary scoring", () => {
+  const profile = {...demoProfile(), salaryConfirmed:true, workAuthorization:"yes" as const, sponsorshipRequired:false};
+  it("excludes unknown pay from the denominator and permits high fit bands", () => {
+    const post = {...job("j1"), salaryMin:null, salaryMax:null};
+    const m = scoreJob(post,profile,opts);
+    expect(m.scoreCap).toBe(100);
+    expect(m.score).toBeGreaterThanOrEqual(80);
+    expect(m.f.sal).toBeUndefined();
+    const factors=Object.entries(m.f).filter(([,value])=>value!=null);
+    const weight=factors.reduce((sum,[key])=>sum+W[key as keyof typeof W],0);
+    const weighted=factors.reduce((sum,[key,value])=>sum+W[key as keyof typeof W]*value!,0);
+    expect(m.score).toBe(Math.round(100*weighted/weight));
+    expect(m.allGaps.some(g=>g.k==='salary_unpublished')).toBe(true);
+  });
+  it("retains hard pay and qualification constraints", () => {
+    expect(scoreJob({...job("j1"),salaryMax:1},profile,opts).score).toBe(0);
+    const m=scoreJob({...job("j1"),salaryMin:null,salaryMax:null,certs:[{names:['CMA'],required:true}]},profile,opts);
+    expect(m.score).toBeLessThanOrEqual(69);
+  });
+});

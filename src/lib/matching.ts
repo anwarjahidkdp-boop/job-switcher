@@ -179,7 +179,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
     if (job.salaryMax) {
       f.sal = job.salaryMax < P.salaryMin ? 0 : 1;
       if (!f.sal) gaps.push({ k: "sal", o: 2, t: `Pays up to ${money(job.salaryMax, job.country)}; you expect ${money(P.salaryMin, job.country)}+` });
-    } else f.sal = 0.7;
+    } // Unpublished pay is not evidence of fit or mismatch; omit its weight.
   }
 
   const eligibility = eligibilityCheck(job,P,opts.today);

@@ -23,7 +23,7 @@ it('enforces the exact pay floor, flags undisclosed and overlapping pay, and has
  const j={...job,eligibility:{}};
  expect(eligibilityCheck({...j,salaryMax:69999},P,today)).toMatchObject({blocked:true,scoreCap:0});
  expect(eligibilityCheck({...j,salaryMin:70000,salaryMax:70000},P,today).eligible).toBe(true);
- expect(eligibilityCheck({...j,salaryMax:null},P,today).scoreCap).toBe(79);
+ expect(eligibilityCheck({...j,salaryMax:null},P,today)).toMatchObject({scoreCap:100,issues:[{code:"salary_unpublished",blocking:true}]});
  expect(eligibilityCheck({...j,salaryMin:21000,salaryMax:52000},P,today).scoreCap).toBe(0);
  expect(eligibilityCheck({...j,salaryMin:60000},P,today).scoreCap).toBe(79);
  expect(eligibilityCheck(j,{...P,salaryMin:null,salaryConfirmed:false},today)).toMatchObject({eligible:false,scoreCap:79});
