@@ -56,6 +56,9 @@ describe("career home", () => {
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
     for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Matched", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
+    // Every summary number opens the jobs behind it; the best match asks for review before any AI work.
+    for (const h of ['href="/opportunities?fit=found&amp;when=today"', 'href="/opportunities?fit=ex&amp;when=today"', 'href="/opportunities?fit=rest"', 'href="/opportunities?fit=matched"', 'href="/applications?when=today"', 'href="/applications?status=interview"', 'href="/applications?status=offer"', "Review &amp; apply →"]) expect(html).toContain(h);
+    expect(html).not.toContain("Open &amp; apply");
   });
 
   it("counts trial applications instead of AI packs when not on Pro", async () => {

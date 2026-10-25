@@ -88,16 +88,18 @@ export default async function Inbox() {
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
-  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string) => {
+  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string, isToday: boolean) => {
     const f = c ? four(c) : null;
+    // Every number opens the jobs behind it.
+    const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? "&when=today" : ""}`;
     return (
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={s.stats}>
-            <span className={`${s.stat} ${s.sFound}`}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</span>
-            <span className={`${s.stat} ${s.sMatch}`}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Matched</span>
-            <span className={`${s.stat} ${s.sApplied}`}><b>{fmt(applied)}</b>Applied</span>
+            <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>
+            <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Matched</Link>
+            <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href={isToday ? "/applications?when=today" : "/applications"}><b>{fmt(applied)}</b>Applied</Link>
           </div>
         </div>
         <div className={s.fits}>
@@ -108,7 +110,7 @@ export default async function Inbox() {
               <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, c?.total || 0)}%</span></span>
             </>;
             const cls = `${s.fit} ${b === "rest" ? s.lo : BAND_CLASS[b]}`;
-            return b === "rest" ? <Link prefetch={false} key={b} className={cls} href="/opportunities">{body}</Link> : <a key={b} className={cls} href={`#band-${b}`}>{body}</a>;
+            return <Link prefetch={false} key={b} className={cls} href={jobsHref(b)}>{body}</Link>;
           })}
         </div>
       </section>
@@ -146,30 +148,27 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }))}
+      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }), true)}
 
       <div className={s.duo}>
         <a className={`${s.duoCard} ${s.duoGuide}`} href="#career-guide">
           <span className={s.duoIc}><Svg d={ICON.grow} /></span>
-          <span className={s.duoK}>Career guide</span>
-          <span className={s.duoT}>{guide.length ? `${guide.length} ${guide.length === 1 ? "skill" : "skills"} that can lift your matches` : "Skills and courses for your target roles"}</span>
-          <span className={s.duoGo}>Open guide →</span>
+          <span className={s.duoTx}><span className={s.duoK}>Career guide</span><span className={s.duoT}>{guide.length ? `${guide.length} ${guide.length === 1 ? "skill lifts" : "skills lift"} your matches` : "Skills for your roles"}</span></span>
+          <span className={s.duoGo} aria-hidden="true">→</span>
         </a>
         <Link prefetch={false} className={`${s.duoCard} ${s.duoBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}>
           <span className={s.duoIc}><Svg d={ICON.star} /></span>
-          <span className={s.duoK}>Your best match · {featured && st.apps[featured.job.id]?.pack ? "Ready to apply" : "Apply next"}</span>
-          <span className={s.duoT}>{featured ? featured.job.title : "No match yet"}</span>
-          <span className={s.duoS}>{featured ? `${featured.job.company}${sx.prepared ? ` · ${sx.prepared} ready to apply` : ""}` : "Paste a job or add skills to find one"}</span>
+          <span className={s.duoTx}><span className={s.duoK}>Your best match · Ready to apply</span><span className={s.duoT}>{featured ? <>{featured.job.title} <small>· {featured.job.company}</small></> : "No match yet"}</span></span>
           {featured ? <b className={s.duoScore}>{featured.m.score}%</b> : null}
-          <span className={s.duoGo}>{featured && st.apps[featured.job.id]?.pack ? "Review & apply →" : featured ? "Open & apply →" : "Paste a job →"}</span>
+          <span className={s.duoGo}>{featured ? "Review & apply →" : "Paste a job →"}</span>
         </Link>
       </div>
 
-      {panel("all-h", "All time", "Every job we have checked for you", all, progress.applied, s.pAll, "Since you joined")}
+      {panel("all-h", "All time", "Every job we have checked for you", all, progress.applied, s.pAll, "Since you joined", false)}
 
       <div className={s.progress}>
-        <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span className={s.pgTxt}><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span><b className={s.pgN}>{fmt(sx.interviews)}</b></Link>
-        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
+        <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications?status=interview"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span className={s.pgTxt}><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span><b className={s.pgN}>{fmt(sx.interviews)}</b></Link>
+        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications?status=offer"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
       </div>
 
       <div className={s.grid}>

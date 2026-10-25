@@ -33,3 +33,23 @@ export function searchSummary(rows: Scored[], since: Date, analysed: number): { 
   const total = Math.max(analysed, rows.length);
   return { today, all: { ...scored, total, other: total - scored.ex - scored.st - scored.po - scored.lo } };
 }
+
+/** The four summary cards. Uses the same rules as `bandCounts`, so a card's list has exactly its count. */
+export type FitCard = "ex" | "st" | "po" | "rest";
+export type SummaryFilter = "found" | "matched" | FitCard;
+export const SUMMARY_FILTERS: readonly SummaryFilter[] = ["found", "matched", "ex", "st", "po", "rest"];
+
+export function fitCard(x: Scored): FitCard {
+  const s = x.m.score;
+  if (!x.m.relevant || x.m.expired || s < 70) return "rest";
+  return s >= 90 ? "ex" : s >= 80 ? "st" : "po";
+}
+
+/** The jobs behind one summary number: `since` set = Today panel, null = All time. Highest score first. */
+export function summaryRows(rows: Scored[], since: Date | null, filter: SummaryFilter): Scored[] {
+  const t = since?.getTime();
+  return rows
+    .filter((x) => t == null || (!!x.job.addedAt && Date.parse(x.job.addedAt) >= t))
+    .filter((x) => filter === "found" || (filter === "matched" ? fitCard(x) !== "rest" : fitCard(x) === filter))
+    .sort((a, b) => b.m.score - a.m.score);
+}

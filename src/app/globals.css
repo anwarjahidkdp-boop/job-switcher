@@ -158,6 +158,9 @@ main{overflow-x:clip}
 .pghead-back:hover{color:#fff}
 .pghead-slim{padding-bottom:64px}
 .pghead+*{position:relative;margin-top:-52px!important}
+/* Compact heads (lists, dashboard) don't overlap their content. Same layer as the rule above, so it wins for !important. */
+.pghead-compact{padding-bottom:16px}
+.pghead-compact+*{margin-top:12px!important}
 .pghead+.ob{max-width:760px}
 .pg-form{max-width:460px;margin-inline:auto;padding:22px;border-radius:18px;box-shadow:0 18px 50px rgba(10,21,51,.18)}
 .pghead~* .card,.pghead~.card,.pghead+.ob>.card,.ob-body .card{border-radius:16px;box-shadow:0 1px 2px rgba(15,27,45,.05),0 10px 30px rgba(15,27,45,.07)}
@@ -1054,9 +1057,6 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .ia-dialog .ia-card{box-shadow:none}
 .install-page{max-width:760px;margin-inline:auto;display:grid;gap:18px}
 
-/* Dashboard figures are already in the cards: keep its heading and warning close. */
-.pghead-compact{padding-bottom:16px}
-.pghead-compact+*{margin-top:12px!important}
 .ob-upload-with-bdjobs{max-width:1040px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,1fr);gap:18px;align-items:start}
 .bdjobs-connect{border-top:3px solid var(--accent);display:grid;gap:12px}
 .bdjobs-connect h3{font-size:17px}
