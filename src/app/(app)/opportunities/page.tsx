@@ -1,14 +1,45 @@
+import Link from 'next/link';
 import {PageHead} from '@/components/PageHead';
 import {OpportunityRow} from '@/components/OpportunityRow';
 import {requireAppState} from '@/lib/server/page';
 import {opportunitySections} from '@/lib/matching';
-import {portals} from '@/lib/countries';
+import {portals,rule} from '@/lib/countries';
+import {nowMs} from '@/lib/today';
+import {dayStart,summaryRows,SUMMARY_FILTERS,type SummaryFilter} from '@/lib/server/search-summary';
 import {PastePanel} from '../inbox/PastePanel';
 export const metadata={title:'All opportunities'};
-export default async function Opportunities(){
+
+const LABEL:Record<SummaryFilter,string>={found:'Jobs found',matched:'Matched',ex:'Strong Fit',st:'Best Fit',po:'Good Fit',rest:'Stretch & others'};
+const NOTE:Record<SummaryFilter,string>={found:'Every job we checked for you, highest score first.',matched:'Good Fit or better (70% and above).',ex:'Scores of 90% and above.',st:'Scores from 80% to 89%.',po:'Scores from 70% to 79%.',rest:'Under 70%, outside your field, or past the deadline.'};
+
+export default async function Opportunities({searchParams}:{searchParams:Promise<{fit?:string;when?:string}>}){
  const {st}=await requireAppState('/opportunities');
- const {ranked}=opportunitySections(st.scored,st.dismissed,st.apps);
- return <><PageHead compact back={{href:'/inbox',label:'Back to Home'}} title={<>All opportunities</>} sub="Available matches, highest score first. Submitted applications stay in Applied."/><div className="card" style={{marginTop:18}}><PastePanel sites={portals(st.country)}/>
- {ranked.length?ranked.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):<p className="muted" style={{padding:16}}>No new opportunities right now.</p>}
- </div></>;
+ const sp=await searchParams;
+ const fit=SUMMARY_FILTERS.find(f=>f===sp.fit);
+ if(!fit){
+  const {ranked}=opportunitySections(st.scored,st.dismissed,st.apps);
+  return <><PageHead compact back={{href:'/inbox',label:'Back to Home'}} title={<>All opportunities</>} sub="Available matches, highest score first. Submitted applications stay in Applied."/><div className="card" style={{marginTop:18}}><PastePanel sites={portals(st.country)}/>
+  {ranked.length?ranked.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):<p className="muted" style={{padding:16}}>No new opportunities right now.</p>}
+  </div></>;
+ }
+ // The jobs behind a number on the Home summary: same rules as the summary, so the count and the list agree.
+ const today=sp.when==='today';
+ const since=today?dayStart(rule(st.country).timeZone,new Date(nowMs())):null;
+ const rows=summaryRows(st.scored,since,fit);
+ const unlisted=!today&&fit==='found'?Math.max(0,st.analysed-st.scored.length):0;
+ const href=(f:SummaryFilter,t:boolean)=>`/opportunities?fit=${f}${t?'&when=today':''}`;
+ return <><PageHead compact back={{href:'/inbox',label:'Back to Home'}} title={<>{LABEL[fit]} · {today?'Today':'All time'}</>} sub={`${rows.length} ${rows.length===1?'job':'jobs'}. ${NOTE[fit]}`}/>
+  <div className="card panel" style={{marginTop:18,display:'grid',gap:10}}>
+   <nav className="row" style={{gap:6,flexWrap:'wrap'}} aria-label="Period">
+    <Link prefetch={false} className={`seg${today?' on':''}`} href={href(fit,true)} aria-current={today?'page':undefined}>Today</Link>
+    <Link prefetch={false} className={`seg${today?'':' on'}`} href={href(fit,false)} aria-current={today?undefined:'page'}>All time</Link>
+   </nav>
+   <nav className="row" style={{gap:6,flexWrap:'wrap'}} aria-label="Fit">
+    {SUMMARY_FILTERS.map(f=><Link prefetch={false} key={f} className={`seg${f===fit?' on':''}`} href={href(f,today)} aria-current={f===fit?'page':undefined}>{LABEL[f]}</Link>)}
+   </nav>
+  </div>
+  <div className="card" style={{marginTop:12}}>
+   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):<p className="muted" style={{padding:16}}>{today?'No jobs in this group were added today.':'No jobs in this group yet.'}</p>}
+   {unlisted?<p className="muted small" style={{padding:'12px 16px',borderTop:'1px solid var(--line)'}}>We also checked {unlisted.toLocaleString('en-GB')} more {unlisted===1?'job':'jobs'} outside your target roles. They are not listed here.</p>:null}
+  </div></>;
 }
