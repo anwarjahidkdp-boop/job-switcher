@@ -5,3 +5,9 @@ export function applicationInSearch(app: { applied_at: string | null; jobs: { co
 export function assertSearchCountry(jobCountry: string, searchCountry: string) {
   if (jobCountry !== searchCountry) throw new Error("This job belongs to your previous search country. Choose an opportunity in your current country.");
 }
+
+/** The home dashboard belongs to the current search country only: applications from an earlier country stay in
+ *  the account (Applied page, account-wide limits) but are not counted here. Rows without a joined job are current. */
+export function currentCountryApps<T extends { jobs?: { country: string } | null }>(apps: Record<string, T>, country: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(apps).filter(([, a]) => !a.jobs?.country || a.jobs.country === country));
+}

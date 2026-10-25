@@ -74,4 +74,12 @@ describe("career home", () => {
     expect(html).toMatch(/Good Fit<\/span><span[^>]*>1 job/);
     expect(html).toMatch(/Strong Fit<\/span><span[^>]*>2 jobs/);
   });
+  it("leaves applications from an earlier search country out of the dashboard", async () => {
+    const st = h.st as unknown as { apps: Record<string, unknown> };
+    st.apps = { ...st.apps, old: { id: "9", job_id: "old", status: "interview", pack: {}, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", applied_at: "2026-10-02T00:00:00Z", reminder_date: null, jobs: { country: "GB" } } };
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    expect(html).toMatch(/Interviewed<\/span><span[^>]*>[^<]*<\/span><\/span><b[^>]*>0<\/b>/);
+    expect(html).toMatch(/<b>0<\/b>Applied/);
+  });
 });

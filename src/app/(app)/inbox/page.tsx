@@ -1,6 +1,7 @@
 import { applicationProgressCounts } from "@/lib/dashboard-progress";
 import { OpportunityRow } from "@/components/OpportunityRow";
 import { isResolvedApplication, submittedApplications } from "@/lib/applied-history";
+import { currentCountryApps } from "@/lib/application-country";
 import { applyQueue } from "@/lib/apply-queue";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction, appliedAction } from "@/app/actions";
@@ -43,10 +44,12 @@ const ICON = {
 export default async function Inbox() {
   const { st, db } = await requireAppState("/inbox");
   const available = st.scored.filter((x) => !isResolvedApplication(st.apps[x.job.id]));
-  const P = st.P, sx = stats(st), country = st.country;
+  // Counts on this page come from the current search country only; earlier-country history stays on the Applied page.
+  const here = currentCountryApps(st.apps, st.country);
+  const P = st.P, sx = stats({ ...st, apps: here }), country = st.country;
   const { ranked: list, featured } = opportunitySections(available, st.dismissed, st.apps);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
-  const apps = Object.values(st.apps);
+  const apps = Object.values(here);
   const due = apps.filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
   const queue = applyQueue(st);
   const readyHref = queue[0] ? `/jobs/${queue[0].job.id}` : "/queue";
@@ -60,8 +63,8 @@ export default async function Inbox() {
   const since = dayStart(rule(country).timeZone, new Date(now));
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
   const { today, all } = searchSummary(st.scored, since, sx.analysed);
-  const progress = applicationProgressCounts(st.apps);
-  const latestApp = submittedApplications(st.apps).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
+  const progress = applicationProgressCounts(here);
+  const latestApp = submittedApplications(here).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
   const fmt = (n: number) => n.toLocaleString("en-GB");
   const first = (P.name || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(" ")[0];
@@ -71,10 +74,12 @@ export default async function Inbox() {
   const planLine = pro ? { label: "Pro", left: daysLeft(sub?.current_period_end) } : sub?.status === "trialing" && sub.trial_ends_at && Date.parse(sub.trial_ends_at) > now ? { label: "Free trial", left: daysLeft(sub.trial_ends_at) } : null;
 
   // Applications left: Pro counts AI-tailored packs (rolling day/week/month); the trial counts sent applications.
+  // Trial limits stay account-wide (the server counts every sent application), so they read all applications.
+  const sentAll = Object.values(st.apps).map((a) => (a.applied_at ? Date.parse(a.applied_at) : NaN)).filter((t) => Number.isFinite(t));
   const sent = apps.map((a) => (a.applied_at ? Date.parse(a.applied_at) : NaN)).filter((t) => Number.isFinite(t));
   const limits: [string, number, number][] = allowance
     ? [["Today", allowance.limits.day - allowance.used.day, allowance.limits.day], ["This week", allowance.limits.week - allowance.used.week, allowance.limits.week], ["This month", allowance.limits.month - allowance.used.month, allowance.limits.month]]
-    : pro ? [] : [["Today", Math.min(TRIAL_APPLY.day - sent.filter((t) => now - t < DAY).length, TRIAL_APPLY.total - sent.length), TRIAL_APPLY.day], ["In trial", TRIAL_APPLY.total - sent.length, TRIAL_APPLY.total]];
+    : pro ? [] : [["Today", Math.min(TRIAL_APPLY.day - sentAll.filter((t) => now - t < DAY).length, TRIAL_APPLY.total - sentAll.length), TRIAL_APPLY.day], ["In trial", TRIAL_APPLY.total - sentAll.length, TRIAL_APPLY.total]];
 
   // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
@@ -83,12 +88,13 @@ export default async function Inbox() {
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
-  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, children?: React.ReactNode) => {
+  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, ribbon?: string) => {
     const f = c ? four(c) : null;
     return (
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
-          <h2 id={id} className={s.panelTitle}>{title}<span>{sub}</span></h2>
+          {ribbon ? <h2 id={id} className={s.panelTitle}><span className={s.ribbonWrap}><span className={s.ribbon}>{title}<em>{ribbon}</em></span></span><span>{sub}</span></h2>
+            : <h2 id={id} className={s.panelTitle}>{title}<span>{sub}</span></h2>}
           <div className={s.stats}>
             <span className={`${s.stat} ${s.sFound}`}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</span>
             <span className={`${s.stat} ${s.sMatch}`}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Matched</span>
@@ -106,7 +112,6 @@ export default async function Inbox() {
             return b === "rest" ? <Link prefetch={false} key={b} className={cls} href="/opportunities">{body}</Link> : <a key={b} className={cls} href={`#band-${b}`}>{body}</a>;
           })}
         </div>
-        {children}
       </section>
     );
   };
@@ -138,13 +143,12 @@ export default async function Inbox() {
           </div>
           <div className={s.cta}>
             {sx.prepared ? <Link prefetch={false} className={s.gold} href={readyHref}>Review {sx.prepared} ready {sx.prepared === 1 ? "application" : "applications"} →</Link>
-              : featured ? <Link prefetch={false} className={s.gold} href={`/jobs/${featured.job.id}`}>See your best match →</Link>
               : <a className={s.gold} href="#matches">Paste a job you found →</a>}
           </div>
         </div>
       </section>
 
-      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday)}
+      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }))}
 
       <div className={s.progress}>
         <Link prefetch={false} className={`${s.pg} ${s.best}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.pgIc}><Svg d={ICON.star} /></span><span className={s.pgTxt}><span className={s.pgL}>See your best match</span><span className={s.pgS}>{featured ? `${featured.job.title} · ${featured.job.company}` : "Paste a job or add skills to find one"}</span></span>{featured ? <b className={s.pgN}>{featured.m.score}%</b> : null}<Svg className={s.pgAr} d={ICON.arrow} /></Link>
