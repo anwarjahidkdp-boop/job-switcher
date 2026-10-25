@@ -13,7 +13,6 @@ import { completeness } from "@/lib/facts";
 import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
-import { BandPill } from "@/components/ui";
 import { PastePanel } from "./PastePanel";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { courseLinks, nowMs } from "@/lib/today";
@@ -29,12 +28,12 @@ export const metadata = { title: "Opportunities" };
 
 const DAY = 86_400_000;
 const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.po, lo: s.lo, other: s.other };
-const GROUP_CLASS: Record<Band, string> = { ex: s.gex, st: s.gst, po: s.gpo, lo: s.glo };
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
   applied: '<path d="M20 6 9 17l-5-5"/>',
   interview: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
   offer: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   warn: '<path d="m12 3 10 18H2Z"/><path d="M12 9v5M12 17h.01"/>',
   star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   grow: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
@@ -98,7 +97,7 @@ export default async function Inbox() {
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={s.stats}>
             <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>
-            <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Matched</Link>
+            <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>
             <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href={isToday ? "/applications?when=today" : "/applications"}><b>{fmt(applied)}</b>Applied</Link>
           </div>
         </div>
@@ -116,8 +115,8 @@ export default async function Inbox() {
       </section>
     );
   };
-  const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
-  const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  // Home shows only the three highest-scoring open jobs; applied ones have already left the list.
+  const top = [...list].sort((a, b) => b.m.score - a.m.score).slice(0, 3);
 
   // Career guide: skills your matches ask for that the profile lacks, and how many lower matches ask for them.
   const { rows } = skillDemand(relevant, P);
@@ -132,6 +131,8 @@ export default async function Inbox() {
     ...(nextInterview ? [{ key: "iv", date: nextInterview.interview_at!.slice(0, 10), title: `Interview: ${jobById.get(nextInterview.job_id)?.company || "employer"}`, sub: nextInterview.interview_prep ? "Prep notes ready" : "Open to prepare", href: `/jobs/${nextInterview.job_id}` }] : []),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
   const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= 14 * DAY).length;
+  // Bangladesh: most good jobs come through Bdjobs alerts, so connecting it is the first thing we ask for.
+  const bdjobsNeeded = country === "BD" && setupSites.includes("Bdjobs") && !siteDone(st.profile.setup_steps || {}, "Bdjobs");
   const nextSite = setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p));
 
   return (
@@ -143,6 +144,7 @@ export default async function Inbox() {
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
+            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} /><span><b>Connect Bdjobs</b><em>Get Bangladesh’s best jobs · 4 easy steps →</em></span></Link> : null}
             {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} /><span><b>{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete</b><em>Complete now →</em></span></Link> : null}
           </div>
         </div>
@@ -168,7 +170,7 @@ export default async function Inbox() {
 
       <div className={s.progress}>
         <Link prefetch={false} className={`${s.pg} ${s.interview}`} href="/applications?status=interview"><span className={s.pgIc}><Svg d={ICON.interview} /></span><span className={s.pgTxt}><span className={s.pgL}>Interviewed</span><span className={s.pgS}>{nextInterview ? `Next: ${fmtDate(nextInterview.interview_at!.slice(0, 10))}` : "Prep notes ready when invited"}</span></span><b className={s.pgN}>{fmt(sx.interviews)}</b></Link>
-        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications?status=offer"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
+        <Link prefetch={false} className={`${s.pg} ${s.offer}`} href="/applications?status=offer"><span className={s.pgIc}><Svg d={ICON.offer} /></span><span className={s.pgTxt}><span className={s.pgL}>Job offer received</span><span className={s.pgS}>{sx.offers ? "Congratulations!" : "We keep going for you"}</span></span><b className={s.pgN}>{fmt(sx.offers)}</b></Link>
       </div>
 
       <div className={s.grid}>
@@ -185,12 +187,7 @@ export default async function Inbox() {
 
           <div className={s.card} id="matches">
             <PastePanel sites={setupSites} />
-            {shown.length ? shown.map(([b, items]) => (
-              <div key={b} id={`band-${b}`}>
-                <div className={`${s.group} ${GROUP_CLASS[b]}`}><BandPill band={b} /><span className={s.muted}>{items.length} {items.length === 1 ? "job" : "jobs"}</span>{items.length > 2 ? <Link prefetch={false} className={s.link} href="/opportunities">See all {items.length}</Link> : null}</div>
-                {items.slice(0, 2).map((x) => <OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} />)}
-              </div>
-            )) : apps.some(isResolvedApplication) && !list.length
+            {top.length ? top.map((x) => <OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} hideFit />) : apps.some(isResolvedApplication) && !list.length
               ? <p className={s.empty}>You’re up to date. Your submitted applications are in <Link href="/applications">Applied</Link>. New opportunities will appear here.</p>
               : sx.analysed
                 ? <p className={s.empty}>No Good Fit or better right now. We checked {fmt(sx.analysed)} jobs; try adding target roles or skills in your profile.</p>

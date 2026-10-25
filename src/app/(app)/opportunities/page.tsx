@@ -9,8 +9,8 @@ import {dayStart,summaryRows,SUMMARY_FILTERS,type SummaryFilter} from '@/lib/ser
 import {PastePanel} from '../inbox/PastePanel';
 export const metadata={title:'All opportunities'};
 
-const LABEL:Record<SummaryFilter,string>={found:'Jobs found',matched:'Matched',ex:'Strong Fit',st:'Best Fit',po:'Good Fit',rest:'Stretch & others'};
-const NOTE:Record<SummaryFilter,string>={found:'Every job we checked for you, highest score first.',matched:'Good Fit or better (70% and above).',ex:'Scores of 90% and above.',st:'Scores from 80% to 89%.',po:'Scores from 70% to 79%.',rest:'Under 70%, outside your field, or past the deadline.'};
+const LABEL:Record<SummaryFilter,string>={found:'Jobs found',matched:'Best match',ex:'Strong Fit',st:'Best Fit',po:'Good Fit',rest:'Stretch & others'};
+const NOTE:Record<SummaryFilter,string>={found:'Every job we checked for you, highest score first.',matched:'Jobs that match 70% and above.',ex:'Scores of 90% and above.',st:'Scores from 80% to 89%.',po:'Scores from 70% to 79%.',rest:'Under 70%, outside your field, or past the deadline.'};
 
 export default async function Opportunities({searchParams}:{searchParams:Promise<{fit?:string;when?:string}>}){
  const {st}=await requireAppState('/opportunities');
