@@ -30,12 +30,19 @@ const DAY = 86_400_000;
 const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.po, lo: s.lo, other: s.other };
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
+  case: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
   applied: '<path d="M20 6 9 17l-5-5"/>',
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   warn: '<path d="m12 3 10 18H2Z"/><path d="M12 9v5M12 17h.01"/>',
   star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   grow: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  send: '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
 };
 
@@ -86,6 +93,7 @@ export default async function Inbox() {
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
+  const FIT_ICON = { ex: ICON.star, st: ICON.target, po: ICON.check, rest: ICON.grow };
   const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string, isToday: boolean) => {
     const outcomes = !isToday;
     const f = c ? four(c) : null;
@@ -96,19 +104,24 @@ export default async function Inbox() {
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={`${s.stats} ${outcomes ? s.stats4 : ""}`}>
-            <Link prefetch={false} className={`${s.stat} ${s.sFound}`} href={jobsHref("found")}><b>{c ? fmt(c.total) : "–"}</b>Jobs found</Link>
-            {outcomes ? null : <Link prefetch={false} className={`${s.stat} ${s.sMatch}`} href={jobsHref("matched")}><b>{f ? fmt(f.ex + f.st + f.po) : "–"}</b>Best match<small>70% and above</small></Link>}
-            <Link prefetch={false} className={`${s.stat} ${s.sApplied}`} href={isToday ? "/applications?when=today" : "/applications"}><b>{fmt(applied)}</b>Applied</Link>
-            {outcomes ? <>
-              <Link prefetch={false} className={`${s.stat} ${s.sInterview}`} href="/applications?status=interview"><b>{fmt(sx.interviews)}</b>Interviewed</Link>
-              <Link prefetch={false} className={`${s.stat} ${s.sOffer}`} href="/applications?status=offer"><b>{fmt(sx.offers)}</b>Offer received</Link>
-            </> : null}
+            {(outcomes
+              ? [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
+                 ["/applications", ICON.send, fmt(applied), "Applied", null],
+                 ["/applications?status=interview", ICON.people, fmt(sx.interviews), "Interviewed", null],
+                 ["/applications?status=offer", ICON.trophy, fmt(sx.offers), "Offer received", null]]
+              : [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
+                 [jobsHref("matched"), ICON.target, f ? fmt(f.ex + f.st + f.po) : "–", "Top match", "70% and above"],
+                 ["/applications?when=today", ICON.send, fmt(applied), "Applied", null]]
+            ).map(([href, icon, n, label, note]) => (
+              <Link prefetch={false} key={label} className={s.navy} href={href!}><span className={s.navyIc}><Svg d={icon!} /></span><b>{n}</b><span className={s.navyL}>{label}{note ? <small>{note}</small> : null}</span></Link>
+            ))}
           </div>
         </div>
         <div className={s.fits}>
           {CARDS.map(([b, label, range]) => {
             const n = f ? f[b] : 0;
             const body = <>
+              <Svg className={s.mini} d={FIT_ICON[b]} />
               <span className={s.fitTop}><span className={s.fitLabel}>{label}</span><span className={s.range}>{range}</span></span>
               <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, c?.total || 0)}%</span></span>
             </>;
@@ -129,7 +142,10 @@ export default async function Inbox() {
   // Career guide speaks to how many Strong Fits (90%+) the person has, and points them to the guide to grow that number.
   const strongN = all ? all.ex : 0;
   const guideLine = strongN ? `Only ${fmt(strongN)} Strong ${strongN === 1 ? "Fit" : "Fits"}` : "No Strong Fit yet";
-  const guideCall = strongN ? "Unlock more" : "Develop your career";
+  const gaps = guide.length;
+  const guideCall = gaps
+    ? `${strongN ? "Unlock more" : "Reach 90%+"} by closing ${gaps} skill ${gaps === 1 ? "gap" : "gaps"}`
+    : strongN ? "Keep your profile sharp to unlock more" : "Strengthen your profile to reach 90%+";
 
   // Deadlines and the next interview, nearest first.
   const nextInterview = apps.filter((a) => a.interview_at && Date.parse(a.interview_at) >= now - DAY / 2).sort((a, b) => a.interview_at!.localeCompare(b.interview_at!))[0];
@@ -150,7 +166,7 @@ export default async function Inbox() {
       <section className={s.hero}>
         <div className={s.heroIn}>
           <div>
-            <p className={s.kicker}>Your <b className={s.kJob}>Job</b> <b className={s.kAsst}>Assistant</b></p>
+            <p className={s.kicker}><span className={s.kIc}><Svg d={ICON.case} /></span><span className={s.kYour}>Your</span> <b>Job Assistant</b></p>
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
@@ -166,8 +182,8 @@ export default async function Inbox() {
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
           <span className={s.duoIc}><Svg d={ICON.grow} /></span>
-          <span className={s.duoTx}><span className={s.duoK}>Career guide · {guideCall}</span><span className={s.duoT}><b className={strongN ? s.flagGold : s.flagRed}>{guideLine}</b> <small>· {guide.length ? `${guide.length} ${guide.length === 1 ? "skill lifts" : "skills lift"} your matches` : "Skills for your roles"}</small></span></span>
-          <span className={s.duoGo} aria-hidden="true">→</span>
+          <span className={s.duoTx}><span className={s.duoK}>Career guide</span><span className={s.duoHead}><b className={strongN ? s.flagGold : s.flagRed}>{guideLine}</b></span><span className={s.duoSub}>{guideCall}</span></span>
+          <span className={s.duoGo}>Open guide →</span>
         </span></span></a>
         <Link prefetch={false} className={`${s.duoFrame} ${s.fBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoBest}`}>
           <span className={s.duoIc}><Svg d={ICON.star} /></span>
