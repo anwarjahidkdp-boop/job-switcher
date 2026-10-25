@@ -12,7 +12,7 @@ import { completeness } from "@/lib/facts";
 import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
-import { BandPill, Ring } from "@/components/ui";
+import { BandPill } from "@/components/ui";
 import { PastePanel } from "./PastePanel";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { courseLinks, nowMs } from "@/lib/today";
@@ -35,6 +35,7 @@ const ICON = {
   applied: '<path d="M20 6 9 17l-5-5"/>',
   interview: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
   offer: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   grow: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
 };
@@ -109,9 +110,8 @@ export default async function Inbox() {
       </section>
     );
   };
-  const others = featured ? list.filter((x) => x.job.id !== featured.job.id) : list;
-  const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, others.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
-  const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, others.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  const groups = (["ex", "st", "po"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
+  const shown = groups.length ? groups : (["lo"] as Band[]).map((b) => [b, list.filter((x) => x.m.band === b)] as const).filter((g) => g[1].length);
 
   // Career guide: skills your matches ask for that the profile lacks, and how many lower matches ask for them.
   const { rows } = skillDemand(relevant, P);
@@ -135,7 +135,6 @@ export default async function Inbox() {
           <div>
             <p className={s.kicker}>Your job assistant</p>
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
-            <p className={s.sub}>{today ? <>Today we found <b>{fmt(today.total)} new {today.total === 1 ? "job" : "jobs"} in {cname(country)}</b> for you.</> : <>We are searching jobs in {cname(country)} for you.</>}{sx.prepared ? <> <b>{sx.prepared} {sx.prepared === 1 ? "application is" : "applications are"} ready</b> for your review.</> : null}</p>
           </div>
           <div className={s.cta}>
             {sx.prepared ? <Link prefetch={false} className={s.gold} href={readyHref}>Review {sx.prepared} ready {sx.prepared === 1 ? "application" : "applications"} →</Link>
@@ -145,22 +144,14 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", "Today", today ? `New jobs in ${cname(country)}` : "Not counted yet", today, appliedToday, s.pToday, <a className={s.guide} href="#career-guide"><span className={s.gi}><Svg d={ICON.grow} /></span>Career guide{guide.length ? <em>{guide.length} {guide.length === 1 ? "skill" : "skills"} that can lift your matches</em> : null}<Svg className={s.ar} d={ICON.arrow} /></a>)}
+      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday)}
 
-      {featured ? (
-        <Link prefetch={false} className={s.spot} href={`/jobs/${featured.job.id}`}>
-          <Ring score={featured.m.score} band={featured.m.band} />
-          <span style={{ minWidth: 0 }}>
-            <span className={s.spotK}>Your best opportunity right now</span>
-            <span className={s.spotT}>{featured.job.title}</span>
-            <span className={s.muted}>{featured.job.company}{featured.job.location ? ` · ${featured.job.location}` : ""}{featured.job.deadline ? ` · Deadline ${fmtDate(featured.job.deadline)}` : ""}</span>
-            <span className={s.why}>{featured.m.matched.slice(0, 3).map((t) => <span key={t} className={s.ok}>✓ {t}</span>)}{featured.m.gaps[0] ? <span className={s.gap}>Gap: {featured.m.gaps[0].t.split(";")[0]}</span> : null}</span>
-          </span>
-          <span className={s.spotGo}>{st.apps[featured.job.id]?.pack ? <span className={s.readyPill}>CV + cover letter ready</span> : null}<span className={s.goBtn}>{st.apps[featured.job.id]?.pack ? "Review & apply →" : "See why it fits →"}</span></span>
-        </Link>
-      ) : null}
+      <div className={s.progress}>
+        <Link prefetch={false} className={`${s.pg} ${s.best}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.pgIc}><Svg d={ICON.star} /></span><span className={s.pgTxt}><span className={s.pgL}>See your best match</span><span className={s.pgS}>{featured ? `${featured.job.title} · ${featured.job.company}` : "Paste a job or add skills to find one"}</span></span>{featured ? <b className={s.pgN}>{featured.m.score}%</b> : null}<Svg className={s.pgAr} d={ICON.arrow} /></Link>
+        <a className={`${s.pg} ${s.guideBar}`} href="#career-guide"><span className={s.pgIc}><Svg d={ICON.grow} /></span><span className={s.pgTxt}><span className={s.pgL}>Career guide</span><span className={s.pgS}>{guide.length ? `${guide.length} ${guide.length === 1 ? "skill" : "skills"} that can lift your matches` : "Skills and courses for your target roles"}</span></span><Svg className={s.pgAr} d={ICON.arrow} /></a>
+      </div>
 
-      {panel("all-h", "All time", "Since you joined", all, progress.applied, s.pAll)}
+      {panel("all-h", "All time", "Every job we have checked for you", all, progress.applied, s.pAll)}
 
       <div className={s.progress}>
         <Link prefetch={false} className={`${s.pg} ${s.ready}`} href="/queue"><span className={s.pgIc}><Svg d={ICON.ready} /></span><span className={s.pgTxt}><span className={s.pgL}>Ready to apply</span><span className={s.pgS}>CV + cover letter done</span></span><b className={s.pgN}>{fmt(sx.prepared)}</b></Link>

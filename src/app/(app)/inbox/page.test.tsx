@@ -47,8 +47,9 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     if (process.env.DUMP_HOME) writeFileSync(process.env.DUMP_HOME, html);
-    expect(html.match(/Senior Accounts Manager/g)?.length).toBeLessThanOrEqual(2);
-    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best opportunity right now", "All time"].map((l) => html.indexOf(l));
+    expect(html).not.toContain("Your best opportunity right now");
+    expect(html).not.toContain("Today we found");
+    const order = ["Today", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "See your best match", "Career guide", "All time", "Ready to apply"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
     for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Job offer", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Matched", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
@@ -71,5 +72,6 @@ describe("career home", () => {
     expect(today).toMatch(/Good Fit<\/span><span[^>]*>70–79%<\/span><\/span><span[^>]*><b[^>]*>1<\/b>/);
     expect(today).toMatch(/<b>4<\/b>Jobs found/);
     expect(html).toMatch(/Good Fit<\/span><span[^>]*>1 job/);
+    expect(html).toMatch(/Strong Fit<\/span><span[^>]*>2 jobs/);
   });
 });
