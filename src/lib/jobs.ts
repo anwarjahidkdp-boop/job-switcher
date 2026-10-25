@@ -15,7 +15,7 @@ export interface JobRow {
   employment_type: string | null; salary_min: number | string | null; salary_max: number | string | null; min_years: number | string | null; max_years: number | string | null;
   seniority: string | null; education: { level?: string | null; field?: string } | null; required_skills: string[] | null; preferred_skills: string[] | null;
   certs: JobCert[] | null; visa_sponsorship: boolean | null; deadline: string | null; published_at: string | null;
-  apply_method: string | null; apply_target: string | null; url: string | null; responsibilities: string[] | null; description?: string | null; is_sample?: boolean | null;
+  apply_method: string | null; apply_target: string | null; url: string | null; responsibilities: string[] | null; description?: string | null; is_sample?: boolean | null; created_at?: string | null;
 }
 
 const num = (v: unknown): number | null => (v == null || v === "" || isNaN(Number(v)) ? null : Number(v));
@@ -32,7 +32,7 @@ export function rowToJob(r: JobRow): Job {
     certs: (r.certs || []).filter((c) => c && Array.isArray(c.names) && c.names.length),
     visa: r.visa_sponsorship, deadline: r.deadline, publishedAt: r.published_at,
     apply: { method: applyMethod(r.apply_method), target: r.apply_target }, url: r.url, source: r.source_label,
-    resp: r.responsibilities || [], isSample: !!r.is_sample, ownerId: r.owner_id,
+    resp: r.responsibilities || [], isSample: !!r.is_sample, ownerId: r.owner_id, addedAt: r.created_at ?? null,
   };
 }
 

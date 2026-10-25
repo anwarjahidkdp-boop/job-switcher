@@ -2,7 +2,6 @@ import { applicationProgressCounts } from "@/lib/dashboard-progress";
 import { OpportunityRow } from "@/components/OpportunityRow";
 import { isResolvedApplication, submittedApplications } from "@/lib/applied-history";
 import { applyQueue } from "@/lib/apply-queue";
-import { fitTiles } from "@/components/FitOverviewCard";
 import { ApplicationProfileNotice } from "@/components/ApplicationProfileNotice";
 import { backToStepAction, appliedAction } from "@/app/actions";
 import Link from "next/link";
@@ -45,7 +44,6 @@ export default async function Inbox() {
   const available = st.scored.filter((x) => !isResolvedApplication(st.apps[x.job.id]));
   const P = st.P, sx = stats(st), country = st.country;
   const { ranked: list, featured } = opportunitySections(available, st.dismissed, st.apps);
-  const tiles = fitTiles(available);
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const apps = Object.values(st.apps);
   const due = apps.filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
@@ -59,7 +57,8 @@ export default async function Inbox() {
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const since = dayStart(rule(country).timeZone, new Date(now));
-  const [allowance, summary] = await Promise.all([pro && aiConfigured() ? packAllowanceFor(createAdminClient(), st.userId) : null, searchSummary(db, st.userId, country, since)]);
+  const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
+  const { today, all } = searchSummary(st.scored, since, sx.analysed);
   const progress = applicationProgressCounts(st.apps);
   const latestApp = submittedApplications(st.apps).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
@@ -78,8 +77,6 @@ export default async function Inbox() {
 
   // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
-  const today: BandCounts | null = summary?.today ?? null;
-  const all: BandCounts = summary?.all ?? { total: sx.analysed, ex: tiles[1].count, st: tiles[2].count, po: tiles[3].count, lo: tiles[4].count, other: Math.max(0, sx.analysed - tiles[1].count - tiles[2].count - tiles[3].count - tiles[4].count) };
   const appliedToday = sent.filter((t) => t >= since.getTime()).length;
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.

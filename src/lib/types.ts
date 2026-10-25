@@ -36,6 +36,8 @@ export interface Job {
   resp: string[];
   isSample?: boolean;
   ownerId?: string | null;
+  /** When JobPao added the job (jobs.created_at). */
+  addedAt?: string | null;
 }
 
 export interface ProfileSkill { name: string; src: Provenance | "what-if" }

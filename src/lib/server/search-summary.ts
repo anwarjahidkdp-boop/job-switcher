@@ -1,6 +1,6 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Scored } from "@/lib/matching";
 
-/** Jobs checked for a person, split by fit band. Everything that is not relevant or scores under 55% counts as "other",
+/** Jobs found for a person, split by fit band. Everything that is not relevant or scores under 55% counts as "other",
  *  so the five parts always add up to the total. */
 export interface BandCounts { total: number; ex: number; st: number; po: number; lo: number; other: number }
 
@@ -23,19 +23,13 @@ export function dayStart(timeZone: string, now: Date = new Date()): Date {
   return new Date(now.getTime() - secs * 1000 - now.getMilliseconds());
 }
 
-/** Today's new jobs come back as rows (a few dozen); all-time totals are counted in the database, so the Worker does no scoring. */
-export async function searchSummary(db: SupabaseClient, userId: string, country: string, since: Date): Promise<{ today: BandCounts; all: BandCounts } | null> {
-  const count = () => db.from("matches").select("job_id,jobs!inner(country)", { count: "exact", head: true }).eq("user_id", userId).eq("jobs.country", country);
-  const rel = () => count().eq("relevant", true);
-  const [today, total, ex, st, po, lo] = await Promise.all([
-    db.from("matches").select("score,relevant,jobs!inner(country,created_at)").eq("user_id", userId).eq("jobs.country", country).gte("jobs.created_at", since.toISOString()).limit(2000),
-    count(), rel().gte("score", 90), rel().gte("score", 80).lt("score", 90), rel().gte("score", 70).lt("score", 80), rel().gte("score", 55).lt("score", 70),
-  ]);
-  if ([today, total, ex, st, po, lo].some((r) => r.error)) return null;
-  const n = (r: { count: number | null }) => r.count || 0;
-  const banded = n(ex) + n(st) + n(po) + n(lo);
-  return {
-    today: bandCounts((today.data || []) as { score: number; relevant: boolean }[]),
-    all: { total: n(total), ex: n(ex), st: n(st), po: n(po), lo: n(lo), other: Math.max(0, n(total) - banded) },
-  };
+/** Counts from the same scores the page shows, so the summary and the opportunities list always agree.
+ *  Today = jobs added since local midnight; all time = every visible job (`analysed`), banded from the scored ones. */
+export function searchSummary(rows: Scored[], since: Date, analysed: number): { today: BandCounts; all: BandCounts } {
+  const fit = (x: Scored) => ({ score: x.m.score, relevant: x.m.relevant && !x.m.expired });
+  const t = since.getTime();
+  const today = bandCounts(rows.filter((x) => x.job.addedAt && Date.parse(x.job.addedAt) >= t).map(fit));
+  const scored = bandCounts(rows.map(fit));
+  const total = Math.max(analysed, rows.length);
+  return { today, all: { ...scored, total, other: total - scored.ex - scored.st - scored.po - scored.lo } };
 }
