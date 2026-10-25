@@ -63,8 +63,8 @@ describe("database transactions and RLS on a disposable PostgreSQL engine",()=>{
   it("denies clients access to service-only payment settlement and Gmail tokens",async()=>{
     await role("authenticated",U);
     await expect(db.query("select settle_payment(gen_random_uuid(),'lemonsqueezy',array['initiated'],'{}')")).rejects.toThrow();
-    expect(await scalar<number>("select count(*)::int from gmail_connections")).toBe(0);
-    expect(await scalar<number>("select count(*)::int from ingestion_sources")).toBe(0);
+    await expect(db.query("select count(*)::int from gmail_connections")).rejects.toThrow("permission denied");
+    await expect(db.query("select count(*)::int from ingestion_sources")).rejects.toThrow("permission denied");
     expect((await db.query("select * from ai_budget($1)",[V])).rows).toHaveLength(0);
     await role("postgres");
   });
