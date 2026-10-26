@@ -1252,3 +1252,8 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 @media(max-width:430px){.top .chip-plan .cp-full{display:none}.top .chip-plan .cp-short{display:inline}}
 @media(max-width:760px){.top .wrap{flex-wrap:nowrap;gap:8px}.top .wrap>*{flex-shrink:0}.top .chip-plan{flex-shrink:1;min-width:0;overflow:hidden}.top .chip-plan span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top .bell{margin-left:auto}}
 @media(max-width:340px){.top .brand>span{display:none}}
+/* Job page header: the title keeps its room; the Apply column never grows past it (busy text wraps under the button). */
+.job-review-company{flex:1 1 auto;min-width:0}
+.job-review-action{max-width:45%}
+.job-review-action .jd-prepare{display:flex;flex-direction:column;align-items:flex-end}
+.job-review-action .jd-prepare>p{max-width:170px;text-align:right;border:0;padding:0;background:none}
