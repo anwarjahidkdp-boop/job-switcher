@@ -11,7 +11,7 @@ export const FIRST_WINDOW = DAY;
 export const MAX_WINDOW = 7 * DAY;
 
 /** Short tag of the account id, so the cookie knows whose visits it holds. */
-const tag = (user: string) => user.replace(/[^a-z0-9]/gi, "").slice(0, 12);
+const tag = (user: string) => String(user || "").replace(/[^a-z0-9]/gi, "").slice(0, 12);
 
 function parse(raw: string | undefined, now: number, user: string): { prev: number | null; last: number | null } {
   const [p, l, who] = String(raw || "").split(".");

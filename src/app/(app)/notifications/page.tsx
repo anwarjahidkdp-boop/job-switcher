@@ -2,6 +2,8 @@ import Link from "next/link";
 import { PageHead } from "@/components/PageHead";
 import { requireUser } from "@/lib/server/page";
 import { listNotifications, markAllRead, type NotificationKind } from "@/lib/server/notify";
+import { currentApplicationNotifications } from "@/lib/dashboard-progress";
+import type { ApplicationRow } from "@/lib/server/state";
 
 export const metadata = { title: "Notifications" };
 
@@ -13,7 +15,9 @@ const ago = (iso: string) => {
 
 export default async function Notifications() {
   const { supabase, user } = await requireUser("/notifications");
-  const items = await listNotifications(supabase, user.id);
+  const [notes, { data: apps }] = await Promise.all([listNotifications(supabase, user.id), supabase.from("applications").select("job_id, status, applied_at").eq("user_id", user.id)]);
+  // A match you already applied to says so and links to Applied, never "want us to prepare?" again.
+  const items = currentApplicationNotifications(notes, Object.fromEntries(((apps || []) as ApplicationRow[]).map((a) => [a.job_id, a])));
   // Opening the list counts as reading it; the "new" dots below still show what was unread when it opened.
   if (items.some((n) => !n.read_at)) await markAllRead(supabase, user.id);
   return (

@@ -12,7 +12,7 @@ import { DEFAULT_META, loadState } from "@/lib/server/state";
 import { cname, portals, rule, perLabel } from "@/lib/countries";
 import { resolveStyle } from "@/lib/cv/render";
 import { convention, personalFields } from "@/lib/cv/conventions";
-import { inboxList } from "@/lib/matching";
+import { jobTotals } from "@/lib/server/search-summary";
 import { aiConfigured } from "@/lib/ai";
 import { finishOnboardingAction, backToStepAction } from "../actions";
 import { QuestionsForm } from "./QuestionsForm";
@@ -98,16 +98,16 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     </div>;
   } else if (step === "reveal" && st.master && st.P) {
     const m = st.master.content;
-    const nm = inboxList(st.scored, new Set());
-    const strong = nm.filter((x) => x.m.score >= 90).length;
+    // The same totals Home shows on day one (jobTotals), so the numbers here and on the dashboard agree.
+    const t = jobTotals(st.scored, null, Math.max(st.analysed, st.scored.length));
     const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
     const photo = await photoUrl(supabase, st.profile.photo_path);
     head = <Head cur="reveal" back="prefs" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>}
-      sub={<>Next step: check your CV below, then open your dashboard. Your {nm.length} matched jobs are waiting there, best matches first.</>}
+      sub={<>Next step: check your CV below, then open your dashboard. We checked {t.found} jobs for you: {t.matched} are Top matches (70%+), best first.</>}
       action={<form action={finishOnboardingAction}><button className="btn btn-gold">Go to my dashboard →</button></form>} />;
     body = <>
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
-        <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {nm.length} opportunities</button></form></div></div>
+        <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {t.matched} Top matches</button></form></div></div>
       <CvSuggestions items={m.suggestions || []} toggle />
       {st.master.flags.length ? <p className="note" style={{ marginTop: 12, borderColor: "var(--warn)" }}>Our fact check {st.master.flags.join("; ")}.</p> : null}
       {(m.improvements || []).length ? (
@@ -122,7 +122,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
         <ManualCvEditor initial={manualDraft(st.master.content, st.facts)} baseId={st.master.id} country={country} revision={st.profile.search_country_version} />
         <CvPreview master={m} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} />
       </div>
-      <div className="banner" style={{ marginTop: 22 }}><p><b>We found {nm.length} current opportunities in {cn} relevant to your career.</b> {strong} {strong === 1 ? "is Good Fit or better" : "are Good Fit or better"}.</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>
+      <div className="banner" style={{ marginTop: 22 }}><p><b>We checked {t.found} current jobs in {cn} for you.</b> {t.matched} {t.matched === 1 ? "is a Top match" : "are Top matches"} (70%+), {t.ex} {t.ex === 1 ? "is a Strong Fit" : "are Strong Fits"} (90%+).</p><form action={finishOnboardingAction}><button className="btn btn-primary">Open Opportunity Inbox</button></form></div>
       {country === "BD" ? <div style={{marginTop:14}}><BdjobsConnectCard ready steps={st.profile.setup_steps || {}} /></div> : <div className="banner warn" style={{ marginTop: 14 }}><p><b>Last step: get new jobs automatically.</b> A 3-minute setup forwards job-alert emails from {portals(country).slice(0, 2).join(" and ")} to JobPao. No passwords.</p><form action={finishOnboardingAction.bind(null, "/setup")}><button className="btn btn-ghost">Start setup guide</button></form></div>}
       {st.cvDoc?.text_content ? <details className="orig-cv" style={{ marginTop: 22 }}><summary>See the CV you uploaded</summary><div className="raw">{st.cvDoc.text_content.slice(0, 6000)}</div></details> : null}
     </>;

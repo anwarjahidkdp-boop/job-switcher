@@ -67,7 +67,7 @@ describe("career home", () => {
     h.sub = { plan_code: "trial", status: "trialing", trial_ends_at: "2026-10-28T00:00:00Z" };
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toContain("Free trial");
+    expect(html).toContain("Pro Trial");
     expect(html).toContain("In trial");
     expect(html).toContain("5 of 5");
     expect(html).not.toContain("AI applications left");

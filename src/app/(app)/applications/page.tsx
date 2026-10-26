@@ -3,7 +3,8 @@ import {PageHead} from '@/components/PageHead';
 import {AppliedJobCard} from '@/components/AppliedJobCard';
 import {requireAppState} from '@/lib/server/page';
 import {loadJob} from '@/lib/server/state';
-import {submittedApplications,applicationMilestones} from '@/lib/applied-history';
+import {submittedApplications,appliedFor} from '@/lib/applied-history';
+import {currentCountryApps} from '@/lib/application-country';
 import {rule} from '@/lib/countries';
 import {nowMs} from '@/lib/today';
 import {dayStart} from '@/lib/server/search-summary';
@@ -22,7 +23,9 @@ export default async function Applications({searchParams}:{searchParams:Promise<
  const rows=await Promise.all(submittedApplications(st.apps).map(async a=>({a,job:jobs.get(a.job_id)||await loadJob(db,a.job_id)})));
  const visible=rows.filter(r=>r.job);
  // Earlier search countries are kept as history, apart from the current country's list.
- const keep=(r:typeof visible[number])=>filter==='today'||filter==='new'?!!r.a.applied_at&&Date.parse(r.a.applied_at)>=since:filter?applicationMilestones(r.a)[filter]:true;
+ // The list is appliedFor, the same source as the numbers on Home, so a number and its list always agree.
+ const ids=new Set(appliedFor(currentCountryApps(st.apps,st.country),filter??'all',since).map(a=>a.id));
+ const keep=(r:typeof visible[number])=>ids.has(r.a.id);
  const current=visible.filter(r=>r.job!.country===st.country&&keep(r)), earlier=filter?[]:visible.filter(r=>r.job!.country!==st.country);
  const card=({a,job}:typeof visible[number])=><AppliedJobCard key={a.id} application={a} job={job!} controls={['applied','interview','offer'].includes(a.status)?<StatusSelect jobId={job!.id}/>:null}/>;
  return <><PageHead slim title={<>{filter?FILTER[filter]:'Applied'}</>}/><div className="applied-job-list" aria-label="Submitted applications">

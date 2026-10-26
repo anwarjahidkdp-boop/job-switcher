@@ -26,7 +26,8 @@ export function PrepareApplicationButton({jobId,label='Prepare Application',open
   finally{if(isCurrent())setBusy(false);}
  }
  return <div className="jd-prepare">
-  <button type="button" className={`btn btn-primary btn-sm${openPack?' queue-review-cta':''}`} disabled={busy} aria-busy={busy} onClick={prepare}>{busy ? <><Spinner/>Preparing CV &amp; cover letter…</>:label}</button>
+  <button type="button" className={`btn btn-primary btn-sm${openPack?' queue-review-cta':''}`} disabled={busy} aria-busy={busy} onClick={prepare}>{busy ? <><Spinner/>Preparing…</>:label}</button>
+  {busy ? <p className="note small" role="status">Writing your CV &amp; cover letter…</p>:null}
   {error ? <p className="err small" role="alert">{error}</p>:null}
   {notice ? <p className="note small" role="status">{notice}</p>:null}
  </div>;
