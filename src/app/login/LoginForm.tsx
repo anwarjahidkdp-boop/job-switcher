@@ -23,11 +23,12 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const [sent, setSent] = useState<Sent>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const siteKey=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY||"";
   const [captchaToken,setCaptchaToken]=useState("");
   const [captchaAttempt,setCaptchaAttempt]=useState(0);
   const confirmUrl = (to: string) => `${window.location.origin}/auth/confirm?next=${encodeURIComponent(to)}`;
-  const go = (m: Mode) => { setMode(m); setErr(""); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
+  const go = (m: Mode) => { setMode(m); setErr(""); setUnconfirmed(false); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
   const rate = (m: string) => /rate|too many/i.test(m);
 
   async function submit(e: React.FormEvent) {
@@ -42,7 +43,8 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
       setBusy(false);setCaptchaAttempt(x=>x+1);
       if (!error) { router.replace(next); router.refresh(); return; }
       if (offline(error)) { setErr(OFFLINE); return; }
-      setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : /confirm/i.test(error.message) ? "Confirm your email first: open the link we sent you." : "Email or password is wrong. If you used to sign in with an email code, click \"Forgot password?\" to set one.");
+      if (/confirm/i.test(error.message)) { setUnconfirmed(true); setErr("Your email is not confirmed yet. Get a 6-digit sign-in code: it confirms your email and logs you in."); return; }
+      setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : "Email or password is wrong. If you used to sign in with an email code, click \"Forgot password?\" to set one.");
     } else if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next), captchaToken:token } });
       setBusy(false);setCaptchaAttempt(x=>x+1);
@@ -99,13 +101,14 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
       ) : null}
       <form className="card panel stack" onSubmit={submit} style={mode === "login" || mode === "signup" ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : undefined}>
         {mode === "forgot" ? <p className="small">Enter your email and we send you a link to set a new password.</p> : null}
-        {mode === "code" ? <p className="small">We email you a one-time sign-in code. No password needed.</p> : null}
+        {mode === "code" ? <p className="small">We email you a one-time sign-in code. No password needed, and it confirms your email too.</p> : null}
         <label className="f" htmlFor="email">Email address<input id="email" type="text" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>
         {needsPw ? <label className="f" htmlFor="password">{mode === "signup" ? "Choose a password" : "Password"}<PasswordInput key={mode} id="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : ""} aria-describedby={mode === "signup" ? "pw-hint" : undefined} /></label> : null}
         {needsPw && mode === "signup" ? <p id="pw-hint" className="small" style={{ marginTop: -4, color: password.length >= 8 ? "var(--good)" : "var(--ink-2)" }}>{password.length >= 8 ? "✓ Password is long enough" : `Password must be at least 8 characters (${password.length}/8)`}</p> : null}
         {mode === "signup" ? <label className="small row consent"><input type="checkbox" required /> <span>I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and acknowledge the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>, including AI processing of my CV.</span></label> : null}
         {siteKey?<AuthCaptcha key={captchaAttempt} siteKey={siteKey} onToken={setCaptchaToken}/>:null}
         {err ? <p role="alert" className="err">{err}</p> : null}
+        {unconfirmed ? <button type="button" className="btn btn-gold" onClick={() => go("code")}>Email me a sign-in code</button> : null}
         <button className="btn btn-primary" disabled={busy || (!!siteKey&&!captchaToken) || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1))}>
           {busy ? <><Spinner /> Please wait</> : mode === "login" ? "Log in" : mode === "signup" ? "Create my account" : mode === "forgot" ? "Send me the link" : "Send me a code"}
         </button>
