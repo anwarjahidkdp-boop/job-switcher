@@ -39,4 +39,12 @@ describe("opportunities filtered from the home summary", () => {
     expect(html).toContain("Job e");
     expect(html).not.toContain("Job a");
   });
+  it("turns an empty fit group into a next step: career guide button, and all-time when that has jobs", async () => {
+    const html = await render({ fit: "st", when: "today" });
+    if (process.env.DUMP_OPP) (await import("node:fs")).writeFileSync(process.env.DUMP_OPP, html);
+    expect(html).toContain("How to get more Best Fit roles");
+    expect(html).toContain('href="/insights#career-guidance"');
+    expect(html).toContain("See all-time Best Fit");
+    expect(await render({ fit: "rest", when: "today" })).not.toContain("career-guidance");
+  });
 });

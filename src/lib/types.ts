@@ -38,6 +38,9 @@ export interface Job {
   ownerId?: string | null;
   /** When JobPao added the job (jobs.created_at). */
   addedAt?: string | null;
+  /** When the job was found for this person: when it was added, or when the account was created if that is later.
+   *  Every "new"/"today" count uses this, so jobs collected before someone joined count as found on their first day. */
+  foundAt?: string | null;
 }
 
 export interface ProfileSkill { name: string; src: Provenance | "what-if" }

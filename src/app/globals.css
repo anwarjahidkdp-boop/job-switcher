@@ -1237,3 +1237,18 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .q-chip{padding:7px 13px;border-radius:999px;border:1px solid #E3C77E;background:#FFF8E6;color:#14275A;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
 .q-chip:hover{background:#FFEFC7}
 .q-chip.on{background:#14966F;border-color:#14966F;color:#fff}
+/* "Your CV is ready": recommended changes open from a button right under the heading. */
+.sugg-toggle{display:flex;align-items:center;gap:12px;width:100%;margin-top:14px;padding:14px 16px;text-align:left;border:1.5px solid #E3A93F;border-radius:14px;background:linear-gradient(135deg,#FFFBF2,#FFF1D6);color:#14275A;cursor:pointer;box-shadow:0 6px 18px rgba(201,150,64,.18)}
+.sugg-toggle>span:first-child{flex:1;min-width:0}
+.sugg-toggle b{display:block;font-size:16px}
+.sugg-toggle .small{display:block;color:var(--ink-2);margin-top:2px}
+.sugg-toggle-n{flex:none;display:grid;place-items:center;min-width:30px;height:30px;padding:0 8px;border-radius:999px;background:#DC2626;color:#fff;font-weight:800;font-size:14px}
+.sugg-toggle-go{flex:none;padding:8px 14px;border-radius:999px;background:linear-gradient(135deg,#C99A2E,#E3A93F);color:#14275A;font-weight:800;font-size:14px;white-space:nowrap}
+.fit-grow{margin:0 16px 16px;padding:14px 16px;border-radius:12px;background:var(--gold-soft,#FBF4E2);border:1px solid color-mix(in srgb,var(--gold) 40%,var(--line));display:grid;gap:10px}
+.fit-grow p{margin:0;line-height:1.5}
+.fit-grow b{display:block;margin-bottom:2px;color:var(--ink)}
+/* Header always fits the phone: the bell never shrinks, the plan chip shortens and gives way first. */
+.top .cp-short{display:none}
+@media(max-width:430px){.top .chip-plan .cp-full{display:none}.top .chip-plan .cp-short{display:inline}}
+@media(max-width:760px){.top .wrap{flex-wrap:nowrap;gap:8px}.top .wrap>*{flex-shrink:0}.top .chip-plan{flex-shrink:1;min-width:0;overflow:hidden}.top .chip-plan span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top .bell{margin-left:auto}}
+@media(max-width:340px){.top .brand>span{display:none}}

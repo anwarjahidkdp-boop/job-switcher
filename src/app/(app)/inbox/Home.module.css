@@ -248,3 +248,7 @@
 :global(:root[data-theme="dark"]) .title,:global(:root[data-theme="dark"]) .kicker,:global(:root[data-theme="dark"]) .kYour,:global(:root[data-theme="dark"]) .kicker b{color:#F3EEDF}
 :global(:root[data-theme="dark"]) .kicker{background:rgba(255,255,255,.06)}
 :global(:root[data-theme="dark"]) .name{background-image:linear-gradient(90deg,#F7D58B,#E3B55B)}
+/* Owner 2026-10-26: no colour ribbon above Market pulse; a plain clean edge instead. */
+.summary.pToday::before{display:none}
+.summary.pToday{border-top:1px solid var(--line)}
+.panelTitle>span:empty{display:none}

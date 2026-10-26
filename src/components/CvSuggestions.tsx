@@ -13,8 +13,10 @@ async function post(url: string, body: unknown) {
 }
 
 /** Changes the CV writer recommends but leaves to the person: pick an option to apply it, or keep the line. */
-export function CvSuggestions({ items }: { items: CvSuggestion[] }) {
+/** With `toggle`, a button opens the list in place (used right under "Your CV is ready"). */
+export function CvSuggestions({ items, toggle }: { items: CvSuggestion[]; toggle?: boolean }) {
   const router = useRouter();
+  const [open, setOpen] = useState(!toggle);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   if (!items.length) return null;
@@ -22,7 +24,10 @@ export function CvSuggestions({ items }: { items: CvSuggestion[] }) {
     setBusy(id); setErr("");
     try { await post("/api/cv/suggestion", { id, option }); router.refresh(); } catch (e) { setErr((e as Error).message); } finally { setBusy(""); }
   };
+  const btn = toggle ? <button type="button" className="sugg-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}><span><b>Recommended changes for your CV</b><span className="small">{items.length} {items.length === 1 ? "change needs" : "changes need"} your choice</span></span><span className="sugg-toggle-n">{items.length}</span><span aria-hidden="true" className="sugg-toggle-go">{open ? "Hide ▲" : "Review ▼"}</span></button> : null;
+  if (!open) return btn;
   return (
+    <>{btn}
     <div className="card panel sugg" style={{ marginTop: 12 }}>
       <h3 style={{ margin: 0 }}>Recommended changes <span className="imp-n">{items.length}</span></h3>
       <p className="small muted" style={{ margin: "4px 0 10px" }}>These could change a status or meaning, so we only change them when you choose.</p>
@@ -42,6 +47,7 @@ export function CvSuggestions({ items }: { items: CvSuggestion[] }) {
       ))}
       {err ? <p role="alert" className="err">{err}</p> : null}
     </div>
+    </>
   );
 }
 

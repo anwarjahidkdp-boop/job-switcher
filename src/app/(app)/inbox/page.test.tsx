@@ -139,7 +139,7 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).toContain("Latest scan · ");
-    expect(html).toContain("Nothing new since your last visit. Here is the latest market scan in Bangladesh");
+    expect(html).not.toContain("Nothing new since your last visit");
     expect(html).toContain(`since=${Date.parse(OLD) - 12 * 3_600_000}`);
     expect(html).not.toContain("No new roles since your last briefing");
   });
@@ -160,5 +160,18 @@ describe("career home", () => {
     expect(html).not.toContain("Bdjobs");
     expect(html).toMatch(/href="\/setup\?site=Indeed"[^>]*>[\s\S]*Connect Indeed/);
     expect(html.indexOf("Connect LinkedIn")).toBeLessThan(html.indexOf("Connect Indeed"));
+  });
+  it("briefs every job found for a new account on its first visit, old scans too, counted from joining", async () => {
+    const st = h.st as unknown as { profile: { created_at: string }; scored: { job: { addedAt: string; foundAt?: string } }[] };
+    const joined = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    st.profile.created_at = joined;
+    for (const x of st.scored) { x.job.addedAt = OLD; x.job.foundAt = joined; }
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    if (process.env.DUMP_FIRST) writeFileSync(process.env.DUMP_FIRST, html);
+    expect(html).not.toContain("Nothing new since your last visit");
+    expect(html).toContain("Since you joined · ");
+    expect(html).toContain(`since=${Date.parse(joined)}`);
+    expect(html).not.toContain("Latest scan · ");
   });
 });

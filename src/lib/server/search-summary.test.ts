@@ -32,3 +32,24 @@ describe("searchSummary", () => {
     expect(summaryRows(rows, null, "found").map((x) => x.m.score)).toEqual([99, 92, 85, 75, 60]);
   });
 });
+
+describe("found for this person", () => {
+  it("counts jobs collected before someone joined as found when they joined, and later jobs when they arrived", async () => {
+    const { foundAtFor } = await import("./search-summary");
+    const joined = "2026-10-26T10:00:00.000Z";
+    expect(foundAtFor("2026-10-20T00:00:00Z", joined)).toBe(joined);
+    expect(foundAtFor(null, joined)).toBe(joined);
+    expect(foundAtFor("2026-10-27T03:00:00Z", joined)).toBe("2026-10-27T03:00:00Z");
+    expect(foundAtFor("2026-10-20T00:00:00Z", null)).toBe("2026-10-20T00:00:00Z");
+  });
+  it("Today and the briefing count by that time, so a new account's first day includes older jobs", async () => {
+    const { summaryRows, searchSummary } = await import("./search-summary");
+    const joined = "2026-10-26T10:00:00.000Z";
+    const row = (score: number, addedAt: string) => ({ job: { id: String(score), addedAt, foundAt: addedAt < joined ? joined : addedAt }, m: { score, relevant: true, expired: false } });
+    const rows = [row(95, "2026-10-01T00:00:00Z"), row(60, "2026-10-26T12:00:00Z")] as never[];
+    const since = new Date(joined);
+    expect(summaryRows(rows, since, "ex")).toHaveLength(1);
+    expect(searchSummary(rows, since, 2).today.ex).toBe(1);
+    expect(summaryRows(rows, new Date("2026-10-26T11:00:00Z"), "ex")).toHaveLength(0);
+  });
+});
