@@ -2,6 +2,7 @@ import { trustedMutation } from "./lib/request-security";
 // Refreshes the Supabase session cookie on every request and keeps signed-out visitors out of app pages.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { nextVisit, VISIT_COOKIE } from "./lib/visit";
 
 const PROTECTED = ["/onboarding", "/inbox", "/notifications", "/jobs", "/queue", "/applications", "/insights", "/linkedin", "/profile", "/setup", "/upgrade", "/admin", "/account"];
 
@@ -30,6 +31,15 @@ export async function middleware(request: NextRequest) {
     to.pathname = "/login";
     to.search = `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
     return NextResponse.redirect(to);
+  }
+  // Home shows what is new since the last visit: record this visit before the page reads it.
+  if (path === "/inbox" && data?.claims?.sub) {
+    const visit = nextVisit(request.cookies.get(VISIT_COOKIE)?.value, Date.now());
+    request.cookies.set(VISIT_COOKIE, visit);
+    const next = NextResponse.next({ request });
+    for (const c of response.cookies.getAll()) next.cookies.set(c);
+    next.cookies.set(VISIT_COOKIE, visit, { httpOnly: true, sameSite: "lax", secure: true, path: "/", maxAge: 90 * 86400 });
+    response = next;
   }
   return response;
 }

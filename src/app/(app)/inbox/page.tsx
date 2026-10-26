@@ -16,13 +16,15 @@ import { STATUS_LABEL, type Band } from "@/lib/types";
 import { listNotifications } from "@/lib/server/notify";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
+import { cookies } from "next/headers";
+import { VISIT_COOKIE, visitSince } from "@/lib/visit";
 import { courseLinks, nowMs } from "@/lib/today";
 import { skillLabel } from "@/lib/taxonomy";
 import { TRIAL_APPLY } from "@/lib/pack-limits";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiConfigured } from "@/lib/ai";
-import { searchSummary, dayStart, type BandCounts } from "@/lib/server/search-summary";
+import { searchSummary, type BandCounts } from "@/lib/server/search-summary";
 import s from "./Home.module.css";
 
 export const metadata = { title: "Opportunities" };
@@ -68,9 +70,10 @@ export default async function Inbox() {
   const now = nowMs();
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
-  const since = dayStart(rule(country).timeZone, new Date(now));
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  const { today, all } = searchSummary(st.scored, since, sx.analysed);
+  // "New for you" counts jobs added since the previous visit (the last day on a first visit, at most a week).
+  const fresh = new Date(visitSince((await cookies()).get(VISIT_COOKIE)?.value, now));
+  const { today, all } = searchSummary(st.scored, fresh, sx.analysed);
   const progress = applicationProgressCounts(here);
   const latestApp = submittedApplications(here).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
@@ -91,7 +94,7 @@ export default async function Inbox() {
 
   // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
-  const appliedToday = sent.filter((t) => t >= since.getTime()).length;
+  const appliedToday = sent.filter((t) => t >= fresh.getTime()).length;
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
@@ -101,7 +104,16 @@ export default async function Inbox() {
     const outcomes = !isToday;
     const f = c ? four(c) : null;
     // Every number opens the jobs behind it.
-    const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? "&when=today" : ""}`;
+    const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? `&when=new&since=${fresh.getTime()}` : ""}`;
+    // Nothing new: one calm line instead of a row of zeros.
+    if (isToday && (!c || !c.total) && !applied) return (
+      <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
+        <div className={s.panelHead}>
+          <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
+        </div>
+        <p className={s.calm}>Nothing new since your last visit. We check new jobs every morning and show them here first.</p>
+      </section>
+    );
     return (
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
@@ -114,7 +126,7 @@ export default async function Inbox() {
                  ["/applications?status=offer", ICON.trophy, fmt(sx.offers), "Offer received", null]]
               : [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
                  [jobsHref("matched"), ICON.target, f ? fmt(f.ex + f.st + f.po) : "–", "Top match", "70% and above"],
-                 ["/applications?when=today", ICON.send, fmt(applied), "Applied", null]]
+                 [`/applications?when=new&since=${fresh.getTime()}`, ICON.send, fmt(applied), "Applied", null]]
             ).map(([href, icon, n, label, note]) => (
               <Link prefetch={false} key={label} className={s.navy} href={href!}><span className={s.navyIc}><Svg d={icon!} /></span><b>{n}</b><span className={s.navyL}>{label}{note ? <small>{note}</small> : null}</span></Link>
             ))}
@@ -190,7 +202,7 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }), true)}
+      {panel("today-h", "New for you", `New jobs in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, `Since ${fresh.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}`, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>

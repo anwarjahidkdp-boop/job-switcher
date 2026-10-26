@@ -67,6 +67,7 @@
 .navyL small{font-size:10.5px;font-weight:600;color:#F7D58B;opacity:.9}
 .stats .navy{min-height:64px}
 .fits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.calm{margin:0;padding:12px 14px;border-radius:12px;border:1px dashed var(--line);background:var(--bg);color:var(--ink-2);font-size:14px;line-height:1.5}
 .countRow{display:flex;align-items:baseline;gap:6px}
 .fit{position:relative;display:grid;gap:2px;padding:12px 14px;border-radius:13px;border:1px solid var(--line);border-top:4px solid var(--c);background:linear-gradient(160deg,var(--cb) 0%,var(--card) 75%);color:var(--ink);text-decoration:none;box-shadow:var(--shadow);transition:transform .15s ease}
 .fit:hover{transform:translateY(-2px)}
