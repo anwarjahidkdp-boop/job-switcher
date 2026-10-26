@@ -1232,3 +1232,8 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .drop-file b{color:#14275A;overflow-wrap:anywhere}
 /* Setup questions: a clear way to skip them all. */
 .q-skipbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:#FCFAF3;color:#14275A;font-weight:600;font-size:14px}
+/* Setup questions: tap-to-fill suggested answers. */
+.q-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.q-chip{padding:7px 13px;border-radius:999px;border:1px solid #E3C77E;background:#FFF8E6;color:#14275A;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+.q-chip:hover{background:#FFEFC7}
+.q-chip.on{background:#14966F;border-color:#14966F;color:#fff}

@@ -22,7 +22,7 @@ export function freshnessQuestions(x: { experiences?: Exp[]; education?: Edu[] }
   const old = latest != null && now - latest >= 12;
   const out: CvQuestion[] = [];
   const current = exps.filter((e) => !e.end && e.start).sort((a, b) => (ym(b.start) || 0) - (ym(a.start) || 0))[0];
-  if (current && old) out.push({ id: "fresh_role", question: `Your CV says you still work as ${current.title} at ${current.company}. Is that still true? If you left, when, and where do you work now?`, placeholder: "e.g. Still there, now Senior Accountant / Left in June 2025, now at ABC Ltd" });
-  if (old) out.push({ id: "fresh_new", question: `The newest date on your CV is ${label(latest!)}. What has changed since then: a new job, promotion, course, exam result or certification?`, placeholder: "e.g. Passed ACCA F7 in 2025; promoted to Team Lead in 2025" });
+  if (current && old) out.push({ id: "fresh_role", question: `Your CV says you still work as ${current.title} at ${current.company}. Is that still true? If you left, when, and where do you work now?`, placeholder: "e.g. Still there, now Senior Accountant / Left in June 2025, now at ABC Ltd", suggestions: ["Yes, I still work there", "Still there, promoted to ", "I left. Now I work at "] });
+  if (old) out.push({ id: "fresh_new", question: `The newest date on your CV is ${label(latest!)}. What has changed since then: a new job, promotion, course, exam result or certification?`, placeholder: "e.g. Passed ACCA F7 in 2025; promoted to Team Lead in 2025", suggestions: ["Nothing has changed", "Promoted to  in ", "Finished a course: "] });
   return out;
 }

@@ -96,7 +96,7 @@ export interface MatchResult {
 export interface ExtractedExperience { department?: string | null; title: string; company: string; start: string | null; end: string | null; industry?: string | null; location?: string | null }
 export interface ExtractedEducation { degree: string; field: string; institution: string; year: string; level: EduLevel; result: string | null }
 export interface ExtractedCert { name: string; status: "qualified" | "partly" | "in_progress"; detail: string | null }
-export interface CvQuestion { id: string; question: string; placeholder: string }
+export interface CvQuestion { id: string; question: string; placeholder: string; /** Short answers the person can tap to fill in, then edit. */ suggestions?: string[] }
 export interface Extraction {
   name: string;
   email: string | null;

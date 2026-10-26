@@ -25,7 +25,7 @@ Shape:
 "categories":[string] (1-2 from: ${CATEGORIES.join(", ")}),
 "seniority":"entry"|"mid"|"senior"|"manager"|"head",
 "target_roles":[string] (2-3 realistic next-step job titles in ${rule(country).name} based on the CV),
-"questions":[{"id":"q1","question":string,"placeholder":string}] (3 to 5 short, friendly questions about information the CV is missing or vague about that would strengthen the CV: team size, software used, measurable results, scope of responsibility, certifications in progress; for a fresher: projects, thesis, coursework, results and tools used. Do NOT ask about salary, notice period or location. Refer to the CV specifically.)
+"questions":[{"id":"q1","question":string,"placeholder":string,"suggestions":[string]}] (suggestions: 2 to 4 short typical answers the person can tap and then edit, each under 60 characters, matching their field and level, e.g. "3 people", "SAP and Tally ERP", "No, not yet"; generic choices only, never claims about this person; 3 to 5 short, friendly questions about information the CV is missing or vague about that would strengthen the CV: team size, software used, measurable results, scope of responsibility, certifications in progress; for a fresher: projects, thesis, coursework, results and tools used. Do NOT ask about salary, notice period or location. Refer to the CV specifically.)
 }
 
 CV text:

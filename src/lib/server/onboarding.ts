@@ -44,6 +44,13 @@ export async function setCountry(ctx: Ctx, country: string, needsVisa: boolean, 
   if (error) throw error;
 }
 
+/** At most 4 short, distinct tap-to-fill answers. */
+export function cleanAnswerChoices(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set<string>();
+  return v.map((x) => String(x ?? "").trim()).filter((x) => x && x.length <= 80 && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase())).slice(0, 4);
+}
+
 function cleanExtraction(x: Extraction): Extraction {
   return {
     ...x,
@@ -51,7 +58,7 @@ function cleanExtraction(x: Extraction): Extraction {
     categories: (x.categories || []).filter((c) => CATEGORIES.includes(c)).slice(0, 2),
     seniority: isSeniority(x.seniority) ? x.seniority : "mid",
     skills: (x.skills || []).map(normSkill),
-    questions: (x.questions || []).slice(0, 5).map((q, i) => ({ id: `q${i + 1}`, question: String(q.question || ""), placeholder: String(q.placeholder || "") })).filter((q) => q.question),
+    questions: (x.questions || []).slice(0, 5).map((q, i) => ({ id: `q${i + 1}`, question: String(q.question || ""), placeholder: String(q.placeholder || ""), suggestions: cleanAnswerChoices(q.suggestions) })).filter((q) => q.question),
   };
 }
 
@@ -104,7 +111,7 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
   const { data: docId, error } = await ctx.db.rpc("replace_cv", {
     p_document: {
       storage_path: storagePath, file_name: fileName, mime_type: mime, size_bytes: size, text_content: text, text_source: source,
-      extraction, questions: questions.map(({ id, question, placeholder }) => ({ id, question, placeholder })), is_demo: !!input.demo,
+      extraction, questions: questions.map(({ id, question, placeholder, suggestions }) => ({ id, question, placeholder, suggestions: suggestions || [] })), is_demo: !!input.demo,
       answers: input.demo ? Object.fromEntries(questions.map((q) => [q.id, q.demo || ""])) : {},
     },
     p_facts: facts,
@@ -151,17 +158,24 @@ export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {
   const qs = (doc.questions || []) as CvQuestion[];
   const clean: Record<string, string> = {};
   for (const q of qs) clean[q.id] = String(answers[q.id] || "").trim().slice(0, 1000);
-  let extraction:Extraction|null=null,facts:CareerFact[]|null=null;
-  if(!doc.is_demo&&(clean.fresh_role||clean.fresh_new)){
-    const profile=await loadProfile(ctx.db,ctx.userId);
-    const source=String(doc.text_content||"")+"\nUser-confirmed updates (supersede older CV details):\n"+qs.filter(q=>clean[q.id]).map(q=>q.question+"\n"+clean[q.id]).join("\n");
-    const result=await runAI(ctx.admin,ctx.userId,"cv_extract",p=>p.generateJSON({tier:"fast",system:SYSTEM_RULES,prompt:EXTRACT_PROMPT(source,cc(profile?.target_country))+"\nApply the user's explicit corrections to previous roles and include newly confirmed roles and qualifications. Never guess missing months or dates.",schema:ExtractionSchema}));
-    extraction=cleanExtraction(result.data as Extraction);
-    facts=groundExtraction(extraction,source).map(f=>({...f,provenance:"answer" as const}));
-  }
   const answerFacts=qs.filter(q=>clean[q.id]).map(q=>({kind:"answer" as const,provenance:"answer" as const,verified:true,data:{questionId:q.id,question:q.question,answer:clean[q.id]}}));
-  const saved=await ctx.db.rpc("save_cv_answers",{p_document:doc.id,p_answers:clean,p_facts:facts?[...facts,...answerFacts]:answerFacts,p_extraction:extraction});
+  // Save the answers first: a slow or failed AI step below must never lose what the person typed.
+  const saved=await ctx.db.rpc("save_cv_answers",{p_document:doc.id,p_answers:clean,p_facts:answerFacts,p_extraction:null});
   if(saved.error)throw saved.error;
+  if(!doc.is_demo&&(clean.fresh_role||clean.fresh_new)){
+    try{
+      const profile=await loadProfile(ctx.db,ctx.userId);
+      const source=String(doc.text_content||"")+"\nUser-confirmed updates (supersede older CV details):\n"+qs.filter(q=>clean[q.id]).map(q=>q.question+"\n"+clean[q.id]).join("\n");
+      const result=await runAI(ctx.admin,ctx.userId,"cv_extract",p=>p.generateJSON({tier:"fast",system:SYSTEM_RULES,prompt:EXTRACT_PROMPT(source,cc(profile?.target_country))+"\nApply the user's explicit corrections to previous roles and include newly confirmed roles and qualifications. Never guess missing months or dates.",schema:ExtractionSchema}));
+      const extraction:Extraction=cleanExtraction(result.data as Extraction);
+      const facts:CareerFact[]=groundExtraction(extraction,source).map(f=>({...f,provenance:"answer" as const}));
+      const again=await ctx.db.rpc("save_cv_answers",{p_document:doc.id,p_answers:clean,p_facts:[...facts,...answerFacts],p_extraction:extraction});
+      if(again.error)throw again.error;
+    }catch(e){
+      // The answers are saved and still reach the CV writer; only the re-read of older roles is skipped.
+      console.error("Re-reading the CV with the update answers failed", e);
+    }
+  }
 }
 
 const num = (v: unknown) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.max(0, Number(v)));

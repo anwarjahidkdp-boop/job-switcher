@@ -8,6 +8,7 @@ import { CountrySelect } from "@/components/CountrySelect";
 import { popularFor, rule } from "@/lib/countries";
 import { setCountryAction } from "../actions";
 import type { PersonalDetails, Preferences, Referee } from "@/lib/types";
+import { patientFetch, patientPost } from "@/lib/patient-post";
 
 const MAX_PAGES = 4; // keep in sync with MAX_PAGES in src/lib/cv/browser-read.ts and MAX_SCAN_PAGES on the server
 
@@ -87,13 +88,11 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   async function send(label: string, f: () => Promise<Response>) {
     setBusy(label); setErr("");
     try {
-      const r = await f();
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || "Could not read this file.");
+      await patientFetch(f, setBusy);
       router.refresh();
     } catch (e) { setErr((e as Error).message); setBusy(""); }
   }
-  const READING = "Reading your CV: roles, education, skills. This can take up to a minute.";
+  const READING = "AI is reading your CV: roles, education, skills. This can take up to a minute.";
   const demo = () => send("Loading the sample CV", () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ demo: true }) }));
   useEffect(() => { if (autoDemo && !started.current) { started.current = true; demo(); } });
 
@@ -313,8 +312,8 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
       await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: sponsor===true,readiness:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:props.answers?.willingToRelocate}, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
       // Route-handler saves do not clear prefetched client redirects. Read the saved state in a fresh navigation.
       if (props.editing) { window.location.replace("/profile"); return; }
-      setBusy("Preparing your CV for this country using your saved career information.");
-      await post("/api/cv/build", {});
+      setBusy("AI is reading your CV…");
+      await patientPost("/api/cv/build", {}, setBusy);
       window.location.replace("/onboarding");
     } catch (e) { setErr((e as Error).message); setBusy(""); }
   }

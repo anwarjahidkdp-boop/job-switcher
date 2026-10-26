@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
 import type { CvSuggestion } from "@/lib/types";
+import { patientPost } from "@/lib/patient-post";
 
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -53,7 +54,7 @@ export function PolishCvButton() {
     <>
       <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={async () => {
         setBusy(true); setErr("");
-        try { await post("/api/cv/build", {}); router.refresh(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+        try { await patientPost("/api/cv/build", {}); router.refresh(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
       }}>{busy ? <><Spinner /> Rewriting every line</> : "Rewrite in corporate style"}</button>
       {err ? <span className="err small">{err}</span> : null}
     </>
