@@ -10,10 +10,10 @@ import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
 import { formatPrice, packPrice, PAYABLE_CURRENCIES, type PackPrice } from "../billing/pricing";
-import { createLemonCheckout, lemonConfig, parseOrderEvent, verifySignature } from "../billing/lemonsqueezy";
+import { createPaddleTransaction, paddleConfig, parseEvent as parsePaddleEvent, verifySignature as verifyPaddleSignature } from "../billing/paddle";
 
 export interface PaymentRow {
-  id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy"; amount_minor: number; currency: string;
+  id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy" | "paddle"; amount_minor: number; currency: string;
   trx_id: string | null; payer_msisdn: string | null; bkash_payment_id: string | null; invoice: string;
   status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled" | "refunded"; period_end: string | null; period_days: number;
   review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string;
@@ -184,61 +184,67 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
 }
 
 // ---------------------------------------------------------------------------
-// Card payments through Lemon Squeezy (everyone living outside Bangladesh)
+// Card payments through Paddle (everyone living outside Bangladesh)
 // ---------------------------------------------------------------------------
+/** True once Paddle is configured; card payment stays closed until then. */
+export const cardOpen = (): boolean => !!paddleConfig();
+
 export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }, pack?: unknown) {
-  const cfg = lemonConfig();
+  const cfg = paddleConfig();
   if (!cfg) throw new PaymentError("Card payment is not open yet. Your trial features keep working until the trial ends.");
   const price = await priceForUser(ctx.admin, ctx.userId, pack);
   if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("In Bangladesh, pay with bKash.");
   const usd = price.usd;
   const plan = await proPlan(ctx.admin);
-  const { data: prof } = await ctx.admin.from("profiles").select("email").eq("id", ctx.userId).maybeSingle();
   const { data: row, error } = await ctx.admin.from("payments").insert({
-    user_id: ctx.userId, plan_code: plan.code, method: "lemonsqueezy", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: price.days,
+    user_id: ctx.userId, plan_code: plan.code, method: "paddle", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: price.days,
   }).select("id").single();
   if (error) throw error;
   try {
-    const url = await createLemonCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, redirectUrl: `${publicEnv.appUrl}/upgrade?payment=card`, label: `${plan.name}, ${price.name}` });
-    return { url };
+    const tx = await createPaddleTransaction(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, payUrl: `${publicEnv.appUrl}/pay`, label: `${plan.name}, ${price.name}` });
+    // The webhook must name this exact transaction before Pro starts.
+    const { error: e2 } = await ctx.admin.from("payments").update({ provider_order_id: tx.id }).eq("id", row.id);
+    if (e2) throw e2;
+    return { url: tx.url };
   } catch (e) {
-    console.error("lemonsqueezy checkout", e);
+    console.error("paddle checkout", e);
     await ctx.admin.from("payments").update({ status: "failed", review_note: e instanceof Error ? e.message.slice(0, 300) : "checkout failed" }).eq("id", row.id);
     throw new PaymentError("Card checkout could not start. Try again in a minute.");
   }
 }
 
 /**
- * Signed webhook from Lemon Squeezy. Pro starts only for a paid order_created event from our store whose payment id,
- * currency and amount match a card payment we started. Safe to receive twice: the row is claimed atomically.
+ * Signed webhook from Paddle. Pro starts only for a completed transaction that we created for this payment (same
+ * transaction id), in USD, one item at our price. A full approved refund takes the days back. Safe to receive twice.
  */
-export async function handleLemonWebhook(admin: SupabaseClient, rawBody: string, signature: string | null): Promise<{ status: number; note: string }> {
-  const cfg = lemonConfig();
+export async function handlePaddleWebhook(admin: SupabaseClient, rawBody: string, signature: string | null): Promise<{ status: number; note: string }> {
+  const cfg = paddleConfig();
   if (!cfg) return { status: 503, note: "not configured" };
-  if (!verifySignature(rawBody, signature, cfg.webhookSecret)) return { status: 401, note: "bad signature" };
+  if (!verifyPaddleSignature(rawBody, signature, cfg.webhookSecret)) return { status: 401, note: "bad signature" };
   let body: unknown;
   try { body = JSON.parse(rawBody); } catch { return { status: 400, note: "bad json" }; }
-  const ev = parseOrderEvent(body);
-  if (ev?.testMode) return { status: 200, note: "test mode ignored" };
-  if (ev?.event === "order_refunded") return handleLemonRefund(admin, cfg.storeId, ev);
-  if (!ev || ev.event !== "order_created") return { status: 200, note: "ignored" };
-  if (ev.storeId !== cfg.storeId || !ev.paymentId || ev.status !== "paid") return { status: 200, note: "not ours or not paid" };
-  const { data: p } = await admin.from("payments").select("id, user_id, plan_code, amount_minor, currency, status, method").eq("id", ev.paymentId).maybeSingle();
-  if (!p || p.method !== "lemonsqueezy") return { status: 200, note: "unknown payment" };
+  const ev = parsePaddleEvent(body);
+  if (ev?.kind === "refund") return handlePaddleRefund(admin, ev);
+  if (!ev || ev.event !== "transaction.completed" || !ev.paymentId) return { status: 200, note: "ignored" };
+  const { data: p } = await admin.from("payments").select("id, user_id, amount_minor, currency, status, method, provider_order_id").eq("id", ev.paymentId).maybeSingle();
+  if (!p || p.method !== "paddle" || p.provider_order_id !== ev.transactionId) return { status: 200, note: "unknown payment" };
   if (p.status === "approved") return { status: 200, note: "already done" };
-  if (ev.currency !== "USD" || ev.subtotal !== p.amount_minor) {
-    await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.subtotal}`, provider_order_id: ev.orderId }).eq("id", p.id).eq("status", "initiated");
+  if (ev.status !== "completed") return { status: 200, note: "not paid" };
+  if (ev.currency !== "USD" || ev.unitAmount !== p.amount_minor || ev.quantity !== 1) {
+    await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.unitAmount} x${ev.quantity}` }).eq("id", p.id).eq("status", "initiated");
     return { status: 200, note: "amount mismatch" };
   }
-  const result = await settle(admin, p.id, "lemonsqueezy", ["initiated"], { trx_id: `LS-${ev.orderId}`, provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook" });
-  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: `LS-${ev.orderId}`, amountMinor: p.amount_minor, currency: "USD" });
+  const result = await settle(admin, p.id, "paddle", ["initiated"], { trx_id: ev.transactionId, provider_order_id: ev.transactionId, reviewed_by: "paddle-webhook" });
+  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: ev.transactionId, amountMinor: p.amount_minor, currency: "USD" });
   return { status: 200, note: result.changed ? "activated" : "already done" };
 }
 
-/** A full card refund takes back the pack's days (once). Partial refunds are left to the admin. */
-async function handleLemonRefund(admin: SupabaseClient, storeId: string, ev: NonNullable<ReturnType<typeof parseOrderEvent>>): Promise<{ status: number; note: string }> {
-  if (ev.storeId !== storeId || !ev.paymentId) return { status: 200, note: "not ours" };
-  if (ev.status !== "refunded") { console.error("lemonsqueezy partial refund, check by hand", ev.orderId); return { status: 200, note: "partial refund" }; }
-  const result = await settle(admin, ev.paymentId, "lemonsqueezy", ["approved"], { provider_order_id: ev.orderId, reviewed_by: "lemonsqueezy-webhook", review_note: `refunded (order ${ev.orderId})` }, true);
+/** A full, approved card refund takes back the pack's days (once). Partial refunds are left to the admin. */
+async function handlePaddleRefund(admin: SupabaseClient, ev: { transactionId: string; action: string; status: string; type: string }): Promise<{ status: number; note: string }> {
+  if (ev.action !== "refund" || ev.status !== "approved") return { status: 200, note: "ignored" };
+  const { data: p } = await admin.from("payments").select("id, method").eq("provider_order_id", ev.transactionId).maybeSingle();
+  if (!p || p.method !== "paddle") return { status: 200, note: "not ours" };
+  if (ev.type !== "full") { console.error("paddle partial refund, check by hand", ev.transactionId); return { status: 200, note: "partial refund" }; }
+  const result = await settle(admin, p.id, "paddle", ["approved"], { provider_order_id: ev.transactionId, reviewed_by: "paddle-webhook", review_note: `refunded (transaction ${ev.transactionId})` }, true);
   return { status: 200, note: result.changed ? "refunded" : "nothing to refund" };
 }

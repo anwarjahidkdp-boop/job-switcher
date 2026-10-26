@@ -7,7 +7,7 @@ export default function Terms() {
   return (
     <LegalPage title={<>Terms of <span>Service</span></>} sub="The rules for using JobPao, in plain words.">
       <h2>1. What JobPao is</h2>
-      <p>JobPao (&quot;we&quot;, &quot;us&quot;) is an online job assistant at jobpao.app. It finds jobs that match your CV, writes a tailored CV and cover letter for each job, tracks your applications and helps you prepare for interviews. By creating an account you agree to these terms.</p>
+      <p>JobPao (&quot;we&quot;, &quot;us&quot;) is an online job assistant at jobpao.app. It finds jobs that match your CV, writes a tailored CV and cover letter for each job, tracks your applications and helps you prepare for interviews. JobPao is software for job seekers: we do not sell job postings or advertising, and we do not charge employers. JobPao is run by Anwar Jahid, a sole proprietor based in Bangladesh. By creating an account you agree to these terms.</p>
 
       <h2>2. Your account</h2>
       <ul>
@@ -32,7 +32,7 @@ export default function Terms() {
         <li>New accounts get a 5-day free trial with one application a day. No card is needed.</li>
         <li>Pro is a one-off payment for a fixed period (15 days, 30 days, 3 months or 1 year). It does not renew automatically and you are never charged again unless you buy another pack.</li>
         <li>Prices are shown on the <Link href="/#pricing">pricing section</Link> before you pay. The price depends on the country you live in.</li>
-        <li>In Bangladesh you pay with bKash. Elsewhere you pay by card through Lemon Squeezy, our reseller and Merchant of Record, which handles the payment, receipt and any sales tax.</li>
+        <li>In Bangladesh you pay with bKash. Elsewhere you pay by card. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our card orders. Paddle provides all customer service inquiries and handles returns for those orders, along with the receipt and any sales tax.</li>
         <li>Plans include fair-use limits on applications and AI use, shown in the app, so the service stays fast and affordable for everyone.</li>
         <li>Refunds follow our <Link href="/refund">Refund Policy</Link>.</li>
       </ul>

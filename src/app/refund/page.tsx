@@ -20,7 +20,7 @@ export default function Refund() {
 
       <h2>How you get the money back</h2>
       <ul>
-        <li><b>Card payments</b> are refunded by Lemon Squeezy to the same card. Your bank may take 5 to 10 working days to show it.</li>
+        <li><b>Card payments</b> are refunded by Paddle, our reseller, to the same card. You can also ask Paddle directly through the link on your receipt. Your bank may take 5 to 10 working days to show it.</li>
         <li><b>bKash payments</b> are sent back to the bKash number you paid from.</li>
       </ul>
       <p>When a refund is made, the Pro time from that payment is removed from your account.</p>
