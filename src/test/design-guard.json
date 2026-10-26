@@ -262,6 +262,8 @@
    "6c401e105d913f77",
    "648cc18be72f0728",
    "b273c354002b6c8b",
+   "f639fe804b3add04",
+   "3e1cdeeaa1a4532c",
    "6f74fc47515fc9bd",
    "f5b5dfaaf2b7b31b",
    "e43bee5fca392ecc",
@@ -303,7 +305,12 @@
    "383f015454b7ac17",
    "c4386aeb76a7bb6e",
    "a325d0463b585618",
-   "404d6190b3922005",
+   "ef139393fc475599",
+   "1dcb5cedfd065483",
+   "24479e502fdff73c",
+   "aff6a86c29cae1cf",
+   "628f9606c375ac7b",
+   "be85951e1c05b8a5",
    "445f85ad7f09daac",
    "09685873e8c5d3ac",
    "686a2d814790f44f",
@@ -413,7 +420,7 @@
    "f2ae705cff516e3e",
    "3b1c01afc6f8af22",
    "b933712a01637bb8",
-   "cc02a5b960d198b7",
+   "5792bf53a10e8744",
    "18842e1fba33a51d",
    "96c1531619820e95",
    "ab31e30c735a6256",
@@ -1769,6 +1776,7 @@
  "updates": [
   "2026-10-26: Home hero connect button split in two (LinkedIn left, country job site right, short labels, slim, small gap, gold-red-gold outline) approved by owner",
   "2026-10-26: Home 'Today' panel became 'New for you' (since last visit, calm line when empty), owner chose it",
-  "2026-10-26: 'Opportunity Briefing' title + live chip, and 'Why no Strong Fit yet?' explainer in the career guide (owner asked)"
+  "2026-10-26: 'Opportunity Briefing' title + live chip, and 'Why no Strong Fit yet?' explainer in the career guide (owner asked)",
+  "2026-10-26: Opportunity Briefing shows the latest market scan when nothing is new since the last visit (owner asked why it was empty)"
  ]
 }

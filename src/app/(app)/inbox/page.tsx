@@ -32,6 +32,8 @@ import s from "./Home.module.css";
 export const metadata = { title: "Opportunities" };
 
 const DAY = 86_400_000;
+/** The latest market scan: jobs added within this long before the newest one (the scan runs once a day). */
+const SCAN_WINDOW = 12 * 60 * 60 * 1000;
 const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.po, lo: s.lo, other: s.other };
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
@@ -74,7 +76,12 @@ export default async function Inbox() {
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
   // The Opportunity Briefing counts jobs added since the previous visit (the last day on a first visit, at most a week).
-  const fresh = new Date(visitSince((await cookies()).get(VISIT_COOKIE)?.value, now));
+  const visit = new Date(visitSince((await cookies()).get(VISIT_COOKIE)?.value, now));
+  // Nothing new since that visit (jobs arrive once a day): brief the latest market scan instead of an empty panel.
+  const lastAdded = Math.max(0, ...st.scored.map((x) => (x.job.addedAt ? Date.parse(x.job.addedAt) : 0)).filter((t) => Number.isFinite(t)));
+  const quiet = !searchSummary(st.scored, visit, sx.analysed).today.total && !apps.some((a) => a.applied_at && Date.parse(a.applied_at) >= visit.getTime());
+  const latestScan = quiet && lastAdded > 0 && lastAdded < visit.getTime();
+  const fresh = latestScan ? new Date(lastAdded - SCAN_WINDOW) : visit;
   const { today, all } = searchSummary(st.scored, fresh, sx.analysed);
   const progress = applicationProgressCounts(here);
   const latestApp = submittedApplications(here).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
@@ -206,7 +213,7 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Opportunity <em>Briefing</em></span></span>, `New roles in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />Live · since {fresh.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}</>, true)}
+      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Opportunity <em>Briefing</em></span></span>, latestScan ? `Nothing new since your last visit. Here is the latest market scan in ${cname(country)}` : `New roles in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{latestScan ? "Latest scan · " : "Live · since "}{(latestScan ? new Date(lastAdded) : fresh).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}</>, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>

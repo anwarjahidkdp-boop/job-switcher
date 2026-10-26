@@ -132,9 +132,19 @@ describe("career home", () => {
     html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain('href="/linkedin"');
   });
-  it("shows one calm line instead of zeros when nothing is new since the last visit", async () => {
+  it("briefs the latest market scan when nothing is new since the last visit", async () => {
     const st = h.st as unknown as { scored: { job: { addedAt: string } }[] };
     for (const x of st.scored) x.job.addedAt = OLD;
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    expect(html).toContain("Latest scan · ");
+    expect(html).toContain("Nothing new since your last visit. Here is the latest market scan in Bangladesh");
+    expect(html).toContain(`since=${Date.parse(OLD) - 12 * 3_600_000}`);
+    expect(html).not.toContain("No new roles since your last briefing");
+  });
+  it("shows one calm line instead of zeros when no jobs have been scanned yet", async () => {
+    const st = h.st as unknown as { scored: unknown[] };
+    st.scored = [];
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).toContain("No new roles since your last briefing");
