@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   }
   // Home shows what is new since the last visit: record this visit before the page reads it.
   if (path === "/inbox" && data?.claims?.sub) {
-    const visit = nextVisit(request.cookies.get(VISIT_COOKIE)?.value, Date.now());
+    const visit = nextVisit(request.cookies.get(VISIT_COOKIE)?.value, Date.now(), data.claims.sub);
     request.cookies.set(VISIT_COOKIE, visit);
     const next = NextResponse.next({ request });
     for (const c of response.cookies.getAll()) next.cookies.set(c);

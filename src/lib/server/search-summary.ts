@@ -23,12 +23,22 @@ export function dayStart(timeZone: string, now: Date = new Date()): Date {
   return new Date(now.getTime() - secs * 1000 - now.getMilliseconds());
 }
 
+/** When a job was found for a person who joined at `joinedAt`: when it was added, or when they joined if that is later. */
+export function foundAtFor(addedAt: string | null | undefined, joinedAt: string | null | undefined): string | null {
+  const a = Date.parse(addedAt || ""), j = Date.parse(joinedAt || "");
+  if (!Number.isFinite(j)) return addedAt ?? null;
+  return Number.isFinite(a) && a >= j ? addedAt! : joinedAt!;
+}
+
+/** When a job was found for this person (see Job.foundAt); NaN when unknown. */
+export const foundMs = (x: Scored) => Date.parse(x.job.foundAt ?? x.job.addedAt ?? "");
+
 /** Counts from the same scores the page shows, so the summary and the opportunities list always agree.
- *  Today = jobs added since local midnight; all time = every visible job (`analysed`), banded from the scored ones. */
+ *  Today = jobs found for the person since `since`; all time = every visible job (`analysed`), banded from the scored ones. */
 export function searchSummary(rows: Scored[], since: Date, analysed: number): { today: BandCounts; all: BandCounts } {
   const fit = (x: Scored) => ({ score: x.m.score, relevant: x.m.relevant && !x.m.expired });
   const t = since.getTime();
-  const today = bandCounts(rows.filter((x) => x.job.addedAt && Date.parse(x.job.addedAt) >= t).map(fit));
+  const today = bandCounts(rows.filter((x) => foundMs(x) >= t).map(fit));
   const scored = bandCounts(rows.map(fit));
   const total = Math.max(analysed, rows.length);
   return { today, all: { ...scored, total, other: total - scored.ex - scored.st - scored.po - scored.lo } };
@@ -49,7 +59,7 @@ export function fitCard(x: Scored): FitCard {
 export function summaryRows(rows: Scored[], since: Date | null, filter: SummaryFilter): Scored[] {
   const t = since?.getTime();
   return rows
-    .filter((x) => t == null || (!!x.job.addedAt && Date.parse(x.job.addedAt) >= t))
+    .filter((x) => t == null || foundMs(x) >= t)
     .filter((x) => filter === "found" || (filter === "matched" ? fitCard(x) !== "rest" : fitCard(x) === filter))
     .sort((a, b) => b.m.score - a.m.score);
 }

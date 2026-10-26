@@ -1,3 +1,4 @@
+import { foundAtFor } from "./search-summary";
 import {careerHeadline} from "../cv/experience";
 import { applyQueue, queueSafety } from "../apply-queue";
 import { localSearchAnswers } from "../application-defaults";
@@ -159,6 +160,8 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   if(master)master.content={...master.content,headline:careerHeadline(master.content.experience,master.content.headline)};
   const P = profileFrom(profile, facts, master);
   const [jobs, analysed] = P && !opts.skipMatching ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
+  // A job collected before the account existed was found for this person when they joined, never earlier.
+  for (const j of jobs) j.foundAt = foundAtFor(j.addedAt, profile.created_at);
   // Drop previous-country drafts from all active views; retain sent history for account-wide limits.
   const apps: Record<string, ApplicationRow> = {};
   for (const a of (appsRes.data || []) as (ApplicationRow & { jobs: { country: string } | null })[]) {

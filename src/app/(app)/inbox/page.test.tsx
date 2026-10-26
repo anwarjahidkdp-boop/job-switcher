@@ -161,4 +161,17 @@ describe("career home", () => {
     expect(html).toMatch(/href="\/setup\?site=Indeed"[^>]*>[\s\S]*Connect Indeed/);
     expect(html.indexOf("Connect LinkedIn")).toBeLessThan(html.indexOf("Connect Indeed"));
   });
+  it("briefs every job found for a new account on its first visit, old scans too, counted from joining", async () => {
+    const st = h.st as unknown as { profile: { created_at: string }; scored: { job: { addedAt: string; foundAt?: string } }[] };
+    const joined = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    st.profile.created_at = joined;
+    for (const x of st.scored) { x.job.addedAt = OLD; x.job.foundAt = joined; }
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    if (process.env.DUMP_FIRST) writeFileSync(process.env.DUMP_FIRST, html);
+    expect(html).toContain("Your first briefing: every role we found for you in Bangladesh");
+    expect(html).toContain("Since you joined · ");
+    expect(html).toContain(`since=${Date.parse(joined)}`);
+    expect(html).not.toContain("Latest scan · ");
+  });
 });
