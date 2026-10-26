@@ -12,10 +12,11 @@ Every number a person sees comes from one function. The list that number opens c
   - Stretch & others: everything else. That means under 70%, outside the field (including an AI "no"), or past the deadline.
   - Top match = Strong + Best + Good.
 - **Jobs found** = every job checked for the person in the window, counted in the database (`countVisibleJobs` / `countFoundSince`). The page loads only the newest and best jobs. The jobs it does not load are lower fits or outside the person's target roles: they are counted under Stretch & others and appear in the list as one "We also checked N more" line.
-- **Today's Fresh Jobs window** (`briefingWindow`): today, from midnight in the person's search country.
-  - Each market gets fresh jobs three times a day at its own local times (`src/lib/scan-schedule.ts`): Bangladesh 8 am, 3 pm and 10 pm; UK 7 am, 12 pm and 9 pm; elsewhere 8 am, 1 pm and 9 pm. The hourly ingest run scans a market two hours before its update, so the jobs are ready when people look. The chip reads "Updated 3 pm · Next 10 pm".
+- **Today's Fresh Jobs window** (`briefingWindow`): the last 24 hours, counted back from the market's latest update.
+  - Each market is scanned three times a day at its own local times (`src/lib/scan-schedule.ts`): Bangladesh 8 am, 3 pm and 10 pm; UK 7 am, 12 pm and 9 pm; elsewhere 8 am, 1 pm and 9 pm. The hourly ingest run scans a market two hours before its update, so the jobs are ready when people look. The chip reads "Updated 3 pm · Next 10 pm".
+  - Anchoring to the update keeps the numbers steady between updates, so Home and the lists it opens always agree. Jobs that arrive in between (job-alert emails) still count.
   - An account younger than 24 hours sees everything since joining. The chip reads "Since you joined".
-  - Nothing found or applied today yet: yesterday's jobs ("Yesterday's jobs"), then the latest market scan (12 hours before the newest job).
+  - Nothing found or applied in the window: the latest market scan (12 hours before the newest job).
   - New-match emails go out at most once a day; the bell rings for every update.
 - **Applications** (`appliedFor`) count submitted applications in the current search country:
   - Applied: all of them, or those submitted since the window start.

@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { UserState } from "@/lib/server/state";
 
 const H = 3_600_000, D = 24 * H;
-// 6 pm in Dhaka, so "today" (since local midnight) is a fixed 18 hours.
+// 6 pm in Dhaka: the latest update was 3 pm, so the fresh-jobs window starts at 3 pm yesterday.
 const NOW = Date.parse("2026-10-26T12:00:00Z");
 vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 const iso = (t: number) => new Date(t).toISOString();
@@ -108,7 +108,7 @@ describe("every number on Home equals the list it opens", () => {
     const sw = list.match(/href="([^"]+)"[^>]*>Today&#x27;s Fresh Jobs</)?.[1];
     expect(links.map(([href]) => href)).toContain(sw);
   });
-  it("on an older account (fresh jobs = today since local midnight, whatever the last visit)", async () => {
+  it("on an older account (fresh jobs = the 24 hours up to the latest update, whatever the last visit)", async () => {
     h.cookie = `${NOW - 6 * H}.${NOW - 5 * H}.u1`;
     const links = await check();
     expect(links.find(([href]) => href.includes("fit=found") && href.includes("since="))?.[1]).toBe(6);

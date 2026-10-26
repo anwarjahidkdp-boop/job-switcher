@@ -55,7 +55,7 @@ export default async function Opportunities({searchParams}:{searchParams:Promise
    </nav>
   </div>
   <div className="card" style={{marginTop:12}}>
-   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):unlisted?null:<p className="muted" style={{padding:16}}>{fresh!=null?'No fresh jobs in this group yet today.':today?'No jobs in this group were found for you today.':'No jobs in this group yet.'}</p>}
+   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):unlisted?null:<p className="muted" style={{padding:16}}>{fresh!=null?'No fresh jobs in this group in the last 24 hours.':today?'No jobs in this group were found for you today.':'No jobs in this group yet.'}</p>}
    {!count&&GROW[fit]?<div className="fit-grow">
     <p><b>How to get more {LABEL[fit]} roles</b>{GROW[fit]} Your career guide shows the skills, courses and CV details that raise your score.</p>
     <div className="row" style={{gap:8,flexWrap:'wrap'}}>

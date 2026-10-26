@@ -133,22 +133,22 @@ describe("career home", () => {
     html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain('href="/linkedin"');
   });
-  it("shows the latest market scan when nothing was found today or yesterday", async () => {
+  it("drops jobs older than 24 hours from Fresh Jobs and keeps them in Lifetime", async () => {
     const st = h.st as unknown as { scored: { job: { addedAt: string } }[] };
     for (const x of st.scored) x.job.addedAt = OLD;
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toMatch(/Latest scan \w{3} \d+ \w{3} · Next \d+ [ap]m/);
-    expect(html).not.toContain("Nothing new since your last visit");
-    expect(html).toContain(`since=${Date.parse(OLD) - 12 * 3_600_000}`);
-    expect(html).not.toContain("No fresh jobs yet today");
+    expect(html).toMatch(/Updated \d+ [ap]m · Next \d+ [ap]m/);
+    expect(html).not.toContain("Latest scan");
+    expect(html).toContain("No fresh jobs in the last 24 hours. New jobs land at 8 am, 3 pm and 10 pm, Bangladesh time.");
+    expect(html).toContain('href="/opportunities?fit=found"');
   });
   it("shows one calm line instead of zeros when no jobs have been scanned yet", async () => {
     const st = h.st as unknown as { scored: unknown[] };
     st.scored = [];
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toContain("No fresh jobs yet today. New jobs land at 8 am, 3 pm and 10 pm, Bangladesh time.");
+    expect(html).toContain("No fresh jobs in the last 24 hours. New jobs land at 8 am, 3 pm and 10 pm, Bangladesh time.");
     expect(html).not.toContain("when=new");
     expect(html).toContain("Lifetime");
   });
@@ -172,6 +172,6 @@ describe("career home", () => {
     expect(html).not.toContain("Nothing new since your last visit");
     expect(html).toContain("Since you joined · ");
     expect(html).toContain(`since=${Date.parse(joined)}`);
-    expect(html).not.toContain("Latest scan ");
+    expect(html).not.toContain("Latest scan");
   });
 });

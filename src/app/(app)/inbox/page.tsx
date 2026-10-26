@@ -78,7 +78,7 @@ export default async function Inbox() {
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  // Today's Fresh Jobs: today in the market's time zone, updated at its local times (a new account's first day holds everything found for it).
+  // Today's Fresh Jobs: the last 24 hours, updated at the market's local times (a new account's first day holds everything found for it).
   const brief = await briefingWindow(db, st, (await cookies()).get(VISIT_COOKIE)?.value, now);
   const fresh = brief.since, foundSince = brief.checked;
   // Every job number on this page comes from jobTotals, the same function behind the lists those numbers open.
@@ -121,7 +121,7 @@ export default async function Inbox() {
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
         </div>
-        <p className={s.calm}>No fresh jobs yet today. New jobs land at {updateTimes(country)}, {cname(country)} time.</p>
+        <p className={s.calm}>No fresh jobs in the last 24 hours. New jobs land at {updateTimes(country)}, {cname(country)} time.</p>
       </section>
     );
     return (
@@ -212,7 +212,7 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Today&apos;s <em>Fresh Jobs</em></span></span>, "", today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{freshChip(brief, rule(country).timeZone)}</>, true)}
+      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Last 24 hours</span><span>Today&apos;s <em>Fresh Jobs</em></span></span>, "", today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{freshChip(brief, rule(country).timeZone)}</>, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
@@ -328,7 +328,5 @@ export default async function Inbox() {
 function freshChip(b: Briefing, timeZone: string): string {
   const next = `Next ${clock(b.next, timeZone)}`;
   if (b.kind === "joined") return `Since you joined · ${next}`;
-  if (b.kind === "yesterday") return `Yesterday's jobs · ${next}`;
-  if (b.kind === "scan") return `Latest scan ${b.shownAt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone })} · ${next}`;
   return `Updated ${clock(b.updated, timeZone)} · ${next}`;
 }
