@@ -8,7 +8,7 @@ const PROTECTED = ["/onboarding", "/inbox", "/notifications", "/jobs", "/queue",
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path.startsWith("/api/") && path !== "/api/billing/paddle" && !trustedMutation(request))
+  if (path.startsWith("/api/") && path !== "/api/billing/creem" && !trustedMutation(request))
     return NextResponse.json({error:"This request must come from JobPao."},{status:403});
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next({ request });

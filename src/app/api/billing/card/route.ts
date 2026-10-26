@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { apiCtx, apiError, unauthorized } from "@/lib/server/api";
 import { PaymentError, startCardCheckout } from "@/lib/server/billing";
 
-/** Start a Paddle card checkout (people living outside Bangladesh; off unless PADDLE_* is set). */
+/** Start a Creem card checkout (people living outside Bangladesh; off unless CREEM_* is set). */
 export async function POST(req: Request) {
   const c = await apiCtx();
   if (!c) return unauthorized();

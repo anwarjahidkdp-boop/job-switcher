@@ -18,7 +18,7 @@ export default function Privacy() {
         <li><b>Account:</b> your email address and login details.</li>
         <li><b>Career details:</b> your CV (text, and the file or photo you upload), work history, education, skills, job preferences, target country and the country you live in.</li>
         <li><b>Your activity:</b> jobs you save or dismiss, applications and their status, interview notes, and job-alert emails you choose to forward to your JobPao address.</li>
-        <li><b>Payments:</b> the pack, amount, date and payment reference. Card numbers go straight to Paddle, our payment reseller, and we never see them. For bKash we keep the transaction ID you enter.</li>
+        <li><b>Payments:</b> the pack, amount, date and payment reference. Card numbers go straight to Creem, our payment reseller, and we never see them. For bKash we keep the transaction ID you enter.</li>
         <li><b>Gmail (only if you connect it):</b> permission to send emails you approve. We cannot read your inbox.</li>
         <li><b>Technical data:</b> your approximate country from your IP address (to suggest prices and job markets), and basic logs to keep the service secure.</li>
       </ul>
@@ -37,7 +37,7 @@ export default function Privacy() {
         <li><b>Supabase</b>: database, file storage and login.</li>
         <li><b>Cloudflare</b>: website hosting and receiving forwarded emails.</li>
         <li><b>Anthropic</b>: the AI that reads your CV and job posts to write your documents. Data sent through its API is not used to train its models.</li>
-        <li><b>Paddle</b> (card payments, as Merchant of Record) and <b>bKash</b> (Bangladesh payments).</li>
+        <li><b>Creem</b> (card payments, as Merchant of Record) and <b>bKash</b> (Bangladesh payments).</li>
         <li><b>Email providers</b> (such as Brevo) to deliver our emails, and <b>Google</b> if you connect Gmail.</li>
       </ul>
       <p>Some of these providers process data outside your country. They use standard safeguards for international transfers.</p>

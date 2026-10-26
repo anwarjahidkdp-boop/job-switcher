@@ -81,7 +81,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
         {!payable ? (
           <div className="card panel stack" style={{ marginTop: 14 }}>
             <h3 style={{ margin: 0 }}>Pay by card</h3>
-            <p className="small muted">Living in {where}: <b>{usd}</b> for {span}{localHint(local) ? <>, {localHint(local)}. Your card is charged in US dollars and your bank converts it, so the amount on your statement can differ slightly</> : null}. Secure checkout by Paddle, our reseller and Merchant of Record: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
+            <p className="small muted">Living in {where}: <b>{usd}</b> for {span}{localHint(local) ? <>, {localHint(local)}. Your card is charged in US dollars and your bank converts it, so the amount on your statement can differ slightly</> : null}. Secure checkout by Creem, our reseller and Merchant of Record: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
             {card ? <CardCheckoutButton label={`Pay ${usd} by card`} pack={pack} /> : <p className="note">Card payment opens very soon. Your trial features keep working until the trial ends.</p>}
           </div>
         ) : null}
