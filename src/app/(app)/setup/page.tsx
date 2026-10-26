@@ -76,7 +76,7 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <>
-      <PageHead back={{ href: "/inbox", label: "Back to opportunities" }} kicker={`Setup guide · ${done} of ${ports.length} job sites set up`} title={<>Get new jobs <span>automatically</span></>} sub="Job sites already email new jobs to your Gmail. You set Gmail to pass only those job emails on to JobPao, and we turn them into matched jobs for you. No passwords, and we never see your other emails." />
+      <PageHead back={{ href: "/inbox", label: "Back to Home" }} kicker={`Setup guide · ${done} of ${ports.length} job sites set up`} title={<>Get new jobs <span>automatically</span></>} sub="Job sites already email new jobs to your Gmail. You set Gmail to pass only those job emails on to JobPao, and we turn them into matched jobs for you. No passwords, and we never see your other emails." />
       <div className="ob">
         <div className="sg-flow">
           <div><b>1</b><span>{site} emails new jobs to your Gmail</span></div>

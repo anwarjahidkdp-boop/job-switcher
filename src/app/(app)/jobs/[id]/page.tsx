@@ -47,7 +47,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const job = st.scored.find((x) => x.job.id === id)?.job || (await loadJob(db, id));
   if (!job) notFound();
   if (job.country !== st.country && !st.apps[job.id]?.applied_at) return <><PageHead title={<>Previous search country</>} sub="This selection has left your active queue. Choose a job in your current search country." /><Link className="btn btn-primary" href="/inbox">View current opportunities</Link></>;
-  if (job.active === false && !st.apps[job.id]) return <><PageHead title={<>Listing unavailable</>} sub="This vacancy has closed or its source requires review. It is not currently offered as a job recommendation." /><Link className="btn btn-ghost" href="/inbox">Back to opportunities</Link></>;
+  if (job.active === false && !st.apps[job.id]) return <><PageHead title={<>Listing unavailable</>} sub="This vacancy has closed or its source requires review. It is not currently offered as a job recommendation." /><Link className="btn btn-ghost" href="/opportunities">Back to opportunities</Link></>;
   const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
   const ai = st.aiCheck.get(job.id);
   // The full post, so the person can judge the job themselves before applying (list loads leave it out).
@@ -87,7 +87,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const canPrepare = !resolved && eligibility.eligible && (!a?.pack||needsFreshPack) && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
-      <PageHead slim back={{ href: "/inbox", label: "Back to opportunities" }} />
+      <PageHead slim back={{ href: "/opportunities", label: "Back to opportunities" }} />
       <div className="jobgrid document-layout" style={{ marginTop: 10 }}>
         <div className="stack" style={{ gap: 18 }}>
           <div className="card panel">

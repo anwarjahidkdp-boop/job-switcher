@@ -1,21 +1,5 @@
 import type { Scored } from "@/lib/matching";
 
-/** Jobs found for a person, split by fit band. Everything that is not relevant or scores under 55% counts as "other",
- *  so the five parts always add up to the total. */
-export interface BandCounts { total: number; ex: number; st: number; po: number; lo: number; other: number }
-
-export function bandCounts(rows: { score: number; relevant: boolean }[]): BandCounts {
-  const c: BandCounts = { total: rows.length, ex: 0, st: 0, po: 0, lo: 0, other: 0 };
-  for (const r of rows) {
-    if (!r.relevant || r.score < 55) c.other++;
-    else if (r.score >= 90) c.ex++;
-    else if (r.score >= 80) c.st++;
-    else if (r.score >= 70) c.po++;
-    else c.lo++;
-  }
-  return c;
-}
-
 /** The instant local midnight began in `timeZone` (ignores a DST change at midnight itself). */
 export function dayStart(timeZone: string, now: Date = new Date()): Date {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone, hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(now).map((x) => [x.type, x.value]));
@@ -33,18 +17,7 @@ export function foundAtFor(addedAt: string | null | undefined, joinedAt: string 
 /** When a job was found for this person (see Job.foundAt); NaN when unknown. */
 export const foundMs = (x: Scored) => Date.parse(x.job.foundAt ?? x.job.addedAt ?? "");
 
-/** Counts from the same scores the page shows, so the summary and the opportunities list always agree.
- *  Today = jobs found for the person since `since`; all time = every visible job (`analysed`), banded from the scored ones. */
-export function searchSummary(rows: Scored[], since: Date, analysed: number): { today: BandCounts; all: BandCounts } {
-  const fit = (x: Scored) => ({ score: x.m.score, relevant: x.m.relevant && !x.m.expired });
-  const t = since.getTime();
-  const today = bandCounts(rows.filter((x) => foundMs(x) >= t).map(fit));
-  const scored = bandCounts(rows.map(fit));
-  const total = Math.max(analysed, rows.length);
-  return { today, all: { ...scored, total, other: total - scored.ex - scored.st - scored.po - scored.lo } };
-}
-
-/** The four summary cards. Uses the same rules as `bandCounts`, so a card's list has exactly its count. */
+/** The four fit cards: Strong (90%+), Best (80-89%), Good (70-79%), and everything else (under 70%, outside the field, expired). */
 export type FitCard = "ex" | "st" | "po" | "rest";
 export type SummaryFilter = "found" | "matched" | FitCard;
 export const SUMMARY_FILTERS: readonly SummaryFilter[] = ["found", "matched", "ex", "st", "po", "rest"];
@@ -55,7 +28,33 @@ export function fitCard(x: Scored): FitCard {
   return s >= 90 ? "ex" : s >= 80 ? "st" : "po";
 }
 
-/** The jobs behind one summary number: `since` set = Today panel, null = All time. Highest score first. */
+/** THE single source for every job number in the app (Home panels, fit cards, the lists they open).
+ *  `rows` = the person's scored jobs loaded on the page; `checked` = every job checked for them in that window, counted
+ *  in the database (see countFoundSince), which can be more than the loaded rows. Jobs not loaded are outside the
+ *  person's target roles, so they belong to "Stretch & others". A number and the list it opens come from here, so the
+ *  list always has exactly that many jobs (the loaded ones plus an "also checked" line for the rest). */
+export type JobTotals = Record<SummaryFilter, number>;
+export function jobTotals(rows: Scored[], since: Date | null, checked: number): JobTotals {
+  const t = since?.getTime();
+  const c = { ex: 0, st: 0, po: 0, rest: 0 };
+  let loaded = 0;
+  for (const x of rows) {
+    if (t != null && !(foundMs(x) >= t)) continue;
+    loaded++;
+    c[fitCard(x)]++;
+  }
+  const found = Math.max(checked, loaded);
+  return { found, matched: c.ex + c.st + c.po, ex: c.ex, st: c.st, po: c.po, rest: found - c.ex - c.st - c.po };
+}
+
+/** The list behind one number: the loaded jobs (highest score first) and how many more were checked but not loaded. */
+export function jobsBehind(rows: Scored[], since: Date | null, filter: SummaryFilter, checked: number): { rows: Scored[]; count: number; unlisted: number } {
+  const list = summaryRows(rows, since, filter);
+  const count = jobTotals(rows, since, checked)[filter];
+  return { rows: list, count, unlisted: Math.max(0, count - list.length) };
+}
+
+/** The loaded jobs behind one summary number: `since` set = a window, null = all time. Highest score first. */
 export function summaryRows(rows: Scored[], since: Date | null, filter: SummaryFilter): Scored[] {
   const t = since?.getTime();
   return rows

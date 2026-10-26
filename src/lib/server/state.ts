@@ -133,10 +133,21 @@ export async function loadVisibleJobs(db: SupabaseClient, userId: string, countr
 }
 
 /** Only persisted assessments belonging to this user count as personal analysis. */
-export async function countVisibleJobs(db: SupabaseClient, userId: string, country: string): Promise<number> {
-  const { count, error } = await db.from("matches").select("job_id,jobs!inner(country,active)", { count: "exact", head: true }).eq("user_id", userId).eq("jobs.country", country).eq("jobs.active", true);
+export async function countVisibleJobs(db: SupabaseClient, userId: string, country: string, since?: Date): Promise<number> {
+  let q = db.from("matches").select("job_id,jobs!inner(country,active,created_at)", { count: "exact", head: true }).eq("user_id", userId).eq("jobs.country", country).eq("jobs.active", true);
+  if (since) q = q.gte("jobs.created_at", since.toISOString());
+  const { count, error } = await q;
   if (error) throw error;
   return count || 0;
+}
+
+/** Jobs found for this person since `since`, counted the same way as all time (`analysed`): a window that starts at
+ *  or before joining covers everything they have, and a later window counts jobs added since then. */
+export async function countFoundSince(db: SupabaseClient, st: Pick<UserState, "userId" | "country" | "analysed" | "profile">, since: Date): Promise<number> {
+  const joined = Date.parse(st.profile?.created_at || "");
+  if (!Number.isFinite(joined)) return 0;
+  if (since.getTime() <= joined) return st.analysed;
+  return countVisibleJobs(db, st.userId, st.country, since);
 }
 
 export async function loadState(db: SupabaseClient, userId: string, profileP?: Promise<ProfileRow | null>, opts: { allJobs?: boolean; skipMatching?:boolean; skipApplications?:boolean } = {}): Promise<UserState | null> {

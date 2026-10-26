@@ -1,6 +1,6 @@
-import { applicationProgressCounts } from "@/lib/dashboard-progress";
 import { OpportunityRow } from "@/components/OpportunityRow";
-import { isResolvedApplication, submittedApplications } from "@/lib/applied-history";
+import { currentApplicationNotifications } from "@/lib/dashboard-progress";
+import { appliedFor, isResolvedApplication, submittedApplications } from "@/lib/applied-history";
 import { currentCountryApps } from "@/lib/application-country";
 import { applyQueue } from "@/lib/apply-queue";
 import { missingApplicationFields } from "@/lib/application-profile";
@@ -17,24 +17,23 @@ import { listNotifications } from "@/lib/server/notify";
 import { siteDone, sitesDone } from "@/lib/setup";
 import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
 import { cookies } from "next/headers";
-import { VISIT_COOKIE, visitSince } from "@/lib/visit";
+import { VISIT_COOKIE } from "@/lib/visit";
+import { briefingWindow } from "@/lib/server/briefing";
 import { strongFitGaps } from "@/lib/fit-gaps";
 import type { ReactNode } from "react";
 import { courseLinks, nowMs } from "@/lib/today";
 import { skillLabel } from "@/lib/taxonomy";
 import { TRIAL_APPLY } from "@/lib/pack-limits";
+import { packLimits, trialApplyRoom } from "@/lib/pack-limits";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiConfigured } from "@/lib/ai";
-import { searchSummary, type BandCounts } from "@/lib/server/search-summary";
-import { foundMs } from "@/lib/server/search-summary";
+import { fitCard, jobTotals, type JobTotals } from "@/lib/server/search-summary";
 import s from "./Home.module.css";
 
 export const metadata = { title: "Opportunities" };
 
 const DAY = 86_400_000;
-/** The latest market scan: jobs added within this long before the newest one (the scan runs once a day). */
-const SCAN_WINDOW = 12 * 60 * 60 * 1000;
 const BAND_CLASS: Record<Band | "other", string> = { ex: s.ex, st: s.st, po: s.po, lo: s.lo, other: s.other };
 const Svg = ({ d, className }: { d: string; className?: string }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 const ICON = {
@@ -63,7 +62,9 @@ export default async function Inbox() {
   const here = currentCountryApps(st.apps, st.country);
   const missing = missingApplicationFields({ ...st.profile.answer_library, birthDate: st.profile.answer_library?.birthDate || st.profile.personal?.dob }, st.profile.deal_breakers || {}, st.country);
   const P = st.P, sx = stats({ ...st, apps: here }), country = st.country;
-  const { ranked: list, featured } = opportunitySections(available, st.dismissed, st.apps);
+  const { ranked: list, featured: top1 } = opportunitySections(available, st.dismissed, st.apps);
+  // "Your best match" is a Top match (70%+), the same bar as the Top match tile; under that it says "No match yet".
+  const featured = top1 && fitCard(top1) !== "rest" ? top1 : null;
   const jobById = new Map(st.scored.map((x) => [x.job.id, x.job]));
   const apps = Object.values(here);
   const due = apps.filter((a) => a.status === "reminder" && a.reminder_date && (daysUntil(a.reminder_date, st.today) ?? 1) <= 0).map((a) => ({ a, job: jobById.get(a.job_id) })).filter((x) => x.job);
@@ -76,18 +77,13 @@ export default async function Inbox() {
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  // The Opportunity Briefing counts jobs found for this person since their previous visit (at most a week). An account's
-  // story starts when it joins: jobs collected before then count as found at joining, so the first visit briefs them all.
-  const joined = Date.parse(st.profile.created_at || "");
-  const visit = new Date(visitSince((await cookies()).get(VISIT_COOKIE)?.value, now, st.userId, joined));
-  // Nothing new since that visit (jobs arrive once a day): brief the latest market scan instead of an empty panel.
-  const lastAdded = Math.max(0, ...st.scored.map(foundMs).filter((t) => Number.isFinite(t)));
-  const quiet = !searchSummary(st.scored, visit, sx.analysed).today.total && !apps.some((a) => a.applied_at && Date.parse(a.applied_at) >= visit.getTime());
-  const latestScan = quiet && lastAdded > 0 && lastAdded < visit.getTime();
-  const fresh = latestScan ? new Date(lastAdded - SCAN_WINDOW) : visit;
-  const sinceJoined = !latestScan && Number.isFinite(joined) && fresh.getTime() <= joined;
-  const { today, all } = searchSummary(st.scored, fresh, sx.analysed);
-  const progress = applicationProgressCounts(here);
+  // The Opportunity Briefing window (new account: since joining; then: since the last visit; quiet: the latest scan).
+  const brief = await briefingWindow(db, st, (await cookies()).get(VISIT_COOKIE)?.value, now);
+  const fresh = brief.since, latestScan = brief.kind === "scan", sinceJoined = brief.kind === "joined", lastAdded = brief.shownAt.getTime(), foundSince = brief.checked;
+  // Every job number on this page comes from jobTotals, the same function behind the lists those numbers open.
+  const today = jobTotals(st.scored, fresh, foundSince), all = jobTotals(st.scored, null, sx.analysed);
+  // Interviewed and Offer received count the same submitted applications the Applied page lists for those filters.
+  const milestones = { interview: appliedFor(here, "interview").length, offer: appliedFor(here, "offer").length };
   const latestApp = submittedApplications(here).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
   const fmt = (n: number) => n.toLocaleString("en-GB");
@@ -95,31 +91,31 @@ export default async function Inbox() {
 
   // Plan line in the hero: what the person paid for, or how much trial is left.
   const daysLeft = (iso: string | null | undefined) => (iso ? Math.max(0, Math.ceil((Date.parse(iso) - now) / DAY)) : null);
-  const planLine = pro ? { label: "Pro", left: daysLeft(sub?.current_period_end) } : sub?.status === "trialing" && sub.trial_ends_at && Date.parse(sub.trial_ends_at) > now ? { label: "Free trial", left: daysLeft(sub.trial_ends_at) } : null;
+  const planLine = pro ? { label: "Pro", left: daysLeft(sub?.current_period_end) } : sub?.status === "trialing" && sub.trial_ends_at && Date.parse(sub.trial_ends_at) > now ? { label: "Pro Trial", left: daysLeft(sub.trial_ends_at) } : null;
 
   // Applications left: Pro counts AI-tailored packs (rolling day/week/month); the trial counts sent applications.
   // Trial limits stay account-wide (the server counts every sent application), so they read all applications.
+  // Pro limits depend on the home country (Bangladesh vs elsewhere), the same rule the upgrade page and the server use.
+  const proLimits = packLimits("pro", st.homeCountry);
   const sentAll = Object.values(st.apps).map((a) => (a.applied_at ? Date.parse(a.applied_at) : NaN)).filter((t) => Number.isFinite(t));
-  const sent = apps.map((a) => (a.applied_at ? Date.parse(a.applied_at) : NaN)).filter((t) => Number.isFinite(t));
   const limits: [string, number, number][] = allowance
     ? [["Today", allowance.limits.day - allowance.used.day, allowance.limits.day], ["This week", allowance.limits.week - allowance.used.week, allowance.limits.week], ["This month", allowance.limits.month - allowance.used.month, allowance.limits.month]]
-    : pro ? [] : [["Today", Math.min(TRIAL_APPLY.day - sentAll.filter((t) => now - t < DAY).length, TRIAL_APPLY.total - sentAll.length), TRIAL_APPLY.day], ["In trial", TRIAL_APPLY.total - sentAll.length, TRIAL_APPLY.total]];
+    : pro ? [] : [["Today", trialApplyRoom(Object.values(st.apps), now), TRIAL_APPLY.day], ["In trial", TRIAL_APPLY.total - sentAll.length, TRIAL_APPLY.total]];
 
   // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
-  const appliedToday = sent.filter((t) => t >= fresh.getTime()).length;
+  const appliedToday = appliedFor(here, "new", fresh.getTime()).length;
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
-  const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
   const FIT_ICON = { ex: ICON.star, st: ICON.target, po: ICON.check, rest: ICON.grow };
-  const panel = (id: string, title: ReactNode, sub: string, c: BandCounts | null, applied: number, tone: string, chip: ReactNode, isToday: boolean) => {
+  const panel = (id: string, title: ReactNode, sub: string, c: JobTotals | null, applied: number, tone: string, chip: ReactNode, isToday: boolean) => {
     const outcomes = !isToday;
-    const f = c ? four(c) : null;
+    const f = c;
     // Every number opens the jobs behind it.
     const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? `&when=new&since=${fresh.getTime()}` : ""}`;
     // Nothing new: one calm line instead of a row of zeros.
-    if (isToday && (!c || !c.total) && !applied) return (
+    if (isToday && (!c || !c.found) && !applied) return (
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
@@ -133,12 +129,12 @@ export default async function Inbox() {
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
           <div className={`${s.stats} ${outcomes ? s.stats4 : ""}`}>
             {(outcomes
-              ? [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
+              ? [[jobsHref("found"), ICON.search, c ? fmt(c.found) : "–", "Jobs found", null],
                  ["/applications", ICON.send, fmt(applied), "Applied", null],
-                 ["/applications?status=interview", ICON.people, fmt(sx.interviews), "Interviewed", null],
-                 ["/applications?status=offer", ICON.trophy, fmt(sx.offers), "Offer received", null]]
-              : [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
-                 [jobsHref("matched"), ICON.target, f ? fmt(f.ex + f.st + f.po) : "–", "Top match", "70% and above"],
+                 ["/applications?status=interview", ICON.people, fmt(milestones.interview), "Interviewed", null],
+                 ["/applications?status=offer", ICON.trophy, fmt(milestones.offer), "Offer received", null]]
+              : [[jobsHref("found"), ICON.search, c ? fmt(c.found) : "–", "Jobs found", null],
+                 [jobsHref("matched"), ICON.target, f ? fmt(f.matched) : "–", "Top match", "70% and above"],
                  [`/applications?when=new&since=${fresh.getTime()}`, ICON.send, fmt(applied), "Applied", null]]
             ).map(([href, icon, n, label, note]) => (
               <Link prefetch={false} key={label} className={s.navy} href={href!}><span className={s.navyIc}><Svg d={icon!} /></span><b>{n}</b><span className={s.navyL}>{label}{note ? <small>{note}</small> : null}</span></Link>
@@ -151,7 +147,7 @@ export default async function Inbox() {
             const body = <>
               <Svg className={s.mini} d={FIT_ICON[b]} />
               <span className={s.fitTop}><span className={s.fitLabel}>{label}</span><span className={s.range}>{range}</span></span>
-              <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, c?.total || 0)}%</span></span>
+              <span className={s.countRow}><b className={s.count}>{fmt(n)}</b><span className={s.pct}>{pct(n, c?.found || 0)}%</span></span>
             </>;
             const cls = `${s.fit} ${b === "rest" ? s.lo : BAND_CLASS[b]}`;
             return <Link prefetch={false} key={b} className={cls} href={jobsHref(b)}>{body}</Link>;
@@ -187,7 +183,7 @@ export default async function Inbox() {
   const mainSite = setupSites.find((p) => p !== "LinkedIn") ?? null;
   const siteNeeded = !!mainSite && !siteDone(st.profile.setup_steps || {}, mainSite);
   // Once that site is connected its button leaves the hero; the newest unread notification takes its place.
-  const note = siteNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
+  const note = siteNeeded ? null : currentApplicationNotifications(await listNotifications(db, st.userId, 1), st.apps).find((n) => !n.read_at) || null;
   const nextSite = setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p));
   // LinkedIn helper for every country: shown until the person says they updated their profile.
   const liSteps = st.profile.setup_steps || {};
@@ -231,7 +227,7 @@ export default async function Inbox() {
         </span></span></Link>
       </div>
 
-      {panel("all-h", "Lifetime", "Every job we have checked for you", all, progress.applied, s.pAll, "Since you joined", false)}
+      {panel("all-h", "Lifetime", "Every job we have checked for you", all, appliedFor(here, "all").length, s.pAll, "Since you joined", false)}
 
 
       <div className={s.grid}>
@@ -285,7 +281,7 @@ export default async function Inbox() {
             {limits.length ? <div className={s.limits}>
               <p className={s.limTitle}>{pro ? "AI applications left" : "Applications left"}</p>
               {limits.map(([label, left, max]) => { const l = Math.max(0, left); return <div key={label} className={s.lim}><span>{label}</span><span className={s.bar}><i style={{ width: `${Math.round((100 * l) / Math.max(1, max))}%` }} /></span><b>{l} of {max}</b></div>; })}
-              {!pro ? <Link prefetch={false} className={s.limNote} href="/upgrade">Pro: 2 a day, 10 a week, 40 a month →</Link> : null}
+              {!pro ? <Link prefetch={false} className={s.limNote} href="/upgrade">Pro: {proLimits.day} a day, {proLimits.week} a week, {proLimits.month} a month →</Link> : null}
             </div> : null}
           </section>
           <section className={s.card} id="agenda">

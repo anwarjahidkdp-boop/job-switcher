@@ -1257,3 +1257,8 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .job-review-action{max-width:45%}
 .job-review-action .jd-prepare{display:flex;flex-direction:column;align-items:flex-end}
 .job-review-action .jd-prepare>p{max-width:170px;text-align:right;border:0;padding:0;background:none}
+.fit-overview-card{position:relative}
+.fit-overview-hit{position:absolute;inset:0;border-radius:inherit;z-index:0}
+.fit-overview-card>*:not(.fit-overview-hit){position:relative;z-index:1;pointer-events:none}
+.fit-overview-card .fit-zero-guide,.fit-overview-card .fit-compact-link{pointer-events:auto}
+@media(min-width:1101px){.fit-overview{grid-template-columns:repeat(5,minmax(0,1fr))}}

@@ -28,7 +28,7 @@ export default async function Insights() {
     <>
       <PageHead kicker="Market insights" title={<>Your career <span>market</span></>} sub={`Based on ${rel.length} relevant jobs analysed for your profile.`} />
       <div className="fit-overview" style={{ marginTop: 18 }}>
-        {fitTiles(rel).map(tile=><FitOverviewCard compact key={tile.label} tile={tile} rows={rel}/>)}
+        {fitTiles(st.scored,Math.max(st.analysed,st.scored.length)).map(tile=><FitOverviewCard compact key={tile.label} tile={tile} rows={rel}/>)}
       </div>
       <section id="career-guidance" className="card panel career-guidance" aria-label="Career guidance">
         <div className="row" style={{justifyContent:"space-between"}}><h3>Career guidance</h3><span className="pill p-ex">Strong Fit · 90% or higher</span></div>
@@ -39,7 +39,7 @@ export default async function Insights() {
         {reports.map(r=><article className="card panel" key={r.id}>
           <h3>{r.kind === "trial" ? "Your First 5 Days with JobPao" : "Your Weekly Career Report"}</h3>
           <p className="small muted">{r.period_start.slice(0,10)} to {r.period_end.slice(0,10)} · UTC · Recorded through {r.period_end.slice(11,16)}</p>
-          <dl className="tiles">{([["Jobs checked for you",r.metrics.jobs_analysed],["Relevant opportunities",r.metrics.relevant],["Top matches",r.metrics.strong],["Applications prepared",r.metrics.prepared],["Applications submitted",r.metrics.applied],["Interviews",r.metrics.interviews],["Offers",r.metrics.offers]] as [string,number][]).map(([label,n])=><div className="tile" key={label}><dt className="small">{label}</dt><dd className="num">{n}</dd></div>)}</dl>
+          <dl className="tiles">{([["Jobs checked for you",r.metrics.jobs_analysed],["Relevant opportunities",r.metrics.relevant],["Strong Fits (90%+)",r.metrics.strong],["Applications prepared",r.metrics.prepared],["Applications submitted",r.metrics.applied],["Interviews",r.metrics.interviews],["Offers",r.metrics.offers]] as [string,number][]).map(([label,n])=><div className="tile" key={label}><dt className="small">{label}</dt><dd className="num">{n}</dd></div>)}</dl>
           {r.metrics.top_gap?<p className="small">Most common gap: {r.metrics.top_gap}</p>:null}
           {r.metrics.next_deadline?<p className="small">Next application deadline: {r.metrics.next_deadline}</p>:null}
         </article>)}
