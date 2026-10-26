@@ -67,6 +67,17 @@
 .navyL small{font-size:10.5px;font-weight:600;color:#F7D58B;opacity:.9}
 .stats .navy{min-height:64px}
 .fits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.brief{display:grid;line-height:1.1}
+.brief em{font-style:normal;background:linear-gradient(90deg,#B7791F,#E3A93F 60%,#C9962E);-webkit-background-clip:text;background-clip:text;color:transparent}
+.briefK{font-family:var(--body,inherit);font-size:10.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#0E8F7E;margin-bottom:3px}
+.pToday .chip{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#0B1F4D,#14306E);border:1px solid rgba(227,169,63,.55)}
+.live{width:7px;height:7px;border-radius:50%;background:#34D399;box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:livePulse 2s ease-out infinite}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%{box-shadow:0 0 0 6px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+@media (prefers-reduced-motion:reduce){.live{animation:none}}
+.why{display:grid;gap:6px;padding:12px 14px;margin-bottom:6px;border-radius:12px;background:linear-gradient(135deg,rgba(99,91,255,.07),rgba(14,165,160,.05));border:1px solid var(--line)}
+.why h3{margin:0;font-size:15px}
+.why p{margin:0;font-size:13px}
+.why ul{margin:2px 0 0;padding-left:18px;display:grid;gap:5px;font-size:13.5px;line-height:1.5}
 .calm{margin:0;padding:12px 14px;border-radius:12px;border:1px dashed var(--line);background:var(--bg);color:var(--ink-2);font-size:14px;line-height:1.5}
 .countRow{display:flex;align-items:baseline;gap:6px}
 .fit{position:relative;display:grid;gap:2px;padding:12px 14px;border-radius:13px;border:1px solid var(--line);border-top:4px solid var(--c);background:linear-gradient(160deg,var(--cb) 0%,var(--card) 75%);color:var(--ink);text-decoration:none;box-shadow:var(--shadow);transition:transform .15s ease}

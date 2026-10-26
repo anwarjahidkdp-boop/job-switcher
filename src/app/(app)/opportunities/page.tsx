@@ -28,7 +28,7 @@ export default async function Opportunities({searchParams}:{searchParams:Promise
  const fresh=sp.when==='new'?sinceParam(sp.since,nowMs()):null;
  const today=sp.when==='today'||fresh!=null;
  const since=fresh!=null?new Date(fresh):today?dayStart(rule(st.country).timeZone,new Date(nowMs())):null;
- const period=fresh!=null?'New for you':'Today';
+ const period=fresh!=null?'Opportunity Briefing':'Today';
  const rows=summaryRows(st.scored,since,fit);
  const unlisted=!today&&fit==='found'?Math.max(0,st.analysed-st.scored.length):0;
  const href=(f:SummaryFilter,t:boolean)=>`/opportunities?fit=${f}${t?(fresh!=null?`&when=new&since=${fresh}`:'&when=today'):''}`;
@@ -43,7 +43,7 @@ export default async function Opportunities({searchParams}:{searchParams:Promise
    </nav>
   </div>
   <div className="card" style={{marginTop:12}}>
-   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):<p className="muted" style={{padding:16}}>{fresh!=null?'No jobs in this group since your last visit.':today?'No jobs in this group were added today.':'No jobs in this group yet.'}</p>}
+   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):<p className="muted" style={{padding:16}}>{fresh!=null?'No new roles in this group since your last briefing.':today?'No jobs in this group were added today.':'No jobs in this group yet.'}</p>}
    {unlisted?<p className="muted small" style={{padding:'12px 16px',borderTop:'1px solid var(--line)'}}>We also checked {unlisted.toLocaleString('en-GB')} more {unlisted===1?'job':'jobs'} outside your target roles. They are not listed here.</p>:null}
   </div></>;
 }

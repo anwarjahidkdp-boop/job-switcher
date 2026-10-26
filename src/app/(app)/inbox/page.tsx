@@ -18,6 +18,8 @@ import { siteDone, sitesDone } from "@/lib/setup";
 import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
 import { cookies } from "next/headers";
 import { VISIT_COOKIE, visitSince } from "@/lib/visit";
+import { strongFitGaps } from "@/lib/fit-gaps";
+import type { ReactNode } from "react";
 import { courseLinks, nowMs } from "@/lib/today";
 import { skillLabel } from "@/lib/taxonomy";
 import { TRIAL_APPLY } from "@/lib/pack-limits";
@@ -71,7 +73,7 @@ export default async function Inbox() {
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  // "New for you" counts jobs added since the previous visit (the last day on a first visit, at most a week).
+  // The Opportunity Briefing counts jobs added since the previous visit (the last day on a first visit, at most a week).
   const fresh = new Date(visitSince((await cookies()).get(VISIT_COOKIE)?.value, now));
   const { today, all } = searchSummary(st.scored, fresh, sx.analysed);
   const progress = applicationProgressCounts(here);
@@ -100,7 +102,7 @@ export default async function Inbox() {
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
   const CARDS = [["ex", "Strong Fit", "90–100%"], ["st", "Best Fit", "80–89%"], ["po", "Good Fit", "70–79%"], ["rest", "Stretch & others", "Below 70%"]] as const;
   const FIT_ICON = { ex: ICON.star, st: ICON.target, po: ICON.check, rest: ICON.grow };
-  const panel = (id: string, title: string, sub: string, c: BandCounts | null, applied: number, tone: string, chip: string, isToday: boolean) => {
+  const panel = (id: string, title: ReactNode, sub: string, c: BandCounts | null, applied: number, tone: string, chip: ReactNode, isToday: boolean) => {
     const outcomes = !isToday;
     const f = c ? four(c) : null;
     // Every number opens the jobs behind it.
@@ -111,7 +113,7 @@ export default async function Inbox() {
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
         </div>
-        <p className={s.calm}>Nothing new since your last visit. We check new jobs every morning and show them here first.</p>
+        <p className={s.calm}>No new roles since your last briefing. We scan the market every morning and brief you here first.</p>
       </section>
     );
     return (
@@ -158,6 +160,8 @@ export default async function Inbox() {
   const strongN = all ? all.ex : 0;
   const guideLine = strongN ? `Only ${fmt(strongN)} Strong ${strongN === 1 ? "Fit" : "Fits"}` : "No Strong Fit yet";
   const gaps = guide.length;
+  // Why the closest matches stay under 90%, from the same factors the scores use.
+  const why = strongFitGaps(relevant, guide.map((g) => g.s));
   const guideCall = gaps
     ? `${strongN ? "Unlock more" : "Reach 90%+"} by closing ${gaps} skill ${gaps === 1 ? "gap" : "gaps"}`
     : strongN ? "Keep your profile sharp to unlock more" : "Strengthen your profile to reach 90%+";
@@ -202,7 +206,7 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", "New for you", `New jobs in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, `Since ${fresh.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}`, true)}
+      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Opportunity <em>Briefing</em></span></span>, `New roles in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />Live · since {fresh.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}</>, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
@@ -245,6 +249,13 @@ export default async function Inbox() {
 
           <section className={s.card} id="career-guide" aria-labelledby="guide-h">
             <div className={s.head} style={{ ["--hc" as string]: "var(--stretch)" }}><h2 id="guide-h">Grow your matches</h2><Link prefetch={false} className={s.link} href="/insights#career-guidance">Career guide ↗</Link></div>
+            {why.gaps.length ? (
+              <div className={s.why}>
+                <h3>{strongN ? "What stands between you and more Strong Fits" : "Why no Strong Fit yet?"}</h3>
+                <p className={s.muted}>We compared your {fmt(why.near)} closest {why.near === 1 ? "match" : "matches"} (70–89%) with what each job asks for. This is what keeps them under 90%:</p>
+                <ul>{why.gaps.map((g) => { const [head, ...rest] = g.text.split(": "); return <li key={g.factor}><b>{head}:</b> {rest.join(": ")}</li>; })}</ul>
+              </div>
+            ) : null}
             {guide.length ? guide.map((g) => (
               <div key={g.s} className={s.skill}>
                 <div><b>{skillLabel(g.s)}</b><div className={s.muted}>Asked in {g.n} of your {relevant.length} matches</div></div>

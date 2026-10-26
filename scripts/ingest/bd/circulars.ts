@@ -13,7 +13,7 @@ import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { normaliseJobText } from '../../../src/lib/jobs';
 import { scamCheck } from '../../../src/lib/scam-check';
-import type { AIProvider, PageImage } from '../../../src/lib/ai/provider';
+import { AIError, type AIProvider, type PageImage } from '../../../src/lib/ai/provider';
 import type { SourceRow } from '../fetch-source';
 import { all, field, hasClass, parse, text } from './html';
 import { sourceDate } from './dates';
@@ -52,8 +52,9 @@ Reply with ONLY one JSON object:
 "jobs":[{"title":string (post name, English if printed in English, else as printed),"location":string|null,"vacancies":number|null,
 "deadline":"YYYY-MM-DD"|null (the LAST date to apply; convert Bangla digits and month names; null if not printed),
 "education":string|null,"experience":string|null (work experience asked, e.g. "3 years in accounts"; never the age limit),"age_limit":string|null,"salary":string|null,
-"requirements":[string] (skills and qualifications listed for this post),"responsibilities":[string],
-"apply_email":string|null,"apply_url":string|null (only a full web address printed in the circular),"how_to_apply":string|null}]}
+"requirements":[string] (skills and qualifications listed for this post; at most 8 items, each under 25 words),"responsibilities":[string] (at most 8 items, each under 25 words),
+"apply_email":string|null,"apply_url":string|null (only a full web address printed in the circular),"how_to_apply":string|null (under 40 words)}]}
+Keep the reply short: list at most 15 vacancies and never repeat the circular's full text.
 Listing page text (data):
 """
 ${pageText.slice(0, 4000)}
@@ -184,6 +185,8 @@ export function freeCircular(labels: { employer: string | null; title: string | 
   return { out: { is_recruitment_circular: true, employer, jobs: [{ title, deadline, requirements: [], responsibilities: [], apply_email: email, apply_url: url, how_to_apply: null }] }, details };
 }
 
+/** What a failed AI reading is assumed to have cost when the provider reports no usage ($0.05, on the safe side). */
+const FAILED_AI_CALL_MICRO_USD = 50_000;
 const MEDIA: Record<string, PageImage['mediaType']> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 
 /**
@@ -209,6 +212,7 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | nul
     const src = byId.get(doc.source_id as string)!; const cfg = BD_SOURCES.find(s => s.key === src.board_token)!;
     const reader = new PublicReader(cfg.url, opts.fetcher, 400);
     const note = async (patch: Record<string, unknown>) => { if (opts.dry) return; const { error } = await db.from('source_documents').update({ ...patch, attempts: Number(doc.attempts || 0) + 1, last_seen_at: new Date().toISOString() }).eq('id', doc.id); if (error) throw error; };
+    let aiCalled = false;
     try {
       let pageText = '', images: string[] = [], html = '';
       { html = await reader.html(doc.url as string); pageText = text(parse(html)).slice(0, 8000); images = circularImages(html, doc.url as string); }
@@ -223,8 +227,10 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | nul
       if (!pics.length && pageText.length < 300) { await note({ reason: 'No readable circular image or text' }); continue; }
       const ctx = { docUrl: doc.url as string, pageText, source: cfg, today };
       // Free first: OCR the image and confirm it against the page's own labels.
+      let freeText = '';
       if (pics.length) {
-        const free = freeCircular(pageLabels(html, cfg.key), pageText, await readFree(pics));
+        freeText = await readFree(pics);
+        const free = freeCircular(pageLabels(html, cfg.key), pageText, freeText);
         const r = free ? circularJobs(free.out, { ...ctx, details: free.details }) : null;
         if (r?.jobs.length) {
           stats.freeRead++;
@@ -237,10 +243,12 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | nul
       }
       // AI only for what the free reading could not confirm, within the day's budget.
       if (!ai || (opts.maxCostMicroUsd != null && stats.costMicroUsd >= opts.maxCostMicroUsd)) continue;
-      stats.read++;
-      let ocr = '';
-      if (pics.length) { const r = await ai.readImages({ tier: 'fast', system: SYSTEM, prompt: OCR_PROMPT, images: pics, maxTokens: 4000 }); ocr = r.text; stats.costMicroUsd += r.usage.costMicroUsd; }
-      const ex = await ai.generateJSON({ tier: 'fast', system: SYSTEM, prompt: EXTRACT_PROMPT(pageText, ocr || pageText), schema: CircularSchema, maxTokens: 3000 });
+      stats.read++; aiCalled = true;
+      // Reuse the free OCR text when it reads cleanly; pay for AI image reading only when it does not.
+      let ocr = cleanOcr(freeText);
+      if (pics.length && ocr.length < 400) { const r = await ai.readImages({ tier: 'fast', system: SYSTEM, prompt: OCR_PROMPT, images: pics, maxTokens: 4000 }); ocr = r.text; stats.costMicroUsd += r.usage.costMicroUsd; }
+      // Bangla text takes many tokens: leave room so the answer is never cut off mid-JSON.
+      const ex = await ai.generateJSON({ tier: 'fast', system: SYSTEM, prompt: EXTRACT_PROMPT(pageText, ocr || pageText), schema: CircularSchema, maxTokens: 8000 });
       stats.costMicroUsd += ex.usage.costMicroUsd;
       const { jobs, reason } = circularJobs(ex.data, ctx);
       if (opts.dry) { console.log(`    circular ${doc.url}: ${jobs.length} job(s)${reason ? ` (${reason})` : ''}`); continue; }
@@ -248,6 +256,8 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | nul
       stats.published += jobs.length;
       await note({ state: jobs.length || reason === 'No current vacancy found in the circular' ? 'processed' : 'needs_review', reason: jobs.length ? `AI read ${jobs.length} vacanc${jobs.length === 1 ? 'y' : 'ies'}; published after checks` : reason, extracted_text: (ocr || pageText).slice(0, 20000) });
     } catch (e) {
+      // A failed AI call is still billed: count its cost (or a safe estimate) against the day's budget.
+      if (aiCalled) stats.costMicroUsd += e instanceof AIError && e.usage ? e.usage.costMicroUsd : FAILED_AI_CALL_MICRO_USD;
       console.error(`    circular ${doc.url} failed: ${e instanceof Error ? e.message : String(e)}`);
       await note({ reason: `Reading failed: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}` });
     }

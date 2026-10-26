@@ -22,7 +22,7 @@ function job(id: string, title: string, company: string, extra: Record<string, u
 }
 function scored(j: ReturnType<typeof job>, score: number) {
   const band = score >= 90 ? "ex" : score >= 80 ? "st" : score >= 70 ? "po" : "lo";
-  return { job: j, m: { score, band, relevant: true, expired: false, matched: ["8 years in accounts", "IFRS reporting"], gaps: [{ t: "SAP FICO" }] } };
+  return { job: j, m: { score, band, relevant: true, expired: false, matched: ["8 years in accounts", "IFRS reporting"], gaps: [{ t: "SAP FICO" }], f: { role: 1, skills: score >= 90 ? 0.9 : 0.6, exp: score >= 80 ? 1 : 0.7 } } };
 }
 function state(): UserState {
   return {
@@ -54,7 +54,7 @@ describe("career home", () => {
     expect(html).not.toContain("Paste a job you found");
     expect(html).toMatch(/\d+ details incomplete/);
     expect(html).toContain(`href="/jobs/a"`);
-    const order = ["New for you", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "Lifetime", "Interviewed"].map((l) => html.indexOf(l));
+    const order = ["Opportunity <em>Briefing</em>", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "Lifetime", "Interviewed"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
     for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Top match", "70% and above", "Offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
@@ -95,6 +95,9 @@ describe("career home", () => {
     expect(html).toMatch(/fBest[^"]*" href="\/jobs\/a"/);
     // Career guide names how many Strong Fits there are.
     expect(html).toContain("Only 2 Strong Fits");
+    // The career guide says in plain words what keeps the closest matches under 90%.
+    expect(html).toContain("What stands between you and more Strong Fits");
+    expect(html).toMatch(/<b>Skills:<\/b> 2 of 2 jobs ask for skills your profile does not show yet, mostly Power BI and SAP FICO/);
   });
   it("says when there is no Strong Fit and shows the newest notice once Bdjobs is connected", async () => {
     const st = h.st as unknown as { scored: { m: { score: number; band: string } }[]; profile: { setup_steps: Record<string, unknown> } };
@@ -134,7 +137,7 @@ describe("career home", () => {
     for (const x of st.scored) x.job.addedAt = OLD;
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toContain("Nothing new since your last visit");
+    expect(html).toContain("No new roles since your last briefing");
     expect(html).not.toContain("when=new");
     expect(html).toContain("Lifetime");
   });
