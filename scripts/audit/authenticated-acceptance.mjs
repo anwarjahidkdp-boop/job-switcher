@@ -38,7 +38,7 @@ async function probe(path,init={},verify=r=>r.status===200){
   const text=await r.text();report(path,verify(r,text),{status:r.status,ms:Math.round(performance.now()-at)});return {r,text};
  }catch{report(path,false,{note:'Request failed or timed out; no automatic retry'});return null;}
 }
-const configured={backupDatabase:!!process.env.SUPABASE_DB_URL,turnstileSite:!!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,gmail:!!(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET&&process.env.GMAIL_TOKEN_KEY),card:!!(process.env.LEMONSQUEEZY_API_KEY&&process.env.LEMONSQUEEZY_STORE_ID&&process.env.LEMONSQUEEZY_VARIANT_ID&&process.env.LEMONSQUEEZY_WEBHOOK_SECRET)};
+const configured={backupDatabase:!!process.env.SUPABASE_DB_URL,turnstileSite:!!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,gmail:!!(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET&&process.env.GMAIL_TOKEN_KEY),card:!!(process.env.PADDLE_API_KEY&&process.env.PADDLE_PRODUCT_ID&&process.env.PADDLE_WEBHOOK_SECRET&&process.env.PADDLE_CLIENT_TOKEN)};
 console.log(JSON.stringify({configured}));
 try{
  if(!admin)throw Error('Service key is unavailable: synthetic authenticated acceptance not run');

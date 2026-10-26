@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireUser, trialLabel } from "@/lib/server/page";
 import { chargedPrice, formatPrice, isPack, localHint, packPrice, packsForCountry, PAYABLE_CURRENCIES, DEFAULT_PACK } from "@/lib/billing/pricing";
-import { lemonConfig } from "@/lib/billing/lemonsqueezy";
+import { cardOpen } from "@/lib/server/billing";
 import { cname } from "@/lib/countries";
 import Link from "next/link";
 import { billingConfig, formatTaka } from "@/lib/billing/manual";
@@ -19,7 +19,7 @@ const BANNERS: Record<string, [string, string]> = {
   failure: ["warn", "bKash did not confirm the payment, so Pro was not activated. If money left your account, contact us with the TrxID."],
   error: ["warn", "We could not check the payment with bKash just now. If money left your account, contact us with the TrxID."],
   unknown: ["warn", "We could not find that payment."],
-  card: ["ok", "Thank you. Pro starts as soon as Lemon Squeezy confirms your card payment, usually within a minute. Refresh this page to see it."],
+  card: ["ok", "Thank you. Pro starts as soon as our payment partner confirms your card payment, usually within a minute. Refresh this page to see it."],
 };
 const inFuture = (iso: string) => Date.parse(iso) > Date.now();
 const STATUS: Record<string, string> = { pending: "Waiting for review", approved: "Confirmed", rejected: "Not confirmed", failed: "Failed", canceled: "Cancelled", initiated: "Not finished" };
@@ -44,7 +44,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
   const payments = payRes.data || [];
   const price = formatTaka(local.minor);
   const span = local.name;
-  const card = !payable && !!lemonConfig();
+  const card = !payable && cardOpen();
   const usd = formatPrice(local.usd, "USD");
   const where = local.country === "XX" ? "your chosen country" : cname(local.country);
   const banner = sp.payment ? BANNERS[sp.payment] : null;
@@ -81,7 +81,7 @@ export default async function Upgrade({ searchParams }: { searchParams: Promise<
         {!payable ? (
           <div className="card panel stack" style={{ marginTop: 14 }}>
             <h3 style={{ margin: 0 }}>Pay by card</h3>
-            <p className="small muted">Living in {where}: <b>{usd}</b> for {span}{localHint(local) ? <>, {localHint(local)}. Your card is charged in US dollars and your bank converts it, so the amount on your statement can differ slightly</> : null}. Secure checkout by Lemon Squeezy, our payment partner: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
+            <p className="small muted">Living in {where}: <b>{usd}</b> for {span}{localHint(local) ? <>, {localHint(local)}. Your card is charged in US dollars and your bank converts it, so the amount on your statement can differ slightly</> : null}. Secure checkout by Paddle, our reseller and Merchant of Record: Visa, Mastercard, Amex, Apple Pay and Google Pay. We never see your card details. Your price follows the country you live in; change it on your <Link href="/profile">profile</Link>.</p>
             {card ? <CardCheckoutButton label={`Pay ${usd} by card`} pack={pack} /> : <p className="note">Card payment opens very soon. Your trial features keep working until the trial ends.</p>}
           </div>
         ) : null}

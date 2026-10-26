@@ -39,7 +39,7 @@ export default async function AdminPayments() {
         <table className="small" style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
           <thead><tr><th align="left">When</th><th align="left">User</th><th align="left">Method</th><th align="left">TrxID</th><th align="left">Amount</th><th align="left">Status</th><th align="left">By</th><th /></tr></thead>
           <tbody>{recent.map((p) => (
-            <tr key={p.id}><td>{when(p.reviewed_at || p.created_at)}</td><td>{p.email || p.user_id}</td><td>{p.method === "bkash_checkout" ? "bKash checkout" : p.method === "lemonsqueezy" ? "Card" : "bKash manual"}</td><td>{p.trx_id || "-"}</td><td>{formatPrice(p.amount_minor, p.currency)} · {packLabel(p.period_days)}</td><td>{p.status}{p.review_note ? ` (${p.review_note})` : ""}</td><td>{p.reviewed_by || "-"}</td>
+            <tr key={p.id}><td>{when(p.reviewed_at || p.created_at)}</td><td>{p.email || p.user_id}</td><td>{p.method === "bkash_checkout" ? "bKash checkout" : p.method === "paddle" ? "Card" : "bKash manual"}</td><td>{p.trx_id || "-"}</td><td>{formatPrice(p.amount_minor, p.currency)} · {packLabel(p.period_days)}</td><td>{p.status}{p.review_note ? ` (${p.review_note})` : ""}</td><td>{p.reviewed_by || "-"}</td>
               <td>{p.status === "rejected" && p.method === "bkash_manual" ? <form action={reviewPaymentAction}><input type="hidden" name="id" value={p.id} /><button className="btn-text small" name="decision" value="approve">Approve after all</button></form> : null}</td></tr>))}</tbody>
         </table>
       </div></main>

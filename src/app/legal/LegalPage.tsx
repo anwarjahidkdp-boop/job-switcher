@@ -3,7 +3,7 @@ import { PageHead } from "@/components/PageHead";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 
-export const LEGAL_UPDATED = "22 October 2026";
+export const LEGAL_UPDATED = "26 October 2026";
 export const SUPPORT_EMAIL = "hello@jobpao.app";
 
 /** Shared frame for the Terms, Privacy and Refund pages: public, plain text in one readable column. */

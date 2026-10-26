@@ -62,31 +62,31 @@ describe("database transactions and RLS on a disposable PostgreSQL engine",()=>{
   });
   it("denies clients access to service-only payment settlement and Gmail tokens",async()=>{
     await role("authenticated",U);
-    await expect(db.query("select settle_payment(gen_random_uuid(),'lemonsqueezy',array['initiated'],'{}')")).rejects.toThrow();
+    await expect(db.query("select settle_payment(gen_random_uuid(),'paddle',array['initiated'],'{}')")).rejects.toThrow();
     await expect(db.query("select count(*)::int from gmail_connections")).rejects.toThrow("permission denied");
     await expect(db.query("select count(*)::int from ingestion_sources")).rejects.toThrow("permission denied");
     expect((await db.query("select * from ai_budget($1)",[V])).rows).toHaveLength(0);
     await role("postgres");
   });
   it("atomically activates and dedupes a payment even when a client retries after losing the response",async()=>{
-    const pid=await scalar<string>(`insert into payments(user_id,plan_code,method,amount_minor,currency,invoice,status,period_days) values($1,'pro','lemonsqueezy',2500,'USD','TEST-ONE','initiated',30) returning id`,[U]);
+    const pid=await scalar<string>(`insert into payments(user_id,plan_code,method,amount_minor,currency,invoice,status,period_days) values($1,'pro','paddle',2500,'USD','TEST-ONE','initiated',30) returning id`,[U]);
     await role("service_role");
-    const args=[pid,"lemonsqueezy",["initiated"],{trx_id:"LS-test-1",provider_order_id:"test-1",reviewed_by:"test"}];
+    const args=[pid,"paddle",["initiated"],{trx_id:"txn_test_1",provider_order_id:"test-1",reviewed_by:"test"}];
     const first=await scalar<{changed:boolean;period_end:string}>("select settle_payment($1,$2,$3,$4)",args);
     const again=await scalar<{changed:boolean;period_end:string}>("select settle_payment($1,$2,$3,$4)",args);
     expect(first.changed).toBe(true);expect(again.changed).toBe(false);expect(again.period_end).toBe(first.period_end);
     expect(await scalar<string>("select status from payments where id=$1",[pid])).toBe("approved");
-    await expect(db.query("select settle_payment($1,'lemonsqueezy',array['approved'],$2,true)",[pid,{provider_order_id:"wrong-order"}])).rejects.toThrow();
-    const refunded=await scalar<{changed:boolean}>("select settle_payment($1,'lemonsqueezy',array['approved'],$2,true)",[pid,{provider_order_id:"test-1"}]);
+    await expect(db.query("select settle_payment($1,'paddle',array['approved'],$2,true)",[pid,{provider_order_id:"wrong-order"}])).rejects.toThrow();
+    const refunded=await scalar<{changed:boolean}>("select settle_payment($1,'paddle',array['approved'],$2,true)",[pid,{provider_order_id:"test-1"}]);
     expect(refunded.changed).toBe(true);
-    expect((await scalar<{changed:boolean}>("select settle_payment($1,'lemonsqueezy',array['approved'],$2,true)",[pid,{provider_order_id:"test-1"}])).changed).toBe(false);
+    expect((await scalar<{changed:boolean}>("select settle_payment($1,'paddle',array['approved'],$2,true)",[pid,{provider_order_id:"test-1"}])).changed).toBe(false);
     await role("postgres");
   });
   it("rolls back approval if entitlement cannot be granted",async()=>{
     await db.query("delete from subscriptions where user_id=$1",[V]);
-    const pid=await scalar<string>(`insert into payments(user_id,plan_code,method,amount_minor,currency,invoice,status) values($1,'pro','lemonsqueezy',2500,'USD','TEST-TWO','initiated') returning id`,[V]);
+    const pid=await scalar<string>(`insert into payments(user_id,plan_code,method,amount_minor,currency,invoice,status) values($1,'pro','paddle',2500,'USD','TEST-TWO','initiated') returning id`,[V]);
     await role("service_role");
-    await expect(db.query("select settle_payment($1,'lemonsqueezy',array['initiated'],'{}')",[pid])).rejects.toThrow("no subscription");
+    await expect(db.query("select settle_payment($1,'paddle',array['initiated'],'{}')",[pid])).rejects.toThrow("no subscription");
     expect(await scalar<string>("select status from payments where id=$1",[pid])).toBe("initiated");
     await role("postgres");
   });
