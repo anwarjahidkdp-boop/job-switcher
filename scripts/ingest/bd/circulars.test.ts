@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BD_SOURCES } from './registry';
-import { circularImages, circularJobs, cleanOcr, freeCircular, mentions, pageLabels, samePost, type CircularOut } from './circulars';
+import { circularImages, circularJobs, cleanOcr, freeCircular, mentions, mentionsDate, pageLabels, samePost, type CircularOut } from './circulars';
 
 const source = BD_SOURCES.find(s => s.key === 'bdjobstoday')!;
 const docUrl = 'https://www.bdjobstoday.com/hotjobs_details.php?id=293227';
@@ -64,5 +64,14 @@ describe('held circular reading', () => {
     expect(freeCircular({ employer: null, title: 'Lecturer' }, pageText, 'x'.repeat(300))).toBeNull();
     expect(mentions('Recruitment of LECTURER, civil engineering dept', 'Lecturer (Civil Engineering)')).toBe(true);
     expect(cleanOcr('  a  b c \n|| ~ ;;\nok')).toBe('a b c');
+  });
+  it('confirms a Bangla circular by its printed deadline when the page labels are in English', () => {
+    // Tesseract output for a Bangla circular image (see docs/bangladesh-source-pipeline.md).
+    const ocr = 'খুলনা প্রকৌশল ও প্রযুক্তি বিশ্ববিদ্যালয়\nনিয়োগ বিজ্ঞপ্তি\n১ প্রভাষক (সিভিল ইঞ্জিনিয়ারিং) ০২ ২২,০০০-৫৩,০৬০ (গ্রেড-৯)\nশিক্ষাগত যোগ্যতা: সংশ্লিষ্ট বিষয়ে বি.এসসি. ইঞ্জিনিয়ারিং ডিগ্রিতে প্রথম শ্রেণি। বয়স: ৩০ বছরের মধ্যে।\nআবেদনের শেষ তারিখ: ২৯ নভেম্বর ২০২৬ খ্রি. বিকাল ৫টা।\nআবেদন করতে হবে: https://careers.kuet.ac.bd';
+    expect(mentionsDate(ocr, '2026-11-29')).toBe(true);
+    expect(mentionsDate(ocr, '2026-11-30')).toBe(false);
+    const free = freeCircular({ employer: 'KHULNA UNIVERSITY OF ENGINEERING AND TECHNOLOGY -KUET', title: 'Lecturer (Civil Engineering)' }, pageText, ocr)!;
+    expect(free.out.jobs[0]).toMatchObject({ deadline: '2026-11-29', apply_url: 'https://careers.kuet.ac.bd' });
+    expect(circularJobs(free.out, { docUrl, pageText, source, today, details: free.details }).jobs).toHaveLength(1);
   });
 });

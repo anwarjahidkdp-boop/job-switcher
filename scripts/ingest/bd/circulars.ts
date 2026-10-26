@@ -64,7 +64,7 @@ ${ocr.slice(0, 14000)}
 """`;
 
 const GENERIC = /^(?:company not stated|unknown|confidential|anonymous|a reputed company|a renowned company|a leading company|reputed|n\/?a|null)$/i;
-const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim();
 const slug = (s: string) => norm(s).replace(/\s+/g, '-').slice(0, 60);
 /** Same post: one name contains the other once punctuation and case are ignored. */
 export const samePost = (a: string, b: string) => { const x = norm(a), y = norm(b); return !!x && !!y && (x.includes(y) || y.includes(x)); };
@@ -147,7 +147,7 @@ export async function freeOcr(pics: PageImage[]): Promise<string> {
 /** OCR text without noise: whitespace tidied, and lines that are mostly stray symbols dropped. */
 export function cleanOcr(s: string): string {
   return s.split('\n').map(l => l.replace(/\s+/g, ' ').trim())
-    .filter(l => l.length >= 3 && (l.match(/[\p{L}\p{N}]/gu) || []).length / l.replace(/ /g, '').length >= 0.6)
+    .filter(l => l.length >= 3 && (l.match(/[\p{L}\p{M}\p{N}]/gu) || []).length / l.replace(/ /g, '').length >= 0.6)
     .join('\n');
 }
 
@@ -156,6 +156,9 @@ export function mentions(textIn: string, name: string): boolean {
   const t = ` ${norm(textIn)} `; const words = norm(name).split(' ').filter(w => w.length >= 3);
   return words.length > 0 && words.filter(w => t.includes(` ${w} `)).length / words.length >= 0.6;
 }
+
+/** The date is printed in the text (Bangla or English digits and month names), e.g. the circular's deadline. */
+export const mentionsDate = (textIn: string, iso: string | null) => !!iso && textIn.split('\n').some(l => sourceDate(l) === iso);
 
 /** The employer and post a listing page labels, where the site prints them in fixed places. */
 export function pageLabels(html: string, key: string): { employer: string | null; title: string | null } {
@@ -173,8 +176,9 @@ export function pageLabels(html: string, key: string): { employer: string | null
 export function freeCircular(labels: { employer: string | null; title: string | null }, pageText: string, ocr: string): { out: CircularOut; details: string } | null {
   const details = cleanOcr(ocr); const { employer, title } = labels;
   if (!employer || !title || GENERIC.test(employer) || details.length < 200) return null;
-  if (!mentions(details, title) && !mentions(details, employer)) return null;
   const deadline = sourceDate(field(pageText, 'Application Deadline|Deadline|Last Date(?: of Application)?|আবেদনের শেষ তারিখ'));
+  // The page labels are often English while the circular is in Bangla, so the deadline also confirms the image.
+  if (!mentions(details, title) && !mentions(details, employer) && !mentionsDate(details, deadline)) return null;
   const email = details.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0] ?? null;
   const url = details.match(/https?:\/\/[^\s,;)]+/i)?.[0]?.replace(/[.]+$/, '') ?? null;
   return { out: { is_recruitment_circular: true, employer, jobs: [{ title, deadline, requirements: [], responsibilities: [], apply_email: email, apply_url: url, how_to_apply: null }] }, details };
