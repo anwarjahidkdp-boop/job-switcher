@@ -264,7 +264,8 @@
    "06f863c9c7b0753d",
    "6369a89d450f03a9",
    "469fdd65daab877e",
-   "e8cb3f81149ab599",
+   "f8114ebf4bb267f7",
+   "098d844ec1ce18d0",
    "3f05d64e688e0fcf",
    "bf8a004f9c9a2e4a",
    "1cad0b8e17cfca87",
@@ -320,9 +321,9 @@
    "202e812790ebe9d6",
    "383f015454b7ac17",
    "c4386aeb76a7bb6e",
-   "e87e49f273438b09",
+   "09522cfdecf5bdb2",
    "083637feb0cbe9f5",
-   "ec4f0f33a5cfe31d",
+   "f0eee74851ef995e",
    "611884c30a6936f4",
    "168dceac738ab8bf",
    "eeb97254be653d51",
@@ -360,7 +361,7 @@
    "0619e8f4c04aae9d",
    "6c6b02662bab08d1",
    "aac32651b10f567c",
-   "30dc667d3616bcb9",
+   "b21f60f53a1f7cae",
    "195fde57a5eb9165",
    "9d8b2b5670d18da8",
    "fc4c1868f34cfb51",
@@ -432,7 +433,7 @@
    "f2ae705cff516e3e",
    "3b1c01afc6f8af22",
    "b933712a01637bb8",
-   "b998a8d9fec8b4ac",
+   "fbfed87c7a332a79",
    "18842e1fba33a51d",
    "96c1531619820e95",
    "ab31e30c735a6256",
@@ -506,7 +507,14 @@
    "138c4fad5b8c4ec2",
    "30e5c5d603e23803",
    "0ba5ea9cb632c899",
-   "d10b36aa74a59bcf"
+   "d10b36aa74a59bcf",
+   "2c6390897c139e56",
+   "95366447e8d71d2c",
+   "8c5115c76121f43f",
+   "997b6e5e3e9c80cd",
+   "248c1f4aeccfb3c3",
+   "1a772e56b6696893",
+   "eee3c03f1ea65647"
   ],
   "src/app/globals.css": [
    "70555e2184b6a565",
@@ -1798,6 +1806,7 @@
   "2026-10-26: an account's counts start when it joins (jobs collected earlier count as found at joining; visit cookie per account); first briefing says 'Since you joined' (owner asked)",
   "2026-10-26: Opportunity Briefing has no sub line and no colour ribbon on top (owner asked: cleaner)",
   "2026-10-26: header fits every phone: short plan chip ('Trial · 5d left') under 430px, bell never shrinks (owner: bell was cut off)",
-  "2026-10-26: every Home number comes from jobTotals/appliedFor (same source as the lists they open; number-contract test guards it); best match needs 70%+ (owner asked for a permanent logic fix)"
+  "2026-10-26: every Home number comes from jobTotals/appliedFor (same source as the lists they open; number-contract test guards it); best match needs 70%+ (owner asked for a permanent logic fix)",
+  "2026-10-26: owner approved Home 'Today's Fresh Jobs' (replaces Opportunity Briefing; local update times chip) - inbox/page.tsx regenerated"
  ]
 }

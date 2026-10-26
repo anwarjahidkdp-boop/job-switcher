@@ -1,5 +1,5 @@
 // After each job collection run: for every user, take the strong matches they have not been told about yet,
-// email one digest. Application documents are created only after an explicit Apply click.
+// ring the bell, and email one digest a day. Application documents are created only after an explicit Apply click.
 // Preparing is not applying: nothing is ever sent to an employer without the user's own press (see applications.ts).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailProvider } from "../email/send";
@@ -44,7 +44,8 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
           : { kind: "match" as const, title: `New ${r.score}% match: ${r.jobs.title}`, body: `${r.jobs.company}${r.jobs.location ? ` · ${r.jobs.location}` : ""}. Want us to prepare your application?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` })).catch((e) => console.error("  notify failed", userId, e));
         if (prof?.email && prof.email_reminders !== false && emailProvider()) {
           const msg = newMatchesEmail({ name: prof.full_name || "", link: `${base}/inbox`, jobs: fresh.slice(0, DIGEST_MAX).map((r) => ({ title: r.jobs.title, company: r.jobs.company, location: r.jobs.location, score: r.score, link: `${base}/jobs/${r.job_id}`, ready: ready.has(r.job_id) })), total: fresh.length });
-          const delivery = await deliverEmail(admin, userId, `matches:${fresh.map(r => r.job_id).sort().join(",")}`, { to: prof.email, ...msg });
+          // The market is scanned three times a day; the email digest goes out once a day at most (the bell gets every scan).
+          const delivery = await deliverEmail(admin, userId, `matches-day:${new Date().toISOString().slice(0, 10)}`, { to: prof.email, ...msg });
           if (delivery === "sent") res.emailed++; else res.failed++;
         }
         const now = new Date().toISOString();

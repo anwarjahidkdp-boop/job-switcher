@@ -12,10 +12,11 @@ Every number a person sees comes from one function. The list that number opens c
   - Stretch & others: everything else. That means under 70%, outside the field (including an AI "no"), or past the deadline.
   - Top match = Strong + Best + Good.
 - **Jobs found** = every job checked for the person in the window, counted in the database (`countVisibleJobs` / `countFoundSince`). The page loads only the newest and best jobs. The jobs it does not load are lower fits or outside the person's target roles: they are counted under Stretch & others and appear in the list as one "We also checked N more" line.
-- **Opportunity Briefing window** (`briefingWindow`):
-  - A new account's first visit covers everything since joining. The chip reads "Since you joined".
-  - After that it covers what is new since the last visit, at most 7 days back. The visit cookie is per account.
-  - If nothing is new, it shows the latest market scan (12 hours before the newest job).
+- **Today's Fresh Jobs window** (`briefingWindow`): today, from midnight in the person's search country.
+  - Each market gets fresh jobs three times a day at its own local times (`src/lib/scan-schedule.ts`): Bangladesh 8 am, 3 pm and 10 pm; UK 7 am, 12 pm and 9 pm; elsewhere 8 am, 1 pm and 9 pm. The hourly ingest run scans a market two hours before its update, so the jobs are ready when people look. The chip reads "Updated 3 pm · Next 10 pm".
+  - An account younger than 24 hours sees everything since joining. The chip reads "Since you joined".
+  - Nothing found or applied today yet: yesterday's jobs ("Yesterday's jobs"), then the latest market scan (12 hours before the newest job).
+  - New-match emails go out at most once a day; the bell rings for every update.
 - **Applications** (`appliedFor`) count submitted applications in the current search country:
   - Applied: all of them, or those submitted since the window start.
   - Interviewed: an interview was recorded at any point.
@@ -26,8 +27,8 @@ Every number a person sees comes from one function. The list that number opens c
 
 | Screen | Number | Source | Opens |
 |---|---|---|---|
-| Home, Opportunity Briefing | Jobs found, Top match, 4 fit cards | `jobTotals(scored, brief.since, brief.checked)` | `/opportunities?fit=…&when=new&since=…` (`jobsBehind`) |
-| Home, Opportunity Briefing | Applied | `appliedFor(here, "new", since)` | `/applications?when=new&since=…` |
+| Home, Today's Fresh Jobs | Jobs found, Top match, 4 fit cards | `jobTotals(scored, brief.since, brief.checked)` | `/opportunities?fit=…&when=new&since=…` (`jobsBehind`) |
+| Home, Today's Fresh Jobs | Applied | `appliedFor(here, "new", since)` | `/applications?when=new&since=…` |
 | Home, Lifetime | Jobs found, 4 fit cards | `jobTotals(scored, null, analysed)` | `/opportunities?fit=…` |
 | Home, Lifetime | Applied, Interviewed, Offer received | `appliedFor(here, all / interview / offer)` | `/applications`, `?status=interview`, `?status=offer` |
 | Home | Career guide "Only N Strong Fits" | Lifetime Strong Fit | the guide on Home |

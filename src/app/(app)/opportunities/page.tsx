@@ -33,11 +33,11 @@ export default async function Opportunities({searchParams}:{searchParams:Promise
  // "New for you" on Home links with the visit window (when=new&since=); older links ask for today.
  const fresh=sp.when==='new'?sinceParam(sp.since,nowMs()):null;
  const legacyToday=sp.when==='today'&&fresh==null;
- // The period switch opens the same Opportunity Briefing window as Home (briefingWindow), never a different one.
+ // The period switch opens the same fresh-jobs window as Home (briefingWindow), never a different one.
  const briefSince=fresh??(await briefingWindow(db,st,(await cookies()).get(VISIT_COOKIE)?.value,nowMs())).since.getTime();
  const today=fresh!=null||legacyToday;
  const since=fresh!=null?new Date(fresh):legacyToday?dayStart(rule(st.country).timeZone,new Date(nowMs())):null;
- const period=legacyToday?'Today':'Opportunity Briefing';
+ const period=legacyToday?'Today':'Today\'s Fresh Jobs';
  // Count and list come from jobsBehind, the same source as every number on Home, so they always agree.
  const all=Math.max(st.analysed,st.scored.length);
  const checked=since?await countFoundSince(db,{...st,analysed:all},since):all;
@@ -55,7 +55,7 @@ export default async function Opportunities({searchParams}:{searchParams:Promise
    </nav>
   </div>
   <div className="card" style={{marginTop:12}}>
-   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):unlisted?null:<p className="muted" style={{padding:16}}>{fresh!=null?'No new roles in this group since your last briefing.':today?'No jobs in this group were found for you today.':'No jobs in this group yet.'}</p>}
+   {rows.length?rows.map(x=><OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)}/>):unlisted?null:<p className="muted" style={{padding:16}}>{fresh!=null?'No fresh jobs in this group yet today.':today?'No jobs in this group were found for you today.':'No jobs in this group yet.'}</p>}
    {!count&&GROW[fit]?<div className="fit-grow">
     <p><b>How to get more {LABEL[fit]} roles</b>{GROW[fit]} Your career guide shows the skills, courses and CV details that raise your score.</p>
     <div className="row" style={{gap:8,flexWrap:'wrap'}}>

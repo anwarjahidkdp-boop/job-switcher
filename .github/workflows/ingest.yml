@@ -4,7 +4,7 @@ on:
     branches: [main]
     paths: ['scripts/ingest/bd/**']
   schedule:
-    - cron: "30 0 * * *"   # 06:30 Asia/Dhaka daily
+    - cron: "10 * * * *"   # hourly; each run scans only the markets whose local update is due in 2 hours (src/lib/scan-schedule.ts)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # One open issue per problem: an hourly job that keeps failing does not open a new issue every hour.
-          t="Daily job ingest failed"
+          t="Job ingest failed"
           if [ "$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$t\"" --json number --jq length)" = "0" ]; then
             gh issue create -R "$GITHUB_REPOSITORY" --title "$t" --body "See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           fi

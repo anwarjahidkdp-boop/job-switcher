@@ -6,17 +6,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { UserState } from "@/lib/server/state";
 
 const H = 3_600_000, D = 24 * H;
-const NOW = Date.now();
+// 6 pm in Dhaka, so "today" (since local midnight) is a fixed 18 hours.
+const NOW = Date.parse("2026-10-26T12:00:00Z");
+vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 const iso = (t: number) => new Date(t).toISOString();
-const JOINED = NOW - 30 * H;
-
-const h = vi.hoisted(() => ({ st: null as unknown as UserState, cookie: undefined as string | undefined }));
+const h = vi.hoisted(() => ({ st: null as unknown as UserState, cookie: undefined as string | undefined, joined: 0 }));
 vi.mock("@/lib/server/page", () => ({ requireAppState: async () => ({ st: h.st, db: {} }), subscriptionOf: async () => ({ data: { plan_code: "free", status: "trialing", trial_ends_at: iso(NOW + 4 * D) } }) }));
-// Jobs checked in the database: everything since joining, 4 more than the page loads; 3 added after a later window start.
+// Jobs checked in the database: everything since joining, 4 more than the page loads; 6 (2 more than the page loads) when the window starts after joining.
 vi.mock("@/lib/server/state", async (orig) => ({
   ...(await orig<typeof import("@/lib/server/state")>()),
   loadJob: async () => undefined,
-  countFoundSince: async (_db: unknown, st: { analysed: number }, since: Date) => (since.getTime() <= JOINED ? st.analysed : 3),
+  countFoundSince: async (_db: unknown, st: { analysed: number }, since: Date) => (since.getTime() <= h.joined ? st.analysed : 6),
 }));
 vi.mock("@/lib/server/applications", () => ({ packAllowanceFor: async () => null }));
 vi.mock("@/lib/server/notify", () => ({ listNotifications: async () => [] }));
@@ -28,7 +28,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {}, push() {} 
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => (h.cookie ? { value: h.cookie } : undefined) }) }));
 
 function job(id: string, added: number, country = "BD") {
-  return { id, country, active: true, title: `Job ${id}`, company: `Co ${id}`, industry: null, category: null, location: "Dhaka", type: null, salaryMin: null, salaryMax: null, minYears: null, maxYears: null, seniority: null, education: null, required: ["IFRS"], preferred: [], certs: [], visa: null, deadline: null, publishedAt: null, apply: { method: "url", target: null }, url: null, source: "test", resp: [], addedAt: iso(added), foundAt: iso(Math.max(added, JOINED)) };
+  return { id, country, active: true, title: `Job ${id}`, company: `Co ${id}`, industry: null, category: null, location: "Dhaka", type: null, salaryMin: null, salaryMax: null, minYears: null, maxYears: null, seniority: null, education: null, required: ["IFRS"], preferred: [], certs: [], visa: null, deadline: null, publishedAt: null, apply: { method: "url", target: null }, url: null, source: "test", resp: [], addedAt: iso(added), foundAt: iso(Math.max(added, h.joined)) };
 }
 function scored(id: string, score: number, added: number, relevant = true) {
   return { job: job(id, added), m: { score, band: score >= 90 ? "ex" : score >= 80 ? "st" : score >= 70 ? "po" : "lo", relevant, expired: false, matched: [], gaps: [], f: { role: 1, skills: 0.5, exp: 1 } } };
@@ -36,13 +36,14 @@ function scored(id: string, score: number, added: number, relevant = true) {
 function app(id: string, job_id: string, status: string, applied: number | null, extra: Record<string, unknown> = {}) {
   return { id, job_id, status, pack: {}, created_at: iso(NOW - 5 * D), updated_at: iso(NOW - H), applied_at: applied == null ? null : iso(applied), reminder_date: null, jobs: { country: "BD" }, application_events: [], ...extra };
 }
-function state(): UserState {
+function state(joined: number): UserState {
+  h.joined = joined;
   // Old jobs (before joining) and new ones (after), every fit group, one outside the field.
   const rows = [scored("a", 96, NOW - 9 * D), scored("b", 91, NOW - 2 * H), scored("c", 85, NOW - 5 * D), scored("d", 82, NOW - H), scored("e", 74, NOW - 3 * D), scored("f", 60, NOW - 2 * H), scored("g", 99, NOW - 4 * D, false), scored("h", 77, NOW - 20 * H)];
   return {
     userId: "u1", country: "BD", homeCountry: "BD", today: iso(NOW).slice(0, 10), analysed: rows.length + 4,
     P: { name: "Rahim Ahmed", titles: ["Accounts Manager"], currentTitle: "Accounts Manager", currentCompany: "Co", industries: [], categories: ["accounting"], education: [], certs: [], skills: [], targetRoles: ["Accounts Manager"], locations: [], country: "BD", salaryMin: null, salaryMax: null, notice: null, years: 8, seniority: "senior" },
-    profile: { created_at: iso(JOINED), setup_steps: {}, answer_library: {}, deal_breakers: {}, personal: {}, preferences: null, needs_visa: false },
+    profile: { created_at: iso(joined), setup_steps: {}, answer_library: {}, deal_breakers: {}, personal: {}, preferences: null, needs_visa: false },
     master: { content: { improvements: [] } }, cvDoc: { answers: {} },
     scored: rows,
     apps: {
@@ -88,7 +89,7 @@ function numberLinks(html: string): [string, number][] {
 }
 
 describe("every number on Home equals the list it opens", () => {
-  beforeEach(() => { h.st = state(); h.cookie = undefined; });
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
   const check = async () => {
     const { default: Inbox } = await import("@/app/(app)/inbox/page");
     const links = numberLinks(renderToStaticMarkup(await Inbox()));
@@ -96,26 +97,26 @@ describe("every number on Home equals the list it opens", () => {
     for (const [href, n] of links) expect(await listSize(href), href).toBe(n);
     return links;
   };
-  it("on a new account's first visit (briefing = everything since joining = lifetime)", async () => {
+  it("on an account that joined today (fresh jobs = everything since joining = lifetime)", async () => {
+    h.st = state(NOW - 10 * H);
     const links = await check();
     const found = links.filter(([href]) => href.includes("fit=found")).map(([, n]) => n);
     expect(found).toEqual([12, 12]);
-    // The list's "Opportunity Briefing" switch opens the very same window as Home's briefing numbers.
+    // The list's "Today's Fresh Jobs" switch opens the very same window as Home's numbers.
     const { default: Page } = await import("@/app/(app)/opportunities/page");
     const list = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ fit: "found" }) }));
-    const sw = list.match(/href="([^"]+)"[^>]*>Opportunity Briefing</)?.[1];
+    const sw = list.match(/href="([^"]+)"[^>]*>Today&#x27;s Fresh Jobs</)?.[1];
     expect(links.map(([href]) => href)).toContain(sw);
   });
-  it("on a later visit (briefing = only what was found since then)", async () => {
-    const prev = NOW - 6 * H, last = NOW - 5 * H;
-    h.cookie = `${prev}.${last}.u1`;
+  it("on an older account (fresh jobs = today since local midnight, whatever the last visit)", async () => {
+    h.cookie = `${NOW - 6 * H}.${NOW - 5 * H}.u1`;
     const links = await check();
-    expect(links.find(([href]) => href.includes("fit=found") && href.includes("since="))?.[1]).toBe(3);
+    expect(links.find(([href]) => href.includes("fit=found") && href.includes("since="))?.[1]).toBe(6);
   });
 });
 
 describe("every number on Insights equals the list it opens", () => {
-  beforeEach(() => { h.st = state(); h.cookie = undefined; });
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
   it("fit tiles match Home's lifetime cards and their lists", async () => {
     const { default: Insights } = await import("@/app/(app)/insights/page");
     const html = renderToStaticMarkup(await Insights());
@@ -126,7 +127,7 @@ describe("every number on Insights equals the list it opens", () => {
 });
 
 describe("a list row's label agrees with the group it is counted in", () => {
-  beforeEach(() => { h.st = state(); h.cookie = undefined; });
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
   it("a 99% job outside the field sits in Stretch & others and is not called Strong Fit", async () => {
     const { default: Page } = await import("@/app/(app)/opportunities/page");
     const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ fit: "rest" }) }));

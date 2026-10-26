@@ -11,7 +11,7 @@ import {dayStart} from '@/lib/server/search-summary';
 import {sinceParam} from '@/lib/visit';
 import {StatusSelect} from './StatusSelect';
 export const metadata={title:'Applied'};
-const FILTER={today:'Applied today',new:'Applied since your last visit',interview:'Interviewed',offer:'Job offers'} as const;
+const FILTER={today:'Applied today',new:'Applied during Today\'s Fresh Jobs',interview:'Interviewed',offer:'Job offers'} as const;
 export default async function Applications({searchParams}:{searchParams:Promise<{when?:string;status?:string;since?:string}>}){
  const {st,db}=await requireAppState('/applications');
  const sp=await searchParams;
