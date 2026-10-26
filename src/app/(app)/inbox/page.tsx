@@ -166,12 +166,10 @@ export default async function Inbox() {
   // Career guide speaks to how many Strong Fits (90%+) the person has, and points them to the guide to grow that number.
   const strongN = all ? all.ex : 0;
   const guideLine = strongN ? `Only ${fmt(strongN)} Strong ${strongN === 1 ? "Fit" : "Fits"}` : "No Strong Fit yet";
-  const gaps = guide.length;
   // Why the closest matches stay under 90%, from the same factors the scores use.
   const why = strongFitGaps(relevant, guide.map((g) => g.s));
-  const guideCall = gaps
-    ? `${strongN ? "Unlock more" : "Reach 90%+"} by closing ${gaps} skill ${gaps === 1 ? "gap" : "gaps"}`
-    : strongN ? "Keep your profile sharp to unlock more" : "Strengthen your profile to reach 90%+";
+  // Plain words: the guide shows what is missing and how to close it.
+  const guideCall = "Find all the gaps and how to close them";
 
   // Deadlines and the next interview, nearest first.
   const nextInterview = apps.filter((a) => a.interview_at && Date.parse(a.interview_at) >= now - DAY / 2).sort((a, b) => a.interview_at!.localeCompare(b.interview_at!))[0];
@@ -219,7 +217,7 @@ export default async function Inbox() {
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
           <span className={s.duoIc}><Svg d={ICON.grow} /></span>
           <span className={s.duoTx}><span className={s.duoK}>Career guide</span><span className={s.duoHead}><b className={strongN ? s.flagGold : s.flagRed}>{guideLine}</b></span><span className={s.duoSub}>{guideCall}</span></span>
-          <span className={s.duoGo}>Open guide →</span>
+          <span className={s.duoGo}>Close the gaps →</span>
         </span></span></a>
         <Link prefetch={false} className={`${s.duoFrame} ${s.fBest}`} href={featured ? `/jobs/${featured.job.id}` : "#matches"}><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoBest}`}>
           <span className={s.duoIc}><Svg d={ICON.star} /></span>

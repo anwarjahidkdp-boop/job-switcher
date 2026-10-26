@@ -107,7 +107,8 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).toContain("No Strong Fit yet");
-    expect(html).toContain("Reach 90%+");
+    expect(html).toContain("Find all the gaps and how to close them");
+    expect(html).toContain("Close the gaps →");
     expect(html).not.toContain("Connect Bdjobs");
     expect(html).toContain("3 new matches today");
     h.notes = [];

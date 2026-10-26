@@ -103,9 +103,9 @@
 .duoGap{display:block;height:100%;padding:3px;background:var(--bg)}
 .fGuide,.fGuide>.duoGap,.fGuide .duoCard{clip-path:polygon(0 0,100% 0,calc(100% - var(--cut)) 100%,0 100%)}
 .fBest,.fBest>.duoGap,.fBest .duoCard{clip-path:polygon(var(--cut) 0,100% 0,100% 100%,0 100%)}
-.fGuide{border-radius:17px 0 0 17px;background:linear-gradient(135deg,#fff,#E3A93F)}
+.fGuide{margin-right:-18px;border-radius:17px 0 0 17px;background:linear-gradient(135deg,#C99A2E 0%,#F7D58B 50%,#E3A93F 100%)}
 .fGuide>.duoGap{border-radius:15px 0 0 15px}
-.fBest{margin-left:-30px;border-radius:0 17px 17px 0;background:linear-gradient(135deg,#E3A93F,#fff)}
+.fBest{margin-left:-18px;border-radius:0 17px 17px 0;background:linear-gradient(135deg,#E3A93F 0%,#F7D58B 50%,#C99A2E 100%)}
 .fBest>.duoGap{border-radius:0 15px 15px 0}
 .duoCard{position:relative;overflow:hidden;height:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;min-height:66px;padding:10px 18px}
 .duoCard::after{content:"";position:absolute;right:-30px;bottom:-70px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%);pointer-events:none}
@@ -198,7 +198,8 @@
   .connectPair .bdBtn,.connectPair .liBtn{padding:0 8px}
   .duo{gap:0}
   .duo{--cut:24px}
-  .fBest{margin-left:-16px}
+  .fGuide{margin-right:-10px}
+  .fBest{margin-left:-10px}
   .duoCard{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"ic score" "tx tx" "go go";align-content:space-between;align-items:start;gap:8px;min-height:0;padding:12px}
   .duoIc{grid-area:ic;width:28px;height:28px}
   .duoTx{grid-area:tx}
