@@ -82,11 +82,13 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.`} />;
     body = <div className="ob">
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
+      {/* Its own form: Enter in an answer box must submit the answers, not skip them. */}
+      <form action={saveAnswersAction} className="q-skipbar"><span>All questions are optional. Answer what you can, or skip them.</span><button className="btn btn-ghost btn-sm" name="skip" value="1">Skip questions →</button></form>
       <form action={saveAnswersAction}>
-        <div className="stack" style={{ marginTop: 22 }}>
+        <div className="stack" style={{ marginTop: 14 }}>
           {qs.map((q) => <div key={q.id} className={`card panel${q.id.startsWith("fresh_") ? " q-fresh" : ""}`}>{q.id.startsWith("fresh_") ? <span className="q-fresh-k">Please check: your CV may be out of date</span> : null}<label className="f" htmlFor={`a_${q.id}`}>{q.question}<input type="text" id={`a_${q.id}`} name={`a_${q.id}`} defaultValue={st.cvDoc!.answers?.[q.id] || ""} placeholder={q.placeholder || ""} maxLength={1000} /></label></div>)}
         </div>
-        <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary">Continue</button></div>
+        <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary">Build my CV with these answers</button><button className="btn btn-ghost" name="skip" value="1">Skip questions</button></div>
       </form>
     </div>;
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {

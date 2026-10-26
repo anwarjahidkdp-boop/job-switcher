@@ -35,7 +35,8 @@ export async function setNeedsVisaAction(needsVisa: boolean) {
 export async function saveAnswersAction(formData: FormData) {
   const c = await ctx("/onboarding");
   const answers: Record<string, string> = {};
-  for (const [k, v] of formData.entries()) if (k.startsWith("a_")) answers[k.slice(2)] = String(v);
+  // "Skip questions" builds the CV from the CV alone.
+  if (formData.get("skip") !== "1") for (const [k, v] of formData.entries()) if (k.startsWith("a_")) answers[k.slice(2)] = String(v);
   await saveAnswers(c, answers);
   revalidatePath("/onboarding");
 }

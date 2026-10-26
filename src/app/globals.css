@@ -1209,3 +1209,26 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .ivpractice .ivprep{margin-top:0;padding-top:0;border-top:0}
 /* Fake-job warning on the job page */
 .scam-note{border-left-color:var(--warn)}.scam-note ul{margin:6px 0;padding-left:18px;list-style:disc}.scam-high{border-left-color:#DC2626}.scam-high>b{color:#DC2626}
+/* Signup consent: the tick box stays beside its text on narrow phones. */
+.consent{flex-wrap:nowrap;align-items:flex-start;gap:10px}.consent input{flex:none;margin-top:3px;width:18px;height:18px}.consent span{min-width:0}
+/* No-CV card reads as a button: a tag, a solid "Build my CV" pill and a soft pulse; the pill drops under the text on phones. */
+.nocv-cta{flex-wrap:wrap;border:1.5px solid #E3A93F;box-shadow:0 6px 18px rgba(201,150,64,.16);animation:nocvPulse 2.6s ease-in-out infinite}
+.nocv-cta>span:nth-child(2){flex:1 1 200px;min-width:0}
+.nocv-tag{display:inline-block;margin-bottom:4px;padding:2px 9px;border-radius:999px;background:#14966F;color:#fff;font-size:11px;font-style:normal;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.nocv-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:linear-gradient(135deg,#C99A2E,#E3A93F);color:#14275A;font-size:15px;font-weight:800;box-shadow:0 4px 12px rgba(201,150,64,.35);white-space:nowrap}
+.nocv-btn i{font-style:normal;transition:transform .2s}
+.nocv-cta:hover .nocv-btn i,.nocv-cta:focus-visible .nocv-btn i{transform:translateX(3px)}
+.nocv-cta:active{transform:scale(.99)}
+@keyframes nocvPulse{0%,100%{box-shadow:0 6px 18px rgba(201,150,64,.16)}50%{box-shadow:0 6px 22px rgba(201,150,64,.38)}}
+@media(max-width:560px){.nocv-btn{margin-left:54px}}
+@media(prefers-reduced-motion:reduce){.nocv-cta{animation:none}}
+/* Bdjobs button before setup: solid emerald so it reads as the next action. */
+.btn-bdjobs{background:linear-gradient(135deg,#14966F,#0B5E4A);color:#fff;border:1px solid #0B5E4A;box-shadow:0 4px 12px rgba(11,94,74,.25)}
+.btn-bdjobs:hover{filter:brightness(1.06);color:#fff}
+/* CV upload: one clear button, and the chosen file with its reading status right under it. */
+.drop-pick{cursor:pointer;min-width:220px;justify-content:center}
+.drop-pick.disabled{opacity:.6;pointer-events:none}
+.drop-file{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:12px;text-align:center}
+.drop-file b{color:#14275A;overflow-wrap:anywhere}
+/* Setup questions: a clear way to skip them all. */
+.q-skipbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:#FCFAF3;color:#14275A;font-weight:600;font-size:14px}
