@@ -8,6 +8,7 @@ import { CountrySelect } from "@/components/CountrySelect";
 import { popularFor, rule } from "@/lib/countries";
 import { setCountryAction } from "../actions";
 import type { PersonalDetails, Preferences, Referee } from "@/lib/types";
+import { patientFetch, patientPost } from "@/lib/patient-post";
 
 const MAX_PAGES = 4; // keep in sync with MAX_PAGES in src/lib/cv/browser-read.ts and MAX_SCAN_PAGES on the server
 
@@ -78,6 +79,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   const [shots, setShots] = useState<{ blob: Blob; url: string }[]>([]);
   const [review, setReview] = useState<Review | null>(null);
   const [fresh, setFresh] = useState(false);
+  const [picked, setPicked] = useState("");
   const started = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const camInput = useRef<HTMLInputElement>(null);
@@ -86,13 +88,11 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   async function send(label: string, f: () => Promise<Response>) {
     setBusy(label); setErr("");
     try {
-      const r = await f();
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || "Could not read this file.");
+      await patientFetch(f, setBusy);
       router.refresh();
     } catch (e) { setErr((e as Error).message); setBusy(""); }
   }
-  const READING = "Reading your CV: roles, education, skills. This can take up to a minute.";
+  const READING = "AI is reading your CV: roles, education, skills. This can take up to a minute.";
   const demo = () => send("Loading the sample CV", () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ demo: true }) }));
   useEffect(() => { if (autoDemo && !started.current) { started.current = true; demo(); } });
 
@@ -113,6 +113,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
   async function onFiles(list: FileList | null) {
     const files = [...(list || [])];
     if (!files.length) return;
+    setPicked(files.length > 1 ? `${files.length} pages` : files[0].name);
     setErr(""); setBusy("Opening your file on this device");
     try {
       const { readCvFile, isImageFile, imageToJpeg } = await import("@/lib/cv/browser-read");
@@ -192,13 +193,17 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
       ) : null}
       <button type="button" className="nocv-cta" onClick={() => { setFresh(true); setErr(""); }}>
         <span className="nocv-ic" aria-hidden="true">✎</span>
-        <span><b>No CV yet? We will build one for you.</b><span className="small">Answer a few simple questions about your studies, skills and projects. Made for freshers.</span></span>
-        <span className="nocv-go" aria-hidden="true">→</span>
+        <span><em className="nocv-tag">No CV? Tap here</em><b>No CV yet? We will build one for you.</b><span className="small">Answer a few simple questions about your studies, skills and projects. Made for freshers.</span></span>
+        <span className="nocv-go nocv-btn">Build my CV <i aria-hidden="true">→</i></span>
       </button>
       <div className="drop" style={{ marginTop: 14 }}>
         <p style={{ fontWeight: 600 }}>Upload your CV (PDF, DOCX, TXT or a photo)</p>
         <p className="small muted" style={{ margin: "4px 0 14px" }}>Your file is read on this device and stored privately; only you can open it. Scanned PDFs and photos are read by our AI and shown to you to check first.</p>
-        <input ref={fileInput} type="file" accept=".pdf,.docx,.txt,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple aria-label="CV file" disabled={off} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+        <label className={`btn btn-gold drop-pick${off ? " disabled" : ""}`} aria-disabled={off}>
+          {busy && picked ? <><Spinner /> Reading your CV…</> : picked ? "Choose another file" : "Choose your CV file"}
+          <input ref={fileInput} type="file" hidden accept=".pdf,.docx,.txt,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple aria-label="CV file" disabled={off} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+        </label>
+        {picked ? <p className="drop-file" role="status"><b>{picked}</b>{busy ? <span className="small"><Spinner /> {busy}</span> : err ? <span className="small err">Not read. See the message below.</span> : null}</p> : null}
       </div>
       <div className="card panel stack" style={{ marginTop: 14 }}>
         <div className="row" style={{ justifyContent: "space-between" }}>
@@ -231,7 +236,7 @@ export function UploadStep({ aiReady, autoDemo }: { aiReady: boolean; autoDemo: 
           send(READING, () => fetch("/api/cv/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
         }}>Use this text</button>
       </details>
-      {busy ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
+      {busy && !picked ? <p style={{ marginTop: 18 }}><Spinner /> {busy}</p> : null}
       {err ? <p role="alert" className="err" style={{ marginTop: 14 }}>{err}</p> : null}
       {aiReady ? <div className="row" style={{ marginTop: 22 }}><button className="btn btn-text" disabled={!!busy} onClick={demo}>Try with a sample CV instead</button></div> : null}
     </>
@@ -307,8 +312,8 @@ export function PrefsStep(props: { answers?:AnswerLibrary; editing: boolean; ini
       await post("/api/onboarding/prefs", { prefs: p, country: props.country, revision: props.revision, needsVisa: sponsor===true,readiness:{workAuthorization:authorization,sponsorshipRequired:sponsor,willingToRelocate:props.answers?.willingToRelocate}, personal: { ...pd, ...(props.refs.mode === "list" ? { references: refs } : {}) } });
       // Route-handler saves do not clear prefetched client redirects. Read the saved state in a fresh navigation.
       if (props.editing) { window.location.replace("/profile"); return; }
-      setBusy("Preparing your CV for this country using your saved career information.");
-      await post("/api/cv/build", {});
+      setBusy("AI is reading your CV…");
+      await patientPost("/api/cv/build", {}, setBusy);
       window.location.replace("/onboarding");
     } catch (e) { setErr((e as Error).message); setBusy(""); }
   }

@@ -83,6 +83,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
     <div className="card panel stack" style={{ marginTop: 20 }}>
       <p>{sent === "signup" ? <>Almost done. We sent a link to <b>{email}</b>. Open it to confirm your email, and you are in.</> : <>We sent a link to <b>{email}</b>. Open it to set a new password.</>}</p>
       <p className="small muted">Open the link in this same browser. Not there? Check Spam or Promotions.</p>
+      {sent === "signup" ? <button type="button" className="btn btn-ghost" onClick={() => go("code")}>Didn&apos;t get it? Email me a sign-in code</button> : null}
       <button type="button" className="btn-text" onClick={() => go("login")}>Back to log in</button>
     </div>
   );
@@ -102,7 +103,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
         <label className="f" htmlFor="email">Email address<input id="email" type="text" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>
         {needsPw ? <label className="f" htmlFor="password">{mode === "signup" ? "Choose a password" : "Password"}<PasswordInput key={mode} id="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : ""} aria-describedby={mode === "signup" ? "pw-hint" : undefined} /></label> : null}
         {needsPw && mode === "signup" ? <p id="pw-hint" className="small" style={{ marginTop: -4, color: password.length >= 8 ? "var(--good)" : "var(--ink-2)" }}>{password.length >= 8 ? "✓ Password is long enough" : `Password must be at least 8 characters (${password.length}/8)`}</p> : null}
-        {mode === "signup" ? <label className="small row"><input type="checkbox" required /> <span>I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and acknowledge the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>, including AI processing of my CV.</span></label> : null}
+        {mode === "signup" ? <label className="small row consent"><input type="checkbox" required /> <span>I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and acknowledge the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>, including AI processing of my CV.</span></label> : null}
         {siteKey?<AuthCaptcha key={captchaAttempt} siteKey={siteKey} onToken={setCaptchaToken}/>:null}
         {err ? <p role="alert" className="err">{err}</p> : null}
         <button className="btn btn-primary" disabled={busy || (!!siteKey&&!captchaToken) || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1))}>

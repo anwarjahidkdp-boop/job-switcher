@@ -18,6 +18,6 @@ export function BdjobsConnectCard({ steps, ready = false }: { steps: SetupSteps;
       </ol>
       <p className="small muted">You sign in on Bdjobs itself. JobPao does not ask for that password or import your Bdjobs CV.</p>
     </details>
-    {ready ? <Link prefetch={false} className="btn btn-primary btn-sm" href="/setup?site=Bdjobs">{configured ? "Manage Bdjobs alerts" : "Set up Bdjobs alerts →"}</Link> : <><a className="btn btn-ghost btn-sm" href={PORTAL_HELP.Bdjobs.url} target="_blank" rel="noopener noreferrer">Open Bdjobs alerts ↗</a><p className="small muted">Upload your CV here first. The forwarding guide opens when your profile is ready.</p></>}
+    {ready ? <Link prefetch={false} className="btn btn-primary btn-sm" href="/setup?site=Bdjobs">{configured ? "Manage Bdjobs alerts" : "Set up Bdjobs alerts →"}</Link> : <><a className="btn btn-sm btn-bdjobs" href={PORTAL_HELP.Bdjobs.url} target="_blank" rel="noopener noreferrer">Open Bdjobs alerts ↗</a><p className="small muted">Upload your CV here first. The forwarding guide opens when your profile is ready.</p></>}
   </aside>;
 }

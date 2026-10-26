@@ -63,7 +63,14 @@ export async function runAI<T extends { usage: AIUsage }>(admin: SupabaseClient,
     admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(Date.now() - RATE_WINDOW_MS).toISOString()),
   ]);
   if (recent.error) throw new AIError("upstream", "Could not verify rate allowance");
-  checkBudget(budget);
+  try { checkBudget(budget); } catch (e) {
+    // An earlier call that is still open (or was cut off) holds the allowance: say so, not "allowance used up".
+    if (e instanceof AIError && e.code === "over_cap") {
+      const open = await admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("model", "__reserved__");
+      if (!open.error && (open.count ?? 0) > 0) throw new AIError("unresolved");
+    }
+    throw e;
+  }
   // A person working normally makes a few AI calls a minute; a script hammering the API is stopped here.
   if (!BACKGROUND.has(feature) && (recent.count ?? 0) >= RATE_MAX_CALLS) throw new AIError("rate_limited");
   const { data: reservation, error: reserveError } = await admin.rpc("reserve_ai_call", { p_user: userId, p_feature: feature, p_provider: p.name });

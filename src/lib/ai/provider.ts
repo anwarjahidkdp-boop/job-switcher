@@ -43,7 +43,7 @@ export class AIError extends Error {
 export function aiErrCopy(e: unknown): string {
   const c = e instanceof AIError ? e.code : "upstream";
   if (c === "not_configured") return "AI analysis is not set up on this server yet. You can still try the sample CV.";
-  if (c === "unresolved") return "An earlier AI request has an unresolved usage record. Contact support so we can reconcile it before another request.";
+  if (c === "unresolved") return "We are still finishing your previous step. Try again in 3 minutes.";
   if (c === "over_cap") return "You have reached your current AI allowance. See Upgrade for your plan and renewal date; matching and reminders keep working.";
   if (c === "trial_expired") return "Your free trial has ended. Matching keeps working; AI preparation needs Pro (see the Upgrade page).";
   if (c === "plan_expired") return "Your Pro month has ended. Matching keeps working; renew on the Upgrade page to use AI preparation again.";

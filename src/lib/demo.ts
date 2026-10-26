@@ -91,11 +91,11 @@ export const DEMO_EXTRACT: Extraction & { questions: (Extraction["questions"][nu
   languages:["Bangla","English"], industries:["textile & garments","food & beverage"], categories:["Finance & Accounting"], seniority:"senior",
   target_roles:["Accounts Manager","Assistant Manager, Accounts","Finance Manager"],
   questions:[
-    {id:"q1",question:"Your CV says you supervise junior staff. How many people report to you?",placeholder:"e.g. 3",demo:"3"},
-    {id:"q2",question:"Which VAT and tax tasks do you handle yourself?",placeholder:"e.g. monthly VAT return, TDS/VDS",demo:"Monthly VAT return (Mushak 9.1) submission and TDS/VDS calculation"},
-    {id:"q3",question:"Which accounting or ERP software have you used, apart from Tally ERP?",placeholder:"e.g. SAP, Oracle, none",demo:"Only Tally ERP 9"},
-    {id:"q4",question:"Is there a result you can measure, such as a faster month-end close or a cost saving? Skip if you are unsure.",placeholder:"Leave blank if none",demo:""},
-    {id:"q5",question:"Have you prepared budgets or forecasts?",placeholder:"Yes / No, with detail",demo:"No, not directly"}]
+    {id:"q1",question:"Your CV says you supervise junior staff. How many people report to you?",placeholder:"e.g. 3",suggestions:["1 person","3 people","5 or more people","No one reports to me"],demo:"3"},
+    {id:"q2",question:"Which VAT and tax tasks do you handle yourself?",placeholder:"e.g. monthly VAT return, TDS/VDS",suggestions:["Monthly VAT return","TDS/VDS calculation","Income tax return support"],demo:"Monthly VAT return (Mushak 9.1) submission and TDS/VDS calculation"},
+    {id:"q3",question:"Which accounting or ERP software have you used, apart from Tally ERP?",placeholder:"e.g. SAP, Oracle, none",suggestions:["Only Tally ERP 9","SAP","Oracle","QuickBooks"],demo:"Only Tally ERP 9"},
+    {id:"q4",question:"Is there a result you can measure, such as a faster month-end close or a cost saving? Skip if you are unsure.",placeholder:"Leave blank if none",suggestions:["Faster month-end close","Cost saving","Not sure yet"],demo:""},
+    {id:"q5",question:"Have you prepared budgets or forecasts?",placeholder:"Yes / No, with detail",suggestions:["Yes, annual budgets","Yes, monthly forecasts","No, not directly"],demo:"No, not directly"}]
 };
 
 export const DEMO_PREFS: Preferences = {roles:"Accounts Manager, Assistant Manager Accounts, Finance Manager", locations:"Dhaka", salaryMin:70000, salaryMax:85000, notice:30, mode:"On-site"};

@@ -20,7 +20,7 @@ export const ExtractionSchema = z.object({
   categories: z.array(z.string()),
   seniority: Seniority,
   target_roles: z.array(z.string()),
-  questions: z.array(z.object({ id: z.string(), question: z.string(), placeholder: z.string() })),
+  questions: z.array(z.object({ id: z.string(), question: z.string(), placeholder: z.string(), suggestions: z.array(z.string()).optional() })),
 });
 
 export const MasterCvSchema = z.object({

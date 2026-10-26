@@ -14,7 +14,8 @@ import { resolveStyle } from "@/lib/cv/render";
 import { convention, personalFields } from "@/lib/cv/conventions";
 import { inboxList } from "@/lib/matching";
 import { aiConfigured } from "@/lib/ai";
-import { saveAnswersAction, finishOnboardingAction, backToStepAction } from "../actions";
+import { finishOnboardingAction, backToStepAction } from "../actions";
+import { QuestionsForm } from "./QuestionsForm";
 import { CountryStep, UploadStep, PrefsStep } from "./steps";
 import { ManualCvEditor } from "@/components/ManualCvEditor";
 import { manualDraft } from "@/lib/manual-cv";
@@ -82,12 +83,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.`} />;
     body = <div className="ob">
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
-      <form action={saveAnswersAction}>
-        <div className="stack" style={{ marginTop: 22 }}>
-          {qs.map((q) => <div key={q.id} className={`card panel${q.id.startsWith("fresh_") ? " q-fresh" : ""}`}>{q.id.startsWith("fresh_") ? <span className="q-fresh-k">Please check: your CV may be out of date</span> : null}<label className="f" htmlFor={`a_${q.id}`}>{q.question}<input type="text" id={`a_${q.id}`} name={`a_${q.id}`} defaultValue={st.cvDoc!.answers?.[q.id] || ""} placeholder={q.placeholder || ""} maxLength={1000} /></label></div>)}
-        </div>
-        <div className="row" style={{ marginTop: 20 }}><button className="btn btn-primary">Continue</button></div>
-      </form>
+      <QuestionsForm docId={st.cvDoc.id} questions={qs} saved={st.cvDoc.answers || {}} />
     </div>;
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
