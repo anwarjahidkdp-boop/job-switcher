@@ -75,15 +75,16 @@ async function main() {
     }
   }
 
-  // Held image/newspaper circulars: read with AI each day until the daily AI budget is spent
-  // (BD_CIRCULAR_AI_BUDGET_USD, default $1) or BD_CIRCULAR_AI_LIMIT circulars are read (default 200, 0 turns it off).
+  // Held image/newspaper circulars: read free with OCR first; AI reads only what OCR could not confirm, until the
+  // daily AI budget is spent (BD_CIRCULAR_AI_BUDGET_USD, default $0.50; 0 = free reading only).
+  // BD_CIRCULAR_AI_LIMIT caps how many circulars one run looks at (default 200, 0 turns circular reading off).
   const ai = getProvider();
   const circularLimit = Math.max(0, Math.min(1000, Number(process.env.BD_CIRCULAR_AI_LIMIT ?? 200) || 0));
-  const circularBudget = Math.max(0, Math.min(20, Number(process.env.BD_CIRCULAR_AI_BUDGET_USD ?? 1) || 0));
-  if (!dry && !only && ai && circularLimit && circularBudget) {
+  const circularBudget = Math.max(0, Math.min(20, Number(process.env.BD_CIRCULAR_AI_BUDGET_USD ?? 0.5) || 0));
+  if (!dry && !only && circularLimit) {
     try {
-      const c = await readHeldCirculars(db, ai, todayStr("Asia/Dhaka"), { limit: circularLimit, maxCostMicroUsd: circularBudget * 1e6 });
-      console.log(`ingest: read ${c.read} held circular(s) with AI, published ${c.published} job(s), cost about $${(c.costMicroUsd / 1e6).toFixed(3)}`);
+      const c = await readHeldCirculars(db, circularBudget ? ai : null, todayStr("Asia/Dhaka"), { limit: circularLimit, maxCostMicroUsd: circularBudget * 1e6, maxMs: 30 * 60_000 });
+      console.log(`ingest: circulars read free ${c.freeRead}, with AI ${c.read}; published ${c.published} job(s); AI cost about $${(c.costMicroUsd / 1e6).toFixed(3)}`);
       if (c.published) { touchedCountries.add("BD"); total += c.published; }
     } catch (e) { failed++; console.error(`  circular reading failed: ${errText(e)}`); }
   }

@@ -119,7 +119,7 @@ describe("career home", () => {
   it("offers LinkedIn beside Bdjobs until the person has updated their profile", async () => {
     const { default: Inbox } = await import("./page");
     let html = renderToStaticMarkup(await Inbox());
-    expect(html).toMatch(/Connect Bdjobs[\s\S]*href="\/linkedin"[^>]*>[\s\S]*Connect LinkedIn/);
+    expect(html).toMatch(/href="\/linkedin"[^>]*>[\s\S]*Connect LinkedIn[\s\S]*Connect Bdjobs/);
     const st = h.st as unknown as { profile: { setup_steps: Record<string, unknown> } };
     st.profile.setup_steps = { "linkedin:url": "https://www.linkedin.com/in/rahim" };
     html = renderToStaticMarkup(await Inbox());
@@ -134,6 +134,7 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain("Bdjobs");
-    expect(html).toMatch(/href="\/setup\?site=Indeed"[^>]*>[\s\S]*Connect Indeed[\s\S]*Connect LinkedIn/);
+    expect(html).toMatch(/href="\/setup\?site=Indeed"[^>]*>[\s\S]*Connect Indeed/);
+    expect(html.indexOf("Connect LinkedIn")).toBeLessThan(html.indexOf("Connect Indeed"));
   });
 });

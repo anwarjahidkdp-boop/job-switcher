@@ -34,9 +34,10 @@
    "e38f7a41313367e3",
    "3fc8cfcc8c91cdc0",
    "0706d3b39e87db86",
-   "b874da7571da6a73",
-   "8cb0fdb2ac3289fa",
-   "4239076b83238fd5",
+   "7c3e203ce8f29dfc",
+   "c008c81d5812dcb6",
+   "6b146381a0db6065",
+   "557f6066c852af27",
    "c78dd95835af9246",
    "901d436cd9c99476",
    "38624c2c834640d7",
@@ -174,8 +175,8 @@
    "2416b32bbf608b5c",
    "96198fdd655efdee",
    "c232a737e8c88a15",
-   "7fce2c5dc9024066",
-   "c955c4e1381a6178",
+   "7bbcbb239d7785e7",
+   "95c4b8a0aa714dac",
    "6ebe872e668e0e05",
    "ef1700b04f34c551",
    "a2806bfccf3f21a2",
@@ -384,10 +385,12 @@
    "029eee9a4ae189aa",
    "8786d387fe23b234",
    "f502ca219ff65c23",
+   "d03e36b417e23ce6",
    "fb27da2f911f43f0",
-   "250980eb92c3345a",
-   "d41c70591ee6cfb9",
    "3fc4bd32cfa6242e",
+   "7d85d780777396ad",
+   "f2ae705cff516e3e",
+   "3b1c01afc6f8af22",
    "b933712a01637bb8",
    "2b1ce0b86d60797a",
    "18842e1fba33a51d",
@@ -446,7 +449,6 @@
    "ef7c6ac7b0ba5b20",
    "7cc9f7313e0b553b",
    "1c2c61a46901ccd7",
-   "f2ae705cff516e3e",
    "0ec2c7b4b678e7f5",
    "7878955e3a95ee96",
    "aa78f6c6a2fa0188",
@@ -1739,6 +1741,6 @@
   ]
  },
  "updates": [
-  "2026-10-26: Home hero connect buttons (country job site + LinkedIn pair, gold-red-gold outline) approved by owner"
+  "2026-10-26: Home hero connect card (one card: LinkedIn left, country job site right, gold-red-gold outline) approved by owner"
  ]
 }

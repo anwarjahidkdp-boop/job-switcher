@@ -1,15 +1,21 @@
-// Image and newspaper circulars that the rule-based parser holds for review (Admin > Circulars) are read with AI:
-// the circular image is transcribed, the transcription is turned into structured vacancies, and each vacancy must
-// still pass the same publication checks as any other Bangladesh listing (named employer, current deadline,
-// traceable source, valid application route). Anything uncertain stays in review. Capped per run to bound cost.
+// Image and newspaper circulars that the rule-based parser holds for review (Admin > Circulars) are read in two
+// ways. First for free: Tesseract OCR (Bangla + English) reads the circular image, and the listing page's own labels
+// give the employer, post and deadline. Only circulars that cannot be confirmed that way go to AI, within a daily
+// budget: the image is transcribed, the transcription is turned into structured vacancies. Either way each vacancy
+// must still pass the same publication checks as any other Bangladesh listing (named employer, current deadline,
+// traceable source, valid application route). Anything uncertain stays in review.
 // Whole e-paper pages are left for review: one page carries many employers' adverts, so no single employer is safe.
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { normaliseJobText } from '../../../src/lib/jobs';
 import { scamCheck } from '../../../src/lib/scam-check';
 import type { AIProvider, PageImage } from '../../../src/lib/ai/provider';
 import type { SourceRow } from '../fetch-source';
-import { all, field, parse, text } from './html';
+import { all, field, hasClass, parse, text } from './html';
 import { sourceDate } from './dates';
 import { PublicReader, type Fetcher } from './fetch';
 import type { DiscoveredJob } from './parse';
@@ -79,9 +85,9 @@ export function circularImages(html: string, pageUrl: string): string[] {
   return [...new Set(out)].slice(0, 2);
 }
 
-export interface CircularContext { docUrl: string; pageText: string; source: BangladeshSource; today: string }
+export interface CircularContext { docUrl: string; pageText: string; source: BangladeshSource; today: string; /** Free OCR text of the circular, shown as the vacancy details when no AI was used. */ details?: string }
 
-/** AI output to publishable jobs, keeping only vacancies the listing page and circular agree on. */
+/** Circular (AI or free-read) output to publishable jobs, keeping only vacancies the listing page and circular agree on. */
 export function circularJobs(out: CircularOut, c: CircularContext): { jobs: DiscoveredJob[]; reason: string | null } {
   if (!out.is_recruitment_circular || !out.jobs.length) return { jobs: [], reason: 'No current vacancy found in the circular' };
   // Labels printed on the listing page are the source of truth when they exist.
@@ -104,6 +110,7 @@ export function circularJobs(out: CircularOut, c: CircularContext): { jobs: Disc
       j.requirements.length ? `Requirements:\n${j.requirements.map(x => `- ${x}`).join('\n')}` : '',
       j.responsibilities.length ? `Responsibilities:\n${j.responsibilities.map(x => `- ${x}`).join('\n')}` : '',
       j.how_to_apply ? `How to apply: ${j.how_to_apply}` : '',
+      c.details ? `From the circular:\n${c.details.slice(0, 6000)}` : '',
       `Application deadline: ${deadline}`,
       'Read from the published circular image. Confirm all details in the original circular before applying.',
     ].filter(Boolean).join('\n');
@@ -114,7 +121,7 @@ export function circularJobs(out: CircularOut, c: CircularContext): { jobs: Disc
     const job = normaliseJobText({ title: j.title.trim(), company: employer, country: 'BD', location: j.location || null, text: lines, url: c.docUrl, source: c.source.name, deadline, publishedAt: posted, applyEmail: email, today: c.today });
     job.publishedAt = posted;
     job.apply = email ? { method: 'email', target: email } : { method: 'portal', target: applyUrl || c.docUrl };
-    const d: DiscoveredJob = { ...job, externalId: `${c.docUrl}#${slug(j.title)}`, description: lines, discovery: { url: c.docUrl, originalUrl: applyUrl, source: c.source.name, evidence: 'ai_extracted' } };
+    const d: DiscoveredJob = { ...job, externalId: `${c.docUrl}#${slug(j.title)}`, description: lines, discovery: { url: c.docUrl, originalUrl: applyUrl, source: c.source.name, evidence: c.details ? 'ocr_extracted' : 'ai_extracted' } };
     const reason = sourceReviewReason(d, c.source, c.today);
     if (reason) { held.push(`${j.title}: ${reason}`); continue; }
     jobs.push(d);
@@ -123,11 +130,65 @@ export function circularJobs(out: CircularOut, c: CircularContext): { jobs: Disc
   return { jobs: unique, reason: unique.length ? null : held[0] || 'The vacancy on the listing page was not found in the circular' };
 }
 
+/** Free OCR with Tesseract (Bangla + English). Empty text when Tesseract is not installed or cannot read an image. */
+export async function freeOcr(pics: PageImage[]): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'circular-'));
+  try {
+    const parts: string[] = [];
+    for (const [i, p] of pics.entries()) {
+      const file = join(dir, `${i}.${p.mediaType.split('/')[1]}`);
+      await writeFile(file, Buffer.from(p.data, 'base64'));
+      parts.push(await new Promise<string>(done => execFile('tesseract', [file, 'stdout', '-l', 'ben+eng'], { timeout: 90_000, maxBuffer: 4_000_000 }, (e, out) => done(e ? '' : String(out)))));
+    }
+    return parts.join('\n').trim();
+  } finally { await rm(dir, { recursive: true, force: true }); }
+}
+
+/** OCR text without noise: whitespace tidied, and lines that are mostly stray symbols dropped. */
+export function cleanOcr(s: string): string {
+  return s.split('\n').map(l => l.replace(/\s+/g, ' ').trim())
+    .filter(l => l.length >= 3 && (l.match(/[\p{L}\p{N}]/gu) || []).length / l.replace(/ /g, '').length >= 0.6)
+    .join('\n');
+}
+
+/** Most of a name's words (3+ letters) can be read in the text, so the image really is this circular. */
+export function mentions(textIn: string, name: string): boolean {
+  const t = ` ${norm(textIn)} `; const words = norm(name).split(' ').filter(w => w.length >= 3);
+  return words.length > 0 && words.filter(w => t.includes(` ${w} `)).length / words.length >= 0.6;
+}
+
+/** The employer and post a listing page labels, where the site prints them in fixed places. */
+export function pageLabels(html: string, key: string): { employer: string | null; title: string | null } {
+  const root = parse(html); const first = (n: ReturnType<typeof parse> | undefined) => (n ? text(n).split('\n')[0].trim() : '') || null;
+  if (key === 'bdjobstoday') return { employer: first(all(root, n => n.tag === 'h1')[0]), title: field(text(root), 'Position') };
+  if (key === 'chakrirkhabar') {
+    const h = all(root, n => n.tag === 'h4' && hasClass(n, 'mb-10'))[0];
+    const parent = h && all(root, n => n.children.includes(h))[0];
+    return { employer: first(parent ? all(parent, n => n.tag === 'a')[0] : undefined), title: first(h) };
+  }
+  return { employer: null, title: null };
+}
+
+/** Without AI: the page's labelled employer, post and deadline, confirmed against the OCR text of the circular. */
+export function freeCircular(labels: { employer: string | null; title: string | null }, pageText: string, ocr: string): { out: CircularOut; details: string } | null {
+  const details = cleanOcr(ocr); const { employer, title } = labels;
+  if (!employer || !title || GENERIC.test(employer) || details.length < 200) return null;
+  if (!mentions(details, title) && !mentions(details, employer)) return null;
+  const deadline = sourceDate(field(pageText, 'Application Deadline|Deadline|Last Date(?: of Application)?|আবেদনের শেষ তারিখ'));
+  const email = details.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0] ?? null;
+  const url = details.match(/https?:\/\/[^\s,;)]+/i)?.[0]?.replace(/[.]+$/, '') ?? null;
+  return { out: { is_recruitment_circular: true, employer, jobs: [{ title, deadline, requirements: [], responsibilities: [], apply_email: email, apply_url: url, how_to_apply: null }] }, details };
+}
+
 const MEDIA: Record<string, PageImage['mediaType']> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 
-/** Reads up to `limit` held circulars (newest first), stopping once `maxCostMicroUsd` is spent. Returns how many jobs were published and the AI cost. */
-export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider, today: string, opts: { limit: number; maxCostMicroUsd?: number; fetcher?: Fetcher; dry?: boolean }): Promise<{ read: number; published: number; costMicroUsd: number }> {
-  const stats = { read: 0, published: 0, costMicroUsd: 0 };
+/**
+ * Reads up to `limit` held circulars (newest first): free OCR first, AI only for the rest until `maxCostMicroUsd`
+ * is spent (no AI when `ai` is null). Stops after `maxMs`. Circulars left unread wait for the next run.
+ */
+export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | null, today: string, opts: { limit: number; maxCostMicroUsd?: number; maxMs?: number; fetcher?: Fetcher; dry?: boolean; ocr?: (pics: PageImage[]) => Promise<string> }): Promise<{ read: number; freeRead: number; published: number; costMicroUsd: number }> {
+  const stats = { read: 0, freeRead: 0, published: 0, costMicroUsd: 0 };
+  const started = Date.now(); const readFree = opts.ocr ?? freeOcr;
   if (opts.limit <= 0) return stats;
   const keys = BD_SOURCES.filter(s => s.enabled && approvedSource(s) && s.mode !== 'teletalk').map(s => s.key);
   const { data: srcs, error } = await db.from('ingestion_sources').select('id, kind, name, url, board_token, country, company, detail_path, cursor_url').eq('kind', 'bdweb').eq('active', true).in('board_token', keys);
@@ -140,13 +201,13 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider, toda
     .or(`published_at.is.null,published_at.gte.${since}`).order('last_seen_at', { ascending: false }).limit(opts.limit);
   if (docError) throw docError;
   for (const doc of docs || []) {
-    if (opts.maxCostMicroUsd != null && stats.costMicroUsd >= opts.maxCostMicroUsd) break; // the rest wait for the next run
+    if (opts.maxMs != null && Date.now() - started > opts.maxMs) break; // the rest wait for the next run
     const src = byId.get(doc.source_id as string)!; const cfg = BD_SOURCES.find(s => s.key === src.board_token)!;
     const reader = new PublicReader(cfg.url, opts.fetcher, 400);
     const note = async (patch: Record<string, unknown>) => { if (opts.dry) return; const { error } = await db.from('source_documents').update({ ...patch, attempts: Number(doc.attempts || 0) + 1, last_seen_at: new Date().toISOString() }).eq('id', doc.id); if (error) throw error; };
     try {
-      let pageText = '', images: string[] = [];
-      { const html = await reader.html(doc.url as string); pageText = text(parse(html)).slice(0, 8000); images = circularImages(html, doc.url as string); }
+      let pageText = '', images: string[] = [], html = '';
+      { html = await reader.html(doc.url as string); pageText = text(parse(html)).slice(0, 8000); images = circularImages(html, doc.url as string); }
       const pics: PageImage[] = [];
       for (const u of images) {
         const r = await reader.bytes(u);
@@ -156,19 +217,35 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider, toda
         if (mediaType) pics.push({ mediaType, data: Buffer.from(r.bytes).toString('base64') });
       }
       if (!pics.length && pageText.length < 300) { await note({ reason: 'No readable circular image or text' }); continue; }
+      const ctx = { docUrl: doc.url as string, pageText, source: cfg, today };
+      // Free first: OCR the image and confirm it against the page's own labels.
+      if (pics.length) {
+        const free = freeCircular(pageLabels(html, cfg.key), pageText, await readFree(pics));
+        const r = free ? circularJobs(free.out, { ...ctx, details: free.details }) : null;
+        if (r?.jobs.length) {
+          stats.freeRead++;
+          if (opts.dry) { console.log(`    circular ${doc.url}: ${r.jobs.length} job(s) read free`); continue; }
+          await persistBangladeshJobs(db, src, r.jobs, today);
+          stats.published += r.jobs.length;
+          await note({ state: 'processed', reason: `Read free (OCR): ${r.jobs.length} vacanc${r.jobs.length === 1 ? 'y' : 'ies'}; published after checks`, extracted_text: free!.details.slice(0, 20000) });
+          continue;
+        }
+      }
+      // AI only for what the free reading could not confirm, within the day's budget.
+      if (!ai || (opts.maxCostMicroUsd != null && stats.costMicroUsd >= opts.maxCostMicroUsd)) continue;
       stats.read++;
       let ocr = '';
       if (pics.length) { const r = await ai.readImages({ tier: 'fast', system: SYSTEM, prompt: OCR_PROMPT, images: pics, maxTokens: 4000 }); ocr = r.text; stats.costMicroUsd += r.usage.costMicroUsd; }
       const ex = await ai.generateJSON({ tier: 'fast', system: SYSTEM, prompt: EXTRACT_PROMPT(pageText, ocr || pageText), schema: CircularSchema, maxTokens: 3000 });
       stats.costMicroUsd += ex.usage.costMicroUsd;
-      const { jobs, reason } = circularJobs(ex.data, { docUrl: doc.url as string, pageText, source: cfg, today });
+      const { jobs, reason } = circularJobs(ex.data, ctx);
       if (opts.dry) { console.log(`    circular ${doc.url}: ${jobs.length} job(s)${reason ? ` (${reason})` : ''}`); continue; }
       if (jobs.length) await persistBangladeshJobs(db, src, jobs, today);
       stats.published += jobs.length;
       await note({ state: jobs.length || reason === 'No current vacancy found in the circular' ? 'processed' : 'needs_review', reason: jobs.length ? `AI read ${jobs.length} vacanc${jobs.length === 1 ? 'y' : 'ies'}; published after checks` : reason, extracted_text: (ocr || pageText).slice(0, 20000) });
     } catch (e) {
       console.error(`    circular ${doc.url} failed: ${e instanceof Error ? e.message : String(e)}`);
-      await note({ reason: `AI reading failed: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}` });
+      await note({ reason: `Reading failed: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}` });
     }
   }
   return stats;
