@@ -37,7 +37,8 @@ jobs:
           JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
           REED_API_KEY: ${{ secrets.REED_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BD_CIRCULAR_AI_LIMIT: ${{ vars.BD_CIRCULAR_AI_LIMIT || 20 }}
+          BD_CIRCULAR_AI_LIMIT: ${{ vars.BD_CIRCULAR_AI_LIMIT || 200 }}
+          BD_CIRCULAR_AI_BUDGET_USD: ${{ vars.BD_CIRCULAR_AI_BUDGET_USD || 1 }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://jobpao.app' }}
           EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

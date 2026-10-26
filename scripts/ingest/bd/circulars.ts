@@ -125,8 +125,8 @@ export function circularJobs(out: CircularOut, c: CircularContext): { jobs: Disc
 
 const MEDIA: Record<string, PageImage['mediaType']> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 
-/** Reads up to `limit` held circulars (newest first). Returns how many jobs were published and the AI cost. */
-export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider, today: string, opts: { limit: number; fetcher?: Fetcher; dry?: boolean }): Promise<{ read: number; published: number; costMicroUsd: number }> {
+/** Reads up to `limit` held circulars (newest first), stopping once `maxCostMicroUsd` is spent. Returns how many jobs were published and the AI cost. */
+export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider, today: string, opts: { limit: number; maxCostMicroUsd?: number; fetcher?: Fetcher; dry?: boolean }): Promise<{ read: number; published: number; costMicroUsd: number }> {
   const stats = { read: 0, published: 0, costMicroUsd: 0 };
   if (opts.limit <= 0) return stats;
   const keys = BD_SOURCES.filter(s => s.enabled && approvedSource(s) && s.mode !== 'teletalk').map(s => s.key);
@@ -140,6 +140,7 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider, toda
     .or(`published_at.is.null,published_at.gte.${since}`).order('last_seen_at', { ascending: false }).limit(opts.limit);
   if (docError) throw docError;
   for (const doc of docs || []) {
+    if (opts.maxCostMicroUsd != null && stats.costMicroUsd >= opts.maxCostMicroUsd) break; // the rest wait for the next run
     const src = byId.get(doc.source_id as string)!; const cfg = BD_SOURCES.find(s => s.key === src.board_token)!;
     const reader = new PublicReader(cfg.url, opts.fetcher, 400);
     const note = async (patch: Record<string, unknown>) => { if (opts.dry) return; const { error } = await db.from('source_documents').update({ ...patch, attempts: Number(doc.attempts || 0) + 1, last_seen_at: new Date().toISOString() }).eq('id', doc.id); if (error) throw error; };

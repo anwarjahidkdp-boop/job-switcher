@@ -158,10 +158,11 @@ export default async function Inbox() {
     ...(nextInterview ? [{ key: "iv", date: nextInterview.interview_at!.slice(0, 10), title: `Interview: ${jobById.get(nextInterview.job_id)?.company || "employer"}`, sub: nextInterview.interview_prep ? "Prep notes ready" : "Open to prepare", href: `/jobs/${nextInterview.job_id}` }] : []),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
   const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= 14 * DAY).length;
-  // Bangladesh: most good jobs come through Bdjobs alerts, so connecting it is the first thing we ask for.
-  const bdjobsNeeded = country === "BD" && setupSites.includes("Bdjobs") && !siteDone(st.profile.setup_steps || {}, "Bdjobs");
-  // Once Bdjobs is connected its button leaves the hero; the newest unread notification takes its place.
-  const note = bdjobsNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
+  // The country's main job site (Bdjobs in Bangladesh, Indeed in the UK, ...): connecting its alerts is the first thing we ask for.
+  const mainSite = setupSites.find((p) => p !== "LinkedIn") ?? null;
+  const siteNeeded = !!mainSite && !siteDone(st.profile.setup_steps || {}, mainSite);
+  // Once that site is connected its button leaves the hero; the newest unread notification takes its place.
+  const note = siteNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
   const nextSite = setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p));
   // LinkedIn helper for every country: shown until the person says they updated their profile.
   const liSteps = st.profile.setup_steps || {};
@@ -177,9 +178,11 @@ export default async function Inbox() {
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
-            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} />Connect Bdjobs<em>· 4 easy steps</em></Link>
+            <div className={s.connectPair}>
+            {siteNeeded ? <Link prefetch={false} className={s.bdBtn} href={`/setup?site=${encodeURIComponent(mainSite!)}`}><Svg d={ICON.link} />Connect {mainSite}<em>· 4 easy steps</em></Link>
               : note ? <Link prefetch={false} className={s.noteBtn} href={note.link || "/notifications"}><Svg d={ICON.bell} /><span className={s.noteTx}>{note.title}</span></Link> : null}
             {liNeeded ? <Link prefetch={false} className={s.liBtn} href="/linkedin"><Svg d={ICON.linkedin} />{liConnected ? "Update LinkedIn profile" : "Connect LinkedIn"}<em>· {liConnected ? "ready to copy" : "build your profile"}</em></Link> : null}
+            </div>
             {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} />{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete<em>· Complete now</em></Link> : null}
           </div>
         </div>

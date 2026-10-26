@@ -128,4 +128,12 @@ describe("career home", () => {
     html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain('href="/linkedin"');
   });
+  it("asks UK users to connect Indeed, not Bdjobs, beside LinkedIn", async () => {
+    const st = h.st as unknown as { country: string; homeCountry: string };
+    st.country = "GB"; st.homeCountry = "GB";
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    expect(html).not.toContain("Bdjobs");
+    expect(html).toMatch(/href="\/setup\?site=Indeed"[^>]*>[\s\S]*Connect Indeed[\s\S]*Connect LinkedIn/);
+  });
 });
