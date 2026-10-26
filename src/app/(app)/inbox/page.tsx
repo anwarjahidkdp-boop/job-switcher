@@ -166,11 +166,10 @@ export default async function Inbox() {
   // Career guide speaks to how many Strong Fits (90%+) the person has, and points them to the guide to grow that number.
   const strongN = all ? all.ex : 0;
   const guideLine = strongN ? `Only ${fmt(strongN)} Strong ${strongN === 1 ? "Fit" : "Fits"}` : "No Strong Fit yet";
-  const gaps = guide.length;
   // Why the closest matches stay under 90%, from the same factors the scores use.
   const why = strongFitGaps(relevant, guide.map((g) => g.s));
   // Plain words: the guide shows what is missing and how to close it.
-  const guideCall = gaps ? `Find your ${gaps} ${gaps === 1 ? "gap" : "gaps"} and how to close ${gaps === 1 ? "it" : "them"}` : "Find your gaps and how to close them";
+  const guideCall = "Find all the gaps and how to close them";
 
   // Deadlines and the next interview, nearest first.
   const nextInterview = apps.filter((a) => a.interview_at && Date.parse(a.interview_at) >= now - DAY / 2).sort((a, b) => a.interview_at!.localeCompare(b.interview_at!))[0];

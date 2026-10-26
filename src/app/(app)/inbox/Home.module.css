@@ -97,18 +97,20 @@
 .other{--c:#64748B;--cb:#EEF1F5}
 .limits{display:grid;gap:7px;padding:12px 16px 14px}
 /* Career guide and best match: each card sits inside a two-tone ribbon with a thin page-coloured gap, cut by one shared slant. */
-/* Puzzle pair: the guide card's round tab fits a matching socket in the best-match card, with a slim even gap. */
-.duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:12px;filter:drop-shadow(0 12px 18px rgba(10,29,69,.18))}
-.duoFrame{display:block;color:#fff;text-decoration:none;transition:filter .15s ease}
+.duo{--cut:40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:12px;filter:drop-shadow(0 12px 18px rgba(10,29,69,.18))}
+.duoFrame{display:block;padding:2px;color:#fff;text-decoration:none;transition:filter .15s ease}
 .duoFrame:hover{filter:brightness(1.06)}
-.duoGap{display:block;height:100%}
-.fGuide{position:relative;z-index:1}
-.fGuide::after{content:"";position:absolute;right:-17px;top:50%;width:30px;height:30px;margin-top:-15px;border-radius:50%;background:#16306E;pointer-events:none}
-.fBest .duoCard{-webkit-mask:radial-gradient(circle 18px at -6px 50%,transparent 17.5px,#000 18px);mask:radial-gradient(circle 18px at -6px 50%,transparent 17.5px,#000 18px)}
+.duoGap{display:block;height:100%;padding:3px;background:var(--bg)}
+.fGuide,.fGuide>.duoGap,.fGuide .duoCard{clip-path:polygon(0 0,100% 0,calc(100% - var(--cut)) 100%,0 100%)}
+.fBest,.fBest>.duoGap,.fBest .duoCard{clip-path:polygon(var(--cut) 0,100% 0,100% 100%,0 100%)}
+.fGuide{margin-right:-18px;border-radius:17px 0 0 17px;background:linear-gradient(135deg,#C99A2E 0%,#F7D58B 50%,#E3A93F 100%)}
+.fGuide>.duoGap{border-radius:15px 0 0 15px}
+.fBest{margin-left:-18px;border-radius:0 17px 17px 0;background:linear-gradient(135deg,#E3A93F 0%,#F7D58B 50%,#C99A2E 100%)}
+.fBest>.duoGap{border-radius:0 15px 15px 0}
 .duoCard{position:relative;overflow:hidden;height:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;min-height:66px;padding:10px 18px}
 .duoCard::after{content:"";position:absolute;right:-30px;bottom:-70px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%);pointer-events:none}
-.duoGuide{border-radius:14px;padding-right:22px;background:linear-gradient(90deg,#2C4FA0 0%,#16306E 85%)}
-.duoBest{grid-template-columns:auto minmax(0,1fr) auto auto;padding-left:28px;border-radius:14px;background:linear-gradient(110deg,#14966F 0%,#0B5E4A 100%)}
+.duoGuide{border-radius:12px 0 0 12px;padding-right:46px;background:linear-gradient(135deg,#2C4FA0 0%,#16306E 100%)}
+.duoBest{grid-template-columns:auto minmax(0,1fr) auto auto;padding-left:50px;border-radius:0 12px 12px 0;background:linear-gradient(110deg,#14966F 0%,#0B5E4A 100%)}
 .duoHead{display:block;margin:2px 0 1px;line-height:1.2}
 .duoSub{display:block;font-size:12.5px;font-weight:500;color:rgba(255,255,255,.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .flagRed,.flagGold{display:inline-block;white-space:nowrap;font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.01em;padding:2px 9px;border-radius:7px}
@@ -194,6 +196,10 @@
   .liBtn{justify-content:center;height:38px}
   .connectPair{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
   .connectPair .bdBtn,.connectPair .liBtn{padding:0 8px}
+  .duo{gap:0}
+  .duo{--cut:24px}
+  .fGuide{margin-right:-10px}
+  .fBest{margin-left:-10px}
   .duoCard{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"ic score" "tx tx" "go go";align-content:space-between;align-items:start;gap:8px;min-height:0;padding:12px}
   .duoIc{grid-area:ic;width:28px;height:28px}
   .duoTx{grid-area:tx}
@@ -204,9 +210,9 @@
   .duoK{font-size:9.5px;letter-spacing:.08em}
   .flagRed,.flagGold{font-size:12.5px;padding:1px 6px}
   .duoSub{white-space:normal;font-size:11.5px;line-height:1.3}
-  .duoGuide{padding-right:16px}
-  .duoBest{grid-template-columns:auto minmax(0,1fr);padding-left:22px}
-  .duoBest .duoGo{justify-self:stretch;text-align:center}
+  .duoGuide{padding-right:30px}
+  .duoBest{grid-template-columns:auto minmax(0,1fr);padding-left:34px}
+  .duoBest .duoGo{justify-self:stretch;text-align:center;margin-left:-22px}
   .summary{padding:12px;gap:10px}
   .fits{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
   .countRow{flex-direction:column;align-items:center;gap:0}
