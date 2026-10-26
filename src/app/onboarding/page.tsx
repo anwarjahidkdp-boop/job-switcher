@@ -16,6 +16,7 @@ import { inboxList } from "@/lib/matching";
 import { aiConfigured } from "@/lib/ai";
 import { finishOnboardingAction, backToStepAction } from "../actions";
 import { QuestionsForm } from "./QuestionsForm";
+import { ScrollTop } from "./ScrollTop";
 import { CountryStep, UploadStep, PrefsStep } from "./steps";
 import { ManualCvEditor } from "@/components/ManualCvEditor";
 import { manualDraft } from "@/lib/manual-cv";
@@ -131,7 +132,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   return (
     <>
       <SiteHeader inApp={false} signedIn trialLabel={trial} />
-      <main className="ob-page">{head}<div className="wrap ob-body">{body}</div></main>
+      <main className="ob-page"><ScrollTop step={step} />{head}<div className="wrap ob-body">{body}</div></main>
       <SiteFooter signedIn />
     </>
   );
