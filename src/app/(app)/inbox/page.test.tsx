@@ -123,7 +123,7 @@ describe("career home", () => {
     const st = h.st as unknown as { profile: { setup_steps: Record<string, unknown> } };
     st.profile.setup_steps = { "linkedin:url": "https://www.linkedin.com/in/rahim" };
     html = renderToStaticMarkup(await Inbox());
-    expect(html).toContain("Update LinkedIn profile");
+    expect(html).toContain("Update LinkedIn");
     st.profile.setup_steps = { "linkedin:url": "https://www.linkedin.com/in/rahim", "linkedin:updated": NOW };
     html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain('href="/linkedin"');

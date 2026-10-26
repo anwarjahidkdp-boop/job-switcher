@@ -30,10 +30,10 @@
 .warnBtn em,.bdBtn em{font-style:normal;font-size:12px;font-weight:600;opacity:.75}
 .warnBtn:hover,.bdBtn:hover{filter:brightness(1.03);transform:translateY(-1px)}
 .warnBtn:focus-visible,.bdBtn:focus-visible{outline:2px solid #F7D58B;outline-offset:2px}
-.connectPair{display:flex;align-items:stretch;border:2px solid transparent;border-radius:11px;overflow:hidden;background:linear-gradient(135deg,#FFFFFF 0%,#FFFFFF 70%,#FFF7E6 100%) padding-box,linear-gradient(90deg,#F2C14E 0%,#C62828 50%,#F2C14E 100%) border-box;box-shadow:0 1px 2px rgba(5,15,40,.2),0 6px 14px -10px rgba(5,15,40,.55)}
-.connectPair .bdBtn,.connectPair .liBtn{flex:1 1 0;justify-content:center;border:0;border-radius:0;box-shadow:none;background:transparent}
-.connectPair .liBtn + .bdBtn{border-left:1.5px solid #E2BC6A}
-.connectPair .bdBtn:hover,.connectPair .liBtn:hover{transform:none;background:#FFF8E8}
+.connectPair{display:flex;gap:4px}
+.connectPair .bdBtn,.connectPair .liBtn{border:1.5px solid transparent;background:linear-gradient(135deg,#FFFFFF 0%,#FFFFFF 70%,#FFF7E6 100%) padding-box,linear-gradient(90deg,#F2C14E 0%,#C62828 50%,#F2C14E 100%) border-box}
+.connectPair > :first-child:not(:last-child){border-top-right-radius:3px;border-bottom-right-radius:3px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFFFF 70%,#FFF7E6 100%) padding-box,linear-gradient(90deg,#F2C14E 0%,#C62828 100%) border-box}
+.connectPair > :last-child:not(:first-child){border-top-left-radius:3px;border-bottom-left-radius:3px;background:linear-gradient(135deg,#FFFFFF 0%,#FFFFFF 70%,#FFF7E6 100%) padding-box,linear-gradient(90deg,#C62828 0%,#F2C14E 100%) border-box}
 .noteBtn{display:inline-flex;align-items:center;gap:7px;height:34px;max-width:360px;padding:0 13px 0 11px;border-radius:9px;text-decoration:none;font-size:13px;font-weight:700;color:#14275A;border:1.5px solid #F7D58B;background:linear-gradient(135deg,#FFFFFF 0%,#FFF7E0 100%);box-shadow:0 6px 14px -10px rgba(5,15,40,.55)}
 .noteBtn svg{width:16px;height:16px;flex:none;stroke:#B7791F}
 .noteTx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -180,8 +180,7 @@
   .warnBtn,.bdBtn{justify-content:center;height:38px}
   .liBtn{justify-content:center;height:38px}
   .connectPair{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
-  .connectPair .bdBtn,.connectPair .liBtn{flex-wrap:wrap;column-gap:6px;row-gap:3px;height:auto;min-height:48px;padding:7px 8px;white-space:normal;text-align:center}
-  .connectPair em{flex-basis:100%;font-size:11px}
+  .connectPair .bdBtn,.connectPair .liBtn{padding:0 8px}
   .duo{gap:0}
   .duo{--cut:24px}
   .fBest{margin-left:-16px}

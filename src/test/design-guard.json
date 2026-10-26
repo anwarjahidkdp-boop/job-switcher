@@ -34,10 +34,10 @@
    "e38f7a41313367e3",
    "3fc8cfcc8c91cdc0",
    "0706d3b39e87db86",
-   "7c3e203ce8f29dfc",
-   "c008c81d5812dcb6",
-   "6b146381a0db6065",
-   "557f6066c852af27",
+   "f176d5f37da413fb",
+   "7e14a58c9b073962",
+   "adf8311e6c4e2e17",
+   "aba5ba5b7daca25f",
    "c78dd95835af9246",
    "901d436cd9c99476",
    "38624c2c834640d7",
@@ -176,8 +176,7 @@
    "96198fdd655efdee",
    "c232a737e8c88a15",
    "7bbcbb239d7785e7",
-   "95c4b8a0aa714dac",
-   "6ebe872e668e0e05",
+   "6520f4c9079741d8",
    "ef1700b04f34c551",
    "a2806bfccf3f21a2",
    "35b32ea9fbe03eb2",
@@ -387,8 +386,8 @@
    "f502ca219ff65c23",
    "d03e36b417e23ce6",
    "fb27da2f911f43f0",
-   "3fc4bd32cfa6242e",
-   "7d85d780777396ad",
+   "334978edfd96b843",
+   "190c1690a7f9d8d8",
    "f2ae705cff516e3e",
    "3b1c01afc6f8af22",
    "b933712a01637bb8",
@@ -1741,6 +1740,6 @@
   ]
  },
  "updates": [
-  "2026-10-26: Home hero connect card (one card: LinkedIn left, country job site right, gold-red-gold outline) approved by owner"
+  "2026-10-26: Home hero connect button split in two (LinkedIn left, country job site right, short labels, slim, small gap, gold-red-gold outline) approved by owner"
  ]
 }

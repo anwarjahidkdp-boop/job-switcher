@@ -180,8 +180,8 @@ export default async function Inbox() {
           <div className={s.cta}>
             {liNeeded || siteNeeded ? (
               <div className={s.connectPair}>
-                {liNeeded ? <Link prefetch={false} className={s.liBtn} href="/linkedin"><Svg d={ICON.linkedin} />{liConnected ? "Update LinkedIn profile" : "Connect LinkedIn"}<em>· {liConnected ? "ready to copy" : "build your profile"}</em></Link> : null}
-                {siteNeeded ? <Link prefetch={false} className={s.bdBtn} href={`/setup?site=${encodeURIComponent(mainSite!)}`}><Svg d={ICON.link} />Connect {mainSite}<em>· 4 easy steps</em></Link> : null}
+                {liNeeded ? <Link prefetch={false} className={s.liBtn} href="/linkedin"><Svg d={ICON.linkedin} />{liConnected ? "Update LinkedIn" : "Connect LinkedIn"}</Link> : null}
+                {siteNeeded ? <Link prefetch={false} className={s.bdBtn} href={`/setup?site=${encodeURIComponent(mainSite!)}`}><Svg d={ICON.link} />Connect {mainSite}</Link> : null}
               </div>
             ) : null}
             {!siteNeeded && note ? <Link prefetch={false} className={s.noteBtn} href={note.link || "/notifications"}><Svg d={ICON.bell} /><span className={s.noteTx}>{note.title}</span></Link> : null}
