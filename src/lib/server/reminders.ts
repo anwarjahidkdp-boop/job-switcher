@@ -9,8 +9,14 @@ import { reminderEmail } from "../email/templates";
 import { notify } from "./notify";
 
 const SEND_FROM_HOUR = 8;
+const SEND_UNTIL_HOUR = 21;
 export function localHour(timeZone: string, now: Date): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(now));
+}
+/** Messages go out between 08:00 and 21:00 in the user's search country; outside it they wait for the next run. */
+export function inSendWindow(country: unknown, now: Date): boolean {
+  const h = localHour(rule(cc(country)).timeZone, now);
+  return h >= SEND_FROM_HOUR && h < SEND_UNTIL_HOUR;
 }
 
 export interface ReminderRunResult { checked: number; sent: number; skipped: number; failed: number }
@@ -42,8 +48,8 @@ export async function sendDueReminders(admin: SupabaseClient, opts: { appUrl: st
     const p = profs.get(r.user_id) || null;
     const tz = rule(cc(p?.target_country)).timeZone;
     const today = todayStr(tz, now);
-    // Due today or earlier in the user's time zone, and not before 08:00 local time.
-    if (r.due_date > today || (r.due_date === today && localHour(tz, now) < SEND_FROM_HOUR)) { res.skipped++; continue; }
+    // Due today or earlier in the user's time zone, and only between 08:00 and 21:00 local time.
+    if (r.due_date > today || !inSendWindow(p?.target_country, now)) { res.skipped++; continue; }
     if (r.applications.status !== "reminder" || r.jobs.country !== p?.target_country || !p) {
       if (!opts.dryRun) await admin.from("reminders").update({ sent_at: now.toISOString(), send_error: "skipped" }).eq("id", r.id);
       res.skipped++;

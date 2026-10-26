@@ -6,6 +6,7 @@ import {loadState} from './state';
 import {notify} from './notify';
 import {deliverEmail} from './email-outbox';
 import {emailProvider} from '../email/send';
+import {inSendWindow} from './reminders';
 import {nudgeEmail} from '../email/templates';
 const PAGE=1000;
 export async function sendDeadlineAlerts(admin:SupabaseClient,opts:{appUrl:string;now?:Date;dryRun?:boolean;email?:boolean;userIds?:string[]}){
@@ -22,7 +23,7 @@ export async function sendDeadlineAlerts(admin:SupabaseClient,opts:{appUrl:strin
  }
  const result={users:0,notified:0,emailChecks:0,failed:0};
  for(const userId of ids){try{
-  const st=await loadState(admin,userId);if(!st||st.profile.onboarding_step!=='done')continue;
+  const st=await loadState(admin,userId);if(!st||st.profile.onboarding_step!=='done'||!inSendWindow(st.country,now))continue;
   const items=deadlineItems(st,now);if(!items.length)continue;result.users++;
   if(opts.dryRun){result.notified+=items.length;continue;}
   result.notified+=await notify(admin,userId,items.map(x=>({kind:'reminder',title:x.title,body:x.body,link:`/jobs/${x.job.id}`,key:x.key})));

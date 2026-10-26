@@ -29,7 +29,7 @@ function schedulerDb(day:number) {
    if(table==='matches')data=[{score:80,relevant:true}];
    return resolve({data,count:20,error:null});
   };return q;
- }};return {db:db as unknown as SupabaseClient,now:new Date(Date.parse('2026-10-01T00:00:00Z')+(day-1)*86400000+60000)};
+ }};return {db:db as unknown as SupabaseClient,now:new Date(Date.parse('2026-10-01T03:00:00Z')+(day-1)*86400000+60000)};
 }
 beforeEach(()=>vi.mocked(notify).mockClear());
 describe('trial report journey',()=>{
@@ -47,4 +47,10 @@ it('dry runs never save report snapshots or notify',async()=>{
  const x=schedulerDb(5);const result=await sendNudges(x.db,{appUrl:'https://example.invalid',now:x.now,dryRun:true});
  expect(result.notified).toBe(1);expect(notify).not.toHaveBeenCalled();
  expect(x.db.rpc).not.toHaveBeenCalledWith('save_career_report',expect.anything());
+});
+
+it('waits for the user\'s daytime instead of messaging at night',async()=>{
+ const night=schedulerDb(2);const at=new Date('2026-10-01T22:30:00Z');
+ const result=await sendNudges(night.db,{appUrl:'https://example.invalid',now:at});
+ expect(result.deferred).toBeGreaterThan(0);expect(notify).not.toHaveBeenCalled();
 });

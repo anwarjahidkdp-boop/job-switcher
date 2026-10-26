@@ -1,4 +1,4 @@
-// Hourly nudges (run with the reminders job): ask "any reply?" after applying, remind about interviews,
+// Nudges (run with the reminders job a few times a day; each user only between 08:00 and 21:00 local time): ask "any reply?" after applying, remind about interviews,
 // warn before the trial ends and send a weekly career tip. Each one is an in-app notification (deduped), and the
 // important ones are also emailed once. Nothing here contacts an employer.
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -7,6 +7,7 @@ import { nudgeEmail } from "../email/templates";
 import { careerMetrics, reportBody, reportWeek, saveCareerReport } from "./career-reports";
 import { deliverEmail } from "./email-outbox";
 import { notify, type NewNotification } from "./notify";
+import { inSendWindow } from "./reminders";
 
 const DAY = 86_400_000;
 export const REPLY_CHECK_DAYS = 5;
@@ -22,12 +23,12 @@ export function isoWeek(d: Date): string {
   return `${y}-W${String(w).padStart(2, "0")}`;
 }
 
-type Profile = { id: string; email: string | null; full_name: string | null; email_reminders: boolean | null };
+type Profile = { id: string; email: string | null; full_name: string | null; email_reminders: boolean | null; target_country: string | null };
 
 export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; now?: Date; dryRun?: boolean }) {
   const now = opts.now || new Date();
   const base = opts.appUrl.replace(/\/$/, "");
-  const res = { notified: 0, emailed: 0, failed: 0 };
+  const res = { notified: 0, emailed: 0, failed: 0, deferred: 0 };
   const queue = new Map<string, { n: NewNotification; email?: { subject: string; body: string; button: string } }[]>();
   const add = (userId: string, n: NewNotification, email?: { subject: string; body: string; button: string }) => {
     const l = queue.get(userId) || [];
@@ -101,11 +102,13 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   const ids = [...queue.keys()];
   const profs = new Map<string, Profile>();
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await admin.from("profiles").select("id, email, full_name, email_reminders").in("id", ids.slice(i, i + 200));
+    const { data } = await admin.from("profiles").select("id, email, full_name, email_reminders, target_country").in("id", ids.slice(i, i + 200));
     for (const p of (data || []) as Profile[]) profs.set(p.id, p);
   }
   const canEmail = !!emailProvider();
   for (const [userId, items] of queue) {
+    // Outside the user's daytime nothing is sent or marked; a later run that day picks the same items up again.
+    if (!inSendWindow(profs.get(userId)?.target_country, now)) { res.deferred += items.length; continue; }
     for (const it of items) {
       try {
         const fresh = await notify(admin, userId, [it.n]);
