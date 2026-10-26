@@ -436,7 +436,7 @@
    "f2ae705cff516e3e",
    "3b1c01afc6f8af22",
    "b933712a01637bb8",
-   "162f42a4ea4e2dec",
+   "b998a8d9fec8b4ac",
    "18842e1fba33a51d",
    "96c1531619820e95",
    "ab31e30c735a6256",
@@ -1671,6 +1671,10 @@
    "06fe0edd9530f94b",
    "516543a8149211d5",
    "0a6add91c9a32daa",
+   "4d25213837ed2929",
+   "61f2a8e26263ca21",
+   "5620066699aaa80f",
+   "d10b36aa74a59bcf",
    "70d1e230ca5fd01c",
    "fc4c1868f34cfb51",
    "24295a9c545a402d",
@@ -1684,7 +1688,7 @@
    "73be114f7be828fe",
    "2966d391d471c866",
    "7d539e9f42da342f",
-   "ac9e1925d663b84f",
+   "9a2c25a05bd22e64",
    "1f9365834cc80fa8",
    "1c9c09b6bf1d8866",
    "b0e84657dc26853f",
@@ -1695,8 +1699,7 @@
    "8532178deab669a4",
    "aac32651b10f567c",
    "d0b29b31aff8e2ac",
-   "9d8b2b5670d18da8",
-   "d10b36aa74a59bcf"
+   "9d8b2b5670d18da8"
   ],
   "src/components/NavLinks.tsx": [
    "c5e39c2214a9d1b0",
@@ -1796,6 +1799,8 @@
   "2026-10-26: Opportunity Briefing shows the latest market scan when nothing is new since the last visit (owner asked why it was empty)",
   "2026-10-26: Executive Ivory palette (ivory welcome band, navy type, per-card colours, navy+emerald middle cards) chosen by owner",
   "2026-10-26: slanted Career guide + Best match pair kept but equal widths, tighter gap, gold outline visible at the guide's top-left; copy 'Find all the gaps and how to close them' + 'Close the gaps' (owner asked)",
-  "2026-10-26: an account's counts start when it joins (jobs collected earlier count as found at joining; visit cookie per account); first briefing says 'Since you joined' (owner asked)"
+  "2026-10-26: an account's counts start when it joins (jobs collected earlier count as found at joining; visit cookie per account); first briefing says 'Since you joined' (owner asked)",
+  "2026-10-26: Opportunity Briefing has no sub line and no colour ribbon on top (owner asked: cleaner)",
+  "2026-10-26: header fits every phone: short plan chip ('Trial · 5d left') under 430px, bell never shrinks (owner: bell was cut off)"
  ]
 }

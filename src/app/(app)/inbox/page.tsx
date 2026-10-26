@@ -215,7 +215,7 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Opportunity <em>Briefing</em></span></span>, sinceJoined ? `Your first briefing: every role we found for you in ${cname(country)}` : latestScan ? `Nothing new since your last visit. Here is the latest market scan in ${cname(country)}` : `New roles in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{sinceJoined ? "Since you joined · " : latestScan ? "Latest scan · " : "Live · since "}{(latestScan ? new Date(lastAdded) : fresh).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}</>, true)}
+      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Opportunity <em>Briefing</em></span></span>, "", today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{sinceJoined ? "Since you joined · " : latestScan ? "Latest scan · " : "Live · since "}{(latestScan ? new Date(lastAdded) : fresh).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}</>, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>

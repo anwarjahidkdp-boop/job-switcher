@@ -139,7 +139,7 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).toContain("Latest scan · ");
-    expect(html).toContain("Nothing new since your last visit. Here is the latest market scan in Bangladesh");
+    expect(html).not.toContain("Nothing new since your last visit");
     expect(html).toContain(`since=${Date.parse(OLD) - 12 * 3_600_000}`);
     expect(html).not.toContain("No new roles since your last briefing");
   });
@@ -169,7 +169,7 @@ describe("career home", () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     if (process.env.DUMP_FIRST) writeFileSync(process.env.DUMP_FIRST, html);
-    expect(html).toContain("Your first briefing: every role we found for you in Bangladesh");
+    expect(html).not.toContain("Nothing new since your last visit");
     expect(html).toContain("Since you joined · ");
     expect(html).toContain(`since=${Date.parse(joined)}`);
     expect(html).not.toContain("Latest scan · ");
