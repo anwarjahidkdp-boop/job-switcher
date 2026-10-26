@@ -15,13 +15,16 @@ import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { listNotifications } from "@/lib/server/notify";
 import { siteDone, sitesDone } from "@/lib/setup";
+import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
+import { cookies } from "next/headers";
+import { VISIT_COOKIE, visitSince } from "@/lib/visit";
 import { courseLinks, nowMs } from "@/lib/today";
 import { skillLabel } from "@/lib/taxonomy";
 import { TRIAL_APPLY } from "@/lib/pack-limits";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiConfigured } from "@/lib/ai";
-import { searchSummary, dayStart, type BandCounts } from "@/lib/server/search-summary";
+import { searchSummary, type BandCounts } from "@/lib/server/search-summary";
 import s from "./Home.module.css";
 
 export const metadata = { title: "Opportunities" };
@@ -44,6 +47,8 @@ const ICON = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
+  linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
 };
 
 export default async function Inbox() {
@@ -65,9 +70,10 @@ export default async function Inbox() {
   const now = nowMs();
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
-  const since = dayStart(rule(country).timeZone, new Date(now));
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  const { today, all } = searchSummary(st.scored, since, sx.analysed);
+  // "New for you" counts jobs added since the previous visit (the last day on a first visit, at most a week).
+  const fresh = new Date(visitSince((await cookies()).get(VISIT_COOKIE)?.value, now));
+  const { today, all } = searchSummary(st.scored, fresh, sx.analysed);
   const progress = applicationProgressCounts(here);
   const latestApp = submittedApplications(here).sort((a, b) => (b.applied_at || b.updated_at).localeCompare(a.applied_at || a.updated_at))[0];
   const latestJob = latestApp ? (jobById.get(latestApp.job_id) || await loadJob(db, latestApp.job_id)) : undefined;
@@ -88,7 +94,7 @@ export default async function Inbox() {
 
   // Jobs checked today and all time, split by fit band so the parts add up to the total.
   const relevant = available.filter((x) => x.m.relevant && !x.m.expired);
-  const appliedToday = sent.filter((t) => t >= since.getTime()).length;
+  const appliedToday = sent.filter((t) => t >= fresh.getTime()).length;
   const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
   // Four cards per summary: the three fits, then everything under 70% together. "Matched" = Good Fit or better.
   const four = (c: BandCounts) => ({ ex: c.ex, st: c.st, po: c.po, rest: c.lo + c.other });
@@ -98,7 +104,16 @@ export default async function Inbox() {
     const outcomes = !isToday;
     const f = c ? four(c) : null;
     // Every number opens the jobs behind it.
-    const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? "&when=today" : ""}`;
+    const jobsHref = (fit: string) => `/opportunities?fit=${fit}${isToday ? `&when=new&since=${fresh.getTime()}` : ""}`;
+    // Nothing new: one calm line instead of a row of zeros.
+    if (isToday && (!c || !c.total) && !applied) return (
+      <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
+        <div className={s.panelHead}>
+          <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
+        </div>
+        <p className={s.calm}>Nothing new since your last visit. We check new jobs every morning and show them here first.</p>
+      </section>
+    );
     return (
       <section className={`${s.summary} ${tone}`} aria-labelledby={id}>
         <div className={s.panelHead}>
@@ -111,7 +126,7 @@ export default async function Inbox() {
                  ["/applications?status=offer", ICON.trophy, fmt(sx.offers), "Offer received", null]]
               : [[jobsHref("found"), ICON.search, c ? fmt(c.total) : "–", "Jobs found", null],
                  [jobsHref("matched"), ICON.target, f ? fmt(f.ex + f.st + f.po) : "–", "Top match", "70% and above"],
-                 ["/applications?when=today", ICON.send, fmt(applied), "Applied", null]]
+                 [`/applications?when=new&since=${fresh.getTime()}`, ICON.send, fmt(applied), "Applied", null]]
             ).map(([href, icon, n, label, note]) => (
               <Link prefetch={false} key={label} className={s.navy} href={href!}><span className={s.navyIc}><Svg d={icon!} /></span><b>{n}</b><span className={s.navyL}>{label}{note ? <small>{note}</small> : null}</span></Link>
             ))}
@@ -155,11 +170,16 @@ export default async function Inbox() {
     ...(nextInterview ? [{ key: "iv", date: nextInterview.interview_at!.slice(0, 10), title: `Interview: ${jobById.get(nextInterview.job_id)?.company || "employer"}`, sub: nextInterview.interview_prep ? "Prep notes ready" : "Open to prepare", href: `/jobs/${nextInterview.job_id}` }] : []),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
   const repliesPending = apps.filter((a) => a.status === "applied" && a.applied_at && now - Date.parse(a.applied_at) >= 14 * DAY).length;
-  // Bangladesh: most good jobs come through Bdjobs alerts, so connecting it is the first thing we ask for.
-  const bdjobsNeeded = country === "BD" && setupSites.includes("Bdjobs") && !siteDone(st.profile.setup_steps || {}, "Bdjobs");
-  // Once Bdjobs is connected its button leaves the hero; the newest unread notification takes its place.
-  const note = bdjobsNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
+  // The country's main job site (Bdjobs in Bangladesh, Indeed in the UK, ...): connecting its alerts is the first thing we ask for.
+  const mainSite = setupSites.find((p) => p !== "LinkedIn") ?? null;
+  const siteNeeded = !!mainSite && !siteDone(st.profile.setup_steps || {}, mainSite);
+  // Once that site is connected its button leaves the hero; the newest unread notification takes its place.
+  const note = siteNeeded ? null : (await listNotifications(db, st.userId, 1)).find((n) => !n.read_at) || null;
   const nextSite = setupSites.find((p) => !siteDone(st.profile.setup_steps || {}, p));
+  // LinkedIn helper for every country: shown until the person says they updated their profile.
+  const liSteps = st.profile.setup_steps || {};
+  const liNeeded = typeof liSteps[LINKEDIN_DONE] !== "string";
+  const liConnected = typeof liSteps[LINKEDIN_URL] === "string";
 
   return (
     <div className={s.home}>
@@ -170,14 +190,19 @@ export default async function Inbox() {
             <h1 className={s.title}>Welcome back{first ? <>, <span className={s.name}>{first}</span></> : ""}</h1>
           </div>
           <div className={s.cta}>
-            {bdjobsNeeded ? <Link prefetch={false} className={s.bdBtn} href="/setup?site=Bdjobs"><Svg d={ICON.link} />Connect Bdjobs<em>· 4 easy steps</em></Link>
-              : note ? <Link prefetch={false} className={s.noteBtn} href={note.link || "/notifications"}><Svg d={ICON.bell} /><span className={s.noteTx}>{note.title}</span></Link> : null}
+            {liNeeded || siteNeeded ? (
+              <div className={s.connectPair}>
+                {liNeeded ? <Link prefetch={false} className={s.liBtn} href="/linkedin"><Svg d={ICON.linkedin} />{liConnected ? "Update LinkedIn" : "Connect LinkedIn"}</Link> : null}
+                {siteNeeded ? <Link prefetch={false} className={s.bdBtn} href={`/setup?site=${encodeURIComponent(mainSite!)}`}><Svg d={ICON.link} />Connect {mainSite}</Link> : null}
+              </div>
+            ) : null}
+            {!siteNeeded && note ? <Link prefetch={false} className={s.noteBtn} href={note.link || "/notifications"}><Svg d={ICON.bell} /><span className={s.noteTx}>{note.title}</span></Link> : null}
             {missing.length ? <Link prefetch={false} className={s.warnBtn} href="/profile#application-safety"><Svg d={ICON.warn} />{missing.length} {missing.length === 1 ? "detail" : "details"} incomplete<em>· Complete now</em></Link> : null}
           </div>
         </div>
       </section>
 
-      {panel("today-h", "Today", `Jobs added today in ${cname(country)}`, today, appliedToday, s.pToday, new Date(`${st.today}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }), true)}
+      {panel("today-h", "New for you", `New jobs in ${cname(country)} since your last visit`, today, appliedToday, s.pToday, `Since ${fresh.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}`, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
@@ -253,6 +278,7 @@ export default async function Inbox() {
             <section className={s.card}>
               <div className={s.head} style={{ ["--hc" as string]: "var(--teal)" }}><h3>Latest application</h3><Link prefetch={false} className={s.link} href="/applications">Applied</Link></div>
               <Link prefetch={false} className={s.latest} style={{ display: "block", textDecoration: "none" }} href={`/jobs/${latestJob.id}`}><b>{latestJob.title}</b>, {latestJob.company} · {["applied", "interview", "offer", "closed", "withdrawn"].includes(latestApp.status) ? STATUS_LABEL[latestApp.status] : "Applied"}{repliesPending ? `. ${repliesPending} ${repliesPending === 1 ? "employer has" : "employers have"} not replied after 14 days; we’ll remind you to follow up.` : "."}</Link>
+              {["applied", "interview", "offer"].includes(latestApp.status) ? <Link prefetch={false} className={s.ivLink} href={`/jobs/${latestJob.id}#interview`}><Svg d={ICON.mic} />{latestApp.interview_prep ? "Your interview prep is ready" : "Practise interview questions for this job"}<span>Salary answers included →</span></Link> : null}
             </section>
           ) : null}
 

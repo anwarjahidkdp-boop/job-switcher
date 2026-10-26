@@ -12,6 +12,8 @@ import { ADZUNA_COUNTRIES } from "../../src/lib/ingest/boards";
 import { cname } from "../../src/lib/countries";
 import { fetchBangladesh, type BangladeshBatch } from "./bd/fetch";
 import { ensureBangladeshSources, persistBangladeshJobs, persistBangladeshBatch } from "./bd/persist";
+import { readHeldCirculars } from "./bd/circulars";
+import { getProvider } from "../../src/lib/ai";
 
 async function main() {
   const db = scriptAdmin();
@@ -71,6 +73,20 @@ async function main() {
       console.error(`  ${src.kind} "${src.name}" failed: ${msg}`);
       if (!dry) await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: "error", last_error: msg.slice(0, 500) }).eq("id", src.id);
     }
+  }
+
+  // Held image/newspaper circulars: read free with OCR first; AI reads only what OCR could not confirm, until the
+  // daily AI budget is spent (BD_CIRCULAR_AI_BUDGET_USD, default $0.50; 0 = free reading only).
+  // BD_CIRCULAR_AI_LIMIT caps how many circulars one run looks at (default 200, 0 turns circular reading off).
+  const ai = getProvider();
+  const circularLimit = Math.max(0, Math.min(1000, Number(process.env.BD_CIRCULAR_AI_LIMIT ?? 200) || 0));
+  const circularBudget = Math.max(0, Math.min(20, Number(process.env.BD_CIRCULAR_AI_BUDGET_USD ?? 0.5) || 0));
+  if (!dry && !only && circularLimit) {
+    try {
+      const c = await readHeldCirculars(db, circularBudget ? ai : null, todayStr("Asia/Dhaka"), { limit: circularLimit, maxCostMicroUsd: circularBudget * 1e6, maxMs: 30 * 60_000 });
+      console.log(`ingest: circulars read free ${c.freeRead}, with AI ${c.read}; published ${c.published} job(s); AI cost about $${(c.costMicroUsd / 1e6).toFixed(3)}`);
+      if (c.published) { touchedCountries.add("BD"); total += c.published; }
+    } catch (e) { failed++; console.error(`  circular reading failed: ${errText(e)}`); }
   }
 
   if (!dry) {

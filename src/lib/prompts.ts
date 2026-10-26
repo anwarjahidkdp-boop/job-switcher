@@ -254,7 +254,7 @@ export const INTERVIEW_PROMPT = (m: MasterCV, job: Job, mode: string | null) => 
 Prepare them. Use the job post to predict the questions this employer is most likely to ask, and write a strong sample answer for each using ONLY facts from the verified Master CV. Never invent employers, numbers, projects or achievements. When a good answer needs a personal example or number that is not in the CV, write the answer around it and put a clear placeholder in square brackets, like [your example of a month-end close you led].
 
 Reply with ONLY one JSON object:
-{"questions":[{"topic":"about_you"|"role"|"technical"|"behavioural"|"company"|"salary","question":string,"why":string (one short line: why they ask it or what they want to hear),"answer":string (60-120 words, first person, natural spoken English)}] (10-12 questions: 1-2 about_you, 3-4 role/technical from the job's requirements, 3 behavioural (STAR style), 1 company, 1 salary/notice),
+{"questions":[{"topic":"about_you"|"role"|"technical"|"behavioural"|"company","question":string,"why":string (one short line: why they ask it or what they want to hear),"answer":string (60-120 words, first person, natural spoken English)}] (9-11 questions: 1-2 about_you, 3-4 role/technical from the job's requirements, 3 behavioural (STAR style), 1 company. Do not write salary or notice-period questions: JobPao adds those from the posted pay and the person's own saved figures),
 "ask_them":[string] (3 smart questions the person can ask the interviewer),
 "checklist":[string] (5-7 short preparation steps for this interview, e.g. documents to bring, what to research)}
 

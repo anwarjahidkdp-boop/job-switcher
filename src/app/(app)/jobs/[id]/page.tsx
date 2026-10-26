@@ -24,6 +24,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
 import { aiConfigured } from "@/lib/ai";
 import { InterviewPanel } from "./InterviewPanel";
+import { OfferPanel } from "./OfferPanel";
+import { salaryFacts, withSalaryPrep } from "@/lib/interview/salary";
 import { ReplyPanel } from "./ReplyPanel";
 import { followUpDraft } from "@/lib/followup";
 import { daysUntil } from "@/lib/dates";
@@ -32,6 +34,7 @@ import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { askRows, postAsks } from "@/lib/job-asks";
+import { scamCheck } from "@/lib/scam-check";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -50,6 +53,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   // The full post, so the person can judge the job themselves before applying (list loads leave it out).
   const { data: descRow } = await db.from("jobs").select("description,source_kind").eq("id", job.id).maybeSingle();
   const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
+  const scam = scamCheck(job, description);
   const { data: occurrences } = job.country === "BD" ? await db.from("job_source_occurrences").select("discovered_url, original_source_url").eq("job_id", job.id).limit(20) : { data: null };
   const publicLink = (value: string | null) => { try { const u = new URL(value || ""); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
   const foundAt = [...new Set((occurrences || []).map(o => publicLink(o.discovered_url)).filter((u): u is string => !!u))];
@@ -100,6 +104,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               <span className="pill p-neutral">{job.source}{job.isSample ? " · fictional sample" : ""}</span>
             </div>
             {eligibility.issues.length ? <div className="note small" role="status" style={{marginTop:12}}><b>Eligibility and pay check</b><ul>{eligibility.issues.map(i=><li key={i.code}>{i.message}</li>)}</ul>{eligibility.issues.some(i=>["age_unknown","salary_unknown"].includes(i.code))?<Link className="btn btn-primary btn-sm" href="/onboarding?step=prefs">Complete required details</Link>:null}</div>:null}
+            {scam.level !== "none" ? <div className={`note small scam-note${scam.level === "high" ? " scam-high" : ""}`} role="alert" style={{ marginTop: 12 }}><b>{scam.level === "high" ? "Warning: this post shows signs of a fake job" : "Check this job carefully before you apply"}</b><ul>{scam.reasons.map((x) => <li key={x}>{x}</li>)}</ul><span>A real employer never asks you to pay to get a job. Do not send money, bank or card details, or original documents. Check the company on its official website before applying.</span></div> : null}
             {descRow?.source_kind === 'bdweb' ? <p className="note small" style={{ marginTop: 12 }}>Confirm the employer, full eligibility and application instructions in the linked original advertisement before applying. A source listing does not guarantee an employer or job offer.</p> : null}
             {job.resp.length ? <><h3 style={{ fontSize: 15, marginTop: 18 }}>Main responsibilities</h3><ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>{job.resp.map((x, i) => <li key={i}>{x}</li>)}</ul></> : null}
             <h3 style={{ fontSize: 15, marginTop: 14 }}>Asks for</h3>
@@ -168,9 +173,10 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               <ApplicationProgress key={`progress-${job.id}`} jobId={job.id} status={a.status} appliedAt={a.applied_at} interviewAt={a.interview_at} history={a.application_events||[]} trial={!pro} remaining={room}/>
             </div>
           ) : null}
+          {a?.status === "offer" ? <OfferPanel job={{ title: job.title, company: job.company, country: job.country, salaryMin: job.salaryMin, salaryMax: job.salaryMax }} facts={salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)} name={st.profile.full_name || st.master.content.name} sym={rule(job.country).sym} per={rule(job.country).per === "year" ? "a year" : "a month"} /> : null}
           {a && ["applied", "interview", "offer"].includes(a.status) ? (
             <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
-              prep={a.interview_prep ?? null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
+              prep={a.interview_prep ? withSalaryPrep(a.interview_prep, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)) : null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
           ) : null}
         </div>
         <aside className="side">

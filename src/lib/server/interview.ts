@@ -6,6 +6,7 @@ import { aiErrCopy } from "../ai/provider";
 import { InterviewPrepSchema } from "../ai/schemas";
 import { INTERVIEW_PROMPT, SYSTEM_RULES } from "../prompts";
 import { templateInterview } from "../interview/template";
+import { salaryFacts, withSalaryPrep } from "../interview/salary";
 import { fmtDate } from "../dates";
 import type { InterviewPrep } from "../types";
 import { loadJob, loadState } from "./state";
@@ -56,6 +57,7 @@ export async function prepareInterview(ctx: Ctx, jobId: string): Promise<{ ai: b
     }
   }
   if (!ai) prep = templateInterview(job, cv);
+  prep = withSalaryPrep(prep!, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country));
   const { error } = await ctx.db.from("applications").update({ interview_prep: prep, interview_prep_ai: ai }).eq("id", app.id);
   if (error) throw error;
   // The person asked for it, so the event is theirs (users may only append user events).

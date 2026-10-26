@@ -3,7 +3,7 @@ import {extractJobPostings,postingToJob,type JobPosting} from '../../../src/lib/
 import type {IngestedJob} from '../../../src/lib/ingest/ats';
 import {all,field,hasClass,href,parse,text,type Node} from './html';import {sourceDate} from './dates';import type {BangladeshSource} from './registry';
 export interface SourceDocument {url:string;title:string;kind:'article'|'pdf'|'image';reason:string;publishedAt:string|null}
-export interface DiscoveredJob extends IngestedJob {discovery:{url:string;originalUrl:string|null;source:string;evidence:'structured'|'labelled'}}
+export interface DiscoveredJob extends IngestedJob {discovery:{url:string;originalUrl:string|null;source:string;evidence:'structured'|'labelled'|'ai_extracted'|'ocr_extracted'}}
 const ignored=(n:Node)=>['header','footer','nav','aside'].includes(n.tag)||['rm-container','related-news','related-stories','advertisement','ads'].some(c=>hasClass(n,c));
 export function detailUrls(html:string,url:string,config:BangladeshSource):string[]{
  const root=parse(html);const base=new URL(url);const found=all(root,n=>n.tag==='a').flatMap(n=>{const u=href(n,url);if(!u||u.hostname.replace(/^www\./,'')!==base.hostname.replace(/^www\./,'')||!config.detail.test(u.pathname))return [];u.host=base.host;u.protocol='https:';u.hash='';return [u.href];});

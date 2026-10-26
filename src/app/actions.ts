@@ -12,7 +12,8 @@ import { confirmApplied, TrialLimit, dismissJob, markOpened, setReminder, update
 import { isAccent, isTemplate, rule, cc } from "@/lib/countries";
 import { todayStr } from "@/lib/dates";
 import { loadProfile } from "@/lib/server/state";
-import { ACCOUNT_KINDS, isSetupKey, SITE_STEPS, siteKey } from "@/lib/setup";
+import { ACCOUNT_KINDS, isSetupKey, SITE_STEPS, siteKey, LINKEDIN_URL, LINKEDIN_DONE } from "@/lib/setup";
+import { linkedinUrl } from "@/lib/linkedin";
 
 
 export async function setCountryAction(country: string, needsVisa: boolean, homeCountry?: string) {
@@ -218,4 +219,24 @@ export async function saveCareerSafetyAction(formData: FormData) {
   revalidatePath("/profile");
   revalidatePath("/inbox");
   revalidatePath("/insights");
+}
+
+/** "Connect LinkedIn": saves the person's public profile link (LinkedIn has no API to edit a profile for them). */
+export async function saveLinkedinAction(raw: string) {
+  const url = linkedinUrl(raw);
+  if (!url) throw new Error("Enter your LinkedIn profile link, like linkedin.com/in/your-name.");
+  const c = await ctx("/linkedin");
+  const p = await loadProfile(c.db, c.userId);
+  const { error } = await c.db.from("profiles").update({ setup_steps: { ...(p?.setup_steps || {}), [LINKEDIN_URL]: url } }).eq("id", c.userId);
+  if (error) throw error;
+}
+
+/** The person says they copied the new sections into LinkedIn; Home stops asking. */
+export async function markLinkedinUpdatedAction(done: boolean) {
+  const c = await ctx("/linkedin");
+  const p = await loadProfile(c.db, c.userId);
+  const steps = { ...(p?.setup_steps || {}) };
+  if (done) steps[LINKEDIN_DONE] = new Date().toISOString(); else delete steps[LINKEDIN_DONE];
+  const { error } = await c.db.from("profiles").update({ setup_steps: steps }).eq("id", c.userId);
+  if (error) throw error;
 }
