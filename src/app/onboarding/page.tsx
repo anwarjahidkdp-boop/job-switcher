@@ -108,6 +108,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     body = <>
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {nm.length} opportunities</button></form></div></div>
+      <CvSuggestions items={m.suggestions || []} toggle />
       {st.master.flags.length ? <p className="note" style={{ marginTop: 12, borderColor: "var(--warn)" }}>Our fact check {st.master.flags.join("; ")}.</p> : null}
       {(m.improvements || []).length ? (
         <div className="card panel imp-card" style={{ marginTop: 22 }}>
@@ -115,7 +116,6 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
           <ol className="imp-list">{(m.improvements || []).map((i, k) => <li key={k}><span className="imp-after">{i.after}</span><span className="imp-before">Before: {i.before}</span></li>)}</ol>
         </div>
       ) : null}
-      <CvSuggestions items={m.suggestions || []} />
       <div style={{ marginTop: 22 }}>
         <p className="eyebrow" style={{ marginBottom: 8 }}>Your new Master CV, {cn} format</p>
         <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cn} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc" }} />

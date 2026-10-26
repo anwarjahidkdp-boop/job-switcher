@@ -1237,3 +1237,10 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .q-chip{padding:7px 13px;border-radius:999px;border:1px solid #E3C77E;background:#FFF8E6;color:#14275A;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
 .q-chip:hover{background:#FFEFC7}
 .q-chip.on{background:#14966F;border-color:#14966F;color:#fff}
+/* "Your CV is ready": recommended changes open from a button right under the heading. */
+.sugg-toggle{display:flex;align-items:center;gap:12px;width:100%;margin-top:14px;padding:14px 16px;text-align:left;border:1.5px solid #E3A93F;border-radius:14px;background:linear-gradient(135deg,#FFFBF2,#FFF1D6);color:#14275A;cursor:pointer;box-shadow:0 6px 18px rgba(201,150,64,.18)}
+.sugg-toggle>span:first-child{flex:1;min-width:0}
+.sugg-toggle b{display:block;font-size:16px}
+.sugg-toggle .small{display:block;color:var(--ink-2);margin-top:2px}
+.sugg-toggle-n{flex:none;display:grid;place-items:center;min-width:30px;height:30px;padding:0 8px;border-radius:999px;background:#DC2626;color:#fff;font-weight:800;font-size:14px}
+.sugg-toggle-go{flex:none;padding:8px 14px;border-radius:999px;background:linear-gradient(135deg,#C99A2E,#E3A93F);color:#14275A;font-weight:800;font-size:14px;white-space:nowrap}
