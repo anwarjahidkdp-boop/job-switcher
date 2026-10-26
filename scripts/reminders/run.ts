@@ -12,7 +12,7 @@ async function main() {
   const r = await sendDueReminders(scriptAdmin(), { appUrl, dryRun: hasFlag("dry-run") });
   console.log(`reminders: checked ${r.checked}, sent ${r.sent}, skipped ${r.skipped}, failed ${r.failed}`);
   const n = await sendNudges(scriptAdmin(), { appUrl, dryRun: hasFlag("dry-run") });
-  console.log(`nudges: ${n.notified} notification(s), ${n.emailed} email(s), ${n.failed} failed`);
+  console.log(`nudges: ${n.notified} notification(s), ${n.emailed} email(s), ${n.deferred} waiting for daytime, ${n.failed} failed`);
   const deadlines=await sendDeadlineAlerts(scriptAdmin(),{appUrl,dryRun:hasFlag("dry-run")});
   console.log(`deadlines: ${deadlines.users} user(s), ${deadlines.notified} notification(s), ${deadlines.emailChecks} email check(s), ${deadlines.failed} failed`);
   const outbox = hasFlag("dry-run") ? { failed: 0 } : await flushEmailOutbox(scriptAdmin());

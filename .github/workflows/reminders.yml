@@ -1,7 +1,9 @@
 name: Send reminders and deadline alerts
 on:
   schedule:
-    - cron: "0 * * * *"    # hourly; each user gets reminders on their own local morning
+    # 02:00 UTC = 08:00 Bangladesh; 07:00 and 08:00 UTC = 08:00 UK in summer (BST) and winter (GMT);
+    # 12:00 and 17:00 UTC give every other time zone a daytime run. Users only get messages 08:00-21:00 local.
+    - cron: "0 2,7,8,12,17 * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,7 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # One open issue per problem: an hourly job that keeps failing does not open a new issue every hour.
+          # One open issue per problem: a job that keeps failing does not open a new issue every run.
           t="Reminder emails failed"
           if [ "$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$t\"" --json number --jq length)" = "0" ]; then
             gh issue create -R "$GITHUB_REPOSITORY" --title "$t" --body "See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

@@ -10,7 +10,7 @@ The repository is public. Nobody except the owner (sole admin collaborator) can 
 Fork pull requests never receive secrets and cannot deploy: Deploy runs only after CI on a push to `main`.
 
 Before making it private, note on the GitHub Free plan:
-- Private repos get 2,000 Actions minutes a month. Current usage (hourly reminders, daily ingest, match refresh, CI + deploy on every merge) is well above that, so ingest, reminders and deploys would stop part-way through the month.
+- Private repos get 2,000 Actions minutes a month. Current usage (reminders five times a day, daily ingest, match refresh, CI + deploy on every merge) is well above that, so ingest, reminders and deploys would stop part-way through the month.
 - Branch protection and push protection for secrets are not available on private repos without a paid plan.
 Reduce scheduled Actions minutes (or upgrade) first, then switch to private.
 

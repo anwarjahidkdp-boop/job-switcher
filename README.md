@@ -29,7 +29,7 @@ Next.js on Cloudflare Workers (OpenNext) -- Cloudflare Email Routing -> Email Wo
    +--> bKash Tokenized Checkout (optional, merchant accounts)
    +--> Resend / Brevo (reminder and payment emails)
 Browser-side: PDF/DOCX text extraction (pdf.js via unpdf, mammoth), page rendering and photo downscaling
-GitHub Actions cron: scripts/ingest (daily), scripts/reminders (hourly), CI
+GitHub Actions cron: scripts/ingest (daily), scripts/reminders (5 times a day), CI
 ```
 
 ### Folders
@@ -269,7 +269,7 @@ Add these repository secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_
 |---|---|---|
 | `ci.yml` | every push and PR | typecheck, lint, test, `next build`, OpenNext build and `wrangler deploy --dry-run` (bundle size) |
 | `ingest.yml` | daily, 06:30 Dhaka | `npm run ingest`; also has a manual dry-run input |
-| `reminders.yml` | hourly | `npm run reminders`; each user is emailed on their own local morning (08:00 or later) on the due date |
+| `reminders.yml` | 02, 07, 08, 12, 17 UTC | `npm run reminders`; each user is messaged between 08:00 and 21:00 in their search country (08:00 sharp in Bangladesh and the UK) |
 
 The crons are unchanged by the move to Cloudflare: they talk to Supabase directly. Public repos get unlimited Actions minutes. Private repos get 2,000 minutes a month on the free plan, which is enough for these jobs.
 
@@ -307,4 +307,4 @@ Ready to Apply opens the selected job directly. Reviewing never prepares documen
 
 After sending externally, choose **I've applied** in the pack. This records the user's confirmation and consumes the shared application allowance; downloading or copying alone never marks an application as sent. Add interview details to track an interview, then choose **Offer received** when appropriate. These are user-reported milestones, not a claim that an employer received an email.
 
-The hourly reminder runner checks selected, eligible jobs after 08:00 in the current search country's timezone. In-app deadline alerts occur three days before, one day before and on the closing date. Email reminders require opt-in and a confirmed account email, with one deadline digest per country/local date. Repeated runs deduplicate alerts. Delivery rechecks current country, selection and deadline; removed, applied, expired or closed jobs are excluded. Unknown dates are never invented. A date-only deadline asks the user to check the exact closing time on the original post. These are in-app and email alerts; native phone push is not implemented.
+The reminder runner (five runs a day) checks selected, eligible jobs between 08:00 and 21:00 in the current search country's timezone. In-app deadline alerts occur three days before, one day before and on the closing date. Email reminders require opt-in and a confirmed account email, with one deadline digest per country/local date. Repeated runs deduplicate alerts. Delivery rechecks current country, selection and deadline; removed, applied, expired or closed jobs are excluded. Unknown dates are never invented. A date-only deadline asks the user to check the exact closing time on the original post. These are in-app and email alerts; native phone push is not implemented.
