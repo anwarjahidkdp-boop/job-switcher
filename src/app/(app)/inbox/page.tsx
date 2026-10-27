@@ -75,6 +75,9 @@ export default async function Inbox() {
   const setupSites = portals(country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const now = nowMs();
+  // Start the page's other reads together (each is a round trip); the awaits below pick up these same cached requests.
+  const visitCookie = (await cookies()).get(VISIT_COOKIE)?.value, earlySite = setupSites.find((p) => p !== "LinkedIn");
+  void Promise.allSettled([subscriptionOf(db, st.userId), briefingWindow(db, st, visitCookie, now), ...(earlySite && !siteDone(st.profile.setup_steps || {}, earlySite) ? [] : [listNotifications(db, st.userId, 1)])]);
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;

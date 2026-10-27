@@ -33,3 +33,45 @@ self.addEventListener("fetch", (event) => {
     return response;
   })());
 });
+
+// Phone notifications (Web Push). The server sends {title, body, link, tag}; tapping opens that page in JobPao.
+self.addEventListener("push", (event) => {
+  let m = {};
+  try { m = event.data ? event.data.json() : {}; } catch { m = { body: event.data ? event.data.text() : "" }; }
+  const link = typeof m.link === "string" && m.link.startsWith("/") && !m.link.startsWith("//") ? m.link : "/notifications";
+  event.waitUntil(self.registration.showNotification(m.title || "JobPao", {
+    body: m.body || "You have a new update.",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: m.tag || "jobpao",
+    renotify: true,
+    data: { link },
+  }));
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.link) || "/notifications", self.location.origin).href;
+  event.waitUntil((async () => {
+    const open = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of open) {
+      if (new URL(c.url).origin === self.location.origin && "focus" in c) {
+        await c.focus();
+        if ("navigate" in c) await c.navigate(url).catch(() => {});
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
+  })());
+});
+// The browser renewed its push address: tell the server, so alerts keep arriving.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil((async () => {
+    const res = await fetch("/api/push", { credentials: "same-origin" });
+    if (!res.ok) return;
+    const { key } = await res.json();
+    const pad = "=".repeat((4 - key.length % 4) % 4);
+    const raw = Uint8Array.from(atob(key.replace(/-/g, "+").replace(/_/g, "/") + pad), (c) => c.charCodeAt(0));
+    const sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: raw });
+    await fetch("/api/push", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+  })().catch(() => {}));
+});

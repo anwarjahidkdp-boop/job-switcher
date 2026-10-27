@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHead } from "@/components/PageHead";
+import { PushAlertsCard } from "@/components/PushAlerts";
 import { requireUser } from "@/lib/server/page";
 import { listNotifications, markAllRead, type NotificationKind } from "@/lib/server/notify";
 import { currentApplicationNotifications } from "@/lib/dashboard-progress";
@@ -23,6 +24,7 @@ export default async function Notifications() {
   return (
     <>
       <PageHead kicker="Your job assistant" title={<>What&apos;s <span>new</span></>} sub="New matches, ready applications, replies to check and interview reminders. We also email the important ones." />
+      <div style={{ marginTop: 16, maxWidth: 760 }}><PushAlertsCard /></div>
       <div className="card panel" style={{ marginTop: 16, maxWidth: 760 }}>
         {items.length ? items.map((n) => (
           <Link key={n.id} href={n.link || "/inbox"} className={`ntf ${n.read_at ? "" : "new"}`}>

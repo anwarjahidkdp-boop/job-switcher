@@ -6,6 +6,10 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "observability": { "enabled": true },
+  // Run the app next to the database (Supabase, AWS Seoul). A page makes several database reads one after another;
+  // from Dhaka or London each one crossed the world (150-250 ms apiece). Phones still get images, scripts and fonts
+  // from the nearest Cloudflare site; only the page itself is made in Seoul.
+  "placement": { "region": "aws:ap-northeast-2" },
   // The app's public address; Cloudflare creates the DNS record. workers.dev keeps working too.
   "routes": [{ "pattern": "jobpao.app", "custom_domain": true }],
   // Keep variables and secrets set in the Cloudflare dashboard (bKash number, ADMIN_EMAILS, ...) across deploys.

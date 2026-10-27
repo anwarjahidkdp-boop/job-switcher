@@ -13,7 +13,7 @@ for(const path of pages)await probe(path,{},(r,t)=>r.status===200&&t.length>100&
 for(const path of ['/inbox','/queue','/profile','/applications','/admin/payments'])await probe(path,{},r=>[302,303,307,308].includes(r.status)&&new URL(r.headers.get('location'),origin).pathname==='/login');
 for(const path of ['/api/account/delete','/api/cv/manual','/api/cv/upload','/api/cv/build','/api/onboarding/prefs','/api/billing/manual','/api/applications/00000000-0000-4000-8000-000000000000/prepare','/api/applications/00000000-0000-4000-8000-000000000000/send'])await probe(path,{method:'POST',headers:{'content-type':'application/json'},body:'{}'},r=>r.status===401);
 await probe('/api/inbound/email',{method:'POST',body:'{}'},r=>r.status===401);
-await probe('/api/billing/paddle',{method:'POST',body:'{}'},r=>[401,503].includes(r.status));
+await probe('/api/billing/creem',{method:'POST',body:'{}'},r=>[401,503].includes(r.status));
 await probe('/api/cv/edit',{method:'POST',body:'{}'},r=>r.status===410);
 await probe('/api/health',{},(r,t)=>r.status===200&&JSON.parse(t).ok===true);
 await probe('/manifest.webmanifest',{},(r,t)=>{const m=JSON.parse(t);return r.status===200&&m.display==='standalone'&&m.start_url&&m.icons.length>=2;});
