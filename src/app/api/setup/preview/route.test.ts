@@ -1,0 +1,12 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+vi.mock('server-only',()=>({}));
+const {q}=vi.hoisted(()=>({q:{select:vi.fn(),is:vi.fn(),eq:vi.fn(),order:vi.fn(),limit:vi.fn()}}));
+vi.mock('@/lib/supabase/admin',()=>({createAdminClient:()=>({from:(table:string)=>{expect(table).toBe('jobs');return q;}})}));
+import {POST} from './route';
+import {emptySetup} from '@/lib/guided-setup';
+const setup={...emptySetup('GB'),roles:'Accountant',salaryMin:35000,workAuthorization:'yes',sponsorshipRequired:false,willingToRelocate:true};
+const request=(body:unknown,origin='https://jobpao.app')=>new Request('https://jobpao.app/api/setup/preview',{method:'POST',headers:{origin},body:JSON.stringify(body)});
+beforeEach(()=>{vi.clearAllMocks();for(const key of ['select','is','eq','order'] as const)q[key].mockReturnValue(q);q.limit.mockResolvedValue({data:[],error:null});});
+it('reads only public live non-sample country jobs, and returns an honest zero',async()=>{const r=await POST(request({setup,text:'Accountant with Excel experience. '.repeat(10)}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({count:0,searched:0,matches:[]});expect(r.headers.get('cache-control')).toBe('no-store');expect(q.is).toHaveBeenCalledWith('owner_id',null);expect(q.eq).toHaveBeenCalledWith('is_sample',false);expect(q.eq).toHaveBeenCalledWith('country','GB');expect(q.limit).toHaveBeenCalledWith(1000);});
+it('blocks cross-origin and invalid or oversized requests before querying',async()=>{expect((await POST(request({setup,text:'x'.repeat(250)},'https://other.example'))).status).toBe(403);expect((await POST(request({setup,text:'short'}))).status).toBe(400);expect(q.select).not.toHaveBeenCalled();});
+it('does not disguise a failed database read as zero matches',async()=>{q.limit.mockResolvedValue({data:null,error:new Error('database details')});const r=await POST(request({setup,text:'a'.repeat(250)}));expect(r.status).toBe(503);expect(JSON.stringify(await r.json())).not.toContain('database details');});
