@@ -42,7 +42,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(m.title || "JobPao", {
     body: m.body || "You have a new update.",
     icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    badge: "/badge-96.png", // Android draws the small icon from the shape alone: white on transparent
     tag: m.tag || "jobpao",
     renotify: true,
     data: { link },

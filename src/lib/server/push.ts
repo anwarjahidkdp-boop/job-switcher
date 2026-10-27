@@ -54,11 +54,6 @@ export async function savePushSubscription(admin: SupabaseClient, userId: string
 /** The cookie that names this browser's subscription, so signing out stops its alerts (shared phones). */
 export const PUSH_COOKIE = "jp_push";
 
-export async function removePushSubscription(admin: SupabaseClient, userId: string, endpoint: string) {
-  const { error } = await admin.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", endpoint);
-  if (error) throw error;
-}
-
 /** Push endpoints are always https addresses of the browser's push service. */
 export function validSubscription(v: unknown): PushTarget | null {
   const o = v as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null;
