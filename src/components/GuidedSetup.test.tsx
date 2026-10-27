@@ -16,7 +16,7 @@ it('restores answers, enforces validation, preserves Back, and completes without
  const d={...emptySetup('GB'),roles:'Financial Accountant',locations:'London',salaryMin:42000,workAuthorization:'yes' as const,sponsorshipRequired:false,willingToRelocate:false};
  localStorage.setItem(SETUP_DRAFT_KEY,draftEnvelope(d));
  await act(async()=>root.render(<GuidedSetup onComplete={onComplete}/>));
- await click('Continue →');expect(host.textContent).toContain('Which job titles');expect((host.querySelector('input') as HTMLInputElement).value).toBe('Financial Accountant');
+ await click('Continue →');expect(host.textContent).toContain('Which job titles');expect(host.querySelector('[aria-label="Remove Financial Accountant"]')).not.toBeNull();
  await click('Continue →');expect(host.textContent).toContain('Where and how');await click('Remote');await click('Continue →');
  await input('input[type=number]','0');await click('Continue →');expect((host.querySelector('input[type=number]') as HTMLInputElement).checkValidity()).toBe(false);expect(onComplete).not.toHaveBeenCalled();
  await input('input[type=number]','48000');await click('Continue →');await click('Continue →');expect(host.textContent).toContain('companies');await click('← Back');expect(host.textContent).toContain('authorization');await click('Continue →');await click('Continue →');await click('Continue →');
@@ -27,4 +27,13 @@ it('reviews authenticated answers first, asks only missing fields, and never ove
  await act(async()=>root.render(<GuidedSetup authenticated billingLocked initial={{...emptySetup('BD'),roles:'Accountant'}} onComplete={vi.fn()}/>));
  expect(host.textContent).toContain('Your search, ready');await click('Save and create my CV');expect(host.querySelector('[role=alert]')).not.toBeNull();
  const edit=host.querySelectorAll('dl button')[0] as HTMLButtonElement;await act(async()=>edit.click());expect((host.querySelector('select') as HTMLSelectElement).disabled).toBe(true);await click('Save answer →');expect(host.textContent).toContain('Your search, ready');
+});
+
+it('selects multiple suggested titles, adds custom titles and removes independently',async()=>{
+ localStorage.setItem(SETUP_DRAFT_KEY,draftEnvelope(emptySetup('GB')));
+ await act(async()=>root.render(<GuidedSetup onComplete={vi.fn()}/>));await click('Continue →');
+ await click('Accountant');await click('Financial Accountant');expect(host.textContent).toContain('2 job titles selected');
+ await input('input','Audit Manager');await click('Add job title');expect(host.textContent).toContain('3 job titles selected');
+ await act(async()=>{(host.querySelector('[aria-label="Remove Accountant"]') as HTMLButtonElement).click();});
+ await click('Continue →');await click('← Back');expect(host.querySelector('[aria-label="Remove Audit Manager"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Financial Accountant"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Accountant"]')).toBeNull();
 });
