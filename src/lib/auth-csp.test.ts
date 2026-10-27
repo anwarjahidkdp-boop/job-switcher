@@ -7,10 +7,3 @@ it.each(["","synthetic-public-site-key"])("allows only the configured challenge 
  for(const directive of ["script-src","connect-src","frame-src"]){const value=csp.split("; ").find(d=>d.startsWith(directive))!;expect(value.includes("https://challenges.cloudflare.com")).toBe(!!key);}
  expect(csp).not.toContain("frame-src *");
 });
-it("lets only /pay load Paddle's checkout",async()=>{
- vi.resetModules();const {default:config}=await import("../../next.config");const groups=await config.headers!();
- const site=groups[0].headers.find(h=>h.key==="Content-Security-Policy")!.value,pay=groups.find(g=>g.source==="/pay")!.headers[0].value;
- expect(groups.indexOf(groups.find(g=>g.source==="/pay")!)).toBeGreaterThan(0);
- expect(site).not.toContain("paddle.com");
- expect(pay).toContain("script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.paddle.com");expect(pay).toContain("https://buy.paddle.com");expect(pay).toContain("frame-ancestors 'none'");
-});

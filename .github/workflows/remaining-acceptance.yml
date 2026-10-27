@@ -20,10 +20,9 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       GMAIL_TOKEN_KEY: ${{ secrets.GMAIL_TOKEN_KEY }}
-      PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
-      PADDLE_PRODUCT_ID: ${{ secrets.PADDLE_PRODUCT_ID }}
-      PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
-      PADDLE_CLIENT_TOKEN: ${{ secrets.PADDLE_CLIENT_TOKEN }}
+      CREEM_API_KEY: ${{ secrets.CREEM_API_KEY }}
+      CREEM_PRODUCT_ID: ${{ secrets.CREEM_PRODUCT_ID }}
+      CREEM_WEBHOOK_SECRET: ${{ secrets.CREEM_WEBHOOK_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
