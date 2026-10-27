@@ -5,13 +5,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {fullBackup,restoreBackup} from "./full";
 import { flagValue, scriptAdmin } from "../lib/admin";
+import { orderKeys, TABLES } from "./tables";
 
-export const TABLES = [
-  "profiles", "subscriptions", "payments", "plans", "plan_prices", "country_rules", "cv_documents", "career_facts", "master_cvs",
-  "applications", "application_events", "reminders", "matches", "notifications", "jobs", "ingestion_sources",
-  "forwarding_addresses", "inbound_emails", "ai_usage", "gmail_connections", "email_deliveries", "career_reports", "match_assessments", "ingestion_source_quarantine", "source_documents", "job_source_occurrences", "job_canonical_keys",
-];
 const PAGE = 1000;
+
 
 async function main() {
   const out = flagValue("out") || "backup";
@@ -31,8 +28,7 @@ async function main() {
     const rows: unknown[] = [];
     for (let from = 0; ; from += PAGE) {
       let query = db.from(t).select("*");
-      const keys = t === "matches" ? ["user_id", "job_id"] : t === "plan_prices" ? ["plan_code", "country"] : t === "plans" || t === "country_rules" ? ["code"] : t === "gmail_connections" ? ["user_id"] : ["id"];
-      for (const key of keys) query = query.order(key);
+      for (const key of orderKeys(t)) query = query.order(key);
       const { data, error } = await query.range(from, from + PAGE - 1);
       if (error) throw new Error(`${t}: ${error.message}`);
       rows.push(...(data || []));
