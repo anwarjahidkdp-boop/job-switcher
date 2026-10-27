@@ -124,6 +124,12 @@ export function PushAlertsPrompt() {
     const t = setTimeout(() => { try { setHidden(Number(localStorage.getItem(HIDE_KEY) || 0) > Date.now()); } catch { setHidden(false); } }, 0);
     return () => clearTimeout(t);
   }, []);
+  // Once alerts are on, the bar says so briefly and then goes away by itself.
+  useEffect(() => {
+    if (state !== "on") return;
+    const t = setTimeout(() => setHidden(true), 3500);
+    return () => clearTimeout(t);
+  }, [state]);
   if (where !== "/inbox" || hidden || (state !== "off" && state !== "needs-install" && !note)) return null;
   const hide = () => { setHidden(true); try { localStorage.setItem(HIDE_KEY, String(Date.now() + 14 * 86_400_000)); } catch {} };
   return (
