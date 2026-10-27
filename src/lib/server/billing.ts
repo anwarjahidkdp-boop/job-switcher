@@ -10,10 +10,10 @@ import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
 import { formatPrice, packPrice, PAYABLE_CURRENCIES, type PackPrice } from "../billing/pricing";
-import { createPaddleTransaction, paddleConfig, parseEvent as parsePaddleEvent, verifySignature as verifyPaddleSignature } from "../billing/paddle";
+import { createCreemCheckout, creemConfig, parseEvent as parseCreemEvent, verifySignature as verifyCreemSignature } from "../billing/creem";
 
 export interface PaymentRow {
-  id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy" | "paddle"; amount_minor: number; currency: string;
+  id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy" | "paddle" | "creem"; amount_minor: number; currency: string;
   trx_id: string | null; payer_msisdn: string | null; bkash_payment_id: string | null; invoice: string;
   status: "initiated" | "pending" | "approved" | "rejected" | "failed" | "canceled" | "refunded"; period_end: string | null; period_days: number;
   review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string;
@@ -184,67 +184,74 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
 }
 
 // ---------------------------------------------------------------------------
-// Card payments through Paddle (everyone living outside Bangladesh)
+// Card payments through Creem (everyone living outside Bangladesh)
 // ---------------------------------------------------------------------------
-/** True once Paddle is configured; card payment stays closed until then. */
-export const cardOpen = (): boolean => !!paddleConfig();
+/** True once Creem is configured; card payment stays closed until then. */
+export const cardOpen = (): boolean => !!creemConfig();
 
 export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }, pack?: unknown) {
-  const cfg = paddleConfig();
+  const cfg = creemConfig();
   if (!cfg) throw new PaymentError("Card payment is not open yet. Your trial features keep working until the trial ends.");
   const price = await priceForUser(ctx.admin, ctx.userId, pack);
   if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("In Bangladesh, pay with bKash.");
   const usd = price.usd;
   const plan = await proPlan(ctx.admin);
+  const { data: prof } = await ctx.admin.from("profiles").select("email").eq("id", ctx.userId).maybeSingle();
   const { data: row, error } = await ctx.admin.from("payments").insert({
-    user_id: ctx.userId, plan_code: plan.code, method: "paddle", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: price.days,
+    user_id: ctx.userId, plan_code: plan.code, method: "creem", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: price.days,
   }).select("id").single();
   if (error) throw error;
   try {
-    const tx = await createPaddleTransaction(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, payUrl: `${publicEnv.appUrl}/pay`, label: `${plan.name}, ${price.name}` });
-    // The webhook must name this exact transaction before Pro starts.
-    const { error: e2 } = await ctx.admin.from("payments").update({ provider_order_id: tx.id }).eq("id", row.id);
+    const co = await createCreemCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, successUrl: `${publicEnv.appUrl}/upgrade?payment=card` });
+    // The webhook must name this exact checkout before Pro starts; on payment it is replaced by the order id.
+    const { error: e2 } = await ctx.admin.from("payments").update({ provider_order_id: co.id }).eq("id", row.id);
     if (e2) throw e2;
-    return { url: tx.url };
+    return { url: co.url };
   } catch (e) {
-    console.error("paddle checkout", e);
+    console.error("creem checkout", e);
     await ctx.admin.from("payments").update({ status: "failed", review_note: e instanceof Error ? e.message.slice(0, 300) : "checkout failed" }).eq("id", row.id);
     throw new PaymentError("Card checkout could not start. Try again in a minute.");
   }
 }
 
+const TEST_MODES = ["test", "sandbox", "local"];
+
 /**
- * Signed webhook from Paddle. Pro starts only for a completed transaction that we created for this payment (same
- * transaction id), in USD, one item at our price. A full approved refund takes the days back. Safe to receive twice.
+ * Signed webhook from Creem. Pro starts only for a completed, paid checkout that we created for this payment (same
+ * checkout id) in USD for at least our price (tax may be added on top). A full refund takes the days back.
+ * Safe to receive twice: the row is claimed atomically.
  */
-export async function handlePaddleWebhook(admin: SupabaseClient, rawBody: string, signature: string | null): Promise<{ status: number; note: string }> {
-  const cfg = paddleConfig();
+export async function handleCreemWebhook(admin: SupabaseClient, rawBody: string, signature: string | null): Promise<{ status: number; note: string }> {
+  const cfg = creemConfig();
   if (!cfg) return { status: 503, note: "not configured" };
-  if (!verifyPaddleSignature(rawBody, signature, cfg.webhookSecret)) return { status: 401, note: "bad signature" };
+  if (!verifyCreemSignature(rawBody, signature, cfg.webhookSecret)) return { status: 401, note: "bad signature" };
   let body: unknown;
   try { body = JSON.parse(rawBody); } catch { return { status: 400, note: "bad json" }; }
-  const ev = parsePaddleEvent(body);
-  if (ev?.kind === "refund") return handlePaddleRefund(admin, ev);
-  if (!ev || ev.event !== "transaction.completed" || !ev.paymentId) return { status: 200, note: "ignored" };
+  const ev = parseCreemEvent(body);
+  if (ev && !cfg.test && TEST_MODES.includes(ev.mode)) return { status: 200, note: "test mode ignored" };
+  if (ev?.kind === "refund") return handleCreemRefund(admin, ev);
+  if (!ev || !ev.paymentId) return { status: 200, note: "ignored" };
   const { data: p } = await admin.from("payments").select("id, user_id, amount_minor, currency, status, method, provider_order_id").eq("id", ev.paymentId).maybeSingle();
-  if (!p || p.method !== "paddle" || p.provider_order_id !== ev.transactionId) return { status: 200, note: "unknown payment" };
+  if (!p || p.method !== "creem") return { status: 200, note: "unknown payment" };
   if (p.status === "approved") return { status: 200, note: "already done" };
-  if (ev.status !== "completed") return { status: 200, note: "not paid" };
-  if (ev.currency !== "USD" || ev.unitAmount !== p.amount_minor || ev.quantity !== 1) {
-    await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.unitAmount} x${ev.quantity}` }).eq("id", p.id).eq("status", "initiated");
+  if (p.provider_order_id !== ev.checkoutId) return { status: 200, note: "unknown payment" };
+  if (ev.status !== "completed" || ev.orderStatus !== "paid" || !ev.orderId) return { status: 200, note: "not paid" };
+  if (ev.currency !== "USD" || !(ev.amount >= p.amount_minor)) {
+    await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.amount} (order ${ev.orderId})` }).eq("id", p.id).eq("status", "initiated");
     return { status: 200, note: "amount mismatch" };
   }
-  const result = await settle(admin, p.id, "paddle", ["initiated"], { trx_id: ev.transactionId, provider_order_id: ev.transactionId, reviewed_by: "paddle-webhook" });
-  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: ev.transactionId, amountMinor: p.amount_minor, currency: "USD" });
+  const result = await settle(admin, p.id, "creem", ["initiated"], { trx_id: ev.orderId, provider_order_id: ev.orderId, reviewed_by: "creem-webhook" });
+  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: ev.orderId, amountMinor: p.amount_minor, currency: "USD" });
   return { status: 200, note: result.changed ? "activated" : "already done" };
 }
 
-/** A full, approved card refund takes back the pack's days (once). Partial refunds are left to the admin. */
-async function handlePaddleRefund(admin: SupabaseClient, ev: { transactionId: string; action: string; status: string; type: string }): Promise<{ status: number; note: string }> {
-  if (ev.action !== "refund" || ev.status !== "approved") return { status: 200, note: "ignored" };
-  const { data: p } = await admin.from("payments").select("id, method").eq("provider_order_id", ev.transactionId).maybeSingle();
-  if (!p || p.method !== "paddle") return { status: 200, note: "not ours" };
-  if (ev.type !== "full") { console.error("paddle partial refund, check by hand", ev.transactionId); return { status: 200, note: "partial refund" }; }
-  const result = await settle(admin, p.id, "paddle", ["approved"], { provider_order_id: ev.transactionId, reviewed_by: "paddle-webhook", review_note: `refunded (transaction ${ev.transactionId})` }, true);
+/** A full refund takes back the pack's days (once). Partial refunds are left to the admin. */
+async function handleCreemRefund(admin: SupabaseClient, ev: { refundId: string; status: string; orderId: string | null; transactionStatus: string }): Promise<{ status: number; note: string }> {
+  if (ev.status !== "succeeded") return { status: 200, note: "ignored" };
+  if (!ev.orderId) { console.error("creem refund without order, check by hand", ev.refundId); return { status: 200, note: "no order" }; }
+  const { data: p } = await admin.from("payments").select("id, method").eq("provider_order_id", ev.orderId).maybeSingle();
+  if (!p || p.method !== "creem") return { status: 200, note: "not ours" };
+  if (ev.transactionStatus !== "refunded") { console.error("creem partial refund, check by hand", ev.orderId); return { status: 200, note: "partial refund" }; }
+  const result = await settle(admin, p.id, "creem", ["approved"], { provider_order_id: ev.orderId, reviewed_by: "creem-webhook", review_note: `refunded (${ev.refundId})` }, true);
   return { status: 200, note: result.changed ? "refunded" : "nothing to refund" };
 }
