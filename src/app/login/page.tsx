@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PageHead } from "@/components/PageHead";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -8,9 +9,10 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   return { title: (await searchParams).mode === "signup" ? "Create your account" : "Log in" };
 }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; mode?: string; signedout?:string; logout?:string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; mode?: string; quiz?:string; signedout?:string; logout?:string }> }) {
   const sp = await searchParams;
   const signup = sp.mode === "signup";
+  if(signup && sp.quiz!=="done" && !sp.error)redirect("/get-started");
   const next = safeNext(sp.next);
   return (
     <>

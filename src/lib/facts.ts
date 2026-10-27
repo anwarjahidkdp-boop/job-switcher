@@ -20,6 +20,8 @@ export interface CareerFact<D = Record<string, unknown>> {
 }
 
 export interface CareerMeta {
+  guided_setup?: boolean;
+  guided_setup_pending?: string;
   industries: string[];
   categories: string[];
   seniority: Seniority;

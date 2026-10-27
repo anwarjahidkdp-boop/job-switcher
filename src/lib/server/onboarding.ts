@@ -117,7 +117,7 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
     p_facts: facts,
     p_profile: {
       full_name: extraction.name || profile.full_name, phone: extraction.phone, city: extraction.location,
-      career_meta: { industries: extraction.industries, categories: extraction.categories, seniority: extraction.seniority, target_roles: extraction.target_roles, location: extraction.location },
+      career_meta: { ...(profile.career_meta?.guided_setup ? {guided_setup:true} : {}), industries: extraction.industries, categories: extraction.categories, seniority: extraction.seniority, target_roles: extraction.target_roles, location: extraction.location },
     },
   });
   if (error) throw error;
@@ -179,7 +179,7 @@ export async function saveAnswers(ctx: Ctx, answers: Record<string, string>) {
 }
 
 const num = (v: unknown) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Math.max(0, Number(v)));
-export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null, destination?: { country: string; revision: number; needsVisa?: boolean },readiness?:Partial<AnswerLibrary>) {
+export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, personal: PersonalDetails | null, destination?: { country: string; revision: number; needsVisa?: boolean },readiness?:Partial<AnswerLibrary>, excludedCompanies?:string[]) {
   const p: Preferences = {
     roles: String(prefs.roles || "").slice(0, 500), locations: String(prefs.locations || "").slice(0, 300),
     salaryMin: num(prefs.salaryMin), salaryMax: num(prefs.salaryMax), notice: num(prefs.notice),
@@ -189,13 +189,14 @@ export async function savePreferences(ctx: Ctx, prefs: Partial<Preferences>, per
   if(!existing)throw new Error("Profile missing");
   const country=destination?.country||existing.target_country;
   const autoProfile=buildMatchProfile({name:existing.full_name||"",facts:await loadFacts(ctx.db,ctx.userId)||[],meta:{...DEFAULT_META,...existing.career_meta},prefs:null,country});
-  p.roles=autoProfile.targetRoles.join(", ");
+  p.roles=p.roles.trim()||autoProfile.targetRoles.join(", ");
   const answers=localSearchAnswers({...existing.answer_library,...readiness,expectedSalary:p.salaryMin,salaryNegotiable:false,salaryCountry:country,noticeDays:p.notice,birthDate:personal?.dob||readiness?.birthDate||existing.answer_library?.birthDate||existing.personal?.dob||null},country,existing.home_country);
   if(answers.birthDate&&!validBirthDate(answers.birthDate))throw new Error("Enter a valid date of birth.");
   const missing=setupRequirements({target_country:country,home_country:existing.home_country,preferences:p,personal,answer_library:answers});
   if(missing.length)throw new Error(`Complete required matching details: ${missing.join(", ")}.`);
   if(p.salaryMax!=null&&p.salaryMin!=null&&p.salaryMax<p.salaryMin)throw new Error("The upper expected salary must be at least your minimum.");
   const patch: Record<string, unknown> = { preferences: p,answer_library:answers };
+  if(excludedCompanies!==undefined)patch.deal_breakers={...existing.deal_breakers,excludedCompanies:excludedCompanies.map(s=>s.trim().toLowerCase()).filter(Boolean).slice(0,50),excludedCompaniesSet:true};
   if (personal) {
     const { data, error } = await ctx.db.from("profiles").select("personal").eq("id", ctx.userId).maybeSingle();
     if (error) throw error;

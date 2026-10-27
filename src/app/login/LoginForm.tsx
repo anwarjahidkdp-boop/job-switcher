@@ -28,7 +28,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const [captchaToken,setCaptchaToken]=useState("");
   const [captchaAttempt,setCaptchaAttempt]=useState(0);
   const confirmUrl = (to: string) => `${window.location.origin}/auth/confirm?next=${encodeURIComponent(to)}`;
-  const go = (m: Mode) => { setMode(m); setErr(""); setUnconfirmed(false); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
+  const go = (m: Mode) => { if(m==="signup"&&!next.includes("import=1")){router.push("/get-started");return;} setMode(m); setErr(""); setUnconfirmed(false); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
   const rate = (m: string) => /rate|too many/i.test(m);
 
   async function submit(e: React.FormEvent) {
