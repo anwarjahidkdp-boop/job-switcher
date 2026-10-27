@@ -3,7 +3,7 @@
 //   npm run ingest                 all active sources
 //   npm run ingest -- --source <id> --dry-run
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
-import { fetchSource, staleIds, type SourceRow } from "./fetch-source";
+import { fetchSource, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
 import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
 import { extractEligibility, normaliseEligibility } from "../../src/lib/eligibility";
 import { todayStr } from "../../src/lib/dates";
@@ -40,7 +40,7 @@ async function main() {
     } catch (e) { console.error(`  career page check failed: ${errText(e)}`); }
   }
 
-  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url").eq("active", true);
+  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url, last_status").eq("active", true);
   if (only) q = q.eq("id", only);
   const { data: all, error } = await q;
   if (error) throw error;
@@ -55,7 +55,7 @@ async function main() {
   console.log(`ingest: ${sources.length} active source(s)${dry ? " (dry run)" : ""}`);
 
   const touchedCountries = new Set<string>();
-  let total = 0, failed = 0;
+  let total = 0, failed = 0, newlyFailed = 0;
   // Bangladesh collection must not wait behind the much larger international employer boards.
   for (const src of (sources as SourceRow[]).sort((a, b) => Number(b.country === "BD") - Number(a.country === "BD"))) {
     try {
@@ -79,7 +79,7 @@ async function main() {
       }
       // Only retire old listings when the fetch returned something (an empty result may be a page change, not "no jobs").
       // Search APIs and paginated feeds are not authoritative full-board snapshots.
-      if (jobs.length && ["greenhouse", "lever", "ashby", "workable", "recruitee"].includes(src.kind)) {
+      if (jobs.length && FULL_BOARDS.includes(src.kind)) {
         const { data: prev } = await db.from("jobs").select("external_id").eq("source_id", src.id).eq("active", true);
         const stale = staleIds((prev || []).map((r) => r.external_id as string), jobs.map((j) => j.externalId));
         for (let i = 0; i < stale.length; i += 100) await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).eq("source_id", src.id).in("external_id", stale.slice(i, i + 100));
@@ -87,9 +87,10 @@ async function main() {
       for (const j of jobs) touchedCountries.add(j.country);
       const detail = batch?.failures ? `${batch.failures} detail page fetch(es) failed; saved for retry` : batch?.documents.length ? `${batch.documents.length} circular(s) need extraction/review before matching` : null;
       await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: batch?.failures ? "error" : "ok", last_error: detail, jobs_found: jobs.length }).eq("id", src.id);
-      if (batch?.failures) failed++;
+      if (batch?.failures) { failed++; if (src.last_status !== "error") newlyFailed++; }
     } catch (e) {
       failed++;
+      if (src.last_status !== "error") newlyFailed++;
       const msg = errText(e);
       console.error(`  ${src.kind} "${src.name}" failed: ${msg}`);
       if (!dry) await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: "error", last_error: msg.slice(0, 500) }).eq("id", src.id);
@@ -116,7 +117,7 @@ async function main() {
       }
       console.log(`ingest: circulars read free ${c.freeRead}, with AI ${c.read}; published ${c.published} job(s); AI cost about $${(c.costMicroUsd / 1e6).toFixed(3)} (left today before this run $${(left / 1e6).toFixed(3)})`);
       if (c.published) { touchedCountries.add("BD"); total += c.published; }
-    } catch (e) { failed++; console.error(`  circular reading failed: ${errText(e)}`); }
+    } catch (e) { failed++; newlyFailed++; console.error(`  circular reading failed: ${errText(e)}`); }
   }
 
   if (!dry) {
@@ -128,6 +129,7 @@ async function main() {
     // yesterday in the Americas, where a job closing "today" UTC-wise is open until the end of the local day.
     const yesterday = new Date(Date.parse(today + "T12:00:00Z") - 86_400_000).toISOString().slice(0, 10);
     await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).is("owner_id", null).eq("active", true).lt("deadline", yesterday);
+    console.log(`ingest: closed ${await retireUnseen(db)} job(s) their feed stopped showing`);
     // Before matches are refreshed, so nobody is matched or notified twice for one vacancy.
     try { console.log(`ingest: hid ${await retireDuplicateJobs(db)} duplicate listing(s)`); } catch (e) { console.error(`  duplicate check failed: ${errText(e)}`); }
     console.log(`ingest: pruned ${await pruneOldJobs(db)} closed job(s)`);
@@ -154,8 +156,10 @@ async function main() {
       console.log(`ingest: new matches for ${nm.users} user(s): ${nm.notified} job(s), ${nm.prepared} pack(s) prepared, ${nm.emailed} email(s), ${nm.failed} failed`);
     }
   }
-  console.log(`ingest: done, ${total} job(s), ${failed} failed source(s)`);
-  if (failed) process.exitCode = 1; // partial outages must also alert, even while other sources work
+  console.log(`ingest: done, ${total} job(s), ${failed} failed source(s), ${newlyFailed} of them newly`);
+  // A source that starts failing alerts once (the run goes red and opens an issue). One that keeps failing, such as a
+  // site that blocks us, stays recorded on its ingestion_sources row and in the log but no longer turns every hourly run red.
+  if (newlyFailed || !total) process.exitCode = 1;
 }
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);
@@ -235,11 +239,27 @@ async function ensureSearchSources(db: ReturnType<typeof scriptAdmin>, countries
   else console.log(`ingest: added ${missing.length} search source(s) for new target countries`);
 }
 
-/** Public jobs closed for 30+ days are deleted to keep the database small, unless someone started an application. */
+/** Feed and search jobs without a deadline that their source has not shown for UNSEEN_CLOSE_DAYS are closed
+ * (updated_at moves on every sighting, through the upsert and the touch trigger). Full boards close by snapshot above. */
+async function retireUnseen(db: ReturnType<typeof scriptAdmin>): Promise<number> {
+  const cutoff = new Date(Date.now() - UNSEEN_CLOSE_DAYS * 86400_000).toISOString();
+  const { data, error } = await db.from("jobs").update({ active: false }).is("owner_id", null).eq("active", true).is("deadline", null)
+    .neq("country", "BD").not("source_kind", "in", `(${FULL_BOARDS.join(",")})`).lt("updated_at", cutoff).select("id");
+  if (error) { console.error(`  closing unseen jobs failed: ${errText(error)}`); return 0; }
+  return (data || []).length;
+}
+
+/**
+ * Closed public jobs are deleted to keep the database small, unless someone started an application: after 30 days, or
+ * after UNWATCHED_PRUNE_DAYS in a country nobody searches (no one was matched to them, so no count on any page moves).
+ */
 async function pruneOldJobs(db: ReturnType<typeof scriptAdmin>): Promise<number> {
-  const cutoff = new Date(Date.now() - 30 * 86400_000).toISOString();
-  const { data } = await db.from("jobs").select("id").is("owner_id", null).eq("active", false).lt("updated_at", cutoff).limit(2000);
-  const ids = (data || []).map((r) => r.id as string);
+  const day = 86400_000;
+  const { data: prof } = await db.from("profiles").select("target_country").limit(10000);
+  const targeted = new Set((prof || []).map((p) => p.target_country as string).filter(Boolean));
+  const { data: old } = await db.from("jobs").select("id").is("owner_id", null).eq("active", false).lt("updated_at", new Date(Date.now() - 30 * day).toISOString()).limit(2000);
+  const { data: recent } = await db.from("jobs").select("id, country").is("owner_id", null).eq("active", false).lt("updated_at", new Date(Date.now() - UNWATCHED_PRUNE_DAYS * day).toISOString()).limit(5000);
+  const ids = [...new Set([...(old || []).map((r) => r.id as string), ...(recent || []).filter((r) => !watchedCountry(r.country as string, targeted)).map((r) => r.id as string)])];
   let n = 0;
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);

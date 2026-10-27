@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchSource, staleIds, type SourceRow } from "./fetch-source";
+import { fetchSource, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
 
 const page = `<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Senior Accountant","hiringOrganization":{"name":"Example Ltd."},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"BD"}},"description":"<p>3+ years. Skills: Excel, VAT, IFRS.</p>","datePosted":"2026-10-01","validThrough":"2026-11-01","identifier":{"value":"A-1"}}</script></html>`;
 const src: SourceRow = { id: "s1", kind: "jsonld", name: "Example careers", url: "https://example.com/careers", board_token: null, country: "BD", company: "Example Ltd." };
@@ -55,4 +55,13 @@ it("fails closed on a malformed success payload",async()=>{
 it("does not publish a partial listing when one detail page fails",async()=>{
  const {f}=fakeFetch({"https://example.com/robots.txt":[404,""],"https://example.com/careers":[200,'<a href="/jobs/broken">broken</a>'],"https://example.com/jobs/broken":[503,""]});
  await expect(fetchSource({...src,detail_path:"/jobs/"},"2026-10-22",f)).rejects.toThrow("503");
+});
+
+describe("database clean-up", () => {
+  it("keeps closed jobs in searched countries and remote jobs, and lets the rest go early", () => {
+    const targeted = new Set(["BD", "GB"]);
+    expect(watchedCountry("BD", targeted)).toBe(true);
+    expect(watchedCountry("XX", targeted)).toBe(true);
+    expect(watchedCountry("US", targeted)).toBe(false);
+  });
 });

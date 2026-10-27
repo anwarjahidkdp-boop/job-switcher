@@ -18,6 +18,14 @@ export function InstallApp(){
  const [installer]=useState(()=>createInstaller({showGuide:()=>setOpen(true),onInstalled:()=>{setShow(false);setOpen(false);}}));
  const where=usePathname();
  const here=where==="/"||where.startsWith("/inbox");
+ // On the landing page the reminder waits until the visitor scrolls past the first screen, so it never covers the headline.
+ const [scrolled,setScrolled]=useState(false);
+ useEffect(()=>{
+  if(where!=="/")return;
+  const onScroll=()=>setScrolled(window.scrollY>window.innerHeight*.8);
+  onScroll();window.addEventListener("scroll",onScroll,{passive:true});
+  return()=>window.removeEventListener("scroll",onScroll);
+ },[where]);
  useEffect(()=>{
   navigator.serviceWorker?.register("/sw.js").catch(()=>{});
   const sync=()=>{setOs(installOs(navigator.userAgent,navigator.platform,navigator.maxTouchPoints));setShow(!standalone()&&!installer.isInstalled()&&!dismissed());};
@@ -37,7 +45,7 @@ export function InstallApp(){
  const hide=()=>{setShow(false);try{sessionStorage.setItem(SESSION_KEY,"1");}catch{}};
  const guide=INSTALL_GUIDE[os];
  return <>
-  {show&&here?<div className="ia"><button type="button" className="ia-btn" onClick={()=>void installer.request()}>Install JobPao</button><button type="button" className="ia-x" onClick={hide} aria-label="Hide install reminder for this session">×</button></div>:null}
+  {show&&here&&(where!=="/"||scrolled)?<div className="ia"><button type="button" className="ia-btn" onClick={()=>void installer.request()}>Install JobPao</button><button type="button" className="ia-x" onClick={hide} aria-label="Hide install reminder for this session">×</button></div>:null}
   <dialog ref={dialog} className="ia-dialog" aria-labelledby="ia-t" onCancel={()=>setOpen(false)} onClose={()=>setOpen(false)}>
    <div className="ia-card">
     <h2 id="ia-t">{guide.title}</h2>
