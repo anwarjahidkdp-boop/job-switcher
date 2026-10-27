@@ -24,11 +24,12 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [unconfirmed, setUnconfirmed] = useState(false);
+  const [existing, setExisting] = useState(false);
   const siteKey=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY||"";
   const [captchaToken,setCaptchaToken]=useState("");
   const [captchaAttempt,setCaptchaAttempt]=useState(0);
   const confirmUrl = (to: string) => `${window.location.origin}/auth/confirm?next=${encodeURIComponent(to)}`;
-  const go = (m: Mode) => { if(m==="signup"&&!next.includes("import=1")){router.push("/get-started");return;} setMode(m); setErr(""); setUnconfirmed(false); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
+  const go = (m: Mode) => { if(m==="signup"&&!next.includes("import=1")){router.push("/get-started");return;} setExisting(false); setMode(m); setErr(""); setUnconfirmed(false); setSent(null); setCaptchaToken("");setCaptchaAttempt(x=>x+1); };
   const rate = (m: string) => /rate|too many/i.test(m);
 
   async function submit(e: React.FormEvent) {
@@ -49,6 +50,10 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
       const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next), captchaToken:token } });
       setBusy(false);setCaptchaAttempt(x=>x+1);
       if (error && offline(error)) { setErr(OFFLINE); return; }
+      if (error?.code === "user_already_exists" || (error && /already.*(registered|exists)/i.test(error.message)) || (!error && !data.session && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
+        setMode("login"); setSent(null); setPassword(""); setExisting(true);
+        setErr("An account with this email already exists. Log in with your existing password, reset it, or request a sign-in code. Your saved setup answers are still in this browser."); return;
+      }
       if (error) { setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : /password/i.test(error.message) ? "Choose a stronger password: at least 8 characters." : "Could not create the account. Check the email address."); return; }
       if (data.session) { router.replace(next); router.refresh(); } else setSent("signup");
     } else if (mode === "forgot") {
@@ -83,7 +88,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   );
   if (sent) return (
     <div className="card panel stack" style={{ marginTop: 20 }}>
-      <p>{sent === "signup" ? <>Almost done. We sent a link to <b>{email}</b>. Open it to confirm your email, and you are in.</> : <>We sent a link to <b>{email}</b>. Open it to set a new password.</>}</p>
+      <p>{sent === "signup" ? <>Check your inbox. If this email can be registered, a confirmation link will be sent to <b>{email}</b>. Open it to confirm your email. Already have an account? Log in instead.</> : <>We sent a link to <b>{email}</b>. Open it to set a new password.</>}</p>
       <p className="small muted">Open the link in this same browser. Not there? Check Spam or Promotions.</p>
       {sent === "signup" ? <button type="button" className="btn btn-ghost" onClick={() => go("code")}>Didn&apos;t get it? Email me a sign-in code</button> : null}
       <button type="button" className="btn-text" onClick={() => go("login")}>Back to log in</button>
@@ -113,6 +118,8 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
           {busy ? <><Spinner /> Please wait</> : mode === "login" ? "Log in" : mode === "signup" ? "Create my account" : mode === "forgot" ? "Send me the link" : "Send me a code"}
         </button>
         {mode === "login" ? <div className="row" style={{ justifyContent: "space-between" }}><button type="button" className="btn-text small" onClick={() => go("forgot")}>Forgot password?</button><button type="button" className="btn-text small" onClick={() => go("code")}>Email me a code instead</button></div> : null}
+        {mode === "signup" ? <button type="button" className="btn-text small" onClick={() => go("login")}>Already have an account? Log in</button> : null}
+        {existing ? <p className="small muted">Use the password you previously created, not a new signup password.</p> : null}
         {mode === "signup" ? <p className="small muted">Starts your 5-day Pro trial. We never ask for your job-site passwords.</p> : null}
         {mode === "forgot" || mode === "code" ? <button type="button" className="btn-text" onClick={() => go("login")}>Back to log in</button> : null}
       </form>
