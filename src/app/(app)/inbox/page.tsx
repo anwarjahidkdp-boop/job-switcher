@@ -18,7 +18,8 @@ import { siteDone, sitesDone } from "@/lib/setup";
 import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
 import { cookies } from "next/headers";
 import { VISIT_COOKIE } from "@/lib/visit";
-import { briefingWindow } from "@/lib/server/briefing";
+import { briefingWindow, foundAgo, type Briefing } from "@/lib/server/briefing";
+import { clock, updateTimes } from "@/lib/scan-schedule";
 import { strongFitGaps } from "@/lib/fit-gaps";
 import type { ReactNode } from "react";
 import { courseLinks, nowMs } from "@/lib/today";
@@ -77,9 +78,9 @@ export default async function Inbox() {
   const { data: sub } = await subscriptionOf(db, st.userId);
   const pro = sub?.plan_code === "pro" && sub.status === "active" && (!sub.current_period_end || Date.parse(sub.current_period_end) > now);
   const allowance = pro && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
-  // The Opportunity Briefing window (new account: since joining; then: since the last visit; quiet: the latest scan).
+  // Today's Fresh Jobs: the last 24 hours, updated at the market's local times (a new account's first day holds everything found for it).
   const brief = await briefingWindow(db, st, (await cookies()).get(VISIT_COOKIE)?.value, now);
-  const fresh = brief.since, latestScan = brief.kind === "scan", sinceJoined = brief.kind === "joined", lastAdded = brief.shownAt.getTime(), foundSince = brief.checked;
+  const fresh = brief.since, foundSince = brief.checked;
   // Every job number on this page comes from jobTotals, the same function behind the lists those numbers open.
   const today = jobTotals(st.scored, fresh, foundSince), all = jobTotals(st.scored, null, sx.analysed);
   // Interviewed and Offer received count the same submitted applications the Applied page lists for those filters.
@@ -120,7 +121,7 @@ export default async function Inbox() {
         <div className={s.panelHead}>
           <h2 id={id} className={s.panelTitle}><span className={s.titleRow}>{title}<span className={s.chip}>{chip}</span></span><span>{sub}</span></h2>
         </div>
-        <p className={s.calm}>No new roles since your last briefing. We scan the market every morning and brief you here first.</p>
+        <p className={s.calm}>No fresh jobs in the last 24 hours. New jobs land at {updateTimes(country)}, {cname(country)} time.</p>
       </section>
     );
     return (
@@ -153,6 +154,7 @@ export default async function Inbox() {
             return <Link prefetch={false} key={b} className={cls} href={jobsHref(b)}>{body}</Link>;
           })}
         </div>
+        {isToday && brief.lastFound ? <p className={s.lastFound}>Last new job found {foundAgo(brief.lastFound, now)}</p> : null}
       </section>
     );
   };
@@ -211,7 +213,7 @@ export default async function Inbox() {
         </div>
       </section>
 
-      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Market pulse</span><span>Opportunity <em>Briefing</em></span></span>, "", today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{sinceJoined ? "Since you joined · " : latestScan ? "Latest scan · " : "Live · since "}{(latestScan ? new Date(lastAdded) : fresh).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: rule(country).timeZone })}</>, true)}
+      {panel("today-h", <span className={s.brief}><span className={s.briefK}>Last 24 hours</span><span>Today&apos;s <em>Fresh Jobs</em></span></span>, "", today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{freshChip(brief, rule(country).timeZone)}</>, true)}
 
       <div className={s.duo}>
         <a className={`${s.duoFrame} ${s.fGuide}`} href="#career-guide"><span className={s.duoGap}><span className={`${s.duoCard} ${s.duoGuide}`}>
@@ -321,4 +323,11 @@ export default async function Inbox() {
       </div>
     </div>
   );
+}
+
+/** The window chip: what the numbers cover and when the next fresh jobs land, in the market's local time. */
+function freshChip(b: Briefing, timeZone: string): string {
+  const next = `Next ${clock(b.next, timeZone)}`;
+  if (b.kind === "joined") return `Since you joined · ${next}`;
+  return `Updated ${clock(b.updated, timeZone)} · ${next}`;
 }

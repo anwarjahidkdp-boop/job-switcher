@@ -54,7 +54,7 @@ describe("career home", () => {
     expect(html).not.toContain("Paste a job you found");
     expect(html).toMatch(/\d+ details incomplete/);
     expect(html).toContain(`href="/jobs/a"`);
-    const order = ["Opportunity <em>Briefing</em>", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "Lifetime", "Interviewed"].map((l) => html.indexOf(l));
+    const order = ["Today&#x27;s <em>Fresh Jobs</em>", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "Lifetime", "Interviewed"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
     for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Top match", "70% and above", "Offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
@@ -133,22 +133,22 @@ describe("career home", () => {
     html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain('href="/linkedin"');
   });
-  it("briefs the latest market scan when nothing is new since the last visit", async () => {
+  it("keeps the latest finds on show when nothing is new, with when they were found", async () => {
     const st = h.st as unknown as { scored: { job: { addedAt: string } }[] };
     for (const x of st.scored) x.job.addedAt = OLD;
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toContain("Latest scan · ");
-    expect(html).not.toContain("Nothing new since your last visit");
-    expect(html).toContain(`since=${Date.parse(OLD) - 12 * 3_600_000}`);
-    expect(html).not.toContain("No new roles since your last briefing");
+    expect(html).toMatch(/Updated \d+ [ap]m · Next \d+ [ap]m/);
+    expect(html).not.toContain("No fresh jobs in the last 24 hours");
+    expect(html).toMatch(/Last new job found \d+ days ago/);
+    expect(html).toContain(`since=${Date.parse(OLD) - 24 * 3_600_000}`);
   });
   it("shows one calm line instead of zeros when no jobs have been scanned yet", async () => {
     const st = h.st as unknown as { scored: unknown[] };
     st.scored = [];
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
-    expect(html).toContain("No new roles since your last briefing");
+    expect(html).toContain("No fresh jobs in the last 24 hours. New jobs land at 8 am, 3 pm and 10 pm, Bangladesh time.");
     expect(html).not.toContain("when=new");
     expect(html).toContain("Lifetime");
   });
@@ -172,6 +172,6 @@ describe("career home", () => {
     expect(html).not.toContain("Nothing new since your last visit");
     expect(html).toContain("Since you joined · ");
     expect(html).toContain(`since=${Date.parse(joined)}`);
-    expect(html).not.toContain("Latest scan · ");
+    expect(html).not.toContain("Latest scan");
   });
 });

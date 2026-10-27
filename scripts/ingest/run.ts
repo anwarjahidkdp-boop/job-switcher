@@ -1,4 +1,5 @@
-// Daily ingestion job (GitHub Actions: .github/workflows/ingest.yml).
+// Job collection (GitHub Actions: .github/workflows/ingest.yml). The scheduled run is hourly and scans only the markets
+// whose local update is due next (src/lib/scan-schedule.ts); a manual or push run scans everything.
 //   npm run ingest                 all active sources
 //   npm run ingest -- --source <id> --dry-run
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
@@ -14,6 +15,7 @@ import { fetchBangladesh, type BangladeshBatch } from "./bd/fetch";
 import { ensureBangladeshSources, persistBangladeshJobs, persistBangladeshBatch } from "./bd/persist";
 import { readHeldCirculars } from "./bd/circulars";
 import { getProvider } from "../../src/lib/ai";
+import { dueMarkets } from "../../src/lib/scan-schedule";
 
 async function main() {
   const db = scriptAdmin();
@@ -29,14 +31,22 @@ async function main() {
 
   let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url").eq("active", true);
   if (only) q = q.eq("id", only);
-  const { data: sources, error } = await q;
+  const { data: all, error } = await q;
   if (error) throw error;
-  console.log(`ingest: ${sources?.length || 0} active source(s)${dry ? " (dry run)" : ""}`);
+  // Hourly schedule: only the markets whose fresh-jobs update is due. Remote (XX) boards ride along with the launch markets.
+  const scheduled = !only && process.env.GITHUB_EVENT_NAME === "schedule";
+  const markets = [...new Set([...LAUNCH_MARKETS, ...demand.keys(), ...(all || []).map((s) => s.country as string)])].filter((c) => c && c !== "XX");
+  const due = new Set(scheduled ? dueMarkets(markets, Date.now()) : markets);
+  if (LAUNCH_MARKETS.some((c) => due.has(c))) due.add("XX");
+  const sources = (all || []).filter((s) => !scheduled || due.has(s.country as string));
+  if (scheduled) console.log(`ingest: update due for ${[...due].join(", ") || "no market"}`);
+  if (!sources.length && scheduled) return;
+  console.log(`ingest: ${sources.length} active source(s)${dry ? " (dry run)" : ""}`);
 
   const touchedCountries = new Set<string>();
   let total = 0, failed = 0;
   // Bangladesh collection must not wait behind the much larger international employer boards.
-  for (const src of ((sources || []) as SourceRow[]).sort((a, b) => Number(b.country === "BD") - Number(a.country === "BD"))) {
+  for (const src of (sources as SourceRow[]).sort((a, b) => Number(b.country === "BD") - Number(a.country === "BD"))) {
     try {
       let batch: BangladeshBatch | null = null;
       if (src.kind === "bdweb") {
@@ -76,15 +86,24 @@ async function main() {
   }
 
   // Held image/newspaper circulars: read free with OCR first; AI reads only what OCR could not confirm, until the
-  // daily AI budget is spent (BD_CIRCULAR_AI_BUDGET_USD, default $0.50; 0 = free reading only).
+  // day's AI budget is spent (BD_CIRCULAR_AI_BUDGET_USD, default $0.50 per Bangladesh day across all scans; 0 = free reading only).
   // BD_CIRCULAR_AI_LIMIT caps how many circulars one run looks at (default 200, 0 turns circular reading off).
   const ai = getProvider();
   const circularLimit = Math.max(0, Math.min(1000, Number(process.env.BD_CIRCULAR_AI_LIMIT ?? 200) || 0));
   const circularBudget = Math.max(0, Math.min(20, Number(process.env.BD_CIRCULAR_AI_BUDGET_USD ?? 0.5) || 0));
-  if (!dry && !only && circularLimit) {
+  if (!dry && !only && circularLimit && due.has("BD")) {
     try {
-      const c = await readHeldCirculars(db, circularBudget ? ai : null, todayStr("Asia/Dhaka"), { limit: circularLimit, maxCostMicroUsd: circularBudget * 1e6, maxMs: 30 * 60_000 });
-      console.log(`ingest: circulars read free ${c.freeRead}, with AI ${c.read}; published ${c.published} job(s); AI cost about $${(c.costMicroUsd / 1e6).toFixed(3)}`);
+      // The budget is per Bangladesh day, shared by the day's scans: each run spends only what earlier runs left.
+      const day = todayStr("Asia/Dhaka");
+      const { data: spentRows, error: spentErr } = await db.from("ai_usage").select("cost_micro_usd").eq("feature", CIRCULAR_FEATURE).gte("created_at", `${day}T00:00:00+06:00`);
+      if (spentErr) throw spentErr;
+      const left = Math.max(0, circularBudget * 1e6 - (spentRows || []).reduce((n, r) => n + Number(r.cost_micro_usd || 0), 0));
+      const c = await readHeldCirculars(db, left > 0 ? ai : null, day, { limit: circularLimit, maxCostMicroUsd: left, maxMs: 30 * 60_000 });
+      if (c.costMicroUsd > 0) {
+        const { error } = await db.from("ai_usage").insert({ user_id: null, feature: CIRCULAR_FEATURE, provider: "anthropic", model: "circulars", input_tokens: 0, output_tokens: 0, cost_micro_usd: Math.round(c.costMicroUsd), ok: true });
+        if (error) console.error(`  circular AI spend not recorded: ${errText(error)}`);
+      }
+      console.log(`ingest: circulars read free ${c.freeRead}, with AI ${c.read}; published ${c.published} job(s); AI cost about $${(c.costMicroUsd / 1e6).toFixed(3)} (left today before this run $${(left / 1e6).toFixed(3)})`);
       if (c.published) { touchedCountries.add("BD"); total += c.published; }
     } catch (e) { failed++; console.error(`  circular reading failed: ${errText(e)}`); }
   }
@@ -94,7 +113,7 @@ async function main() {
     if (maintenance.error) throw maintenance.error;
     const expired=await db.rpc("expire_ai_reservations");
     if(expired.error)throw expired.error;
-    // Expire public listings whose deadline has passed everywhere: a day's grace, because at 00:30 UTC it is still
+    // Expire public listings whose deadline has passed everywhere: a day's grace, because during the early scans it is still
     // yesterday in the Americas, where a job closing "today" UTC-wise is open until the end of the local day.
     const yesterday = new Date(Date.parse(today + "T12:00:00Z") - 86_400_000).toISOString().slice(0, 10);
     await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).is("owner_id", null).eq("active", true).lt("deadline", yesterday);
@@ -139,6 +158,9 @@ async function recategorise(db: ReturnType<typeof scriptAdmin>): Promise<number>
   }
   return n;
 }
+
+/** ai_usage rows that carry the day's circular-reading AI spend (no user: it is the app's own cost). */
+const CIRCULAR_FEATURE = "bd_circular";
 
 const LAUNCH_MARKETS = ["GB", "BD"];
 
