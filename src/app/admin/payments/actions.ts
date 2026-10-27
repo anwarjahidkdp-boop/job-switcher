@@ -1,14 +1,14 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/server/page";
+import { requireVerifiedUser } from "@/lib/server/page";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/billing/manual";
 import { reviewPayment } from "@/lib/server/billing";
 
 /** Owner-only: the signed-in user's confirmed email must be listed in ADMIN_EMAILS. Checked on every action. */
 export async function requireAdmin() {
-  const { user } = await requireUser("/admin/payments");
+  const { user } = await requireVerifiedUser("/admin/payments");
   if (!user.email || !user.email_confirmed_at || !isAdminEmail(user.email)) notFound();
   return user.email;
 }

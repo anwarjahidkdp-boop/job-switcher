@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import { appliedFor } from "@/lib/applied-history";
 import { currentCountryApps } from "@/lib/application-country";
 import { lastUpdate, nextUpdate } from "@/lib/scan-schedule";
@@ -29,7 +30,7 @@ export interface Briefing {
  *  update, so the numbers stay put between updates and Home and its lists always agree; jobs that arrive in between
  *  (job-alert emails) still count. If nothing is new, the latest finds stay. A job collected before someone joined counts as found when they joined.
  *  `visitCookie` is kept for callers; the window does not depend on visits. */
-export async function briefingWindow(db: SupabaseClient, st: UserState, _visitCookie: string | undefined, now: number): Promise<Briefing> {
+export const briefingWindow = cache(async function briefingWindow(db: SupabaseClient, st: UserState, _visitCookie: string | undefined, now: number): Promise<Briefing> {
   const analysed = Math.max(st.analysed, st.scored.length);
   const joined = Date.parse(st.profile?.created_at || "");
   const updated = lastUpdate(st.country, now), next = nextUpdate(st.country, now);
@@ -44,7 +45,7 @@ export async function briefingWindow(db: SupabaseClient, st: UserState, _visitCo
   if (jobTotals(st.scored, day.since, day.checked).found > 0 || appliedFor(here, "new", day.since.getTime()).length > 0) return day;
   // Nothing new in the last day: keep the latest finds on show rather than a row of zeros.
   return newest > 0 && newest < day.since.getTime() ? window(new Date(newest - FRESH_WINDOW), "last") : day;
-}
+});
 
 /** "about 4 hours ago" for the "Last new job found" line. */
 export function foundAgo(t: Date, now: number): string {
