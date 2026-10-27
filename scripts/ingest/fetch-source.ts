@@ -12,7 +12,7 @@ import {BRAC_API,parseBrac} from "../../src/lib/ingest/brac";
 import { cc, type CountryCode } from "../../src/lib/countries";
 
 export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee" | "remotive" | "arbeitnow" | "adzuna" | "jooble" | "reed" | "brac" | "bdweb";
-export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null; detail_path?: string | null; cursor_url?: string | null }
+export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null; detail_path?: string | null; cursor_url?: string | null; last_status?: string | null }
 export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
 const MAX_PAGE_BYTES = 15_000_000; // big boards (hundreds of jobs with full descriptions) run to several MB

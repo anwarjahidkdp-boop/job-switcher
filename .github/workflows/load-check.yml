@@ -1,0 +1,32 @@
+name: Load check
+# Started by hand before a launch or campaign: a short burst of public-page visits against the live site.
+on:
+  workflow_dispatch:
+    inputs:
+      requests:
+        description: Total requests
+        default: "400"
+      parallel:
+        description: Requests at the same time
+        default: "25"
+permissions:
+  contents: read
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Burst of public visits
+        env:
+          LOAD_REQUESTS: ${{ inputs.requests }}
+          LOAD_PARALLEL: ${{ inputs.parallel }}
+        run: node scripts/audit/load-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-check
+          path: load-check-results.json

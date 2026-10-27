@@ -40,7 +40,7 @@ async function main() {
     } catch (e) { console.error(`  career page check failed: ${errText(e)}`); }
   }
 
-  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url").eq("active", true);
+  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url, last_status").eq("active", true);
   if (only) q = q.eq("id", only);
   const { data: all, error } = await q;
   if (error) throw error;
@@ -55,7 +55,7 @@ async function main() {
   console.log(`ingest: ${sources.length} active source(s)${dry ? " (dry run)" : ""}`);
 
   const touchedCountries = new Set<string>();
-  let total = 0, failed = 0;
+  let total = 0, failed = 0, newlyFailed = 0;
   // Bangladesh collection must not wait behind the much larger international employer boards.
   for (const src of (sources as SourceRow[]).sort((a, b) => Number(b.country === "BD") - Number(a.country === "BD"))) {
     try {
@@ -87,9 +87,10 @@ async function main() {
       for (const j of jobs) touchedCountries.add(j.country);
       const detail = batch?.failures ? `${batch.failures} detail page fetch(es) failed; saved for retry` : batch?.documents.length ? `${batch.documents.length} circular(s) need extraction/review before matching` : null;
       await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: batch?.failures ? "error" : "ok", last_error: detail, jobs_found: jobs.length }).eq("id", src.id);
-      if (batch?.failures) failed++;
+      if (batch?.failures) { failed++; if (src.last_status !== "error") newlyFailed++; }
     } catch (e) {
       failed++;
+      if (src.last_status !== "error") newlyFailed++;
       const msg = errText(e);
       console.error(`  ${src.kind} "${src.name}" failed: ${msg}`);
       if (!dry) await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: "error", last_error: msg.slice(0, 500) }).eq("id", src.id);
@@ -116,7 +117,7 @@ async function main() {
       }
       console.log(`ingest: circulars read free ${c.freeRead}, with AI ${c.read}; published ${c.published} job(s); AI cost about $${(c.costMicroUsd / 1e6).toFixed(3)} (left today before this run $${(left / 1e6).toFixed(3)})`);
       if (c.published) { touchedCountries.add("BD"); total += c.published; }
-    } catch (e) { failed++; console.error(`  circular reading failed: ${errText(e)}`); }
+    } catch (e) { failed++; newlyFailed++; console.error(`  circular reading failed: ${errText(e)}`); }
   }
 
   if (!dry) {
@@ -155,8 +156,10 @@ async function main() {
       console.log(`ingest: new matches for ${nm.users} user(s): ${nm.notified} job(s), ${nm.prepared} pack(s) prepared, ${nm.emailed} email(s), ${nm.failed} failed`);
     }
   }
-  console.log(`ingest: done, ${total} job(s), ${failed} failed source(s)`);
-  if (failed) process.exitCode = 1; // partial outages must also alert, even while other sources work
+  console.log(`ingest: done, ${total} job(s), ${failed} failed source(s), ${newlyFailed} of them newly`);
+  // A source that starts failing alerts once (the run goes red and opens an issue). One that keeps failing, such as a
+  // site that blocks us, stays recorded on its ingestion_sources row and in the log but no longer turns every hourly run red.
+  if (newlyFailed || !total) process.exitCode = 1;
 }
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);
