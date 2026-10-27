@@ -24,7 +24,7 @@ export default async function Notifications() {
   return (
     <>
       <PageHead kicker="Your job assistant" title={<>What&apos;s <span>new</span></>} sub="New matches, ready applications, replies to check and interview reminders. We also email the important ones." />
-      <div style={{ marginTop: 16, maxWidth: 760 }}><PushAlertsCard /></div>
+      <PushAlertsCard />
       <div className="card panel" style={{ marginTop: 16, maxWidth: 760 }}>
         {items.length ? items.map((n) => (
           <Link key={n.id} href={n.link || "/inbox"} className={`ntf ${n.read_at ? "" : "new"}`}>

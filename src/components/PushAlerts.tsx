@@ -18,7 +18,7 @@ async function registration() {
   return navigator.serviceWorker.ready;
 }
 
-/** The phone-alerts switch: state, and Turn on / Turn off / Send a test. */
+/** The phone-alerts switch: its state and Turn on. Once on, alerts are managed in the phone's own settings. */
 export function usePushAlerts() {
   const [state, setState] = useState<PushState>("loading");
   const [busy, setBusy] = useState(false);
@@ -61,56 +61,40 @@ export function usePushAlerts() {
       await read().catch(() => {});
     } finally { setBusy(false); }
   }, [read]);
-  const turnOff = useCallback(async () => {
-    setBusy(true); setNote(null);
-    try {
-      const sub = await (await registration()).pushManager.getSubscription();
-      if (sub) {
-        await fetch("/api/push", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
-        await sub.unsubscribe();
-      }
-      setState("off");
-      setNote("Alerts are off for this device. The bell in JobPao still shows everything.");
-    } catch { setNote("Could not turn alerts off. Try again."); } finally { setBusy(false); }
-  }, []);
-  const test = useCallback(async () => {
-    setBusy(true); setNote(null);
-    try {
-      const res = await fetch("/api/push/test", { method: "POST" });
-      const { sent } = (await res.json()) as { sent?: number };
-      setNote(sent ? "Test sent. It should appear in a few seconds." : "No device received it. Turn alerts off and on again.");
-    } catch { setNote("Could not send the test. Try again."); } finally { setBusy(false); }
-  }, []);
-  return { state, busy, note, turnOn, turnOff, test };
+  return { state, busy, note, turnOn };
 }
 
-/** The full switch, on the notifications page. */
+/** The invitation on the notifications page. Once alerts are on it says so briefly, then leaves the page to the list. */
 export function PushAlertsCard() {
-  const { state, busy, note, turnOn, turnOff, test } = usePushAlerts();
-  if (state === "loading") return null;
+  const { state, busy, note, turnOn } = usePushAlerts();
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (state !== "on") return;
+    const t = setTimeout(() => setDone(true), 3500);
+    return () => clearTimeout(t);
+  }, [state]);
+  if (state === "loading" || (state === "on" && (done || !note))) return null;
   const ios = isIos();
   return (
-    <div className={`card panel pa ${state === "on" ? "pa-on" : ""}`}>
+    <div style={{ marginTop: 16, maxWidth: 760 }}>
+    <div className="card panel pa">
       <span className="pa-ic" aria-hidden="true">🔔</span>
       <div className="pa-txt">
-        <b>{state === "on" ? "Phone alerts are on" : "Get alerts on your phone"}</b>
+        <b>{state === "on" ? "Alerts are on" : "Get alerts on your phone"}</b>
         <span className="small muted">
-          {state === "on" ? "New strong matches, ready applications and reminders pop up on this device, even when JobPao is closed."
+          {state === "on" ? "New strong matches and reminders will pop up on this device."
             : state === "needs-install" ? "On iPhone, alerts work from the installed app. Add JobPao to your Home Screen, open it from there, then turn alerts on here."
             : state === "blocked" ? `Alerts are blocked for JobPao on this device. ${unblockSteps(ios, /Android/i.test(navigator.userAgent))}`
             : state === "unsupported" ? "This browser cannot show alerts. Open jobpao.app in Chrome, Edge, Firefox or Safari, or install the app."
             : "See new strong matches, ready applications and reminders the moment they arrive, even when JobPao is closed."}
         </span>
-        {note ? <span className="small pa-note" role="status">{note}</span> : null}
+        {note && state !== "on" ? <span className="small pa-note" role="status">{note}</span> : null}
       </div>
       <div className="pa-act">
         {state === "off" ? <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void turnOn()}>{busy ? "Turning on…" : "Turn on alerts"}</button> : null}
         {state === "needs-install" ? <button type="button" className="btn btn-primary" onClick={() => window.dispatchEvent(new Event("jobpao:install"))}>Install JobPao</button> : null}
-        {state === "on" ? <>
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void test()}>Send a test</button>
-          <button type="button" className="btn btn-ghost pa-off" disabled={busy} onClick={() => void turnOff()}>Turn off</button>
-        </> : null}
       </div>
+    </div>
     </div>
   );
 }
