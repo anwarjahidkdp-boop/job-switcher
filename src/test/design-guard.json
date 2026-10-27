@@ -264,7 +264,7 @@
    "06f863c9c7b0753d",
    "6369a89d450f03a9",
    "469fdd65daab877e",
-   "f8114ebf4bb267f7",
+   "134683004bd9655e",
    "098d844ec1ce18d0",
    "3f05d64e688e0fcf",
    "bf8a004f9c9a2e4a",
@@ -388,6 +388,7 @@
    "3b99f10646dfe2a5",
    "5567a4a217be175b",
    "36ad2058f40dcccd",
+   "19ec1a491aac155e",
    "f1b575d8107120c7",
    "71a64fa94b681265",
    "77ab809b4167b7ae",
@@ -1805,6 +1806,6 @@
   "2026-10-26: Opportunity Briefing has no sub line and no colour ribbon on top (owner asked: cleaner)",
   "2026-10-26: header fits every phone: short plan chip ('Trial · 5d left') under 430px, bell never shrinks (owner: bell was cut off)",
   "2026-10-26: every Home number comes from jobTotals/appliedFor (same source as the lists they open; number-contract test guards it); best match needs 70%+ (owner asked for a permanent logic fix)",
-  "2026-10-26: owner approved Home 'Today's Fresh Jobs' (replaces Opportunity Briefing; last 24 hours, local update times chip) - inbox/page.tsx regenerated"
+  "2026-10-26/27: owner approved Home 'Today's Fresh Jobs' (replaces Opportunity Briefing; last 24 hours, local update times chip, 'Last new job found' line) - inbox/page.tsx regenerated"
  ]
 }

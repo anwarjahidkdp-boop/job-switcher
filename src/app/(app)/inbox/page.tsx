@@ -18,7 +18,7 @@ import { siteDone, sitesDone } from "@/lib/setup";
 import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
 import { cookies } from "next/headers";
 import { VISIT_COOKIE } from "@/lib/visit";
-import { briefingWindow, type Briefing } from "@/lib/server/briefing";
+import { briefingWindow, foundAgo, type Briefing } from "@/lib/server/briefing";
 import { clock, updateTimes } from "@/lib/scan-schedule";
 import { strongFitGaps } from "@/lib/fit-gaps";
 import type { ReactNode } from "react";
@@ -154,6 +154,7 @@ export default async function Inbox() {
             return <Link prefetch={false} key={b} className={cls} href={jobsHref(b)}>{body}</Link>;
           })}
         </div>
+        {isToday && brief.lastFound ? <p className={s.lastFound}>Last new job found {foundAgo(brief.lastFound, now)}</p> : null}
       </section>
     );
   };

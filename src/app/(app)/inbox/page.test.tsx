@@ -133,15 +133,15 @@ describe("career home", () => {
     html = renderToStaticMarkup(await Inbox());
     expect(html).not.toContain('href="/linkedin"');
   });
-  it("drops jobs older than 24 hours from Fresh Jobs and keeps them in Lifetime", async () => {
+  it("keeps the latest finds on show when nothing is new, with when they were found", async () => {
     const st = h.st as unknown as { scored: { job: { addedAt: string } }[] };
     for (const x of st.scored) x.job.addedAt = OLD;
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());
     expect(html).toMatch(/Updated \d+ [ap]m · Next \d+ [ap]m/);
-    expect(html).not.toContain("Latest scan");
-    expect(html).toContain("No fresh jobs in the last 24 hours. New jobs land at 8 am, 3 pm and 10 pm, Bangladesh time.");
-    expect(html).toContain('href="/opportunities?fit=found"');
+    expect(html).not.toContain("No fresh jobs in the last 24 hours");
+    expect(html).toMatch(/Last new job found \d+ days ago/);
+    expect(html).toContain(`since=${Date.parse(OLD) - 24 * 3_600_000}`);
   });
   it("shows one calm line instead of zeros when no jobs have been scanned yet", async () => {
     const st = h.st as unknown as { scored: unknown[] };

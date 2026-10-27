@@ -33,8 +33,14 @@ describe("fresh-jobs window", () => {
     const a = await briefingWindow({} as never, s, undefined, NOW), later = await briefingWindow({} as never, s, undefined, NOW + 3 * H);
     expect(later.since).toEqual(a.since);
   });
-  it("drops jobs older than the window (they stay in Lifetime)", async () => {
-    const old = await run(st(NOW - 9 * 24 * H, [NOW - 5 * 24 * H]));
-    expect(old).toMatchObject({ kind: "day", checked: 0 });
+  it("keeps the latest finds on show when nothing is new in the window", async () => {
+    const old = await run(st(NOW - 9 * 24 * H, [NOW - 5 * 24 * H, NOW - 5 * 24 * H - 3 * H, NOW - 7 * 24 * H]));
+    expect(old).toMatchObject({ kind: "last", since: new Date(NOW - 6 * 24 * H), lastFound: new Date(NOW - 5 * 24 * H), checked: 2 });
+  });
+  it("words the last-found line", async () => {
+    const { foundAgo } = await import("./briefing");
+    expect(foundAgo(new Date(NOW - 20 * 60_000), NOW)).toBe("less than an hour ago");
+    expect(foundAgo(new Date(NOW - 4 * H), NOW)).toBe("about 4 hours ago");
+    expect(foundAgo(new Date(NOW - 3 * 24 * H), NOW)).toBe("3 days ago");
   });
 });

@@ -16,7 +16,7 @@ Every number a person sees comes from one function. The list that number opens c
   - Each market is scanned three times a day at its own local times (`src/lib/scan-schedule.ts`): Bangladesh 8 am, 3 pm and 10 pm; UK 7 am, 12 pm and 9 pm; elsewhere 8 am, 1 pm and 9 pm. The hourly ingest run scans a market two hours before its update, so the jobs are ready when people look. The chip reads "Updated 3 pm · Next 10 pm".
   - Anchoring to the update keeps the numbers steady between updates, so Home and the lists it opens always agree. Jobs that arrive in between (job-alert emails) still count.
   - An account younger than 24 hours sees everything since joining. The chip reads "Since you joined".
-  - Nothing found or applied in the window: the latest market scan (12 hours before the newest job).
+  - Nothing found or applied in the window: the 24 hours up to the newest job keep showing, so the panel never empties. A line under the cards always says when the last new job was found ("Last new job found about 4 hours ago").
   - New-match emails go out at most once a day; the bell rings for every update.
 - **Applications** (`appliedFor`) count submitted applications in the current search country:
   - Applied: all of them, or those submitted since the window start.
