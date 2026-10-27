@@ -176,3 +176,14 @@ describe("a job's career guide explains the card's own number", () => {
     expect(pts).toEqual([26]);
   });
 });
+
+describe("Home's opportunity cards show the same missing percent", () => {
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
+  it("each card's '% missing' equals 100 minus its score", async () => {
+    const { default: Inbox } = await import("@/app/(app)/inbox/page");
+    const rows = rowsOf(renderToStaticMarkup(await Inbox()));
+    const seen = rows.map((r) => [Number(r.match(/aria-label="(\d+)% profile match"/)![1]), r.match(/>(\d+)% missing/)?.[1]] as const).filter(([, g]) => g);
+    expect(seen.length).toBeGreaterThan(0);
+    for (const [score, gap] of seen) expect(Number(gap)).toBe(100 - score);
+  });
+});
