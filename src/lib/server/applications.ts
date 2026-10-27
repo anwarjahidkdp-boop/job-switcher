@@ -129,7 +129,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
   checked.pack.prepared_for={job_id:job.id,source_cv_id:st.master.id};
   if(!ai&&!reviewOnly)checked.pack.preparation_note=notice||"Standard draft: AI tailoring is unavailable. Review before applying.";
-  if (reviewOnly) checked.flags.push("Salary not disclosed — verify pay before applying");
+  if (reviewOnly) checked.flags.push("Salary not published — confirm pay before applying");
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
   const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();

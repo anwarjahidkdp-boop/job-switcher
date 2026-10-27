@@ -181,6 +181,11 @@ export function money(n: number | null | undefined, c: unknown): string {
   return r.sym + f.format(Number(n));
 }
 const NUM_FMT = new Map<string, Intl.NumberFormat>();
+/** A job's published pay: "৳44,000–৳1,05,900/mo", "৳52,800/mo" for one figure, "From ৳20,000/mo" when only the start is known; "" when none. */
+export function salaryText(min: number | null | undefined, max: number | null | undefined, c: unknown): string {
+  if (!max) return min ? `From ${money(min, c)}${perLabel(c)}` : "";
+  return (min && min !== max ? `${money(min, c)}–` : "") + money(max, c) + perLabel(c);
+}
 export function perLabel(c: unknown): string {
   return rule(c).per === "year" ? "/yr" : "/mo";
 }

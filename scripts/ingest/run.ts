@@ -4,7 +4,8 @@
 //   npm run ingest -- --source <id> --dry-run
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
 import { fetchSource, staleIds, type SourceRow } from "./fetch-source";
-import { guessCategory, jobToRow } from "../../src/lib/jobs";
+import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
+import { extractEligibility, normaliseEligibility } from "../../src/lib/eligibility";
 import { todayStr } from "../../src/lib/dates";
 import { refreshMatches } from "../../src/lib/server/matches";
 import { processNewMatches } from "../../src/lib/server/new-matches";
@@ -119,6 +120,9 @@ async function main() {
     await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).is("owner_id", null).eq("active", true).lt("deadline", yesterday);
     console.log(`ingest: pruned ${await pruneOldJobs(db)} closed job(s)`);
     console.log(`ingest: re-categorised ${await recategorise(db)} job(s)`);
+    const facts = await refreshBdFacts(db);
+    if (facts) touchedCountries.add("BD");
+    console.log(`ingest: re-read salary and pay grade for ${facts} Bangladesh job(s)`);
     if (touchedCountries.size) {
       const { data: users } = await db.from("profiles").select("id").in("target_country", [...touchedCountries]).eq("onboarding_step", "done");
       let n = 0;
@@ -162,6 +166,34 @@ async function recategorise(db: ReturnType<typeof scriptAdmin>): Promise<number>
     const { error } = await db.from("jobs").update({ category: cat }).in("id", ids.slice(i, i + 200));
     if (error) throw error;
     n += Math.min(200, ids.length - i);
+  }
+  return n;
+}
+
+/** Bangladesh jobs keep the salary and government pay grade their text gives under the current rules: salary only where none is
+ *  stored, the grade into raw.eligibility, which list views read (they do not load the description). */
+async function refreshBdFacts(db: ReturnType<typeof scriptAdmin>): Promise<number> {
+  let n = 0;
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await db.from("jobs").select("id, description, salary_min, salary_max, raw").is("owner_id", null).eq("active", true).eq("country", "BD").order("id").range(from, from + 499);
+    if (error) throw error;
+    for (const j of data || []) {
+      const text = String(j.description || "");
+      const raw = j.raw && typeof j.raw === "object" && !Array.isArray(j.raw) ? j.raw as Record<string, unknown> : {};
+      const stored = normaliseEligibility(raw.eligibility), read = extractEligibility(text);
+      const patch: Record<string, unknown> = {};
+      if (stored.payGrade !== read.payGrade || !!stored.govPost !== !!read.govPost)
+        patch.raw = { ...raw, eligibility: { ...(raw.eligibility && typeof raw.eligibility === "object" ? raw.eligibility : {}), payGrade: read.payGrade ?? null, govPost: read.govPost ?? null } };
+      if (j.salary_min == null && j.salary_max == null) {
+        const pay = parseSalary(text);
+        if (pay) { patch.salary_min = pay.min; patch.salary_max = pay.max; }
+      }
+      if (!Object.keys(patch).length) continue;
+      const { error: e } = await db.from("jobs").update(patch).eq("id", j.id);
+      if (e) throw e;
+      n++;
+    }
+    if (!data || data.length < 500) break;
   }
   return n;
 }

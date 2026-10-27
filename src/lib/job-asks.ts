@@ -51,3 +51,36 @@ export function askRows(asks: string[], opts: { hasPhoto: boolean; photoAllowed:
   }
   return rows;
 }
+
+export interface ApplicationFee { amounts: number[]; methods: string[] }
+const FEE_WORD = /(?:আবেদন|পরীক্ষার)\s*ফি|ফি\s*বাবদ|application (?:and examination )?fee|exam(?:ination)? fee|fee of/gi;
+const FEE_METHODS: [RegExp, string][] = [
+  [/bank draft|demand draft|ব্যাংক ড্রাফট|ব্যাংক ড্রাফ্ট/i, "bank draft"],
+  [/pay ?order|পে[- ]?অর্ডার/i, "pay order"],
+  [/treasury challan|ট্রেজারি চালান/i, "treasury challan"],
+  [/teletalk|টেলিটক|\bsms\b/i, "Teletalk SMS"],
+  [/bkash|বিকাশ/i, "bKash"], [/nagad|নগদ/i, "Nagad"], [/rocket|রকেট/i, "Rocket"],
+];
+/** The fee a Bangladesh government circular charges to apply, read from the text near its fee words: amounts in taka and how to pay.
+ *  A circular can charge differently by post or applicant group, so every amount it names is kept. */
+export function applicationFee(text: string | null | undefined): ApplicationFee | null {
+  const t = String(text || "").replace(/[০-৯]/g, (c) => String("০১২৩৪৫৬৭৮৯".indexOf(c)));
+  const amounts = new Set<number>(), methods = new Set<string>();
+  for (const m of t.matchAll(FEE_WORD)) {
+    const near = t.slice(m.index ?? 0, (m.index ?? 0) + m[0].length + 220).split(/\n(?!\s*[-•])/)[0];
+    for (const a of near.matchAll(/(?:(?:tk\.?|taka|৳)\s*(\d[\d,]*(?:\.\d+)?))|(?:(\d[\d,]*(?:\.\d+)?)\s*(হাজার|thousand)?\s*(?:\/-)?\s*(?:টাকা|tk\b|taka))/gi)) {
+      const n = Number((a[1] || a[2]).replace(/,/g, "")) * (a[3] ? 1000 : 1);
+      if (Number.isFinite(n) && n >= 10 && n <= 10_000) amounts.add(Math.round(n));
+    }
+    for (const [re, label] of FEE_METHODS) if (re.test(near)) methods.add(label);
+  }
+  return amounts.size ? { amounts: [...amounts].sort((a, b) => a - b), methods: [...methods] } : null;
+}
+
+/** "৳700 by bank draft or treasury challan"; a spread of amounts says it depends on the post. */
+export function feeLine(f: ApplicationFee): string {
+  const money = (n: number) => `৳${n.toLocaleString("en-IN")}`;
+  const amount = f.amounts.length === 1 ? money(f.amounts[0]) : `${money(f.amounts[0])} to ${money(f.amounts[f.amounts.length - 1])}, by post or applicant group`;
+  const how = f.methods.length ? ` · pay by ${f.methods.length > 1 ? f.methods.slice(0, -1).join(", ") + " or " + f.methods[f.methods.length - 1] : f.methods[0]}` : "";
+  return amount + how;
+}
