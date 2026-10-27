@@ -20,6 +20,8 @@ export function QuestionsForm({ docId, questions, saved }: { docId: string; ques
   const [a, setA] = useState<Record<string, string>>(saved);
   const [busy, setBusy] = useState<"" | "save" | "skip">("");
   const [err, setErr] = useState("");
+  const [index,setIndex] = useState(0);
+  const current=questions[index];
   const [msg, setMsg] = useState("");
   useEffect(() => {
     // Restore a draft typed earlier on this device (localStorage is not available during the server render).
@@ -44,15 +46,17 @@ export function QuestionsForm({ docId, questions, saved }: { docId: string; ques
   }
   return (
     <>
-      <div className="q-skipbar"><span>All questions are optional. Tap a suggestion, type your own, or skip.</span><button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => send(true)}>Skip questions →</button></div>
-      <form onSubmit={(e) => { e.preventDefault(); send(false); }}>
+      <div className="q-skipbar"><span>Only missing CV details appear here. Each answer is optional; your search answers are already saved.</span><button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => send(true)}>Skip questions →</button></div>
+      <form onSubmit={(e) => { e.preventDefault(); if(index<questions.length-1){setIndex(i=>i+1);}else void send(false); }}>
         <div className="stack" style={{ marginTop: 14 }}>
-          {questions.map((q) => {
+          {current ? <p className="small muted" role="status">CV detail {index+1} of {questions.length}</p>:<p>Your CV needs no extra answers. Continue to review your saved setup.</p>}
+          {(current?[current]:[]).map((q) => {
             const choices = answerChoices(q);
             return (
               <div key={q.id} className={`card panel${q.id.startsWith("fresh_") ? " q-fresh" : ""}`}>
                 {q.id.startsWith("fresh_") ? <span className="q-fresh-k">Please check: your CV may be out of date</span> : null}
                 <label className="f" htmlFor={`a_${q.id}`}>{q.question}<input type="text" id={`a_${q.id}`} value={a[q.id] || ""} onChange={(e) => set(q.id, e.target.value)} placeholder={q.placeholder || ""} maxLength={1000} /></label>
+                <p className="small muted"><b>Why this helps:</b> {q.id.startsWith("fresh_") ? "Your answer can correct outdated roles or dates before we prepare your CV." : "Your answer adds a missing detail to your CV; include only facts you can confirm."} <b>If skipped:</b> we leave unconfirmed information out rather than inventing it.</p>
                 {choices.length ? <div className="q-chips" aria-label="Suggested answers">{choices.map((c) => <button key={c} type="button" className={`q-chip${(a[q.id] || "") === c ? " on" : ""}`} onClick={() => { set(q.id, c); if (/\s$/.test(c)) document.getElementById(`a_${q.id}`)?.focus(); }}>{c.trim()}{/\s$/.test(c) ? " …" : ""}</button>)}</div> : null}
               </div>
             );
@@ -61,7 +65,8 @@ export function QuestionsForm({ docId, questions, saved }: { docId: string; ques
         {busy && msg ? <p style={{ marginTop: 16 }} role="status"><Spinner /> {msg}</p> : null}
         {err ? <p role="alert" className="err" style={{ marginTop: 14 }}>{err}</p> : null}
         <div className="row" style={{ marginTop: 20 }}>
-          <button className="btn btn-primary" disabled={!!busy}>{busy === "save" ? <><Spinner /> Saving</> : "Build my CV with these answers"}</button>
+          {index>0?<button type="button" className="btn btn-ghost" disabled={!!busy} onClick={()=>setIndex(i=>i-1)}>← Back</button>:null}
+          <button className="btn btn-primary" disabled={!!busy}>{busy === "save" ? <><Spinner /> Saving</> : index<questions.length-1 ? "Next detail →" : "Review my saved setup →"}</button>
           <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={() => send(true)}>{busy === "skip" ? <><Spinner /> Skipping</> : "Skip questions"}</button>
         </div>
       </form>

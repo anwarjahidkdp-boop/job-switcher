@@ -1,3 +1,5 @@
+import { GuidedDraftResume, GuidedHandoff } from "./GuidedHandoff";
+import { GuidedPreferences } from "./GuidedPreferences";
 import { setupRequirements } from "@/lib/eligibility";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -45,11 +47,12 @@ function Head({ cur, kicker, title, sub, back, action }: { cur: string; kicker: 
   </div></div></section>;
 }
 
-export default async function Onboarding({ searchParams }: { searchParams: Promise<{ demo?: string; step?: string }> }) {
+export default async function Onboarding({ searchParams }: { searchParams: Promise<{ demo?: string; step?: string; import?: string }> }) {
   const sp = await searchParams;
   const { supabase, user } = await requireUser("/onboarding");
   const st = await loadState(supabase, user.id, profileOf(supabase, user.id));
   if (!st) redirect("/login");
+  if(sp.import === "1")return <><SiteHeader inApp={false} signedIn/><main className="wrap"><GuidedHandoff/></main><SiteFooter signedIn/></>;
   const requiredSetup=setupRequirements(st.profile).length>0;
   const editing = st.profile.onboarding_step === "done" && (sp.step === "prefs" || requiredSetup);
   // "done" without a CV (an old account, or a failed save) would bounce between here and the dashboard: ask for the CV again.
@@ -68,6 +71,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   if (step === "country") {
     head = <Head cur="country" kicker="Your 5-day Pro trial has started" title={<>Where do you want <span>to work?</span></>} sub="Your CV format, document checklist, salary currency and job matches follow this country. You can change it later in your profile." />;
     body = <div className="ob">
+      <GuidedDraftResume/>
       <CountryStep current={country === "BD" && home !== "BD" && home !== "XX" && st.profile.onboarding_step === "country" ? home : country} home={home} needsVisa={st.profile.needs_visa} demo={demo} billingLocked={st.profile.billing_country_locked} />
     </div>;
   } else if (step === "upload") {
@@ -81,7 +85,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const nExp = st.facts.filter((f) => f.kind === "experience").length, nEdu = st.facts.filter((f) => f.kind === "education").length, nSk = st.facts.filter((f) => f.kind === "skill").length;
     const unverified = st.facts.filter((f) => !f.verified && f.kind !== "answer").length;
     const last = (st.profile.full_name || "").split(" ").slice(-1)[0];
-    head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. A few short answers will make your CV stronger. Skip anything you are unsure about; we never guess.`} />;
+    head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. Only missing or unclear CV details are asked below. Your saved search preferences will not be asked again. Skip anything you are unsure about; we never guess.`} />;
     body = <div className="ob">
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
       <QuestionsForm docId={st.cvDoc.id} questions={qs} saved={st.cvDoc.answers || {}} />
@@ -89,12 +93,12 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   } else if (step === "prefs" || (step === "questions" && !st.cvDoc)) {
     const meta = st.profile.career_meta || {};
     const p = st.profile.preferences || { roles: (meta.target_roles || []).join(", "), locations: country === "BD" ? meta.location || "Dhaka" : "", salaryMin: null, salaryMax: null, notice: null, mode: "On-site" as const };
-    p.roles=buildMatchProfile({name:st.profile.full_name||"",facts:st.facts,meta:{...DEFAULT_META,...meta},prefs:null,country}).targetRoles.join(", ");
+    p.roles=p.roles||buildMatchProfile({name:st.profile.full_name||"",facts:st.facts,meta:{...DEFAULT_META,...meta},prefs:null,country}).targetRoles.join(", ");
     const savedSalary=st.profile.answer_library?.salaryCountry===country?st.profile.answer_library.expectedSalary:null;
     if(Number(savedSalary)>0)p.salaryMin=Number(savedSalary);
     head = <Head cur="prefs" back={editing ? undefined : "upload"} kicker={editing ? "Your preferences" : "Step 4 of 5"} title={<>What would a better job <span>look like?</span></>} sub={<>Set your preferences for {cn}. Your existing improved CV will use this destination’s structure, reference conventions and style. Your saved career information will be reused.</>} />;
     body = <div className="ob">
-      <PrefsStep answers={st.profile.answer_library||{}} editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} country={country} revision={st.profile.search_country_version} needsVisa={st.profile.needs_visa} abroad={country !== home} />
+      {!editing ? <GuidedPreferences country={country} home={st.homeCountry} revision={st.profile.search_country_version} preferences={p} personal={st.profile.personal||{}} answers={st.profile.answer_library||{}} breakers={st.profile.deal_breakers||{}} billingLocked={st.profile.billing_country_locked}/> : <PrefsStep answers={st.profile.answer_library||{}} editing={editing} initial={p} personal={st.profile.personal || {}} countryLabel={cn} currency={(r.sym.trim() || "local currency") + perLabel(country)} fields={personalFields(country)} personalCountry={r.personal} refs={{ mode: convention(country).refs, count: convention(country).refCount }} isBD={country === "BD"} country={country} revision={st.profile.search_country_version} needsVisa={st.profile.needs_visa} abroad={country !== home} />}
     </div>;
   } else if (step === "reveal" && st.master && st.P) {
     const m = st.master.content;
