@@ -1,7 +1,7 @@
 import { localSearchAnswers } from "./application-defaults";
 import { EDU } from "./taxonomy";
 import { addDaysTo } from "./dates";
-import { agePolicy, BD_GOV_AGE } from "./market-rules";
+import { agePolicy, BD_GOV_AGE, salaryLeeway, salaryReach } from "./market-rules";
 import type { Job, MatchProfile } from './types';
 import { money, rule } from './countries';
 export interface JobEligibility { minAge?:number|null; maxAge?:number|null; ageAsOf?:string|null; ageException?:boolean; requirementsUnverified?:boolean; /** Bangladesh national pay-scale grade (1-20): a government or public-body post. */ payGrade?:number|null; /** A government entry post whose exact grade is not known: a circular whose grades differ but are all entry grades (9-20). */ govPost?:boolean }
@@ -92,11 +92,14 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
  if(noRequirements&&!(job.resp||[]).filter(l=>!JOB_META_LINE.test(l)).length)add('requirements_unknown','This listing does not establish the role requirements. Verify the full original post before treating it as a suitable opportunity.',true,79);
  // Duties alone do not show what the employer asks for: the match rests on the job title, so it is never a Best or Strong fit.
  else if(noRequirements)add('requirements_thin','This post lists no experience, education or skill requirements, so the match is based on the job title only. Check the original post before applying.',false,79);
- const floor=P.salaryMin;
- if(floor&&job.salaryMax!=null&&job.salaryMax<floor)add('salary',`This job pays up to ${money(job.salaryMax,job.country)} a ${rule(job.country).per}; you expect ${money(floor,job.country)}.`,true,0);
+ // Expected pay is negotiable: a little below it still counts as meeting it (salaryLeeway); only pay well below it is a gate.
+ const floor=P.salaryMin,reach=floor?salaryReach(job.country,floor,P.dealBreakers?.minSalary):0;
+ if(floor&&job.salaryMax!=null&&job.salaryMax<reach)add('salary',`This job pays up to ${money(job.salaryMax,job.country)} a ${rule(job.country).per}; ${reach>floor-salaryLeeway(job.country,floor)?`below the minimum of ${money(reach,job.country)} you set`:`you expect ${money(floor,job.country)}, more than ${money(salaryLeeway(job.country,floor),job.country)} above what it pays`}.`,true,0);
+ else if(floor&&job.salaryMax!=null&&job.salaryMax<floor)add('salary_near',`This job pays up to ${money(job.salaryMax,job.country)} a ${rule(job.country).per}, close to your expected ${money(floor,job.country)}: within the usual room to negotiate.`,false,100);
  else if(P.salaryConfirmed===false)add('salary_unknown','Enter your expected salary or current salary before salary suitability can be confirmed.',true,79);
  else if(floor&&job.salaryMax==null)add('salary_unpublished',`${job.salaryMin?`This job publishes only its starting pay (${money(job.salaryMin,job.country)})`:'This job does not publish its salary'}, so pay is left out of the score. You expect ${money(floor,job.country)} a ${rule(job.country).per}: confirm the pay before applying.`,true,100);
- else if(floor&&job.salaryMin!=null&&job.salaryMin<floor)add('salary_range','Only the upper part of the advertised salary range meets your minimum. Confirm the actual offer; higher pay is not established.',false,79);
+ // A range that reaches the expected pay is a fit; its lower end is only a point to raise when the offer comes.
+ else if(floor&&job.salaryMin!=null&&job.salaryMin<reach)add('salary_range','The lower part of the advertised salary range is below your expected pay. Discuss the offer before accepting.',false,100);
  return {issues,scoreCap:cap,reason,eligible:!issues.some(i=>i.blocking),blocked:cap===0};
 }
 export function setupRequirements(profile:{target_country:string;home_country?:string;personal?:{dob?:string}|null;preferences?:{salaryMin?:number|null}|null;answer_library?:{birthDate?:string|null;expectedSalary?:number|null;currentSalary?:number|null;salaryCountry?:string;currentSalaryCountry?:string;workAuthorization?:"yes"|"no"|"unknown";sponsorshipRequired?:boolean|null;willingToRelocate?:boolean|null}|null}){

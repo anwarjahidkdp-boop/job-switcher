@@ -45,13 +45,19 @@ describe("scoreJob (demo profile, Bangladesh)", () => {
     expect(P.years).toBeGreaterThan(9);
     expect(P.certs).toEqual([{ name: "ACCA", status: "partly" }]);
   });
-  it("withholds Best Fit when only the upper part of the pay range meets the minimum", () => {
+  it("does not hold back a pay range whose lower end is within negotiating room of the expected salary", () => {
+    // j1 pays 60,000-80,000; the demo profile expects 70,000: the range reaches it, so pay is no reason to cap.
     const m = scoreJob(job("j1"), P, opts);
-    expect(m.band).toBe("po");
-    expect(m.score).toBeLessThan(80);
+    expect(P.salaryMin).toBe(70000);
     expect(m.relevant).toBe(true);
     expect(m.matched[0]).toMatch(/years of experience/);
-    expect(m.capped).toBe(true);
+    expect(m.gaps.some((g) => g.k === "salary_range" || g.k === "sal")).toBe(false);
+  });
+  it("still gates pay far below the expected salary, but not pay within 10,000 Tk", () => {
+    expect(scoreJob({ ...job("j1"), salaryMin: 45000, salaryMax: 59000 }, P, opts).score).toBe(0);
+    const near = scoreJob({ ...job("j1"), salaryMin: 50000, salaryMax: 62000 }, P, opts);
+    expect(near.score).toBeGreaterThan(0);
+    expect(near.gaps.some((g) => g.k === "salary_near")).toBe(true);
   });
   it("caps at 69 when a required certification is not fully held", () => {
     const m = scoreJob(job("j5"), P, opts); // FP&A manager: CA or CMA required

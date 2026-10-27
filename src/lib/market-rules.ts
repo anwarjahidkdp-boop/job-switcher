@@ -12,3 +12,9 @@ export const BD_GOV_AGE={maxAge:32,/** Entry grades the default applies to; uppe
 export function agePolicy(country:string):'posted-limit'|'protected'|'review-required'{
  return country==='BD'?MARKET_ELIGIBILITY_RULES.BD.age:country==='GB'?MARKET_ELIGIBILITY_RULES.GB.age:country==='US'?MARKET_ELIGIBILITY_RULES.US.age:'review-required';
 }
+/** An expected salary is a figure to negotiate from, not a hard line (owner 2026-10-27): pay up to 10,000 Tk below it in
+ *  Bangladesh, or 15% below it elsewhere, still counts as meeting it. Pay above it is never a minus. */
+export function salaryLeeway(country:string,expected:number):number{return country==='BD'?10_000:Math.round(expected*0.15);}
+/** The lowest published pay that still counts as meeting this expected salary. A minimum the person set as a deal-breaker
+ *  (strictMin) is a hard line and gets no leeway. */
+export const salaryReach=(country:string,expected:number,strictMin?:number|null)=>Math.max(0,expected-salaryLeeway(country,expected),Math.min(expected,strictMin||0));
