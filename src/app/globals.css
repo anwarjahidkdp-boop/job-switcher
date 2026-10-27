@@ -1262,3 +1262,23 @@ a:active,.btn:active,button:active{transform:translateY(1px)}
 .fit-overview-card>*:not(.fit-overview-hit){position:relative;z-index:1;pointer-events:none}
 .fit-overview-card .fit-zero-guide,.fit-overview-card .fit-compact-link{pointer-events:auto}
 @media(min-width:1101px){.fit-overview{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+/* --- Phone alerts (Web Push): switch on /notifications and a slim invitation on Home --- */
+.pa{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;border:1px solid rgba(var(--g-rgb),.45);background:linear-gradient(135deg,var(--gold-soft),var(--card) 70%) var(--card)}
+.pa.pa-on{border-color:rgba(18,140,96,.35);background:linear-gradient(135deg,rgba(18,140,96,.09),var(--card) 70%) var(--card)}
+.pa-ic{flex-shrink:0;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:18px;background:linear-gradient(135deg,#14275A,#0A1533);box-shadow:inset 0 0 0 1px rgba(var(--g-rgb),.5)}
+.pa-txt{flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pa-txt b{color:var(--ink)}
+.pa-note{color:var(--gold-text);font-weight:600}
+.pa-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pa-act .btn{white-space:nowrap}
+.pa-off{color:var(--ink-2)}
+.pa-wrap{padding-top:14px}
+.pa-bar{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;border-radius:16px;background:linear-gradient(135deg,#14275A,#0A1533);border:1px solid rgba(var(--g-rgb),.5);box-shadow:0 10px 26px rgba(10,21,51,.18);color:#E9EEF8}
+.pa-bar .pa-ic{width:32px;height:32px;border-radius:10px;font-size:15px;background:rgba(255,255,255,.08)}
+.pa-bar-t{flex:1;min-width:0;font-size:14px;line-height:1.35}
+.pa-bar-b{flex-shrink:0;border:0;cursor:pointer;padding:8px 14px;border-radius:999px;background:linear-gradient(135deg,var(--g1),var(--g2));color:#0A1533;font-weight:700;font-size:14px}
+.pa-bar-b:disabled{opacity:.7;cursor:default}
+.pa-bar-x{flex-shrink:0;border:0;background:none;color:#B8C4DB;font-size:20px;line-height:1;width:28px;height:28px;border-radius:50%;cursor:pointer}
+.pa-bar-x:hover{background:rgba(255,255,255,.1)}
+@media (max-width:760px){.pa-wrap{padding-top:10px}.pa-bar-t{font-size:13px}.pa-act{width:100%}.pa-act .btn{flex:1}}

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { profileOf, requireUser, trialLabel } from "@/lib/server/page";
 import { cname } from "@/lib/countries";
 import { unreadCount } from "@/lib/server/notify";
+import { PushAlertsPrompt } from "@/components/PushAlerts";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await requireUser("/inbox");
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <SiteHeader inApp countryName={cname(profile.target_country)} trialLabel={trial} unread={unread} />
+      <PushAlertsPrompt />
       <main className="app-main"><div className="wrap">{children}</div></main>
       <SiteFooter signedIn />
     </>
