@@ -1,3 +1,4 @@
+import { ukApplicationRoute } from "../uk-application";
 import { applicationCv,canReusePack } from "../application-documents";
 // "Send from my Gmail": Google OAuth with the gmail.send scope only (we can send, never read the mailbox),
 // and sending one application when the user presses Apply. Nothing is ever sent without that press.
@@ -88,6 +89,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) throw new Error("This application was already sent.");
   const { data: job } = await ctx.db.from("jobs").select("*").eq("id", jobId).maybeSingle();
   if (!job || job.apply_method !== "email" || !job.apply_target) throw new Error("This job does not take applications by email. Apply on the employer's page instead.");
+  if (job.country === "GB" && ukApplicationRoute({method:job.apply_method,target:job.apply_target,url:job.url,description:job.description || ""}).kind !== "email") throw new Error("The advert does not confirm email applications. Check the original application instructions.");
   if (job.deadline && job.deadline < st.today) throw new Error("The deadline for this job has passed.");
   const safety = applicationSafety(rowToJob(job as JobRow), st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library as AnswerLibrary, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!safety.safe) throw new ApplicationSafetyError(safety);
