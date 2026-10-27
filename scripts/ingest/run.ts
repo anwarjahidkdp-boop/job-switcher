@@ -125,7 +125,14 @@ async function main() {
       for (const u of users || []) { try { await refreshMatches(db, u.id as string); n++; } catch (e) { console.error("  match refresh failed", u.id, e); } }
       console.log(`ingest: refreshed matches for ${n} user(s)`);
       let checked = 0;
-      for (const u of users || []) { try { checked += await checkTopMatches(db, u.id as string); } catch (e) { console.error("  AI match check failed", u.id, errText(e)); } }
+      for (const u of users || []) {
+        try {
+          const c = await checkTopMatches(db, u.id as string);
+          checked += c;
+          // The AI's reading changes the score people see: store it, and bring earlier match notifications in line.
+          if (c) await refreshMatches(db, u.id as string);
+        } catch (e) { console.error("  AI match check failed", u.id, errText(e)); }
+      }
       console.log(`ingest: AI-checked ${checked} top match(es)`);
       const nm = await processNewMatches(db, (users || []).map((u) => u.id as string), { appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://jobpao.app" });
       console.log(`ingest: new matches for ${nm.users} user(s): ${nm.notified} job(s), ${nm.prepared} pack(s) prepared, ${nm.emailed} email(s), ${nm.failed} failed`);

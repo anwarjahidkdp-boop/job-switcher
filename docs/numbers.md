@@ -38,6 +38,7 @@ Every number a person sees comes from one function. The list that number opens c
 | Insights | 5 fit tiles | `fitTiles` → `jobTotals` (same as Lifetime) | same lists as Lifetime |
 | Onboarding, CV ready | checked / Top matches / Strong Fits | `jobTotals` (same as day-one Home) | Home |
 | Opportunities list | header "N jobs" | `jobsBehind(...).count` | n/a |
+| Notifications (bell, email) | "New N% match" | the live score from `loadState` (AI reading included); only Top matches (70%+); waits up to a day for the AI reading; `reconcileMatchNotifications` restates or withdraws older ones after every refresh | the job |
 | Notifications, Home hero note | a match already applied to | `currentApplicationNotifications` relabels it and links to Applied | Applied |
 
 ## Row labels
