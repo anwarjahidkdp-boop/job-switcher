@@ -9,7 +9,16 @@ import { loadProfile, loadState, type UserState } from "./state";
 import { DAY } from "../dates";
 
 // Once per request: the layout and the page both need the user and profile, and each lookup is a round trip.
+// Pages read the signed session locally (getClaims checks the signature and expiry with the project's public key,
+// no trip to the auth server). Reads still go through RLS with that same token, so nothing more is exposed.
 const currentUser = cache(async () => {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const sub = data?.claims?.sub;
+  return { supabase, user: sub ? { id: sub, email: typeof data.claims.email === "string" ? data.claims.email : undefined } : null };
+});
+// Changes (server actions, admin) ask the auth server, so a session ended elsewhere cannot write.
+const verifiedUser = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   return { supabase, user: data.user };
@@ -22,8 +31,15 @@ export async function requireUser(next = "/inbox") {
   return { supabase, user };
 }
 
+/** Signed-in user confirmed by the auth server (email, confirmation date); for changes and admin checks. */
+export async function requireVerifiedUser(next = "/inbox") {
+  const { supabase, user } = await verifiedUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return { supabase, user };
+}
+
 export async function ctx(next = "/inbox") {
-  const { supabase, user } = await requireUser(next);
+  const { supabase, user } = await requireVerifiedUser(next);
   return { db: supabase, admin: createAdminClient(), userId: user.id, user };
 }
 

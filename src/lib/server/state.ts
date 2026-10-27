@@ -11,7 +11,7 @@ import { cc, type CountryCode } from "../countries";
 import { todayStr } from "../dates";
 import { buildMatchProfile, type CareerFact, type CareerMeta } from "../facts";
 import { rowToJob, type JobRow } from "../jobs";
-import { bandOf, CAP_SCORE, scoreAll, type Scored } from "../matching";
+import { bandOf, CAP_SCORE, scoreAll, scoreJob, type Scored } from "../matching";
 import { rule } from "../countries";
 import type { AppStatus, ApplicationPack, CvQuestion, InterviewPrep, CvStyle, MasterCV, MatchProfile, PersonalDetails, Preferences } from "../types";
 
@@ -200,6 +200,15 @@ export function withAiScores(scored: Scored[], aiCheck: Map<string, AiCheck>): S
     const score = Math.min(c.score, ceiling);
     return { job: x.job, m: { ...x.m, score, capped: x.m.capped || c.score > ceiling, reason: c.score > ceiling && x.m.capReason ? x.m.capReason : x.m.reason, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
   });
+}
+
+/** One job's live match, the same score every list shows: the loaded row when the page has it, else scored the same way. */
+export async function liveMatch(st: UserState, db: SupabaseClient, jobId: string): Promise<Scored | null> {
+  const hit = st.scored.find((x) => x.job.id === jobId);
+  if (hit || !st.P) return hit || null;
+  const job = await loadJob(db, jobId);
+  if (!job) return null;
+  return withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0];
 }
 
 export async function loadJob(db: SupabaseClient, jobId: string) {
