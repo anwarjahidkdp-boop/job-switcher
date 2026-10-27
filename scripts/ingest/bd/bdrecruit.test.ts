@@ -31,6 +31,15 @@ describe('bdRecruit listing', () => {
     const resumed = await fetchBangladesh('bdrecruit', '2026-10-27', { fetcher, delay: 0, pages: 2, cursor: r.nextUrl });
     expect(resumed.nextUrl).toBeNull();
   });
+  it('keeps the jobs already read when a later listing page fails, and resumes there next time', async () => {
+    const fetcher = async (u: string) => {
+      if (u.includes('/page/2/')) return new Response('', { status: 503 });
+      const p = u.endsWith('/robots.txt') ? '' : u.includes('/job/') ? detail('2026-10-31') : listing(1);
+      return new Response(p, { headers: { 'content-type': 'text/html' } });
+    };
+    const r = await fetchBangladesh('bdrecruit', '2026-10-27', { fetcher, delay: 0, pages: 3, retryUrls: ['https://bdrecruit.net/bdjobs/page/2/'] });
+    expect(r.jobs).toHaveLength(2); expect(r.failures).toBe(1); expect(r.nextUrl).toBe('https://bdrecruit.net/bdjobs/page/2/');
+  });
   it('reads labelled pages without structured data, with WordPress "Expiration date"', () => {
     const html = '<h1>Process Lead</h1><div class="job-details"><p>Company Name: JTI Bangladesh</p><p>Expiration date: October 31, 2026</p><p>Experience: 3 years in manufacturing process improvement and quality systems.</p><p>Location: Dhaka</p></div>';
     const r = parseDetail(html, job('process-lead-jti'), c, '2026-10-27');

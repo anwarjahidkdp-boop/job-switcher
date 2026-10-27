@@ -52,11 +52,14 @@ export async function fetchBangladesh(key:string,today:string,opts:{fetcher?:Fet
  const head=await reader.html(c.url);result.pages++;
  if(c.mode==='documents'){result.documents.push(...documentLinks(head,c).map(d=>({...d,state:'needs_review' as const})));return result;}
  await consume(head,c.url);
- for(const url of (opts.retryUrls||[]).slice(0,20))if(!seen.has(url)){seen.add(url);await handle(url);}
+ // Only job pages are retried here; a failed listing page is resumed from the saved cursor instead.
+ for(const url of (opts.retryUrls||[]).filter(u=>{try{return c.detail.test(new URL(u).pathname);}catch{return false;}}).slice(0,20))if(!seen.has(url)){seen.add(url);await handle(url);}
  let next=opts.cursor||nextPage(head,c.url,c);const visited=new Set([c.url]);const max=Math.min(50,Math.max(1,opts.pages||4));
  while(next&&result.pages<max){
   const u=new URL(next);const base=new URL(c.url);if(u.origin!==base.origin||(c.pagePath?pathPage(u.href,c)==null:u.pathname!==base.pathname)||visited.has(u.href))throw Error('Unsafe or cyclic pagination cursor');visited.add(u.href);
-  const html=await reader.html(u.href);result.pages++;await consume(html,u.href);next=nextPage(html,u.href,c);
+  // A later listing page that fails keeps the jobs already read; the page is recorded and retried from the saved cursor.
+  let html:string;try{html=await reader.html(u.href);}catch(e){result.failures++;result.documents.push({url:u.href,title:'Listing page',kind:'article',reason:String(e).slice(0,300),publishedAt:null,state:'fetch_failed'});break;}
+  result.pages++;await consume(html,u.href);next=nextPage(html,u.href,c);
  }
  result.nextUrl=next;result.jobs=[...new Map(result.jobs.map(j=>[j.externalId,j])).values()];
  result.jobs=result.jobs.filter(j=>{const reason=sourceReviewReason(j,c,today);if(!reason)return true;result.documents.push({url:j.discovery.url,title:j.title,kind:'article',reason,publishedAt:j.publishedAt,state:'needs_review'});return false;});

@@ -9,11 +9,11 @@ const c = (sector: string, mnc: boolean, rows: [string, string][]): BdCompany[] 
 export const BD_COMPANIES: BdCompany[] = [
   ...c('Banking & finance', false, [
     ['BRAC Bank', 'bracbank.com'], ['Eastern Bank', 'ebl.com.bd'], ['The City Bank', 'citybankplc.com'], ['Dutch-Bangla Bank', 'dutchbanglabank.com'],
-    ['Prime Bank', 'primebank.com.bd'], ['Mutual Trust Bank', 'mtb.com.bd'], ['Bank Asia', 'bankasia-bd.com'], ['United Commercial Bank', 'ucb.com.bd'],
+    ['Prime Bank', 'primebank.com.bd'], ['Mutual Trust Bank', 'mutualtrustbank.com'], ['Bank Asia', 'bankasia-bd.com'], ['United Commercial Bank', 'ucb.com.bd'],
     ['ONE Bank', 'onebank.com.bd'], ['Southeast Bank', 'southeastbank.com.bd'], ['Dhaka Bank', 'dhakabankltd.com'], ['IFIC Bank', 'ificbank.com.bd'],
     ['Jamuna Bank', 'jamunabank.com.bd'], ['Pubali Bank', 'pubalibangla.com'], ['NCC Bank', 'nccbank.com.bd'], ['Mercantile Bank', 'mblbd.com'],
-    ['Trust Bank', 'trustbank.com.bd'], ['Shahjalal Islami Bank', 'shahjalalbank.com.bd'], ['Islami Bank Bangladesh', 'islamibankbd.com'], ['Al-Arafah Islami Bank', 'alarafahbank.com'],
-    ['Social Islami Bank', 'sibl-bd.com'], ['EXIM Bank', 'eximbankbd.com'], ['Premier Bank', 'premierbankltd.com'], ['Midland Bank', 'midlandbankbd.net'],
+    ['Trust Bank', 'tblbd.com'], ['Shahjalal Islami Bank', 'sjibl.com.bd'], ['Islami Bank Bangladesh', 'islamibankbd.com'], ['Al-Arafah Islami Bank', 'alarafahbank.com'],
+    ['Social Islami Bank', 'siblbd.com'], ['EXIM Bank', 'eximbankbd.com'], ['Premier Bank', 'premierbankltd.com'], ['Midland Bank', 'midlandbankbd.net'],
     ['Community Bank', 'communitybankbd.com'], ['LankaBangla Finance', 'lankabangla.com'], ['IDLC Finance', 'idlc.com'], ['IPDC Finance', 'ipdcbd.com'],
     ['Green Delta Insurance', 'green-delta.com'], ['Guardian Life Insurance', 'guardianlife.com.bd'], ['bKash', 'bkash.com'], ['Nagad', 'nagad.com.bd'],
   ]),
