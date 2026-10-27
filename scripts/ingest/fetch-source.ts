@@ -9,7 +9,7 @@ import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, pa
 import { greenhouseUrl, leverUrl, parseGreenhouse, parseLever, type IngestedJob } from "../../src/lib/ingest/ats";
 import { BOT_UA, robotsAllows } from "../../src/lib/ingest/robots";
 import {BRAC_API,parseBrac} from "../../src/lib/ingest/brac";
-import { cc } from "../../src/lib/countries";
+import { cc, type CountryCode } from "../../src/lib/countries";
 
 export type SourceKind = "jsonld" | "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee" | "remotive" | "arbeitnow" | "adzuna" | "jooble" | "reed" | "brac" | "bdweb";
 export interface SourceRow { id: string; kind: SourceKind; name: string; url: string | null; board_token: string | null; country: string; company: string | null; detail_path?: string | null; cursor_url?: string | null }
@@ -47,6 +47,11 @@ export function detailLinks(html:string,pageUrl:string,path:string) {
 export async function fetchSource(src: SourceRow, today: string, fetcher: Fetcher = fetch, opts: { queries?: string[]; env?: Record<string, string | undefined> } = {}): Promise<IngestedJob[]> {
   const country = cc(src.country);
   const sourceLabel = src.name;
+  // "Company@bd" reads a global employer's board for its jobs in one country only (e.g. a multinational's Bangladesh office).
+  // Those jobs are placed by their own stated location, never by the source's country, so a remote or foreign role is not let in.
+  const [token, onlyIn = ""] = (src.board_token || "").split("@");
+  const only = onlyIn ? cc(onlyIn) : null;
+  if (onlyIn && only !== onlyIn.toUpperCase()) throw new Error(`Unknown country filter "${onlyIn}"`);
   if (src.kind === "jsonld") {
     if (!src.url || !/^https:\/\//i.test(src.url)) throw new Error("jsonld source needs an https URL");
     const u = new URL(src.url);
@@ -65,7 +70,7 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
     const html=await readPage(src.url);
     const pages=[{url:src.url,html}];
     if(src.detail_path)for(const url of detailLinks(html,src.url,src.detail_path))pages.push({url,html:await readPage(url)});
-    const jobs=pages.flatMap(p=>extractJobPostings(p.html).map(posting=>postingToJob(posting,{country,companyFallback:src.company,sourceLabel,pageUrl:p.url,today}))).filter((j):j is NonNullable<typeof j>=>!!j);
+    const jobs=pages.flatMap(p=>extractJobPostings(p.html).map(posting=>postingToJob(posting,{country:only?"XX":country,companyFallback:src.company,sourceLabel,pageUrl:p.url,today}))).filter((j):j is NonNullable<typeof j>=>!!j&&(!only||j.country===only));
     return dedupe(jobs.filter(j=>!j.deadline||j.deadline>=today));
   }
 
@@ -80,9 +85,8 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
     }
     return dedupe(out);
   }
-  const token = src.board_token || "";
   if (!token) throw new Error("board_token is required");
-  const ctx = { country, company: src.company || src.name, sourceLabel, today };
+  const ctx = { country: only ? "XX" as CountryCode : country, company: src.company || src.name, sourceLabel, today };
   const json = async (url: string, init?: RequestInit) => {
     const res = init ? await fetcher(url, { ...init, headers: { "user-agent": BOT_UA, accept: "application/json", "content-type": "application/json" } }) : await get(fetcher, url, "application/json");
     if (!res.ok) throw new Error(`${src.kind} returned ${res.status}`);
@@ -94,6 +98,9 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
   };
   const env = opts.env || process.env;
   const queries = [...new Set((opts.queries || []).map((q) => q.trim()).filter(Boolean))].slice(0, MAX_QUERIES);
+  const jobs = await readBoard();
+  return only ? jobs.filter((j) => j.country === only) : jobs;
+  async function readBoard(): Promise<IngestedJob[]> {
   switch (src.kind) {
     case "greenhouse": return parseGreenhouse(await json(greenhouseUrl(token)), ctx);
     case "lever": return parseLever(await json(leverUrl(token)), ctx);
@@ -101,7 +108,7 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
     case "workable": return parseWorkable(await json(workableUrl(token)), ctx);
     case "recruitee": return parseRecruitee(await json(recruiteeUrl(token)), ctx);
     case "smartrecruiters": {
-      const list = await json(smartRecruitersUrl(token));
+      const list = await json(smartRecruitersUrl(token) + (only ? `&country=${only.toLowerCase()}` : ""));
       const ids: string[] = ((list?.content || []) as { id: string }[]).map((p) => p.id).slice(0, MAX_DETAILS);
       const details: Record<string, unknown> = {};
       for (const id of ids) { try { details[id] = await json(`https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(token)}/postings/${encodeURIComponent(id)}`); } catch { /* listing data is enough */ } }
@@ -145,6 +152,7 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
       return dedupe(out);
     }
     default: throw new Error(`Unknown source kind ${src.kind}`);
+  }
   }
 }
 

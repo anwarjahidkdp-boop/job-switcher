@@ -1,5 +1,5 @@
 import {BOT_UA,robotsAllows} from '../../../src/lib/ingest/robots';import {all,href,parse,text} from './html';
-import {detailUrls,nextPage,parseDetail,type DiscoveredJob,type SourceDocument} from './parse';import {BD_SOURCES,approvedSource,type BangladeshSource} from './registry';
+import {detailUrls,nextPage,parseDetail,pathPage,type DiscoveredJob,type SourceDocument} from './parse';import {BD_SOURCES,approvedSource,type BangladeshSource} from './registry';
 import {fetchTeletalk} from './teletalk';
 import {sourceReviewReason} from './quality';
 export type Fetcher=(url:string,init?:RequestInit)=>Promise<Response>;
@@ -55,7 +55,7 @@ export async function fetchBangladesh(key:string,today:string,opts:{fetcher?:Fet
  for(const url of (opts.retryUrls||[]).slice(0,20))if(!seen.has(url)){seen.add(url);await handle(url);}
  let next=opts.cursor||nextPage(head,c.url,c);const visited=new Set([c.url]);const max=Math.min(50,Math.max(1,opts.pages||4));
  while(next&&result.pages<max){
-  const u=new URL(next);const base=new URL(c.url);if(u.origin!==base.origin||u.pathname!==base.pathname||visited.has(u.href))throw Error('Unsafe or cyclic pagination cursor');visited.add(u.href);
+  const u=new URL(next);const base=new URL(c.url);if(u.origin!==base.origin||(c.pagePath?pathPage(u.href,c)==null:u.pathname!==base.pathname)||visited.has(u.href))throw Error('Unsafe or cyclic pagination cursor');visited.add(u.href);
   const html=await reader.html(u.href);result.pages++;await consume(html,u.href);next=nextPage(html,u.href,c);
  }
  result.nextUrl=next;result.jobs=[...new Map(result.jobs.map(j=>[j.externalId,j])).values()];

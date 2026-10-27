@@ -22,6 +22,7 @@ import type { DiscoveredJob } from './parse';
 import { BD_SOURCES, approvedSource, type BangladeshSource } from './registry';
 import { sourceReviewReason } from './quality';
 import { persistBangladeshJobs } from './persist';
+import { privateFirst } from './sector';
 
 export const CircularSchema = z.object({
   is_recruitment_circular: z.boolean(),
@@ -204,11 +205,13 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | nul
   const byId = new Map((srcs || []).map(s => [s.id as string, s as SourceRow]));
   if (!byId.size) return stats;
   const since = new Date(Date.parse(today + 'T00:00:00Z') - 45 * 86400000).toISOString().slice(0, 10);
-  const { data: docs, error: docError } = await db.from('source_documents').select('id, source_id, url, kind, attempts, published_at')
+  // A wider pool than one run reads, so private-employer circulars can go ahead of government ones (sector.ts).
+  const { data: pool, error: docError } = await db.from('source_documents').select('id, source_id, url, kind, attempts, published_at, title')
     .eq('state', 'needs_review').lt('attempts', 2).in('source_id', [...byId.keys()]).eq('kind', 'article')
-    .or(`published_at.is.null,published_at.gte.${since}`).order('last_seen_at', { ascending: false }).limit(opts.limit);
+    .or(`published_at.is.null,published_at.gte.${since}`).order('last_seen_at', { ascending: false }).limit(Math.min(1000, opts.limit * 3));
   if (docError) throw docError;
-  for (const doc of docs || []) {
+  const docs = privateFirst(pool || []).slice(0, opts.limit);
+  for (const doc of docs) {
     if (opts.maxMs != null && Date.now() - started > opts.maxMs) break; // the rest wait for the next run
     const src = byId.get(doc.source_id as string)!; const cfg = BD_SOURCES.find(s => s.key === src.board_token)!;
     const reader = new PublicReader(cfg.url, opts.fetcher, 400);

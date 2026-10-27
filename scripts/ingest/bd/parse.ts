@@ -14,9 +14,20 @@ export function detailUrls(html:string,url:string,config:BangladeshSource):strin
  return [...new Set(found)];
 }
 export function nextPage(html:string,url:string,config:BangladeshSource):string|null{
+ if(config.pagePath)return nextPathPage(html,url,config);
  if(!config.pageParam)return null;const root=parse(html);const base=new URL(url);const current=Number(base.searchParams.get(config.pageParam)||1);
  const pages=all(root,n=>n.tag==='a').map(n=>href(n,url)).filter((u):u is URL=>!!u&&u.origin===base.origin&&u.pathname===base.pathname&&Number(u.searchParams.get(config.pageParam!)||0)===current+1);
  return pages[0]?.href||null;
+}
+/** WordPress-style listings page as <listing>/page/N/ instead of ?page=N. */
+export function pathPage(url:string,config:BangladeshSource):number|null{
+ const base=new URL(config.url).pathname.replace(/\/$/,'');const p=new URL(url).pathname.replace(/\/$/,'');
+ if(p===base)return 1;const m=p.slice(base.length).match(/^\/page\/(\d+)$/);return p.startsWith(base)&&m?Number(m[1]):null;
+}
+function nextPathPage(html:string,url:string,config:BangladeshSource):string|null{
+ const current=pathPage(url,config);if(current==null)return null;const origin=new URL(config.url).origin;
+ const next=all(parse(html),n=>n.tag==='a').map(n=>href(n,url)).find((u):u is URL=>!!u&&u.origin===origin&&!u.search&&pathPage(u.href,config)===current+1);
+ if(next)next.hash='';return next?.href||null;
 }
 function originalLink(root:Node,url:string,c:BangladeshSource):string|null{
  if(c.authority)return url;
@@ -50,7 +61,7 @@ export function parseDetail(html:string,url:string,c:BangladeshSource,today:stri
  let body=text(bodyNode,ignored);
  if(c.key==='dhakapost'){const at=body.lastIndexOf('প্রতিষ্ঠানের নাম:');if(at>=0)body=body.slice(at);}
  const headline=text(all(root,n=>n.tag==='h1')[0]||root).split('\n')[0].slice(0,250);
- let company=field(body,'Company Name|Company|প্রতিষ্ঠানের নাম|প্রতিষ্ঠান|সংস্থার নাম')||c.company;
+ let company=field(body,'Company Name|Company|Organization|Organisation|প্রতিষ্ঠানের নাম|প্রতিষ্ঠান|সংস্থার নাম')||c.company;
  let title=field(body,'Title|Position(?: Name)?|Job Title|পদের নাম|পদবি|পদবী')||(c.type==='portal'?headline:null);
  if(c.key==='bdjobstoday')body=body.slice(body.indexOf(text(all(root,n=>n.tag==='h1')[0]||root)));
  if(c.key==='jobcombd'){company=text(all(root,n=>n.tag==='h1')[0]||root).split('\n')[0];title=text(all(root,n=>n.tag==='h2')[0]||root).split('\n')[0];}
@@ -65,8 +76,8 @@ export function parseDetail(html:string,url:string,c:BangladeshSource,today:stri
   if(h){const parent=all(root,n=>n.children.includes(h))[0];const a=parent&&all(parent,n=>n.tag==='a')[0];company=a?text(a):undefined;}
   body=body.split('More Jobs From')[0];
  }
- const deadline=sourceDate(field(body,'Application Deadline|Deadline|Last Date(?: of Application)?|আবেদনের শেষ তারিখ|আবেদনের শেষ সময়|আবেদনের শেষ সময়|আবেদনের শেষ তারিখ ও সময়'));
- const posted=sourceDate(field(body,'Published|Published On|Posted|প্রকাশের তারিখ'));
+ const deadline=sourceDate(field(body,'Application Deadline|Deadline|Expiration Date|Closing Date|Last Date(?: of Application)?|আবেদনের শেষ তারিখ|আবেদনের শেষ সময়|আবেদনের শেষ সময়|আবেদনের শেষ তারিখ ও সময়'));
+ const posted=sourceDate(field(body,'Published|Published On|Posted|Posted Date|Date Posted|প্রকাশের তারিখ'));
  if(deadline&&deadline<today)return {jobs:[],documents:[]};
  if(c.key==='bdjobstoday'||c.key==='chakrirkhabar')return {jobs:[],documents:[{url,title:title||headline,kind:'article',reason:'Image-based circular: eligibility must be extracted from the original advertisement',publishedAt:posted}]};
  if(!title||!company||body.length<80||(c.type==='newspaper'&&!deadline))return {jobs:[],documents:[{url,title:headline,kind:'article',reason:'Needs explicit position, employer and trustworthy deadline before matching',publishedAt:posted}]};
