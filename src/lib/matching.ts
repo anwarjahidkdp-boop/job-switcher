@@ -45,6 +45,8 @@ function profileIdx(P: MatchProfile): ProfileIdx {
   return x;
 }
 
+const ACADEMIC = /\b(?:lecturer|professor|teacher|instructor|tutor|trainer|demonstrator|faculty member)\b/i;
+
 export function roleRel(job: Pick<Job, "title" | "category">, P: MatchProfile): number {
   const { tokens: pt, fams, roles } = profileIdx(P);
   // Only the role part of the title counts: "Software Engineer, Bill Pay" is an engineering job, not finance.
@@ -53,6 +55,11 @@ export function roleRel(job: Pick<Job, "title" | "category">, P: MatchProfile): 
   if (jt.some((w) => pt.has(w))) ts = 1;
   else if (jt.some((w) => fams.has(famOf(w)))) ts = 0.7;
   if (roles.has(normTitle(job.title))) ts = 1;
+  // A teaching title names its subject: "Lecturer (Harbor and River Engineering)" is not a fit for a former accounting lecturer.
+  if (ts && ACADEMIC.test(roleHead(job.title))) {
+    const subject = titleTokens(String(job.title).replace(new RegExp(ACADEMIC.source, "gi"), " ").replace(/\b(?:in|of|for|the|department|dept\.?|institute|school|faculty|centre|center|studies|programme|program|post|posts|vacancy)\b/gi, " ")).filter((w) => /^[a-z&]{3,}$/.test(w));
+    if (subject.length && !subject.some((w) => pt.has(w) || fams.has(famOf(w)))) ts = 0;
+  }
   const catMatch = !!job.category && P.categories.includes(job.category);
   // The category alone is not enough when the title names a different role; it decides only for titles that say nothing ("Executive").
   if (catMatch && !ts && jt.length) return 0.4;
