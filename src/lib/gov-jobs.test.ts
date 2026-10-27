@@ -39,9 +39,11 @@ it("finds a government pay grade only beside pay, and only when a circular's pos
   expect(extractEligibility("Salary: ৪৪,০০০–১,০৫,৯০০ টাকা (গ্রেড-৯)").payGrade).toBe(9);
   expect(extractEligibility("বেতন গ্রেড: ২০তম (পে স্কেল-২০১৫ অনুযায়ী)").payGrade).toBe(20);
   expect(extractEligibility("Grade 5 teacher wanted for our school").payGrade).toBeUndefined();
-  const mixed = extractEligibility("১. হিসাব রক্ষক (গ্রেড-১৪) ২৩৫০০-৫৬৮০০\n২. সহকারী পরিচালক (গ্রেড-৫) ৪৩০০০-৬৯৮৫০");
+  const mixed = extractEligibility("১. হিসাব রক্ষক (গ্রেড-১৪) ২৩৫০০-৫৬৮০০\n২. অফিস সহায়ক (গ্রেড-২০) ২০০০০-৪৮৪০০");
   expect(mixed).toMatchObject({ govPost: true });
   expect(mixed.payGrade).toBeUndefined();
+  // A circular that also hires for an upper grade is not assumed to be an entry post.
+  expect(extractEligibility("১. হিসাব রক্ষক (গ্রেড-১৪) ২৩৫০০-৫৬৮০০\n২. সহকারী পরিচালক (গ্রেড-৫) ৪৩০০০-৬৯৮৫০").govPost).toBeUndefined();
   expect(extractEligibility("We are hiring an accountant. Salary: Tk. 25000 - 35000 (Monthly)").govPost).toBeUndefined();
 });
 
@@ -49,7 +51,14 @@ it("applies the legal government age limit of 32 whenever the circular states no
   const over = eligibilityCheck(gov(9), P, today);
   expect(over).toMatchObject({ blocked: true, scoreCap: 0 });
   expect(over.issues[0].message).toBe("Government jobs accept applicants up to 32 unless the circular says otherwise. You are 38.");
-  expect(eligibilityCheck(gov(5), P, today).blocked).toBe(true);
+  // Upper grades and senior titles: no age limit is assumed, only a posted one counts.
+  for (const j of [gov(5), gov(1), gov(9, { seniority: "manager" } as Partial<Job>), gov(14, { seniority: "head" } as Partial<Job>)]) {
+    const r = eligibilityCheck(j, P, today);
+    expect(r.blocked).toBe(false);
+    expect(r.issues.map((i) => i.code)).not.toContain("age");
+  }
+  expect(eligibilityCheck(gov(5, { eligibility: { payGrade: 5, minAge: 18, maxAge: 35 } }), P, today).blocked).toBe(true);
+  expect(eligibilityCheck(gov(20), P, today).blocked).toBe(true);
   expect(eligibilityCheck(gov(null, { eligibility: { govPost: true } }), P, today).blocked).toBe(true);
   expect(eligibilityCheck(gov(9), { ...P, birthDate: "1994-10-21" }, today).blocked).toBe(false);
   expect(eligibilityCheck(gov(9), { ...P, birthDate: "1993-10-19" }, today).blocked).toBe(true);

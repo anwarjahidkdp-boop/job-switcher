@@ -4,7 +4,7 @@ import { addDaysTo } from "./dates";
 import { agePolicy, BD_GOV_AGE } from "./market-rules";
 import type { Job, MatchProfile } from './types';
 import { money, rule } from './countries';
-export interface JobEligibility { minAge?:number|null; maxAge?:number|null; ageAsOf?:string|null; ageException?:boolean; requirementsUnverified?:boolean; /** Bangladesh national pay-scale grade (1-20): a government or public-body post. */ payGrade?:number|null; /** A government post whose grade is not known exactly (a circular with several grades, or a government-only source). */ govPost?:boolean }
+export interface JobEligibility { minAge?:number|null; maxAge?:number|null; ageAsOf?:string|null; ageException?:boolean; requirementsUnverified?:boolean; /** Bangladesh national pay-scale grade (1-20): a government or public-body post. */ payGrade?:number|null; /** A government entry post whose exact grade is not known: a circular whose grades differ but are all entry grades (9-20). */ govPost?:boolean }
 export interface EligibilityIssue { code:string; message:string; blocking:boolean }
 export const digits=(s:string)=>s.replace(/[০-৯]/g,c=>String('০১২৩৪৫৬৭৮৯'.indexOf(c)));
 /** Lines a listing adds about itself (salary, deadline, source notes), which say nothing about the work. */
@@ -18,6 +18,7 @@ export function ageOn(dob:string,asOf:string):number|null {
  return Number(asOf.slice(0,4))-Number(dob.slice(0,4))-(asOf.slice(5)<dob.slice(5)?1:0);
 }
 /** Only literal posted limits; never infer age from experience or a job title. */
+const isEntryGrade=(g:number)=>g>=BD_GOV_AGE.entryGrades[0]&&g<=BD_GOV_AGE.entryGrades[1];
 export function extractEligibility(text:string):JobEligibility {
  const t=digits(text).toLowerCase();const out:JobEligibility={};
  const range=t.match(/(?:\bage(?:d| limits?| range)?\s*[:：]?|বয়স(?:সীমা)?\s*[:ঃ]?|বয়স(?:সীমা)?\s*[:ঃ]?)\s*(?:between\s+|from\s+)?(\d{1,2})\s*(?:[-–—]|to|and|থেকে|হতে)\s*(\d{1,2})/);
@@ -39,7 +40,7 @@ export function extractEligibility(text:string):JobEligibility {
   grades.push(n);if(own==null&&/(?:^|\n)\s*salary\s*[:ঃ][^\n]*$/.test(t.slice(Math.max(0,at-120),at)))own=n;
  }
  const pay=own??(grades.length&&grades.every(n=>n===grades[0])?grades[0]:null);if(pay!=null)out.payGrade=pay;
- else if(grades.length)out.govPost=true;
+ else if(grades.length&&grades.every(isEntryGrade))out.govPost=true;
  return out;
 }
 export function normaliseEligibility(raw:unknown):JobEligibility {
@@ -64,8 +65,10 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
    add('age',`Posted age limit ${e.minAge??'—'}–${e.maxAge??'—'}; your age is ${age} on ${ref}.`,true,0);
   }
  }
- // Bangladesh government posts whose circular states no age limit: the legal entry limit (BD_GOV_AGE).
- if(!hasAge&&job.country==='BD'&&(e.payGrade!=null||e.govPost)){
+ // Bangladesh government entry posts whose circular states no age limit: the legal entry limit (BD_GOV_AGE).
+ // Upper grades and senior titles are experienced hires: no limit is assumed for them; only a posted one counts.
+ const govEntry=e.payGrade!=null?isEntryGrade(e.payGrade):!!e.govPost;
+ if(!hasAge&&job.country==='BD'&&govEntry&&!['senior','manager','head'].includes(job.seniority||'')){
   const ref=job.publishedAt||today;const age=P.birthDate?ageOn(P.birthDate,ref):null;
   if(age==null)add('age_unknown','Add your date of birth: government jobs have an age limit.',true,54);
   else if(age>BD_GOV_AGE.maxAge)add('age',`Government jobs accept applicants up to ${BD_GOV_AGE.maxAge} unless the circular says otherwise. You are ${age}.`,true,0);
