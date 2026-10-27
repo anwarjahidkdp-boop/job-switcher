@@ -7,7 +7,7 @@ import { newMatchesEmail } from "../email/templates";
 import { deliverEmail } from "./email-outbox";
 import { notify } from "./notify";
 import { aiConfigured } from "../ai";
-import { fitCard } from "./search-summary";
+import { fitCard, foundMs } from "./search-summary";
 import { loadState } from "./state";
 
 /** How long a new match waits for its AI reading before the bell rings on the rule score alone. */
@@ -17,6 +17,10 @@ export const NOTIFY_MIN_SCORE = 70;
 /** Retained for callers checking an AI assessment; queue selection also enforces current deterministic safety. */
 export const aiVerified = (r: { ai_fit?: string | null; ai_score?: number | null }) => r.ai_fit === "strong" || (r.ai_score ?? 0) >= 70;
 const DIGEST_MAX = 8;
+/** A match is "new" for the bell and email only if it was found for the person in the last three days. */
+const NEW_FOR_MS = 3 * 86_400_000;
+/** Same title at the same company: one job, even when the source lists it under two ids. */
+export const sameJob = (r: { jobs: { title: string; company: string } }) => `${r.jobs.title}|${r.jobs.company}`.toLowerCase().replace(/\s+/g, " ").trim();
 const NOTIFY_PER_RUN = 5;
 
 export interface NewMatchResult { users: number; notified: number; prepared: number; emailed: number; failed: number }
@@ -29,8 +33,8 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
   for (const userId of userIds) {
     try {
       const { data, error } = await admin.from("matches").select("job_id, score, ai_fit, ai_score, jobs!inner(title, company, location, active)")
-        .eq("user_id", userId).is("notified_at", null).eq("relevant", true).gte("score", NOTIFY_MIN_SCORE).eq("jobs.active", true).or("ai_fit.is.null,ai_fit.neq.no")
-        .order("score", { ascending: false }).limit(50);
+        .eq("user_id", userId).is("notified_at", null).eq("relevant", true).eq("jobs.active", true).or("ai_fit.is.null,ai_fit.neq.no")
+        .order("score", { ascending: false }).limit(200);
       if (error) throw error;
       const { data: prof } = await admin.from("profiles").select("email, full_name, email_reminders, dismissed_job_ids").eq("id", userId).maybeSingle();
       const dismissed = new Set<string>((prof?.dismissed_job_ids as string[] | null) || []);
@@ -51,10 +55,15 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
         // After a day it goes out on the rule score (the AI budget may be spent).
         if (x && aiConfigured() && !st?.aiCheck.has(r.job_id) && Date.now() - Date.parse(x.job.foundAt ?? x.job.addedAt ?? "") < AI_WAIT_MS) continue;
         settled.push(r.job_id);
-        // Below 70% on the page (or outside the field, or closed): no bell, it is not a Top match there either.
-        if (x && fitCard(x) !== "rest") fresh.push({ ...r, score: x.m.score });
+        // The stored score is only the first pass, so a job is picked by its live score: 70%+ on the page, found recently.
+        // Below 70% (or outside the field, or closed) it is not a Top match there either, so no bell.
+        if (x && fitCard(x) !== "rest" && Date.now() - foundMs(x) <= NEW_FOR_MS) fresh.push({ ...r, score: x.m.score });
       }
       fresh.sort((a, b) => b.score - a.score);
+      // The same post listed twice by a source (two ids) is one job to the person: mention it once.
+      const seen = new Set<string>();
+      const once = fresh.filter((r) => !seen.has(sameJob(r)) && !!seen.add(sameJob(r)));
+      fresh.splice(0, fresh.length, ...once);
 
       const ready = new Set<string>();
       // Ranking is automatic; document generation is an explicit Apply action only.

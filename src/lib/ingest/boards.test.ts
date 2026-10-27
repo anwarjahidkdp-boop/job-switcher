@@ -44,7 +44,8 @@ describe("new matches email", () => {
       { title: "Finance Manager", company: "Acme <Ltd>", location: "Dubai", score: 91, link: "https://jobpao.app/jobs/1", ready: true },
       { title: "Accountant", company: "Bar", location: null, score: 74, link: "https://jobpao.app/jobs/2", ready: false },
     ] });
-    expect(m.subject).toBe("2 new jobs match your profile, 1 ready to apply");
+    expect(m.subject).toBe("2 new Top matches for you, 1 ready to apply");
+    expect(m.text).toContain("2 new jobs are Top matches for you (70% or more).");
     expect(m.text).toContain("Hi Rahim");
     expect(m.html).toContain("Acme &lt;Ltd&gt;");
     expect(m.html).not.toContain("<Ltd>");

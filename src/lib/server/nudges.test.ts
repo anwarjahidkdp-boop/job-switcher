@@ -14,6 +14,9 @@ import { beforeEach, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("./notify",()=>({notify:vi.fn().mockResolvedValue(1)}));
 vi.mock("../email/send",()=>({emailProvider:()=>null}));
+const liveMetrics={v:2 as const,jobs_analysed:20,relevant:3,strong:1,prepared:2,applied:1,interviews:0,offers:0,top_gap:null,next_deadline:null};
+vi.mock("./report-metrics",()=>({liveCareerMetrics:vi.fn(async()=>liveMetrics),saveLiveCareerReport:vi.fn(async()=>({metrics:liveMetrics}))}));
+import { saveLiveCareerReport } from "./report-metrics";
 import { notify } from "./notify";
 import { sendNudges } from "./nudges";
 function schedulerDb(day:number) {
@@ -31,7 +34,7 @@ function schedulerDb(day:number) {
   };return q;
  }};return {db:db as unknown as SupabaseClient,now:new Date(Date.parse('2026-10-01T03:00:00Z')+(day-1)*86400000+60000)};
 }
-beforeEach(()=>vi.mocked(notify).mockClear());
+beforeEach(()=>{vi.mocked(notify).mockClear();vi.mocked(saveLiveCareerReport).mockClear();});
 describe('trial report journey',()=>{
  it.each([1,2,3,4])('schedules approved progress for day %s',async day=>{
   const x=schedulerDb(day);await sendNudges(x.db,{appUrl:'https://example.invalid',now:x.now});
@@ -46,11 +49,16 @@ describe('trial report journey',()=>{
 it('dry runs never save report snapshots or notify',async()=>{
  const x=schedulerDb(5);const result=await sendNudges(x.db,{appUrl:'https://example.invalid',now:x.now,dryRun:true});
  expect(result.notified).toBe(1);expect(notify).not.toHaveBeenCalled();
- expect(x.db.rpc).not.toHaveBeenCalledWith('save_career_report',expect.anything());
+ expect(saveLiveCareerReport).not.toHaveBeenCalled();
 });
 
 it('waits for the user\'s daytime instead of messaging at night',async()=>{
  const night=schedulerDb(2);const at=new Date('2026-10-01T22:30:00Z');
  const result=await sendNudges(night.db,{appUrl:'https://example.invalid',now:at});
  expect(result.deferred).toBeGreaterThan(0);expect(notify).not.toHaveBeenCalled();
+});
+
+it('trial progress speaks the same words and numbers as Home',async()=>{
+ const x=schedulerDb(2);await sendNudges(x.db,{appUrl:'https://example.invalid',now:x.now});
+ expect(notify).toHaveBeenCalledWith(x.db,'u',[expect.objectContaining({body:'We have found 20 jobs for you so far, and 3 of them are Top matches (70% or more).'})]);
 });
