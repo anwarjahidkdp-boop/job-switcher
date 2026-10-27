@@ -3,15 +3,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
 
-export function CheckoutButton({ label, pack, endpoint = "/api/billing/checkout", opening = "Opening bKash" }: { label: string; pack: string; endpoint?: string; opening?: string }) {
+export function CheckoutButton({ label, pack, endpoint = "/api/billing/checkout", opening = "Opening bKash", extra, blocked }: { label: string; pack: string; endpoint?: string; opening?: string; extra?: Record<string, unknown>; blocked?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return (
     <div>
-      <button className="btn btn-primary" disabled={busy} onClick={async () => {
+      <button className="btn btn-primary" disabled={busy || blocked} onClick={async () => {
         setBusy(true); setErr("");
         try {
-          const r = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pack }) });
+          const r = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pack, ...extra }) });
           const j = await r.json().catch(() => ({}));
           if (!r.ok || !j.url) throw new Error(j.error || "Could not start the payment.");
           window.location.assign(j.url);
@@ -22,7 +22,19 @@ export function CheckoutButton({ label, pack, endpoint = "/api/billing/checkout"
   );
 }
 
-export const CardCheckoutButton = ({ label, pack }: { label: string; pack: string }) => <CheckoutButton label={label} pack={pack} endpoint="/api/billing/card" opening="Opening secure checkout" />;
+/** Card buyers ask for Pro to start now (UK/EU 14-day cancellation rule); paying stays off until the box is ticked. */
+export function CardCheckoutButton({ label, pack }: { label: string; pack: string }) {
+  const [startNow, setStartNow] = useState(false);
+  return (
+    <div className="stack">
+      <label className="small" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <input type="checkbox" checked={startNow} onChange={(e) => setStartNow(e.target.checked)} style={{ marginTop: 3 }} />
+        <span>Start my Pro access now. If I cancel within 14 days, I get a full refund in the first 7 days, then a refund for the days I have not used. See the <a href="/refund" target="_blank" rel="noopener">Refund Policy</a>.</span>
+      </label>
+      <CheckoutButton label={label} pack={pack} endpoint="/api/billing/card" opening="Opening secure checkout" extra={{ startNow }} blocked={!startNow} />
+    </div>
+  );
+}
 
 export function ManualPaymentForm({ pack }: { pack: string }) {
   const router = useRouter();

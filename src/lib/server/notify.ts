@@ -1,6 +1,7 @@
 // In-app notifications: the bell in the header and /notifications. Written with the service role; each one has a
 // dedupe key so a job, reply check or trial message is only ever announced once per user.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import { pushMessage, pushToUser } from "./push";
 
 export type NotificationKind = "match" | "ready" | "reminder" | "reply" | "followup" | "interview" | "guide" | "trial";
@@ -24,10 +25,11 @@ export async function unreadCount(db: SupabaseClient, userId: string): Promise<n
   return count || 0;
 }
 
-export async function listNotifications(db: SupabaseClient, userId: string, limit = 50): Promise<NotificationRow[]> {
+/** Cached per request, so a page can start this read early and await it where it is used. */
+export const listNotifications = cache(async function listNotifications(db: SupabaseClient, userId: string, limit = 50): Promise<NotificationRow[]> {
   const { data } = await db.from("notifications").select("id, kind, title, body, link, created_at, read_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
   return (data || []) as NotificationRow[];
-}
+});
 
 export async function markAllRead(db: SupabaseClient, userId: string) {
   await db.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", userId).is("read_at", null);

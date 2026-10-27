@@ -1,6 +1,6 @@
 // Pro packs and prices per country the user lives in (profiles.home_country, owner decisions 2026-10-20, as competitors do).
 // One-off packs with no auto-renewal; Bangladesh also has the approved six-month pack.
-// People living in Bangladesh pay in taka with bKash; every other country pays by card through Paddle, charged in
+// People living in Bangladesh pay in taka with bKash; every other country pays by card through Creem, charged in
 // US dollars (usd below, about the local price) while the local price is shown next to it.
 // Outside Bangladesh no pack costs under US$9. Benchmarks (Oct 2026): Teal $13/week, $29/month, $79/3 months;
 // Simplify $39.99/month; Kickresume $24/month; Rezi $29/month. This table is the source of truth.
