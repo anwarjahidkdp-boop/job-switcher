@@ -15,6 +15,7 @@ import { cname } from "../../src/lib/countries";
 import { fetchBangladesh, type BangladeshBatch } from "./bd/fetch";
 import { ensureBangladeshSources, persistBangladeshJobs, persistBangladeshBatch } from "./bd/persist";
 import { readHeldCirculars } from "./bd/circulars";
+import { discoverCareerPages } from "./bd/discover";
 import { getProvider } from "../../src/lib/ai";
 import { dueMarkets } from "../../src/lib/scan-schedule";
 
@@ -29,6 +30,14 @@ async function main() {
   // The launch markets get search sources even before anyone there signs up, so their first users find jobs waiting.
   if (!only && !dry) await ensureSearchSources(db, [...new Set([...LAUNCH_MARKETS, ...demand.keys()])]);
   if (!only && !dry) await ensureBangladeshSources(db);
+  // Bangladesh employers' own career pages: a few per run are checked (and rechecked weekly) for a public job board or
+  // structured job data, which then becomes a source of its own (scripts/ingest/bd/discover.ts).
+  if (!only && !dry) {
+    try {
+      const d = await discoverCareerPages(db, { max: 25, maxMs: 5 * 60_000 });
+      console.log(`ingest: checked ${d.checked} Bangladesh career page(s) ${JSON.stringify(d.tally)}; ${d.boardsAdded} confirmed board(s) added`);
+    } catch (e) { console.error(`  career page check failed: ${errText(e)}`); }
+  }
 
   let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url").eq("active", true);
   if (only) q = q.eq("id", only);

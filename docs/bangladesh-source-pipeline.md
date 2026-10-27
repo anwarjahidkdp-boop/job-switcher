@@ -18,6 +18,15 @@ Alljobs Teletalk uses its anonymous government organization listing and public j
 
 Bdjobs is disabled pending permitted feed/API access because its robots rules prohibit our crawler. JagoJobs detail URLs still need validation. NRBJobs is disabled after an account-suspended response. ReliefWeb needs an approved API app name. Disabled access requirements appear in Admin > Sources rather than being counted as functioning scrapers.
 
+## Private employers (career pages and job boards)
+
+Private-sector jobs are the main audience, so private sources come first:
+
+- `scripts/ingest/bd/companies.ts` lists established private employers (banks and finance, telecom and IT, e-commerce, manufacturing and groups, health and education, NGOs, multinationals). Each ingest run checks up to 25 of them with `scripts/ingest/bd/discover.ts`: the home page, then the careers link on the same site (subdomains count), honouring robots.txt on every page and following redirects hop by hop. A linked or redirected public job board (SmartRecruiters, Workable, Lever, Greenhouse, Recruitee, Ashby) becomes a board source; JobPosting data on the careers page, or on one confirmed job page under it, makes the company's own page a `jsonld` source. Otherwise the reason is stored (`no_public_feed`, `lists_on_bdjobs`, `unreachable`). Each company has one directory row (`kind = jsonld`, `board_token = dir:<site>`); inactive ones are rechecked weekly. To list them: `select company, last_status, last_error, url from ingestion_sources where board_token like 'dir:%' order by last_status, company;`
+- A board token ending in `@bd` (e.g. `DeliveryHero@bd`) reads a multinational's global board for its Bangladesh jobs only. Jobs are placed by their own stated location, never by the source's country, so remote and foreign roles stay out; SmartRecruiters is asked with `country=bd`. Boards confirmed by real Bangladesh postings are in `BD_EMPLOYER_BOARDS` and are registered once.
+- Held circulars whose titles name a public body (ministry, directorate, board, forces, state banks...) are read after private ones (`scripts/ingest/bd/sector.ts`), so the daily AI budget goes to private jobs first. Nothing is dropped.
+- bdRecruit pages as `/bdjobs/page/N/` (`pagePath` in the registry); its job pages are `/job/<slug>/`.
+
 ## Data integrity and cost
 
 - Fetch public pages only, check robots on the configured host, reject external redirects, cap responses, throttle requests and persist a pagination cursor. First-page refresh runs every day while older pages are revisited over successive runs.
