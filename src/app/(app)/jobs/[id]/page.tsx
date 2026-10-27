@@ -51,34 +51,37 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (job.active === false && !st.apps[job.id]) return <><PageHead title={<>Listing unavailable</>} sub="This vacancy has closed or its source requires review. It is not currently offered as a job recommendation." /><Link className="btn btn-ghost" href="/opportunities">Back to opportunities</Link></>;
   const m = withAiScores([{ job, m: scoreJob(job, st.P, { today: st.today, needVisa: st.profile.needs_visa, homeCountry: st.homeCountry }) }], st.aiCheck)[0].m;
   const ai = st.aiCheck.get(job.id);
-  // The full post, so the person can judge the job themselves before applying (list loads leave it out).
-  const { data: descRow } = await db.from("jobs").select("description,source_kind").eq("id", job.id).maybeSingle();
-  const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
-  const scam = scamCheck(job, description);
-  const { data: occurrences } = job.country === "BD" ? await db.from("job_source_occurrences").select("discovered_url, original_source_url").eq("job_id", job.id).limit(20) : { data: null };
-  const publicLink = (value: string | null) => { try { const u = new URL(value || ""); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
-  const foundAt = [...new Set((occurrences || []).map(o => publicLink(o.discovered_url)).filter((u): u is string => !!u))];
-  const original = (occurrences || []).map(o => publicLink(o.original_source_url)).find(Boolean);
   const storedApp = st.apps[job.id];
   const a=storedApp?.pack&&!packBoundToJob(storedApp.pack,job.id)?{...storedApp,pack:null}:storedApp;
   const resolved=isResolvedApplication(a);
   const sourceNeedsRefresh=!resolved&&!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
   const canUpgradeStandard=!resolved&&!!a?.pack&&!a.pack_ai&&!a.pack.user_edited&&aiConfigured();
   const packMaster=a?.pack?applicationCv(st.master.content,a.pack):st.master.content;
-  // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
-  const sponsor = job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
-    ? (await db.from("uk_sponsors").select("name").eq("name_norm", normCompany(job.company)).maybeSingle()).data : null;
+  const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
+  // Every read below is its own round trip to the database, so they all run at once.
+  const [{ data: descRow }, { data: occurrences }, sponsor, photo, gmail, allowance, pro] = await Promise.all([
+    // The full post, so the person can judge the job themselves before applying (list loads leave it out).
+    db.from("jobs").select("description,source_kind").eq("id", job.id).maybeSingle(),
+    job.country === "BD" ? db.from("job_source_occurrences").select("discovered_url, original_source_url").eq("job_id", job.id).limit(20) : { data: null },
+    // UK jobs, for people who need a work visa: is the employer on the GOV.UK register of licensed sponsors? Display only, never changes the score.
+    job.country === "GB" && st.profile.needs_visa && normCompany(job.company)
+      ? db.from("uk_sponsors").select("name").eq("name_norm", normCompany(job.company)).maybeSingle().then((r) => r.data) : null,
+    a?.pack ? photoUrl(db, st.profile.photo_path) : null,
+    canEmail ? gmailAccount(createAdminClient(), st.userId) : null,
+    !resolved&&(!a?.pack||sourceNeedsRefresh||canUpgradeStandard) && aiConfigured() ? packAllowanceFor(createAdminClient(), st.userId) : null,
+    isPro(db, st.userId),
+  ]);
+  const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
+  const scam = scamCheck(job, description);
+  const publicLink = (value: string | null) => { try { const u = new URL(value || ""); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
+  const foundAt = [...new Set((occurrences || []).map(o => publicLink(o.discovered_url)).filter((u): u is string => !!u))];
+  const original = (occurrences || []).map(o => publicLink(o.original_source_url)).find(Boolean);
   const r = rule(job.country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, job.country);
-  const photo = a?.pack ? await photoUrl(db, st.profile.photo_path) : null;
-  const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
-  const gmail = canEmail ? await gmailAccount(createAdminClient(), st.userId) : null;
   const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
-  const allowance = !resolved&&(!a?.pack||sourceNeedsRefresh||canUpgradeStandard) && aiConfigured() ? await packAllowanceFor(createAdminClient(), st.userId) : null;
   const needsFreshPack=sourceNeedsRefresh||(canUpgradeStandard&&!!allowance?.left);
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
-  const pro = await isPro(db, st.userId);
   const room = trialApplyRoom(apps);
   const lockedPack = !!a?.pack && (a.status === "ready" || a.status === "reminder") && !pro && !unlockedReady(apps, room).has(job.id);
   const aiLeft = !allowance ? null : allowance.left
