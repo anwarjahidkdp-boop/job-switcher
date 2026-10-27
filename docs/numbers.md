@@ -39,6 +39,8 @@ Every number a person sees comes from one function. The list that number opens c
 | Onboarding, CV ready | checked / Top matches / Strong Fits | `jobTotals` (same as day-one Home) | Home |
 | Opportunities list | header "N jobs" | `jobsBehind(...).count` | n/a |
 | Notifications (bell, email) | "New N% match" | the live score from `loadState` (AI reading included); only Top matches (70%+); waits up to a day for the AI reading; `reconcileMatchNotifications` restates or withdraws older ones after every refresh | the job |
+| Trial Day 2–5 notes, 5-day report email, weekly report, Insights reports | Jobs found, Top matches (70%+), Strong Fit (90%+), Applied | `metricsFromState` (`src/lib/server/report-metrics.ts`): `jobTotals` for the report period and `appliedFor` (current search country); saved once per period so the email and Insights agree. Reports saved before 27 Oct 2026 keep their old labels. | Insights |
+| New-match email digest | "N new Top matches", each job's % | the live score, as the bell; jobs found in the last 3 days; a post listed twice (same title and company) once | the job |
 | Notifications, Home hero note | a match already applied to | `currentApplicationNotifications` relabels it and links to Applied | Applied |
 
 ## Row labels

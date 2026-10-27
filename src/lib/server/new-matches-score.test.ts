@@ -37,3 +37,17 @@ it("rings the bell with the score the page shows, only for Top matches, after th
   expect(titles).toEqual(["New 88% match: Job d", "New 82% match: Job b"]);
   expect(settled.at(-1)).toEqual(["a", "b", "d"]);
 });
+
+it("picks by the live score, mentions a post listed twice only once, and never calls an old job new", async () => {
+  const twin = (id: string) => ({ job_id: id, score: 60, jobs: { title: "Finance Business Partner", company: "The Hyde Group", location: null, active: true } });
+  m.load.mockResolvedValue({
+    // e: stored 55 but the AI read it at 84 (picked); f/g: the same post under two ids; h: 90% but found 5 days ago.
+    scored: [live("e", 84), live("f", 80), live("g", 80), live("h", 90, 5 * 24 * H)],
+    aiCheck: new Map([["e", {}], ["f", {}], ["g", {}], ["h", {}]]),
+  });
+  const settled: string[][] = [];
+  await processNewMatches(db([row("e", 55), twin("f"), twin("g"), row("h", 90)], settled), ["u"], { appUrl: "https://x" });
+  const titles = m.notify.mock.calls[0][2].map((n: { title: string }) => n.title);
+  expect(titles).toEqual(["New 84% match: Job e", "New 80% match: Finance Business Partner"]);
+  expect(settled.at(-1)).toEqual(["e", "f", "g", "h"]);
+});

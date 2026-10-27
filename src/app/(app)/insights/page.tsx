@@ -7,7 +7,7 @@ import { requireAppState } from "@/lib/server/page";
 import { skillDemand, skillImpact } from "@/lib/matching";
 import { skillLabel } from "@/lib/taxonomy";
 import { aiConfigured } from "@/lib/ai";
-import { latestCareerReports } from "@/lib/server/career-reports";
+import { latestCareerReports, reportTiles } from "@/lib/server/career-reports";
 import { SkillRows } from "./SkillRows";
 
 export const metadata = { title: "Insights" };
@@ -39,7 +39,7 @@ export default async function Insights() {
         {reports.map(r=><article className="card panel" key={r.id}>
           <h3>{r.kind === "trial" ? "Your First 5 Days with JobPao" : "Your Weekly Career Report"}</h3>
           <p className="small muted">{r.period_start.slice(0,10)} to {r.period_end.slice(0,10)} · UTC · Recorded through {r.period_end.slice(11,16)}</p>
-          <dl className="tiles">{([["Jobs checked for you",r.metrics.jobs_analysed],["Relevant opportunities",r.metrics.relevant],["Strong Fits (90%+)",r.metrics.strong],["Applications prepared",r.metrics.prepared],["Applications submitted",r.metrics.applied],["Interviews",r.metrics.interviews],["Offers",r.metrics.offers]] as [string,number][]).map(([label,n])=><div className="tile" key={label}><dt className="small">{label}</dt><dd className="num">{n}</dd></div>)}</dl>
+          <dl className="tiles">{reportTiles(r.metrics).map(([label,n])=><div className="tile" key={label}><dt className="small">{label}</dt><dd className="num">{n}</dd></div>)}</dl>
           {r.metrics.top_gap?<p className="small">Most common gap: {r.metrics.top_gap}</p>:null}
           {r.metrics.next_deadline?<p className="small">Next application deadline: {r.metrics.next_deadline}</p>:null}
         </article>)}

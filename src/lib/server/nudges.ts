@@ -4,7 +4,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailProvider } from "../email/send";
 import { nudgeEmail } from "../email/templates";
-import { careerMetrics, reportBody, reportWeek, saveCareerReport } from "./career-reports";
+import { reportBody, reportWeek } from "./career-reports";
+import { liveCareerMetrics, saveLiveCareerReport } from "./report-metrics";
 import { deliverEmail } from "./email-outbox";
 import { notify, type NewNotification } from "./notify";
 import { inSendWindow } from "./reminders";
@@ -47,11 +48,12 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   }
 
   // 2. Interview in the next 24 hours.
-  const { data: iv } = await admin.from("applications").select("id, user_id, job_id, interview_at, jobs!inner(title, company)")
+  const { data: iv } = await admin.from("applications").select("id, user_id, job_id, interview_at, interview_prep, jobs!inner(title, company)")
     .eq("status", "interview").gte("interview_at", now.toISOString()).lte("interview_at", new Date(now.getTime() + DAY).toISOString()).limit(500);
-  for (const a of (iv || []) as unknown as { id: string; user_id: string; job_id: string; interview_at: string; jobs: { title: string; company: string } }[]) {
-    add(a.user_id, { kind: "interview", title: `Interview soon with ${a.jobs.company}`, body: "Practise your answers now: your interview prep is ready in the app.", link: `/jobs/${a.job_id}`, key: `interview:${a.id}:${a.interview_at.slice(0, 10)}` },
-      { subject: `Your ${a.jobs.company} interview is coming up`, body: `Your interview for ${a.jobs.title} at ${a.jobs.company} is within the next day. Open JobPao to practise the likely questions and your answers.`, button: "Practise now" });
+  for (const a of (iv || []) as unknown as { id: string; user_id: string; job_id: string; interview_at: string; interview_prep: unknown; jobs: { title: string; company: string } }[]) {
+    // Say the prep is ready only when it has been made; otherwise invite them to make it.
+    add(a.user_id, { kind: "interview", title: `Interview soon with ${a.jobs.company}`, body: a.interview_prep ? "Practise your answers now: your interview prep is ready in the app." : "Open the job to get the likely questions and answers from your CV.", link: `/jobs/${a.job_id}`, key: `interview:${a.id}:${a.interview_at.slice(0, 10)}` },
+      { subject: `Your ${a.jobs.company} interview is coming up`, body: `Your interview for ${a.jobs.title} at ${a.jobs.company} is within the next day. ${a.interview_prep ? "Open JobPao to practise the likely questions and your answers." : "Open JobPao to get the likely questions and answers built from your CV."}`, button: a.interview_prep ? "Practise now" : "Prepare now" });
   }
 
   // 3. Trial value journey: one progress notification per trial day, with Day 5 as the formal value report.
@@ -66,16 +68,18 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
     const periodEnd = new Date(Math.min(now.getTime(), Date.parse(t.trial_ends_at)));
     const start = new Date(startAt);
     if (periodEnd <= start) continue;
+    // The same counts Home shows for this period (jobTotals / appliedFor), never the stored first-pass scores.
     const metrics = day === 5
-      ? (opts.dryRun ? await careerMetrics(admin,t.user_id,start,periodEnd) : (await saveCareerReport(admin,t.user_id,"trial",start,periodEnd)).metrics)
-      : await careerMetrics(admin,t.user_id,start,periodEnd);
+      ? (opts.dryRun ? await liveCareerMetrics(admin,t.user_id,start,periodEnd,now.getTime()) : (await saveLiveCareerReport(admin,t.user_id,"trial",start,periodEnd))?.metrics)
+      : await liveCareerMetrics(admin,t.user_id,start,periodEnd,now.getTime());
+    if (!metrics) continue;
     const { jobs_analysed: analysed, relevant, strong, prepared } = metrics;
     const copy = day === 1
       ? { title: "Day 1 · Your Career Agent is ready", body: "Your Master CV and verified career profile are ready. JobPao can now match opportunities against your real experience.", link: "/profile" }
       : day === 2
-      ? { title: "Day 2 · We are searching for you", body: `We have checked ${analysed || 0} jobs for you and found ${relevant} relevant opportunities for your profile.`, link: "/inbox#matches" }
+      ? { title: "Day 2 · We are searching for you", body: `We have found ${analysed || 0} jobs for you so far, and ${relevant} of them ${relevant === 1 ? "is a Top match" : "are Top matches"} (70% or more).`, link: "/inbox#matches" }
       : day === 3
-      ? { title: "Day 3 · Your strongest opportunities", body: `${strong} Strong Fit opportunit${strong === 1 ? "y" : "ies"} are currently on your radar. Open Why This Job to see the evidence and gaps.`, link: "/inbox#matches" }
+      ? { title: "Day 3 · Your strongest opportunities", body: `${strong} Strong Fit opportunit${strong === 1 ? "y is" : "ies are"} (90% or more) on your radar. Open Why This Job to see the evidence and gaps.`, link: "/inbox#matches" }
       : day === 4
       ? { title: "Day 4 · Turn the best match into an application", body: `${prepared} tailored application${prepared === 1 ? "" : "s"} prepared so far. Review the CV, cover letter and safety checks before you submit.`, link: "/queue" }
       : { title: "Your First 5 Days with JobPao", body: `${reportBody(metrics)} Your Career Agent doesn't have to stop here.`, link: "/inbox#trial" };
@@ -91,7 +95,8 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   for (const s of (paid || []) as { user_id: string; current_period_end: string | null; created_at?: string }[]) {
     if (s.current_period_end && Date.parse(s.current_period_end) <= now.getTime()) continue;
     if (s.created_at && Date.parse(s.created_at) >= window.end.getTime()) continue;
-    const r = opts.dryRun ? {period_start:window.start.toISOString(),period_end:window.end.toISOString(),metrics:await careerMetrics(admin,s.user_id,window.start,window.end)} : await saveCareerReport(admin,s.user_id,"weekly",window.start,window.end);
+    const r = opts.dryRun ? {period_start:window.start.toISOString(),period_end:window.end.toISOString(),metrics:await liveCareerMetrics(admin,s.user_id,window.start,window.end,now.getTime())} : await saveLiveCareerReport(admin,s.user_id,"weekly",window.start,window.end);
+    if (!r?.metrics) continue;
     const body = reportBody(r.metrics);
     const period = `${r.period_start.slice(0,10)} to ${r.period_end.slice(0,10)} (UTC, end exclusive)`;
     add(s.user_id, { kind: "guide", title: "Your Weekly Career Report", body: `${period} · ${body}`, link: "/insights#career-reports", key: `career-report:${isoWeek(window.start)}` },
