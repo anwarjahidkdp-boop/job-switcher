@@ -79,6 +79,14 @@ describe('career page records', () => {
     const again = await discoverCareerPages(fakeDb(checked).db, { companies, fetcher, now });
     expect(again.checked).toBe(1);
   });
+  it('never adds a board unfiltered when it is already read for its Bangladesh jobs', async () => {
+    const companies = [{ name: 'Acme', site: 'acme.com.bd', sector: 'x' }];
+    const fetcher = web({ 'https://acme.com.bd/': { body: '<a href="https://apply.workable.com/acme/">Careers</a>' } });
+    const { db, writes } = fakeDb([{ id: '9', kind: 'workable', board_token: 'acme@bd', active: true }]);
+    await discoverCareerPages(db, { companies, fetcher });
+    const inserted = writes.filter((w) => w.op === 'insert').flatMap((w) => [w.data].flat()) as { kind: string; board_token: string }[];
+    expect(inserted.filter((r) => r.kind === 'workable')).toEqual([]);
+  });
 });
 
 describe('one-country boards', () => {

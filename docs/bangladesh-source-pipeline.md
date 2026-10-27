@@ -40,3 +40,12 @@ Private-sector jobs are the main audience, so private sources come first:
 ## Validation
 
 Disposable PostgreSQL tests replay migrations and check service-only ingestion, cross-portal identity, provenance visibility, expired-job rejection and restricted review data. Parser/fetch tests cover Bengali dates, impossible dates, structured deadlines, ambiguous articles, same-host discovery, cursor resumption, failed-page persistence, robots denial and off-host redirects. CI and production deployment include build checks; deployment also verifies `/api/health`.
+
+## Duplicate listings
+
+Every ingest run, before matches are refreshed, `scripts/ingest/dedupe.ts` keeps one copy of each vacancy visible across all
+markets and retires the others (`active = false`). Two public listings are the same vacancy when they have the same title, the
+same employer (ignoring case, punctuation and suffixes such as Ltd or PLC) and the same country, and either their descriptions
+are the same text or, in Bangladesh, they come from different job sites. The copy kept is the one someone applied to, then the
+one open longest, then the fullest description, then the first collected. A copy someone applied to or prepared is never hidden.
+A global employer board that is already read with `@bd` is never added again unfiltered by the career-page detector.

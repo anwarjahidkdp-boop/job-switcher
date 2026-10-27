@@ -18,6 +18,7 @@ import { readHeldCirculars } from "./bd/circulars";
 import { discoverCareerPages } from "./bd/discover";
 import { getProvider } from "../../src/lib/ai";
 import { dueMarkets } from "../../src/lib/scan-schedule";
+import { retireDuplicateJobs } from "./dedupe";
 
 async function main() {
   const db = scriptAdmin();
@@ -127,6 +128,8 @@ async function main() {
     // yesterday in the Americas, where a job closing "today" UTC-wise is open until the end of the local day.
     const yesterday = new Date(Date.parse(today + "T12:00:00Z") - 86_400_000).toISOString().slice(0, 10);
     await db.from("jobs").update({ active: false, updated_at: new Date().toISOString() }).is("owner_id", null).eq("active", true).lt("deadline", yesterday);
+    // Before matches are refreshed, so nobody is matched or notified twice for one vacancy.
+    try { console.log(`ingest: hid ${await retireDuplicateJobs(db)} duplicate listing(s)`); } catch (e) { console.error(`  duplicate check failed: ${errText(e)}`); }
     console.log(`ingest: pruned ${await pruneOldJobs(db)} closed job(s)`);
     console.log(`ingest: re-categorised ${await recategorise(db)} job(s)`);
     const facts = await refreshBdFacts(db);

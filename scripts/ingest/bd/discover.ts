@@ -158,7 +158,10 @@ export async function discoverCareerPages(db: SupabaseClient, opts: { max?: numb
   const { data: rows, error } = await db.from('ingestion_sources').select('id, kind, board_token, active, last_run_at, last_status').eq('country', 'BD');
   if (error) throw error;
   const dir = new Map((rows || []).filter((r) => r.kind === 'jsonld' && String(r.board_token || '').startsWith('dir:')).map((r) => [r.board_token as string, r]));
-  const boards = new Set((rows || []).filter((r) => r.kind !== 'jsonld').map((r) => `${r.kind}:${String(r.board_token).toLowerCase()}`));
+  // A board is the same board with or without its "@bd" filter, so a global board already read for its Bangladesh jobs
+  // is never added a second time unfiltered (that showed the same jobs twice, and jobs abroad as Bangladesh ones).
+  const boardKey = (kind: string, token: string) => `${kind}:${token.toLowerCase().replace(/@bd$/, '')}`;
+  const boards = new Set((rows || []).filter((r) => r.kind !== 'jsonld').map((r) => boardKey(r.kind as string, String(r.board_token))));
   // Never-checked companies first, then the longest unchecked; active JSON-LD sources are read by the normal ingest.
   const due = companies.map((c) => ({ c, row: dir.get(dirToken(c)) }))
     // A site that could not be reached is tried again the next day; a checked one weekly.
@@ -167,11 +170,11 @@ export async function discoverCareerPages(db: SupabaseClient, opts: { max?: numb
     .slice(0, opts.max ?? 25);
   const tally: Record<string, number> = {};
   // Confirmed boards are registered once; a later switch-off by the administrator is kept.
-  const fresh = BD_EMPLOYER_BOARDS.filter((b) => !boards.has(`${b.kind}:${b.token.toLowerCase()}`));
+  const fresh = BD_EMPLOYER_BOARDS.filter((b) => !boards.has(boardKey(b.kind, b.token)));
   if (fresh.length) {
     const { error: e } = await db.from('ingestion_sources').insert(fresh.map((b) => ({ kind: b.kind, board_token: b.token, name: b.name, company: b.name.replace(/ \(.*\)$/, ''), country: 'BD', source_type: 'employer', active: true, last_status: 'pending' })));
     if (e) throw e;
-    for (const b of fresh) boards.add(`${b.kind}:${b.token.toLowerCase()}`);
+    for (const b of fresh) boards.add(boardKey(b.kind, b.token));
   }
   for (const { c, row } of due) {
     if (opts.maxMs && Date.now() - started > opts.maxMs) break;
@@ -181,10 +184,10 @@ export async function discoverCareerPages(db: SupabaseClient, opts: { max?: numb
     let entry: Record<string, unknown>;
     if (d.status === 'board') {
       const token = d.token + (c.mnc ? '@bd' : '');
-      if (!boards.has(`${d.kind}:${token.toLowerCase()}`)) {
+      if (!boards.has(boardKey(d.kind, token))) {
         const { error: e } = await db.from('ingestion_sources').insert({ kind: d.kind, board_token: token, name: c.name, company: c.name, country: 'BD', source_type: 'employer', active: true, last_status: 'pending' });
         if (e) throw e;
-        boards.add(`${d.kind}:${token.toLowerCase()}`);
+        boards.add(boardKey(d.kind, token));
       }
       entry = { ...base, url: d.via, detail_path: null, active: false, last_status: 'uses_board', last_error: `Jobs are read from its ${d.kind} board (${d.token})` };
     } else if (d.status === 'jsonld') entry = { ...base, url: d.url, detail_path: d.detailPath, active: true, last_status: 'pending', last_error: null };
