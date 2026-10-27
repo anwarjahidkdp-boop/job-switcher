@@ -33,7 +33,7 @@ export function GapList({ gaps }: { gaps: { t: string; skill: string | null; lab
   );
 }
 
-export function PackTabs(props: {cv:React.ReactNode;cvEditor:React.ReactNode;canEdit?:boolean;updatedAt:string;jobId:string;cover:string;subject:string;email:string;to:string|null;checklist:string[]}) {
+export function PackTabs(props: {cv:React.ReactNode;cvEditor:React.ReactNode;canEdit?:boolean;updatedAt:string;jobId:string;cover:string;subject:string;email:string;to:string|null;checklist:string[];showEmail?:boolean}) {
  const router=useRouter();
  const [panel,setPanel]=useState<{doc:'cv'|'cover';mode:'view'|'edit'|'download'}|null>(null);
  const [extra,setExtra]=useState<'email'|'check'|null>(null);
@@ -51,15 +51,15 @@ export function PackTabs(props: {cv:React.ReactNode;cvEditor:React.ReactNode;can
    {panel.mode==='edit'?(panel.doc==='cv'?props.cvEditor:<form onSubmit={e=>{e.preventDefault();void saveCover();}}><label className="f">Cover letter<textarea rows={14} value={draft} maxLength={16000} onChange={e=>setDraft(e.target.value)} required disabled={busy}/></label><p className="small muted">Changes apply to this application only. No AI charge.</p><div className="row"><button className="btn btn-primary btn-sm" disabled={busy}>{busy?'Saving…':'Save changes'}</button><button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={()=>setPanel(null)}>Cancel</button></div>{error?<p role="alert" className="err small">{error}</p>:null}</form>):null}
    {panel.mode==='download'?<div className="row" style={{marginTop:12}}><a className="btn btn-primary btn-sm" href={`/api/cv/download?format=print&jobId=${props.jobId}${panel.doc==='cover'?'&document=cover':''}`} target="_blank" rel="noopener">Download PDF</a><a className="btn btn-ghost btn-sm" href={`/api/cv/download?format=doc&jobId=${props.jobId}${panel.doc==='cover'?'&document=cover':''}`}>Download Word</a></div>:null}
   </section>:null}
-  <section className="application-email-card"><h3>✉ Email draft</h3><p className="small">Copy the email, attach your CV and cover letter as requested, then send it.</p><div className="row"><button className="btn btn-primary btn-sm" onClick={()=>setExtra(extra==='email'?null:'email')}>View email draft</button><CopyButton text={props.email} label="Copy email"/><button className="btn btn-ghost btn-sm" onClick={()=>setExtra(extra==='check'?null:'check')}>Checklist</button></div></section>
-  {extra==='email'?<div className="application-document-panel"><p className="small muted">To: {props.to||"Employer's email address"}</p><p><b>Subject:</b> {props.subject}</p><div className="copybox">{props.email}</div><div className="row"><CopyButton text={props.subject} label="Copy subject"/><CopyButton text={props.email} label="Copy email"/>{props.to?<a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a>:null}</div><p className="small muted">Attach the CV and cover letter downloads yourself when sending from your email app.</p></div>:null}
+  {props.showEmail !== false ? <section className="application-email-card"><h3>✉ Email draft</h3><p className="small">Copy the email, attach your CV and cover letter as requested, then send it.</p><div className="row"><button className="btn btn-primary btn-sm" onClick={()=>setExtra(extra==='email'?null:'email')}>View email draft</button><CopyButton text={props.email} label="Copy email"/><button className="btn btn-ghost btn-sm" onClick={()=>setExtra(extra==='check'?null:'check')}>Checklist</button></div></section> : <div style={{marginTop:14}}><button className="btn btn-ghost btn-sm" onClick={()=>setExtra(extra==='check'?null:'check')}>Review document checklist</button></div>}
+  {props.showEmail !== false && extra==='email'?<div className="application-document-panel"><p className="small muted">To: {props.to||"Employer's email address"}</p><p><b>Subject:</b> {props.subject}</p><div className="copybox">{props.email}</div><div className="row"><CopyButton text={props.subject} label="Copy subject"/><CopyButton text={props.email} label="Copy email"/>{props.to?<a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(props.to)}?subject=${encodeURIComponent(props.subject)}&body=${encodeURIComponent(props.email)}`}>Open in my email app</a>:null}</div><p className="small muted">Attach the CV and cover letter downloads yourself when sending from your email app.</p></div>:null}
   {extra==='check'?<ul className="why-list">{props.checklist.map(c=><li key={c}><span className="mk ok">✓</span><span>{c}</span></li>)}</ul>:null}
  </>;
 }
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
 
-export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; canApply?: boolean; blockingReason?:string; compact?: boolean }) {
+export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; canApply?: boolean; blockingReason?:string; compact?: boolean; journey?:boolean; continueLabel?:string }) {
   const router = useRouter();
   const [mode, setMode] = useState<"main" | "later" | "notyet" | "send">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
   const [busy, setBusy] = useState("");
@@ -139,7 +139,7 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       <p className="small muted" style={{ marginTop: 10 }}>This saves a reminder only. Your documents are prepared when you press Apply.</p>
     </>
   );
-  if (p.status === "waiting") return (
+  if (p.status === "waiting" && !p.journey) return (
     <>
       <h3>Did you submit your application?</h3>
       <div className="row" style={{ marginTop: 10 }}>
@@ -173,9 +173,9 @@ export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPa
       </ol>
       <div className="row" style={{ marginTop: 12 }}>
         {p.url && !em
-          ? <a className="btn btn-primary btn-sm" href={p.url} target="_blank" rel="noopener noreferrer nofollow" onClick={() => act(() => openedAction(p.jobId))}>Open employer application</a>
+          ? <a className="btn btn-primary btn-sm" href={p.url} target="_blank" rel="noopener noreferrer nofollow" onClick={() => act(() => openedAction(p.jobId))}>{p.continueLabel || "Open employer application"}{p.journey ? " ↗" : ""}</a>
           : <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => act(() => openedAction(p.jobId))}>{em ? "I have sent the email" : "I opened the application"}</button>}
-        <button className="btn btn-ghost btn-sm" onClick={() => setMode("later")}>{p.status === "reminder" ? "Change reminder" : "Apply later"}</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => setMode("later")}>{p.status === "reminder" ? "Change reminder" : p.journey ? "Remind me later" : "Apply later"}</button>
       </div>
       {notice ? <p className="note" style={{ marginTop: 10 }}>{notice}</p> : null}
       {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
