@@ -43,11 +43,12 @@ describe('Creem checkout',()=>{
   (x.from as unknown as {mockImplementation:(f:(t:string)=>unknown)=>void}).mockImplementation((t:string)=>{const q:Record<string,unknown>={};for(const m of ['select','eq','maybeSingle'])q[m]=()=>q;q.insert=insert;q.update=(v:unknown)=>{x.updates.push(v);return q;};q.then=(r:(v:unknown)=>unknown)=>r({data:t==='profiles'?profile:t==='plans'?{code:'pro',name:'JobPao Pro',price_minor:65000}:null,error:null});return q;});
   const fetchMock=vi.fn(async(...args:[string,{body:string;headers:Record<string,string>}])=>(void args,new Response(JSON.stringify({id:'ch_9',checkout_url:'https://checkout.creem.io/ch_9'}),{status:200})));
   vi.stubGlobal('fetch',fetchMock);
-  expect(await startCardCheckout({admin:x.db,userId:'user'},'30d')).toEqual({url:'https://checkout.creem.io/ch_9'});
+  await expect(startCardCheckout({admin:x.db,userId:'user'},'30d')).rejects.toThrow('Tick the box');expect(fetchMock).not.toHaveBeenCalled();
+  expect(await startCardCheckout({admin:x.db,userId:'user'},'30d',true)).toEqual({url:'https://checkout.creem.io/ch_9'});
   const [url,init]=fetchMock.mock.calls[0];const body=JSON.parse(init.body);
   expect(url).toBe('https://api.creem.io/v1/checkouts');expect(init.headers['x-api-key']).toBe('creem_live_key');
-  expect(body).toMatchObject({product_id:'prod_1',units:1,custom_price:2500,metadata:{payment_id:'payment'},customer:{email:'u@example.invalid'}});
-  expect(insert).toHaveBeenCalledWith(expect.objectContaining({method:'creem',amount_minor:2500,currency:'USD'}));
+  expect(body).toMatchObject({product_id:'prod_1',units:1,custom_price:2500,metadata:{payment_id:'payment',start_now_consent_at:expect.any(String)},customer:{email:'u@example.invalid'}});
+  expect(insert).toHaveBeenCalledWith(expect.objectContaining({method:'creem',amount_minor:2500,currency:'USD',provider_response:{start_now_consent_at:expect.any(String)}}));
   expect(x.updates).toContainEqual({provider_order_id:'ch_9'});
  });
  it('uses the test API for test keys',async()=>{const {creemConfig}=await import('../billing/creem');expect(creemConfig({CREEM_API_KEY:'creem_test_x',CREEM_PRODUCT_ID:'p',CREEM_WEBHOOK_SECRET:'s'})?.test).toBe(true);expect(creemConfig({CREEM_API_KEY:'k',CREEM_PRODUCT_ID:'p'})).toBeNull();});

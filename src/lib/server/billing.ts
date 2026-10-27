@@ -189,9 +189,13 @@ export async function completeCheckout(admin: SupabaseClient, paymentID: string,
 /** True once Creem is configured; card payment stays closed until then. */
 export const cardOpen = (): boolean => !!creemConfig();
 
-export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }, pack?: unknown) {
+export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: string }, pack?: unknown, startNow?: unknown) {
   const cfg = creemConfig();
   if (!cfg) throw new PaymentError("Card payment is not open yet. Your trial features keep working until the trial ends.");
+  // UK/EU consumer law: Pro may start inside the 14-day cancellation period only on the buyer's express request, and a
+  // later cancellation then refunds the unused part. The tick is recorded with the payment (see /refund).
+  if (startNow !== true) throw new PaymentError("Tick the box to start Pro straight away before paying.");
+  const consentAt = new Date().toISOString();
   const price = await priceForUser(ctx.admin, ctx.userId, pack);
   if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("In Bangladesh, pay with bKash.");
   const usd = price.usd;
@@ -199,10 +203,11 @@ export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: st
   const { data: prof } = await ctx.admin.from("profiles").select("email").eq("id", ctx.userId).maybeSingle();
   const { data: row, error } = await ctx.admin.from("payments").insert({
     user_id: ctx.userId, plan_code: plan.code, method: "creem", amount_minor: usd, currency: "USD", invoice: newInvoice(), status: "initiated", period_days: price.days,
+    provider_response: { start_now_consent_at: consentAt },
   }).select("id").single();
   if (error) throw error;
   try {
-    const co = await createCreemCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, successUrl: `${publicEnv.appUrl}/upgrade?payment=card` });
+    const co = await createCreemCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, successUrl: `${publicEnv.appUrl}/upgrade?payment=card`, consentAt });
     // The webhook must name this exact checkout before Pro starts; on payment it is replaced by the order id.
     const { error: e2 } = await ctx.admin.from("payments").update({ provider_order_id: co.id }).eq("id", row.id);
     if (e2) throw e2;
@@ -251,7 +256,12 @@ async function handleCreemRefund(admin: SupabaseClient, ev: { refundId: string; 
   if (!ev.orderId) { console.error("creem refund without order, check by hand", ev.refundId); return { status: 200, note: "no order" }; }
   const { data: p } = await admin.from("payments").select("id, method").eq("provider_order_id", ev.orderId).maybeSingle();
   if (!p || p.method !== "creem") return { status: 200, note: "not ours" };
-  if (ev.transactionStatus !== "refunded") { console.error("creem partial refund, check by hand", ev.orderId); return { status: 200, note: "partial refund" }; }
+  if (ev.transactionStatus !== "refunded") {
+    // A pro-rata refund (UK/EU cancellation after day 7) ends Pro by hand on /admin/payments; leave a note there.
+    console.error("creem partial refund, check by hand", ev.orderId);
+    await admin.from("payments").update({ review_note: `partial refund ${ev.refundId}: end Pro by hand if the buyer cancelled` }).eq("id", p.id);
+    return { status: 200, note: "partial refund" };
+  }
   const result = await settle(admin, p.id, "creem", ["approved"], { provider_order_id: ev.orderId, reviewed_by: "creem-webhook", review_note: `refunded (${ev.refundId})` }, true);
   return { status: 200, note: result.changed ? "refunded" : "nothing to refund" };
 }

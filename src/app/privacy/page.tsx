@@ -13,6 +13,9 @@ export default function Privacy() {
         <li>You can delete everything at any time from your Profile.</li>
       </ul>
 
+      <h2>Who we are</h2>
+      <p>JobPao is run by Anwar Jahid, trading as YourTech AI, a sole proprietor based in Bangladesh, who is responsible for your data (the &quot;controller&quot;). Contact: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+
       <h2>What we collect</h2>
       <ul>
         <li><b>Account:</b> your email address and login details.</li>

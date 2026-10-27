@@ -15,6 +15,14 @@ export default function Refund() {
       <p>If Pro is not right for you, ask for a refund within 7 days of your payment and we will refund the full amount. After 7 days, or once most of the pack&apos;s period has been used, payments are not refundable, except where the law gives you a right to a refund.</p>
       <p>If you were charged twice or charged by mistake, we always refund the extra payment.</p>
 
+      <h2>If you live in the UK or EU: 14 days to cancel</h2>
+      <p>By law you can cancel a card purchase within 14 days. Pro starts as soon as you pay, so at checkout you tick a box asking us to start it straight away. If you then cancel within 14 days:</p>
+      <ul>
+        <li><b>Days 1 to 7:</b> the full amount back, under our money-back guarantee.</li>
+        <li><b>Days 8 to 14:</b> the part you have not used, worked out by days. For example, cancelling on day 10 of a 30-day pack returns 20 of 30 days&apos; price.</li>
+      </ul>
+      <p>Your Pro access ends when the refund is made. To cancel, email us as shown below; saying &quot;I want to cancel&quot; is enough.</p>
+
       <h2>How to ask</h2>
       <p>Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from your account email and include your payment reference (the order number on your receipt, or your bKash transaction ID). We reply within 3 working days.</p>
 

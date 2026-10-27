@@ -7,8 +7,8 @@ export async function POST(req: Request) {
   const c = await apiCtx();
   if (!c) return unauthorized();
   try {
-    const body = (await req.json().catch(() => ({}))) as { pack?: string };
-    return NextResponse.json(await startCardCheckout(c, body.pack));
+    const body = (await req.json().catch(() => ({}))) as { pack?: string; startNow?: boolean };
+    return NextResponse.json(await startCardCheckout(c, body.pack, body.startNow));
   } catch (e) {
     if (e instanceof PaymentError) return NextResponse.json({ error: e.message }, { status: 400 });
     return apiError(e);

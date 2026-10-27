@@ -48,14 +48,14 @@ export function parseEvent(body: unknown): CreemCheckoutEvent | CreemRefundEvent
 }
 
 /** Create a hosted checkout for one payment. Returns its id and the URL to send the customer to. */
-export async function createCreemCheckout(cfg: CreemConfig, input: { priceMinor: number; paymentId: string; userId: string; email: string | null; successUrl: string }, f: typeof fetch = fetch): Promise<{ id: string; url: string }> {
+export async function createCreemCheckout(cfg: CreemConfig, input: { priceMinor: number; paymentId: string; userId: string; email: string | null; successUrl: string; consentAt?: string }, f: typeof fetch = fetch): Promise<{ id: string; url: string }> {
   const r = await f(`${apiBase(cfg)}/v1/checkouts`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": cfg.apiKey },
     body: JSON.stringify({
       product_id: cfg.productId, units: 1, custom_price: input.priceMinor, request_id: input.paymentId, success_url: input.successUrl,
       ...(input.email ? { customer: { email: input.email } } : {}),
-      metadata: { payment_id: input.paymentId, user_id: input.userId },
+      metadata: { payment_id: input.paymentId, user_id: input.userId, ...(input.consentAt ? { start_now_consent_at: input.consentAt } : {}) },
     }),
   });
   const j = await r.json().catch(() => ({})) as { id?: string; checkout_url?: string; message?: string | string[] };
