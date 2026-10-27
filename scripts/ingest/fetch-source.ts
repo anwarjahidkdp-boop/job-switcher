@@ -161,6 +161,14 @@ const MAX_DETAILS = 60;
 const dedupe = (jobs: IngestedJob[]) => [...new Map(jobs.map((j) => [j.externalId, j])).values()];
 
 /** External ids that were active before but are no longer listed. */
+/** Sources that list a company's whole board on every fetch: a job missing from the list has closed. */
+export const FULL_BOARDS = ["greenhouse", "lever", "ashby", "workable", "recruitee"];
+/** Feeds and search APIs only show recent posts and never say a job closed: unseen this long, a job without a deadline counts as closed. */
+export const UNSEEN_CLOSE_DAYS = 10;
+/** Closed jobs in a country nobody searches (remote "XX" jobs excepted) are no use to anyone and are deleted after this many days. */
+export const UNWATCHED_PRUNE_DAYS = 2;
+export const watchedCountry = (country: string, targeted: Set<string>) => country === "XX" || targeted.has(country);
+
 export function staleIds(previous: string[], current: string[]): string[] {
   const now = new Set(current);
   return previous.filter((id) => !now.has(id));
