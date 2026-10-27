@@ -164,8 +164,18 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const text = input.text;
   const low = text.toLowerCase();
   // Recruitment pages often put an age limit before work experience. Age is never career tenure.
-  const experienceText = low.replace(/\baged?\s*:?\s*(?:between\s+|from\s+|at least\s+|at most\s+|not more than\s+)?\d{1,2}(?:\s*(?:to|-|–|and)\s*\d{1,2})?\s*(?:years?|yrs?)(?:\s+old)?/g, " ");
-  const yrs = experienceText.match(/\b(\d{1,2})\s*(?:\+|(?:-|–|to)\s*(\d{1,2}))?\s*(?:\+\s*)?years?/);
+  // So are "Age limit maximum 30 years", "under 35 years of age" and "our 12 year old company".
+  const experienceText = low
+    .replace(/\b(?:(?:max(?:imum)?|min(?:imum)?)\.?\s+)?age(?:d|\s+limit)?\s*(?:[:\-–]\s*)?(?:is\s+)?(?:between|from|at least|at most|not more than|not exceeding|maximum|max\.?|minimum|min\.?|up\s*to|within|under|below)?\s*\d{1,2}(?:\s*(?:to|-|–|and|\/)\s*\d{1,2})?\s*(?:years?|yrs?)(?:\(s\))?(?:\s+old)?/g, " ")
+    .replace(/\b\d{1,3}[\s-]*years?[\s-]+old\b/g, " ")
+    .replace(/\b\d{1,2}(?:\s*(?:to|-|–)\s*\d{1,2})?\s*years?\s+of\s+age\b/g, " ");
+  // Several year counts (contract length, company history...): the one written next to experience wins.
+  const counts = [...experienceText.matchAll(/\b(\d{1,2})\s*(?:\+|(?:-|–|to|\/)\s*(\d{1,2}))?\s*(?:\+\s*)?years?(?:\(s\))?/g)];
+  const EXP = /experience|\bexp\b|experienced|work|relevant|similar|field|industry/;
+  // Same sentence only: "a 2 years contract. 5 years of work experience" is 5.
+  const after = (m: RegExpMatchArray) => experienceText.slice(m.index! + m[0].length, m.index! + m[0].length + 40).split(/[.;\n]/)[0];
+  const before = (m: RegExpMatchArray) => experienceText.slice(Math.max(0, m.index! - 40), m.index).split(/[.;\n]/).pop()!;
+  const yrs = counts.find((m) => EXP.test(after(m))) || counts.find((m) => EXP.test(before(m))) || counts[0] || null;
   const minYears = yrs ? Number(yrs[1]) : null;
   const maxYears = yrs && yrs[2] ? Number(yrs[2]) : null;
   const edu = /\b(phd|doctorate)\b/.test(low) ? "phd" : /\b(master'?s|mba|m\.?sc|m\.?com)\b/.test(low) ? "masters" : /\b(bachelor'?s|bba|b\.?sc|b\.?com|graduate degree|degree in)\b/.test(low) ? "bachelors" : /\bdiploma\b/.test(low) ? "diploma" : null;

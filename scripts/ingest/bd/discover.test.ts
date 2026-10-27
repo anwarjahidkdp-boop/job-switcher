@@ -112,3 +112,18 @@ describe('private circulars first', () => {
     expect(privateFirst(docs).map((d) => d.title)).toEqual(['Sales Officer at ACI', null, 'Ministry of Health circular', 'সেনাবাহিনী নিয়োগ']);
   });
 });
+
+describe('home page fallbacks', () => {
+  it('tries www when the bare domain fails, and follows a move to a new domain of the same name', async () => {
+    const site: Site = {
+      'https://www.acmebank.com/': { body: '<a href="/careers">Careers</a>' },
+      'https://www.acmebank.com/careers': { body: '<a href="https://apply.workable.com/acmebank/">Open roles</a>' },
+    };
+    const fetcher = async (u: string) => { if (u.startsWith('https://acmebank.com/')) throw new TypeError('fetch failed'); return web(site)(u); };
+    expect(await discoverCompany({ name: 'Acme Bank', site: 'acmebank.com', sector: 'x' }, fetcher)).toMatchObject({ status: 'board', kind: 'workable', token: 'acmebank' });
+    const moved = web({ 'https://dhakabankltd.com/': { status: 301, location: 'https://dhakabank.com.bd/' }, 'https://dhakabank.com.bd/': { body: '<a href="/career">Career</a>' }, 'https://dhakabank.com.bd/career': { body: '<script type="application/ld+json">' + posting + '</script>' } });
+    expect(await discoverCompany({ name: 'Dhaka Bank', site: 'dhakabankltd.com', sector: 'x' }, moved)).toEqual({ status: 'jsonld', url: 'https://dhakabank.com.bd/career', detailPath: null });
+    const elsewhere = web({ 'https://shopco.com/': { status: 302, location: 'https://facebook.com/shopco' } });
+    expect(await discoverCompany({ name: 'Shop', site: 'shopco.com', sector: 'x' }, elsewhere)).toMatchObject({ status: 'unreachable' });
+  });
+});

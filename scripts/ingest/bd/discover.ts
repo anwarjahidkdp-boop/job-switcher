@@ -48,6 +48,8 @@ export function boardOnPage(html: string, pageUrl: string) {
 }
 
 const site = (host: string, root: string) => { const h = host.replace(/^www\./, ''); return h === root || h.endsWith('.' + root); };
+/** dhakabankltd.com and dhakabank.com.bd are one company; facebook.com is not. */
+const sameName = (host: string, root: string) => { const a = host.replace(/^www\./, '').split('.')[0], b = root.split('.')[0]; const n = Math.min(a.length, b.length); return n >= 4 && a.slice(0, n) === b.slice(0, n); };
 const CAREER = /career|\bjobs?\b|vacanc|join[\s-]*(?:us|our)|work[\s-]*with[\s-]*us|recruit|opportunit|ক্যারিয়ার|কর্মসংস্থান|নিয়োগ|চাকরি/i;
 
 /** Links to the company's careers pages on its own site (subdomains count: career.grameenphone.com), best first. */
@@ -88,12 +90,16 @@ export class SiteReader {
     return this.rules.get(origin)!;
   }
   /** The page's HTML, or the job board a redirect lands on (many careers links forward straight to the board). */
-  async read(url: string): Promise<{ html: string; url: string } | { board: { kind: BoardKind; token: string }; url: string }> {
+  /** The site's registrable name as followed so far (a home page may move to a new domain). */
+  get domain() { return this.root; }
+  async read(url: string, opts: { home?: boolean } = {}): Promise<{ html: string; url: string } | { board: { kind: BoardKind; token: string }; url: string }> {
     let target = new URL(url);
     for (let hop = 0; hop < 4; hop++) {
       const board = boardFromUrl(target.href);
       if (board) return { board, url: target.href };
       if (target.protocol !== 'https:' && target.protocol !== 'http:') throw Error('Unsupported link');
+      // A company that moved domain (dhakabankltd.com -> dhakabank.com.bd) redirects its home page there: follow it once.
+      if (opts.home && hop > 0 && !site(target.hostname, this.root) && sameName(target.hostname, this.root)) { this.root = target.hostname.replace(/^www\./, '').toLowerCase(); opts = {}; }
       if (!site(target.hostname, this.root)) throw Error('Careers link leaves the company site');
       if (!robotsAllows(await this.robots(target.origin), target.pathname + target.search)) throw Error('robots.txt disallows this page');
       const r = await this.fetcher(target.href, { headers: { 'user-agent': BOT_UA, accept: 'text/html' }, redirect: 'manual', signal: AbortSignal.timeout(this.timeout) });
@@ -113,12 +119,14 @@ export async function discoverCompany(company: BdCompany, fetcher: Fetcher = fet
   const root = company.site.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').toLowerCase();
   const reader = new SiteReader(root, fetcher);
   let home;
-  try { home = await reader.read(`https://${company.site.replace(/^https?:\/\//, '')}/`); } catch (e) { return { status: 'unreachable', note: `Home page: ${reason(e)}` }; }
+  // Many sites only answer (or only have a certificate) on www.
+  try { home = await reader.read(`https://${root}/`, { home: true }); }
+  catch (e) { try { home = await reader.read(`https://www.${root}/`, { home: true }); } catch { return { status: 'unreachable', note: `Home page: ${reason(e)}` }; } }
   if ('board' in home) return { status: 'board', ...home.board, via: home.url };
   const onHome = boardOnPage(home.html, home.url);
   if (onHome) return { status: 'board', ...onHome, via: home.url };
   if (extractJobPostings(home.html).length) return { status: 'jsonld', url: home.url, detailPath: null };
-  const links = careerLinks(home.html, home.url, root);
+  const links = careerLinks(home.html, home.url, reader.domain);
   let bdjobs = /bdjobs\.com/i.test(home.html), lastErr = '', career: string | undefined;
   for (const link of links.slice(0, 2)) {
     let page;
@@ -147,13 +155,14 @@ const RECHECK_DAYS = 7;
 export async function discoverCareerPages(db: SupabaseClient, opts: { max?: number; maxMs?: number; fetcher?: Fetcher; companies?: BdCompany[]; now?: number } = {}) {
   const now = opts.now ?? Date.now(), started = Date.now();
   const companies = opts.companies || BD_COMPANIES;
-  const { data: rows, error } = await db.from('ingestion_sources').select('id, kind, board_token, active, last_run_at').eq('country', 'BD');
+  const { data: rows, error } = await db.from('ingestion_sources').select('id, kind, board_token, active, last_run_at, last_status').eq('country', 'BD');
   if (error) throw error;
   const dir = new Map((rows || []).filter((r) => r.kind === 'jsonld' && String(r.board_token || '').startsWith('dir:')).map((r) => [r.board_token as string, r]));
   const boards = new Set((rows || []).filter((r) => r.kind !== 'jsonld').map((r) => `${r.kind}:${String(r.board_token).toLowerCase()}`));
   // Never-checked companies first, then the longest unchecked; active JSON-LD sources are read by the normal ingest.
   const due = companies.map((c) => ({ c, row: dir.get(dirToken(c)) }))
-    .filter(({ row }) => !row || (!row.active && (!row.last_run_at || now - Date.parse(row.last_run_at) > RECHECK_DAYS * 86_400_000)))
+    // A site that could not be reached is tried again the next day; a checked one weekly.
+    .filter(({ row }) => !row || (!row.active && (!row.last_run_at || now - Date.parse(row.last_run_at) > (row.last_status === 'unreachable' ? 1 : RECHECK_DAYS) * 86_400_000)))
     .sort((a, b) => (a.row?.last_run_at ? Date.parse(a.row.last_run_at) : 0) - (b.row?.last_run_at ? Date.parse(b.row.last_run_at) : 0))
     .slice(0, opts.max ?? 25);
   const tally: Record<string, number> = {};
