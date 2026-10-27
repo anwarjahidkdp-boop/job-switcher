@@ -20,9 +20,14 @@ export const BD_COMPANIES: BdCompany[] = [
   ...c('Telecom & technology', false, [
     ['Grameenphone', 'grameenphone.com'], ['Robi Axiata', 'robi.com.bd'], ['Banglalink', 'banglalink.net'], ['SSL Wireless', 'sslwireless.com'],
     ['Brain Station 23', 'brainstation-23.com'], ['BJIT', 'bjitgroup.com'], ['Therap BD', 'therapbd.com'], ['Kaz Software', 'kaz.com.bd'],
-    ['Enosis Solutions', 'enosisbd.com'], ['Cefalo Bangladesh', 'cefalo.com'], ['SELISE Digital Platforms', 'selisegroup.com'], ['Tiger IT', 'tigerit.com'],
+    ['Enosis Solutions', 'enosisbd.com'], ['Tiger IT', 'tigerit.com'],
     ['DataSoft Systems', 'datasoft-bd.com'], ['Southtech', 'southtechgroup.com'], ['Vivasoft', 'vivasoftltd.com'], ['Welldev', 'welldev.io'],
-    ['Augmedix Bangladesh', 'augmedix.com'], ['Dynamic Solution Innovators', 'dsinnovators.com'], ['Samsung R&D Bangladesh', 'research.samsung.com'], ['Field Nation Bangladesh', 'fieldnation.com'],
+    ['Dynamic Solution Innovators', 'dsinnovators.com'],
+  ]),
+  // Bangladesh offices of companies based abroad: their job boards list other countries' jobs too.
+  ...c('Telecom & technology', true, [
+    ['Cefalo Bangladesh', 'cefalo.com'], ['SELISE Digital Platforms', 'selisegroup.com'], ['Augmedix Bangladesh', 'augmedix.com'],
+    ['Samsung R&D Bangladesh', 'research.samsung.com'], ['Field Nation Bangladesh', 'fieldnation.com'],
   ]),
   ...c('E-commerce & startups', false, [
     ['Daraz Bangladesh', 'daraz.com.bd'], ['Chaldal', 'chaldal.com'], ['Pathao', 'pathao.com'], ['Shohoz', 'shohoz.com'], ['ShopUp', 'shopup.org'],
