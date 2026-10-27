@@ -101,7 +101,8 @@ describe("every number on Home equals the list it opens", () => {
     h.st = state(NOW - 10 * H);
     const links = await check();
     const found = links.filter(([href]) => href.includes("fit=found")).map(([, n]) => n);
-    expect(found).toEqual([12, 12]);
+    // Today's Fresh Jobs, Lifetime, and Your Opportunities' total and "View all" link.
+    expect(found).toEqual([12, 12, 12, 12]);
     // The list's "Today's Fresh Jobs" switch opens the very same window as Home's numbers.
     const { default: Page } = await import("@/app/(app)/opportunities/page");
     const list = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ fit: "found" }) }));
@@ -174,5 +175,16 @@ describe("a job's career guide explains the card's own number", () => {
     expect(html).toContain(`${x.m.score}% match · ${100 - x.m.score}% missing`);
     const pts = [...html.matchAll(/class="gap-pts">−(\d+)%/g)].map((m) => Number(m[1]));
     expect(pts).toEqual([26]);
+  });
+});
+
+describe("Home's opportunity cards show the same missing percent", () => {
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
+  it("each card's '% missing' equals 100 minus its score", async () => {
+    const { default: Inbox } = await import("@/app/(app)/inbox/page");
+    const rows = rowsOf(renderToStaticMarkup(await Inbox()));
+    const seen = rows.map((r) => [Number(r.match(/aria-label="(\d+)% profile match"/)![1]), r.match(/>(\d+)% missing/)?.[1]] as const).filter(([, g]) => g);
+    expect(seen.length).toBeGreaterThan(0);
+    for (const [score, gap] of seen) expect(Number(gap)).toBe(100 - score);
   });
 });

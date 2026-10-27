@@ -13,7 +13,8 @@ export function OpportunityRow({ x, today, status, ai, hideFit = false }: { x: S
   const group = fitCard(x);
   const label = !m.relevant ? "Outside your field" : m.expired ? "Deadline passed" : fitLabel(m.score);
   const tone = group === "ex" ? "high" : group === "rest" ? "low" : "";
-  const gap = hideFit ? null : gapLabel(x);
+  // The gap link shows on every card, Home included; hideFit hides only the fit label.
+  const gap = gapLabel(x);
   // The whole card opens the job (the title link stretches over it); the gap link sits above it and opens the job's career guide.
   return (
     <div className="opp">

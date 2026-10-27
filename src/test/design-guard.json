@@ -318,6 +318,9 @@
    "2ac2f58c95c9be65",
    "0a86c7cd8dc77b4f",
    "cbce73a3f56baa66",
+   "119c5158e6be996d",
+   "f1eeba3ac9ab375c",
+   "a86553a0534e5cda",
    "202e812790ebe9d6",
    "383f015454b7ac17",
    "c4386aeb76a7bb6e",
@@ -457,13 +460,14 @@
    "e9da9d5c1361f87e",
    "895d582080cc624c",
    "4dec748318a08e39",
-   "09e38e6093a57cfd",
+   "2dab9dc87b5cb449",
+   "20e4991e2d723811",
    "3af510d717ce87d6",
    "e27f3a0eaeb28755",
    "0fe517bbb5391455",
    "3d4e17e7763a17bb",
    "cceebcb3904e9f92",
-   "5ec23abce382f6ff",
+   "de2a2ae26f427804",
    "c461e4c3332db123",
    "3de38538a8581d79",
    "0f3d7235666e1a36",
@@ -1806,6 +1810,7 @@
   "2026-10-26: Opportunity Briefing has no sub line and no colour ribbon on top (owner asked: cleaner)",
   "2026-10-26: header fits every phone: short plan chip ('Trial · 5d left') under 430px, bell never shrinks (owner: bell was cut off)",
   "2026-10-26: every Home number comes from jobTotals/appliedFor (same source as the lists they open; number-contract test guards it); best match needs 70%+ (owner asked for a permanent logic fix)",
-  "2026-10-26/27: owner approved Home 'Today's Fresh Jobs' (replaces Opportunity Briefing; last 24 hours, local update times chip, 'Last new job found' line) - inbox/page.tsx regenerated"
+  "2026-10-26/27: owner approved Home 'Today's Fresh Jobs' (replaces Opportunity Briefing; last 24 hours, local update times chip, 'Last new job found' line) - inbox/page.tsx regenerated",
+  "2026-10-27: 'Your Opportunities' shows the total jobs found beside the title and in 'View all opportunities (N)', opening the Jobs found list; every card shows 'N% missing · why?' (owner asked) - inbox/page.tsx regenerated"
  ]
 }

@@ -248,13 +248,14 @@ export default async function Inbox() {
           ))}
 
           <div className={`${s.card} ${s.oppCard}`} id="matches">
-            <div className={s.oppHead}><h2>Your Opportunities</h2><span className={s.muted}>Highest match first</span></div>
+            {/* The total is Lifetime's "Jobs found" (jobTotals) and opens exactly that list, so the person sees how many jobs we checked for them. */}
+            <div className={s.oppHead}><span className={s.oppTitle}><h2>Your Opportunities</h2>{all.found ? <Link prefetch={false} className={s.oppTotal} href="/opportunities?fit=found" aria-label={`${fmt(all.found)} jobs found for you: see them all`}><b>{fmt(all.found)}</b> jobs found</Link> : null}</span><span className={s.muted}>Highest match first</span></div>
             {top.length ? top.map((x) => <OpportunityRow key={x.job.id} x={x} today={st.today} status={st.apps[x.job.id]?.status} ai={st.aiCheck.get(x.job.id)} hideFit />) : apps.some(isResolvedApplication) && !list.length
               ? <p className={s.empty}>You’re up to date. Your submitted applications are in <Link href="/applications">Applied</Link>. New opportunities will appear here.</p>
               : sx.analysed
                 ? <p className={s.empty}>No Good Fit or better right now. We checked {fmt(sx.analysed)} jobs; try adding target roles or skills in your profile.</p>
                 : <p className={s.empty}>No jobs in {cname(country)} yet. Paste a job you found, or set up automatic job alerts.</p>}
-            {list.length ? <div className={s.foot}><Link prefetch={false} className={s.link} href="/opportunities">View all opportunities →</Link></div> : null}
+            {list.length ? <div className={s.foot}><Link prefetch={false} className={s.link} href="/opportunities?fit=found">View all opportunities (<b>{fmt(all.found)}</b>) →</Link></div> : null}
           </div>
 
           <section className={s.card} id="career-guide" aria-labelledby="guide-h">

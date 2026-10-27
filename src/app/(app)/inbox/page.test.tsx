@@ -91,7 +91,7 @@ describe("career home", () => {
     for (const t of [">Applied<", "Interviewed", "Offer received"]) expect(allTime).toContain(t);
     // No paste button on Home, a plain "View all", and the best match links to the top-scoring open job.
     expect(html).not.toContain(">Paste a job<");
-    expect(html).toContain("View all opportunities →");
+    expect(html).toContain("View all opportunities (<b>1,248</b>) →");
     expect(html).toMatch(/fBest[^"]*" href="\/jobs\/a"/);
     // Career guide names how many Strong Fits there are.
     expect(html).toContain("Only 2 Strong Fits");
