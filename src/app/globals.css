@@ -1305,3 +1305,5 @@ div.opp:has(.opp-open:focus-visible){outline:2px solid var(--accent);outline-off
 .pa-bar-x{flex-shrink:0;border:0;background:none;color:#B8C4DB;font-size:20px;line-height:1;width:28px;height:28px;border-radius:50%;cursor:pointer}
 .pa-bar-x:hover{background:rgba(255,255,255,.1)}
 @media (max-width:760px){.pa-wrap{padding-top:10px}.pa-bar-t{font-size:13px}.pa-act{width:100%}.pa-act .btn{flex:1}}
+/* Phones: a shorter photo story, so the headline and the Upload button are on the first screen. */
+@media (max-width:900px){.lp-hero.hs{--hs-h:min(52svh,440px)}.hs-phone{transform:scale(.4)}.hs-over>*{bottom:72px}.hs-over>.hs-a{bottom:150px}}
