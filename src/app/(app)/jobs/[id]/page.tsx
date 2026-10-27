@@ -36,6 +36,7 @@ import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { applicationFee, askRows, feeLine, postAsks } from "@/lib/job-asks";
 import { gapAction } from "@/lib/gap-actions";
 import { scamCheck } from "@/lib/scam-check";
+import { gapLabel } from "@/lib/score-gap";
 
 export const metadata = { title: "Job" };
 export const maxDuration = 120;
@@ -198,6 +199,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <p style={{ margin: "6px 0 12px" }}><span className={`pill ${BAND[m.band][1]}`}>{fitLabel(m.score)}</span> <b className="num">{m.score}% profile match</b></p>
             {ai?.reason ? <p className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`} style={{ marginBottom: 12 }}><b>AI check:</b> {ai.reason}</p> : <p className="small muted" style={{ marginBottom: 12 }}>First estimate from your profile. Our AI reads the full post next to your CV in the daily check and updates this score.</p>}
             {m.matched.length ? <><h3>Strong matches</h3><ul className="why-list">{m.matched.map((t) => <li key={t}><span className="mk ok">✓</span><span>{t}</span></li>)}</ul></> : null}
+            {gapLabel({ job, m }) ? <Link prefetch={false} className="chip-gap" href={`/insights/job/${job.id}`}>{gapLabel({ job, m })}</Link> : null}
             {m.gaps.length ? <><h3 style={{ marginTop: 14 }}>Potential gaps</h3><GapList gaps={m.gaps.map((g) => ({ t: g.t, skill: g.skill || null, label: g.skill ? skillLabel(g.skill) : null, action: gapAction(g.k) }))} /></> : null}
             <p className="small muted" style={{ marginTop: 14 }}>The score compares your verified profile with this job&apos;s requirements. It is not a chance of being hired.</p>
           </div>

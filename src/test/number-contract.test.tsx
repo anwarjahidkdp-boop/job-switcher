@@ -131,8 +131,48 @@ describe("a list row's label agrees with the group it is counted in", () => {
   it("a 99% job outside the field sits in Stretch & others and is not called Strong Fit", async () => {
     const { default: Page } = await import("@/app/(app)/opportunities/page");
     const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ fit: "rest" }) }));
-    const g = html.slice(html.indexOf('href="/jobs/g"'));
-    expect(g.slice(0, g.indexOf("</a>"))).toContain("Outside your field");
-    expect(g.slice(0, g.indexOf("</a>"))).not.toContain("Strong Fit");
+    const g = rowsOf(html).find((r) => r.includes('href="/jobs/g"'))!;
+    expect(g).toContain("Outside your field");
+    expect(g).not.toContain("Strong Fit");
+    expect(g).not.toContain("% missing");
+  });
+});
+
+/** Each opportunity card's markup, one string per card. */
+const rowsOf = (html: string) => html.split('class="opp"').slice(1);
+
+describe("a card's missing percent comes from the score it shows", () => {
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
+  it("every '% missing' equals 100 minus the card's own score and opens that job's guide", async () => {
+    const { default: Page } = await import("@/app/(app)/opportunities/page");
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ fit: "found" }) }));
+    const rows = rowsOf(html);
+    let seen = 0;
+    for (const r of rows) {
+      const score = Number(r.match(/aria-label="(\d+)% profile match"/)![1]);
+      const id = r.match(/href="\/jobs\/([^"]+)"/)![1];
+      const gap = r.match(/href="\/insights\/job\/([^"]+)"[^>]*>(\d+)% missing/);
+      if (!gap) continue;
+      seen++;
+      expect(gap[1]).toBe(id);
+      expect(Number(gap[2]), id).toBe(100 - score);
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+});
+
+describe("a job's career guide explains the card's own number", () => {
+  beforeEach(() => { h.st = state(NOW - 30 * H); h.cookie = undefined; });
+  it("shows the same score and missing percent, and its points add up to it", async () => {
+    const UUID = "00000000-0000-4000-8000-000000000001";
+    // Job e (74%) with the factors a 74% rule score really has: role 25 + skills 25 × 0.324 + experience 15, out of 65.
+    const x = h.st.scored.find((r) => r.job.id === "e")!;
+    x.job.id = UUID;
+    x.m.f = { role: 1, skills: 0.324, exp: 1 };
+    const { default: Guide } = await import("@/app/(app)/insights/job/[id]/page");
+    const html = renderToStaticMarkup(await Guide({ params: Promise.resolve({ id: UUID }) }));
+    expect(html).toContain(`${x.m.score}% match · ${100 - x.m.score}% missing`);
+    const pts = [...html.matchAll(/class="gap-pts">−(\d+)%/g)].map((m) => Number(m[1]));
+    expect(pts).toEqual([26]);
   });
 });
