@@ -11,7 +11,7 @@ const facts = groundExtraction(DEMO_EXTRACT, DEMO_CV_TEXT);
 const meta = { industries: DEMO_EXTRACT.industries, categories: DEMO_EXTRACT.categories, seniority: DEMO_EXTRACT.seniority, target_roles: DEMO_EXTRACT.target_roles, location: DEMO_EXTRACT.location };
 const P = buildMatchProfile({ name: DEMO_EXTRACT.name, facts, meta, prefs: DEMO_PREFS, country: "BD" });
 const rows = scoreAll(SAMPLE_JOBS_RAW.map((s) => sampleToJob(s, TODAY)), P, { today: TODAY, needVisa: true });
-const sum = (g: ReturnType<typeof scoreGap>) => g.reasons.reduce((a, r) => a + (r.pts ?? 0), 0);
+const sum = (g: ReturnType<typeof scoreGap>) => g.reasons.reduce((a, r) => a + r.pts, 0);
 
 describe("why one job is short of 100%", () => {
   it("splits whole numbers that still add up", () => {
@@ -42,7 +42,7 @@ describe("why one job is short of 100%", () => {
     expect(g.reasons[0].pts).toBeGreaterThan(0);
   });
 
-  it("uses the AI's reason and does not invent a point split when the AI score is final", () => {
+  it("reads the same way when the AI score is final: the AI's reason, and points that add up to its gap", () => {
     const base = rows.find((x) => !x.m.capped && x.m.score < 90)!;
     const ai = { fit: "partial" as const, score: 72, reason: "Strong accounting background, but no audit experience." };
     const [x] = withAiScores([base], new Map([[base.job.id, ai]]));
@@ -51,7 +51,10 @@ describe("why one job is short of 100%", () => {
     expect(g.score).toBe(Math.min(72, base.m.scoreCap ?? 100));
     expect(g.missing).toBe(100 - g.score);
     expect(g.aiReason).toBe(ai.reason);
-    expect(g.reasons.every((r) => r.key === "cap" || r.pts === null)).toBe(true);
+    expect(g.exact).toBe(false);
+    expect(sum(g)).toBe(g.missing);
+    const none = scoreGap({ job: base.job, m: { ...x.m, score: 72, scoreCap: 100, capped: false, f: { role: 1 } } }, ai);
+    expect(none.reasons.map((r) => [r.key, r.pts, r.advice])).toEqual([["ai", none.missing, ai.reason]]);
   });
 
   it("labels only open jobs in the person's field that are under 100%", () => {

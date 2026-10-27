@@ -12,8 +12,6 @@ import { GapList } from "../../../jobs/[id]/client";
 
 export const metadata = { title: "Career guide for this job" };
 
-const IMPACT = { high: "Big effect", medium: "Some effect", low: "Small effect" } as const;
-
 export default async function JobGapGuide({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { st, db } = await requireAppState(`/insights/job/${id}`);
@@ -39,7 +37,7 @@ export default async function JobGapGuide({ params }: { params: Promise<{ id: st
           <div className="gap-meter" role="img" aria-label={`${g.score}% matched, ${g.missing}% missing`}><i style={{ width: `${g.score}%` }} /><b style={{ width: `${g.missing}%` }} /></div>
           <div className="gap-legend"><span>Matched {g.score}%</span><span>Missing {g.missing}%</span></div>
           {g.source === "ai" ? <>
-            <p className="small" style={{ marginTop: 12 }}>Our AI read the full job post next to your CV and gave {g.aiScore}%{g.cap ? `, held at ${g.cap.at}% by a requirement below` : ""}. It weighs the gaps below together, so we show how much each one matters, not exact points.</p>
+            <p className="small" style={{ marginTop: 12 }}>Our AI read the full job post next to your CV and gave {g.aiScore}%{g.cap ? `, held at ${g.cap.at}% by a requirement below` : ""}. The missing {g.missing}% is shared among the gaps below by how much each one weighs in our requirement check.</p>
             {g.aiReason ? <p className="ai-check warn gap-ai"><b>AI reading:</b> {g.aiReason}</p> : null}
           </> : <p className="small" style={{ marginTop: 12 }}>Your profile covers {g.score}% of what this post asks for. {g.missing ? `The other ${g.missing}% comes from ${g.reasons.length === 1 ? "this gap" : "these gaps"}:` : "Nothing is missing."}</p>}
           {!m.relevant ? <p className="note small" style={{ marginTop: 10 }}>This job is outside your field, so it is not counted as a Top match whatever its score.</p> : null}
@@ -49,7 +47,7 @@ export default async function JobGapGuide({ params }: { params: Promise<{ id: st
           <h2 style={{ fontSize: 18, margin: 0 }}>What is missing, and how to close it</h2>
           <ol className="gap-list">
             {g.reasons.map((r) => <li key={r.key} className="gap-item">
-              <div className="gap-item-head"><h3>{r.title}</h3>{r.pts != null ? <span className="gap-pts">−{r.pts}%</span> : <span className={`gap-impact ${r.impact}`}>{IMPACT[r.impact]}</span>}</div>
+              <div className="gap-item-head"><h3>{r.title}</h3><span className="gap-pts">−{r.pts}%</span></div>
               {r.gaps.length ? <GapList gaps={r.gaps.slice(0, 4).map((x) => ({ t: x.t, skill: x.skill || null, label: x.skill ? skillLabel(x.skill) : null, action: gapAction(x.k) }))} /> : null}
               <div className="gap-do small"><b>What to do:</b> {r.advice}
                 {r.learn.length ? <div className="gap-learn">{r.learn.map((l) => <span key={l.skill}><b style={{ color: "inherit" }}>{l.label}:</b> {l.links.slice(0, 2).map((k, i) => <span key={k.label}>{i ? " · " : " "}<a href={k.href} target="_blank" rel="noopener noreferrer nofollow">{k.label} ↗</a></span>)}</span>)}</div> : null}

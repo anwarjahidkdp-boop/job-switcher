@@ -11,12 +11,10 @@ import type { Gap } from "./types";
 type Factor = keyof typeof W;
 
 export interface GapReason {
-  key: Factor | "cap";
+  key: Factor | "cap" | "ai";
   title: string;
-  /** Percentage points this reason costs. Only set when the split is exact (the rule score is the one shown). */
-  pts: number | null;
-  /** How much it weighs, for the AI case where points are not split. */
-  impact: "high" | "medium" | "low";
+  /** Percentage points this reason costs. All reasons add up to the missing percent. */
+  pts: number;
   /** The concrete gaps from this post, in the words the job page uses. */
   gaps: Gap[];
   /** What to do about it. */
@@ -30,7 +28,10 @@ export interface ScoreGap {
   missing: number;
   /** "rule": the requirement check's score is shown; "ai": the AI's reading of the full post is shown. */
   source: "rule" | "ai";
-  /** True when the reasons' points add up exactly to `missing`. */
+  /**
+   * True when every point comes straight from the requirement check. When the AI's score is final, its missing
+   * percent is shared among the same gaps by their weight in the check, so both cases read the same way.
+   */
   exact: boolean;
   aiScore: number | null;
   aiReason: string | null;
@@ -87,8 +88,6 @@ function learnFor(k: Factor | "cap", x: Scored, gaps: Gap[]) {
   return [];
 }
 
-const impactOf = (pts: number): GapReason["impact"] => (pts >= 8 ? "high" : pts >= 4 ? "medium" : "low");
-
 /**
  * Why `x` (a row of the live st.scored, or the job page's single row) is short of 100%.
  * `ai` is the AI reading for this job (st.aiCheck.get(id)); it is final only when it carries a score.
@@ -111,15 +110,18 @@ export function scoreGap(x: Scored, ai?: { score: number | null; reason: string 
     .map((k) => ({ k, pts: f[k] == null || !w ? 0 : (100 * W[k] * (1 - (f[k] as number))) / w }))
     .filter((e) => e.pts >= MIN_LOST)
     .sort((a, b) => b.pts - a.pts);
-  // Exact only when the rule score is the score shown: its lost points then add up to the gap (with any cap on top).
+  // When the rule score is shown, its lost points are exactly the gap (with any cap on top). When the AI's score is shown,
+  // the same gaps share the AI's missing percent by their weight in the check, so the points always add up to the card.
   const exact = !aiFinal && Math.min(raw, ceiling) === m.score;
-  const whole = exact ? splitWhole(lost.map((e) => e.pts), Math.max(0, 100 - raw)) : lost.map(() => null);
+  const capPts = cap ? before - m.score : 0;
+  const rest = Math.max(0, missing - capPts);
+  const whole = splitWhole(lost.map((e) => e.pts), rest);
   const all = m.allGaps || m.gaps || [];
   const reasons: GapReason[] = [];
   if (cap) {
     const blocking = all.filter((g) => g.o === 0);
     reasons.push({
-      key: "cap", title: `Held at ${cap.at}%: ${cap.reason}`, pts: before - m.score, impact: "high", gaps: blocking,
+      key: "cap", title: `Held at ${cap.at}%: ${cap.reason}`, pts: capPts, gaps: blocking,
       advice: "The post asks for something your profile does not show yet, so the score cannot go above this until it is confirmed. If you have it, add it to your profile.",
       learn: learnFor("cap", x, blocking), action: blocking.map((g) => gapAction(g.k)).find(Boolean) ?? null,
     });
@@ -128,7 +130,12 @@ export function scoreGap(x: Scored, ai?: { score: number | null; reason: string 
     const gaps = all.filter((g) => FACTOR_OF[g.k] === e.k && !(cap && g.o === 0));
     const pts = whole[i];
     if (pts === 0) return;
-    reasons.push({ key: e.k, title: TITLE[e.k], pts, impact: impactOf(e.pts), gaps, advice: advice(e.k, x, gaps), learn: learnFor(e.k, x, gaps), action: gapAction(e.k) });
+    reasons.push({ key: e.k, title: TITLE[e.k], pts, gaps, advice: advice(e.k, x, gaps), learn: learnFor(e.k, x, gaps), action: gapAction(e.k) });
+  });
+  // The AI found a gap the requirement check did not: its own reason is the explanation.
+  if (rest > 0 && !lost.length) reasons.push({
+    key: "ai", title: "From the AI's reading of the full post", pts: rest, gaps: [],
+    advice: ai?.reason?.trim() || "The full post asks for more than your CV shows. Read it and add anything you have that matches.", learn: [], action: null,
   });
   return { score: m.score, missing, source: aiFinal ? "ai" : "rule", exact, aiScore: aiFinal ? ai!.score : null, aiReason: ai?.reason?.trim() || null, cap, reasons };
 }

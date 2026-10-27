@@ -1281,10 +1281,6 @@ div.opp:has(.opp-open:focus-visible){outline:2px solid var(--accent);outline-off
 .gap-item-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .gap-item-head h3{font-size:16px;margin:0}
 .gap-pts{font-weight:800;color:var(--gold-text);white-space:nowrap}
-.gap-impact{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
-.gap-impact.high{background:var(--bad-soft);color:var(--bad)}
-.gap-impact.medium{background:var(--warn-soft);color:var(--warn)}
-.gap-impact.low{background:var(--accent-soft);color:var(--accent)}
 .gap-item .why-list{margin-top:8px}
 .gap-do{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--good-soft)}
 .gap-do b{color:var(--good)}
