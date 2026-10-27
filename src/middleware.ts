@@ -46,5 +46,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // Skip static assets and the machine-to-machine endpoints (they authenticate with shared secrets).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|sw.js|manifest.webmanifest|api/inbound|api/cron|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|sw.js|robots.txt|sitemap.xml|manifest.webmanifest|api/inbound|api/cron|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
 };
