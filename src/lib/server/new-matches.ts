@@ -6,6 +6,12 @@ import { emailProvider } from "../email/send";
 import { newMatchesEmail } from "../email/templates";
 import { deliverEmail } from "./email-outbox";
 import { notify } from "./notify";
+import { aiConfigured } from "../ai";
+import { fitCard } from "./search-summary";
+import { loadState } from "./state";
+
+/** How long a new match waits for its AI reading before the bell rings on the rule score alone. */
+const AI_WAIT_MS = 24 * 3_600_000;
 
 export const NOTIFY_MIN_SCORE = 70;
 /** Retained for callers checking an AI assessment; queue selection also enforces current deterministic safety. */
@@ -30,14 +36,31 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
       const dismissed = new Set<string>((prof?.dismissed_job_ids as string[] | null) || []);
       const { data: apps } = await admin.from("applications").select("job_id, status").eq("user_id", userId);
       const started = new Set((apps || []).map((a) => a.job_id as string));
-      const fresh = ((data || []) as unknown as Row[]).filter((r) => !dismissed.has(r.job_id) && !started.has(r.job_id));
+      const candidates = ((data || []) as unknown as Row[]).filter((r) => !dismissed.has(r.job_id) && !started.has(r.job_id));
       res.users++;
+      if (!candidates.length) continue;
+      // The bell and the email speak the score the person sees on Home and in the lists: the live score from loadState,
+      // which includes the AI's reading of the full post. The stored rule score is only the first pass.
+      const st = await loadState(admin, userId, undefined, { skipApplications: true });
+      const live = new Map((st?.scored || []).map((x) => [x.job.id, x]));
+      const settled: string[] = [];
+      const fresh: Row[] = [];
+      for (const r of candidates) {
+        const x = live.get(r.job_id);
+        // Not yet read by the AI: wait for a later scan (hourly), so the bell never promises a score the page then lowers.
+        // After a day it goes out on the rule score (the AI budget may be spent).
+        if (x && aiConfigured() && !st?.aiCheck.has(r.job_id) && Date.now() - Date.parse(x.job.foundAt ?? x.job.addedAt ?? "") < AI_WAIT_MS) continue;
+        settled.push(r.job_id);
+        // Below 70% on the page (or outside the field, or closed): no bell, it is not a Top match there either.
+        if (x && fitCard(x) !== "rest") fresh.push({ ...r, score: x.m.score });
+      }
+      fresh.sort((a, b) => b.score - a.score);
 
       const ready = new Set<string>();
       // Ranking is automatic; document generation is an explicit Apply action only.
 
-      if (!fresh.length) continue;
-      if (!opts.dryRun) {
+      if (!settled.length) continue;
+      if (!opts.dryRun && fresh.length) {
         // In the app: one notification per strong new match (best few), so the bell and the email say the same thing.
         await notify(admin, userId, fresh.slice(0, NOTIFY_PER_RUN).map((r) => ready.has(r.job_id)
           ? { kind: "ready" as const, title: `Application ready: ${r.jobs.title} at ${r.jobs.company}`, body: `${r.score}% match. We prepared your CV and cover letter. Review it and apply?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` }
@@ -48,8 +71,10 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
           const delivery = await deliverEmail(admin, userId, `matches-day:${new Date().toISOString().slice(0, 10)}`, { to: prof.email, ...msg });
           if (delivery === "sent") res.emailed++; else res.failed++;
         }
+      }
+      if (!opts.dryRun) {
         const now = new Date().toISOString();
-        await admin.from("matches").update({ notified_at: now }).eq("user_id", userId).in("job_id", fresh.map((r) => r.job_id));
+        await admin.from("matches").update({ notified_at: now }).eq("user_id", userId).in("job_id", settled);
       }
       res.notified += fresh.length;
     } catch (e) {

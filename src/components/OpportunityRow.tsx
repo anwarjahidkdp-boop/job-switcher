@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type {Scored} from "@/lib/matching";
 import {fitLabel} from "@/lib/matching";
-import {money,perLabel} from "@/lib/countries";
+import {salaryText} from "@/lib/countries";
 import {STATUS_LABEL} from "@/lib/types";
 import {Ring,DeadlineChip} from "@/components/ui";
 import {fitCard} from "@/lib/server/search-summary";
@@ -17,7 +17,7 @@ export function OpportunityRow({ x, today, status, ai, hideFit = false }: { x: S
       <Ring score={m.score} band={m.band} />
       <div style={{ minWidth: 0 }}>
         <h4>{job.title}</h4>
-        <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{job.salaryMax ? ` · ${money(job.salaryMin, job.country)}–${money(job.salaryMax, job.country)}${perLabel(job.country)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
+        <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{salaryText(job.salaryMin, job.salaryMax, job.country) ? ` · ${salaryText(job.salaryMin, job.salaryMax, job.country)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
         <div className="why">{m.matched.slice(0, 3).map((t) => "✓ " + t).join(" · ")}{m.gaps[0] ? <> · <span style={{ color: "var(--warn)" }}>⚠ {m.gaps[0].t.split(";")[0]}</span></> : null}</div>
         {hideFit ? null : <span className={`chip-chance ${tone}`}>{label}</span>}
         {ai?.reason ? <div className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`}><b>AI fit check:</b> {ai.reason}</div> : null}

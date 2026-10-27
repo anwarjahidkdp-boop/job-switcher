@@ -22,8 +22,8 @@ it('creates and saves an unpublished-pay review pack without AI, while actual ap
  vi.mocked(loadJob).mockResolvedValue({id:'j',country:'BD',active:true,minYears:0,salaryMin:null,salaryMax:null} as unknown as NonNullable<Awaited<ReturnType<typeof loadJob>>>);
  const ctx={db,admin:db,userId:'user'};
  const result=await preparePack(ctx,'j',{standardOnly:true});
- expect(result.ai).toBe(false);expect(result.flags).toContain('Salary not disclosed — verify pay before applying');
+ expect(result.ai).toBe(false);expect(result.flags).toContain('Salary not published — confirm pay before applying');
  expect(patches.at(-1)).toMatchObject({status:'ready',pack:{cover_letter:'Review cover letter'},pack_ai:false});
  expect(runAI).not.toHaveBeenCalled();expect(getBudget).not.toHaveBeenCalled();
- await expect(markOpened(ctx,'j')).rejects.toThrow('Salary is not disclosed');
+ await expect(markOpened(ctx,'j')).rejects.toThrow('This job does not publish its salary');
 });

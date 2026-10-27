@@ -13,7 +13,7 @@ import { notFound } from "next/navigation";
 import { isPro, requireAppState, photoUrl } from "@/lib/server/page";
 import { loadJob, withAiScores } from "@/lib/server/state";
 import { scoreJob, BAND, fitLabel } from "@/lib/matching";
-import { money, perLabel, rule, cname } from "@/lib/countries";
+import { rule, cname, salaryText } from "@/lib/countries";
 import { skillLabel } from "@/lib/taxonomy";
 import { resolveStyle } from "@/lib/cv/render";
 import { Ring, DeadlineChip } from "@/components/ui";
@@ -33,7 +33,8 @@ import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
 import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
-import { askRows, postAsks } from "@/lib/job-asks";
+import { applicationFee, askRows, feeLine, postAsks } from "@/lib/job-asks";
+import { gapAction } from "@/lib/gap-actions";
 import { scamCheck } from "@/lib/scam-check";
 
 export const metadata = { title: "Job" };
@@ -84,6 +85,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
     ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
     : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
+  const fee = job.country === "BD" ? applicationFee(description) : null;
   const canPrepare = !resolved && eligibility.eligible && (!a?.pack||needsFreshPack) && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
@@ -97,13 +99,15 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
-              {job.salaryMax ? <span className="pill p-neutral">{money(job.salaryMin, job.country)}–{money(job.salaryMax, job.country)}{perLabel(job.country)}</span> : <span className="pill p-neutral">Salary not disclosed</span>}
+              <span className="pill p-neutral">{salaryText(job.salaryMin, job.salaryMax, job.country) || "Salary not published"}</span>
               {sponsor ? <span className="pill p-st" title={`${sponsor.name} is on the GOV.UK register of licensed sponsors`}>✓ Licensed UK visa sponsor</span> : null}
               {job.visa === true ? <span className="pill p-st">Visa sponsorship</span> : job.visa === false && job.country !== st.homeCountry ? <span className="pill p-warn">No sponsorship</span> : null}
+              {job.country === "BD" && job.eligibility?.payGrade ? <span className="pill p-neutral" title="Bangladesh national pay scale grade">Govt grade {job.eligibility.payGrade}</span> : null}
               {job.minYears != null ? <span className="pill p-neutral">{job.minYears}+ years</span> : null}
               <span className="pill p-neutral">{job.source}{job.isSample ? " · fictional sample" : ""}</span>
             </div>
-            {eligibility.issues.length ? <div className="note small" role="status" style={{marginTop:12}}><b>Eligibility and pay check</b><ul>{eligibility.issues.map(i=><li key={i.code}>{i.message}</li>)}</ul>{eligibility.issues.some(i=>["age_unknown","salary_unknown"].includes(i.code))?<Link className="btn btn-primary btn-sm" href="/onboarding?step=prefs">Complete required details</Link>:null}</div>:null}
+            {eligibility.issues.length ? <div className="note small" role="status" style={{marginTop:12}}><b>Eligibility and pay check</b><ul>{eligibility.issues.map(i=><li key={i.code}>{i.message}</li>)}</ul><div className="row" style={{gap:8}}>{[...new Map(eligibility.issues.map(i=>gapAction(i.code)).filter(x=>!!x).map(x=>[x!.label,x!])).values()].map(x=><Link key={x.label} className="btn btn-primary btn-sm" href={x.href}>{x.label}</Link>)}</div></div>:null}
+            {fee ? <p className="note small" role="note" style={{ marginTop: 12 }}><b>Application fee:</b> {feeLine(fee)}. The circular charges this to apply; pay it only through the method the official circular names.</p> : null}
             {scam.level !== "none" ? <div className={`note small scam-note${scam.level === "high" ? " scam-high" : ""}`} role="alert" style={{ marginTop: 12 }}><b>{scam.level === "high" ? "Warning: this post shows signs of a fake job" : "Check this job carefully before you apply"}</b><ul>{scam.reasons.map((x) => <li key={x}>{x}</li>)}</ul><span>A real employer never asks you to pay to get a job. Do not send money, bank or card details, or original documents. Check the company on its official website before applying.</span></div> : null}
             {descRow?.source_kind === 'bdweb' ? <p className="note small" style={{ marginTop: 12 }}>Confirm the employer, full eligibility and application instructions in the linked original advertisement before applying. A source listing does not guarantee an employer or job offer.</p> : null}
             {job.resp.length ? <><h3 style={{ fontSize: 15, marginTop: 18 }}>Main responsibilities</h3><ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>{job.resp.map((x, i) => <li key={i}>{x}</li>)}</ul></> : null}
@@ -125,7 +129,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <div className="row" style={{marginTop:12}}><Link prefetch={false} className="btn btn-ghost btn-sm" href="/opportunities">Choose another job</Link>{!a?.applied_at?<QueueDismissButton jobId={job.id} advance/>:null}</div>
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
-          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Review the company and job details first. Press Apply beside the company name when you are ready to prepare your CV, cover letter and email draft. Reviewing this page does not use AI.</p>{!safety.safe?<p className="note small" role="status">Salary is not disclosed. Review your tailored documents and verify pay before sending.</p>:null}</>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
+          {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application"><h2>Your CV &amp; cover letter</h2>{canPrepare?<><p className="small muted">Review the company and job details first. Press Apply beside the company name when you are ready to prepare your CV, cover letter and email draft. Reviewing this page does not use AI.</p>{!safety.safe?<p className="note small" role="status">This job does not publish its salary. Confirm the pay before you send your application.</p>:null}</>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}</section>:null}
           {a?.status === "applied" ? (() => {
             const since = a.applied_at ? -(daysUntil(a.applied_at.slice(0, 10), st.today) ?? 0) : 0;
             // Follow-up emails to employers are not the custom in Bangladesh (owner's call), so they are offered elsewhere only.
@@ -148,7 +152,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               {a.pack.preparation_note?<p className="note small" role="status">{a.pack.preparation_note}</p>:null}
               {a.pack_flags.length ? <p className="note" style={{ marginTop: 10, borderColor: "var(--warn)" }}>Check before sending: {a.pack_flags.join("; ")}.</p> : null}
               {(() => {
-                const rows = askRows(a.pack.asks?.length ? a.pack.asks : postAsks(description), { hasPhoto: !!st.profile.photo_path, photoAllowed: r.photo, notice: st.profile.preferences?.notice ?? null, salaryMin: st.profile.preferences?.salaryMin ?? null });
+                const rows = askRows(a.pack.asks?.length ? a.pack.asks : postAsks(description), { hasPhoto: !!st.profile.photo_path, photoAllowed: r.photo, notice: st.profile.preferences?.notice ?? null, salaryMin: st.profile.preferences?.salaryMin ?? null }).concat(fee ? [{ item: "Application fee", status: "you" as const, note: `Pay ${feeLine(fee)}` }] : []);
                 return rows.length || a.pack.instructions ? (
                   <div className="asks">
                     <h3>What this job post asks for</h3>
@@ -191,7 +195,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <p style={{ margin: "6px 0 12px" }}><span className={`pill ${BAND[m.band][1]}`}>{fitLabel(m.score)}</span> <b className="num">{m.score}% profile match</b></p>
             {ai?.reason ? <p className={`ai-check ${ai.fit === "strong" ? "ok" : "warn"}`} style={{ marginBottom: 12 }}><b>AI check:</b> {ai.reason}</p> : <p className="small muted" style={{ marginBottom: 12 }}>First estimate from your profile. Our AI reads the full post next to your CV in the daily check and updates this score.</p>}
             {m.matched.length ? <><h3>Strong matches</h3><ul className="why-list">{m.matched.map((t) => <li key={t}><span className="mk ok">✓</span><span>{t}</span></li>)}</ul></> : null}
-            {m.gaps.length ? <><h3 style={{ marginTop: 14 }}>Potential gaps</h3><GapList gaps={m.gaps.map((g) => ({ t: g.t, skill: g.skill || null, label: g.skill ? skillLabel(g.skill) : null }))} /></> : null}
+            {m.gaps.length ? <><h3 style={{ marginTop: 14 }}>Potential gaps</h3><GapList gaps={m.gaps.map((g) => ({ t: g.t, skill: g.skill || null, label: g.skill ? skillLabel(g.skill) : null, action: gapAction(g.k) }))} /></> : null}
             <p className="small muted" style={{ marginTop: 14 }}>The score compares your verified profile with this job&apos;s requirements. It is not a chance of being hired.</p>
           </div>
           {lockedPack || canPrepare ? null : <div className="card panel">

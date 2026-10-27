@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { addDaysTo, daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type AppStatus } from "@/lib/types";
+import type { GapAction } from "@/lib/gap-actions";
 import { Spinner } from "@/components/ui";
 import { CopyButton } from "@/components/CopyButton";
 import { addSkillAction, appliedAction, dismissAction, openedAction, snoozeAction } from "@/app/actions";
 
-export function GapList({ gaps }: { gaps: { t: string; skill: string | null; label: string | null }[] }) {
+export function GapList({ gaps }: { gaps: { t: string; skill: string | null; label: string | null; action?: GapAction | null }[] }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<{ skill: string; label: string } | null>(null);
   const [pending, start] = useTransition();
@@ -16,7 +17,7 @@ export function GapList({ gaps }: { gaps: { t: string; skill: string | null; lab
     <>
       <ul className="why-list">
         {gaps.map((g) => (
-          <li key={g.t}><span className="mk gap">!</span><span>{g.t}{g.skill ? <> <button className="btn-text small" onClick={() => setConfirm({ skill: g.skill!, label: g.label! })}>I have this</button></> : null}</span></li>
+          <li key={g.t}><span className="mk gap">!</span><span>{g.t}{g.skill ? <> <button className="btn-text small" onClick={() => setConfirm({ skill: g.skill!, label: g.label! })}>I have this</button></> : null}{g.action ? <> <Link className="btn-text small" href={g.action.href}>{g.action.label}</Link></> : null}</span></li>
         ))}
       </ul>
       {confirm ? (

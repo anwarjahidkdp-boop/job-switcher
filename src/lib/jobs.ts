@@ -1,4 +1,4 @@
-import { extractEligibility, normaliseEligibility, type JobEligibility } from "./eligibility";
+import { digits, extractEligibility, JOB_META_LINE, normaliseEligibility, type JobEligibility } from "./eligibility";
 // Job normalisation: DB row <-> Job, AI output -> Job, and a deterministic text normaliser
 // used by ingestion (no AI cost) and as a fallback when AI is unavailable.
 import { cc, rule, type CountryCode } from "./countries";
@@ -32,7 +32,7 @@ export function rowToJob(r: JobRow): Job {
     certs: (r.certs || []).filter((c) => c && Array.isArray(c.names) && c.names.length),
     visa: r.visa_sponsorship, deadline: r.deadline, publishedAt: r.published_at,
     apply: { method: applyMethod(r.apply_method), target: r.apply_target }, url: r.url, source: r.source_label,
-    resp: r.responsibilities || [], isSample: !!r.is_sample, ownerId: r.owner_id, addedAt: r.created_at ?? null,
+    resp: (r.responsibilities || []).filter((l) => !JOB_META_LINE.test(l)), isSample: !!r.is_sample, ownerId: r.owner_id, addedAt: r.created_at ?? null,
   };
 }
 
@@ -131,6 +131,33 @@ export function seniorityFromTitle(title: string): Seniority | null {
   return null;
 }
 
+/** A Bangladesh post's monthly pay from its "Salary:" or "বেতনস্কেল:" line ("Tk. 25000 - 35000 (Monthly)", "৪৪,০০০–১,০৫,৯০০ টাকা (গ্রেড-৯)").
+ *  A whole circular can list several posts: its Bangla scale lines count only when they all agree. Negotiable or unreadable pay is null. */
+export function parseSalary(text: string): { min: number; max: number | null } | null {
+  const lines = digits(text || "").split(/\n/);
+  const english = lines.map((l) => l.match(/^\s*salary(?!\s*review)\s*(?:range)?\s*[:ঃ\-–]\s*(.+)$/i)?.[1]).filter((v): v is string => !!v);
+  for (const v of english) { const p = salaryFrom(v); if (p) return p; }
+  // OCR spells the label many ways (বেতনস্কেল, বেতনক্কেল, বেতনক্ষেল...): বেতন and whatever is glued to it.
+  const scales = lines.map((l) => l.match(/^\s*বেতন[^\s:ঃ\-–\d]*(?:\s*স্কেল)?\s*[:ঃ\-–]\s*(.+)$/)?.[1]).filter((v): v is string => !!v).map(salaryFrom).filter((p): p is NonNullable<typeof p> => !!p);
+  return scales.length && scales.every((p) => p.min === scales[0].min && p.max === scales[0].max) ? scales[0] : null;
+}
+function salaryFrom(v: string): { min: number; max: number | null } | null {
+  const t = v.replace(/(?:grade|[গপখ]্রেড)\s*[-–—:]?\s*\d{1,2}/gi, " ");
+  const nums: number[] = [];
+  for (const m of t.matchAll(/(\d[\d,.]*\d|\d)\s*(lakh|lac|লাখ)?/gi)) {
+    // Commas group digits (৪৪,০০০ and 1,05,900); a dot before three digits does too (২০.০০০).
+    const raw = m[1].replace(/,/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "");
+    const n = Number(raw) * (m[2] ? 100_000 : 1);
+    if (Number.isFinite(n) && n >= 1000 && n <= 2_000_000) nums.push(Math.round(n));
+  }
+  if (!nums.length) return null;
+  const yearly = /year|annum|annual|বার্ষিক/i.test(t) ? 12 : 1;
+  const min = Math.round(nums[0] / yearly), max = nums[1] != null ? Math.round(nums[1] / yearly) : min;
+  if (max < min) return null;
+  // A scale tops out at about two and a half times its start; a wider gap is an OCR slip, so only the start is trusted.
+  return { min, max: max > min * 4 ? null : max };
+}
+
 const CERT_NAMES = ["ACCA", "CIMA", "CMA", "CPA", "CA", "CFA", "PMP", "SHRM", "CIPD"];
 
 export function normaliseJobText(input: { title: string; company: string; text: string; country: CountryCode; location?: string | null; type?: string | null; url?: string | null; source: string; deadline?: string | null; publishedAt?: string | null; salaryMin?: number | null; salaryMax?: number | null; applyEmail?: string | null; today: string }): Omit<Job, "id"> {
@@ -158,16 +185,17 @@ export function normaliseJobText(input: { title: string; company: string; text: 
   const allSkills = skillsInText(text);
   const preferred = preferredBlock ? skillsInText(preferredBlock).filter((s) => !skillsInText(low.split(/preferred|nice to have|desirable|bonus|advantage/)[0]).includes(s)) : [];
   const required = [...allSkills.filter((s) => !preferred.includes(s)), ...languagesRequired(text).filter((l) => !allSkills.includes(l))];
-  const resp = text.split(/\n/).map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter((l) => l.length > 25 && l.length < 180).slice(0, 3);
+  const resp = text.split(/\n/).map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter((l) => l.length > 25 && l.length < 180 && !JOB_META_LINE.test(l)).slice(0, 3);
   const industry = INDUSTRY_LIST.find((i) => new RegExp(`\\b${i.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\b`,"i").test(low)) || null;
   // A literal labelled date is source evidence, including common employer dates such as 31 Oct 2026.
   const humanDeadline=text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{1,2})[\s-]+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[\s,-]+(\d{4})\b/i);
   let labelledDate:string|null=null;
   if(humanDeadline){const day=Number(humanDeadline[1]),month=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(humanDeadline[2].slice(0,3).toLowerCase()),year=Number(humanDeadline[3]);const d=new Date(Date.UTC(year,month,day));if(d.getUTCDate()===day&&d.getUTCMonth()===month)labelledDate=d.toISOString().slice(0,10);}
+  const pay = input.country === "BD" && input.salaryMin == null && input.salaryMax == null ? parseSalary(text) : null;
   const deadlineM = !input.deadline ? text.match(/(?:deadline|apply (?:by|before)|closing date)[:\s]*(\d{4}-\d{2}-\d{2})/i) : null;
   return {
     country: input.country, title: input.title, company: input.company, industry, category: guessCategory(input.title, allSkills),
-    location: input.location ?? null, type: input.type ?? null, salaryMin: input.salaryMin ?? null, salaryMax: input.salaryMax ?? null,
+    location: input.location ?? null, type: input.type ?? null, salaryMin: input.salaryMin ?? pay?.min ?? null, salaryMax: input.salaryMax ?? pay?.max ?? null,
     eligibility: extractEligibility(text), minYears, maxYears, seniority: seniorityFromTitle(input.title),
     education: edu ? { level: edu as EduLevel, field: fieldM ? fieldM[1] : "" } : null,
     required, preferred, certs, visa, deadline: input.deadline ?? (deadlineM ? deadlineM[1] : labelledDate), publishedAt: input.publishedAt ?? input.today,

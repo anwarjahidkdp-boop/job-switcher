@@ -1,11 +1,14 @@
 import { localSearchAnswers } from "./application-defaults";
 import { EDU } from "./taxonomy";
-import { agePolicy } from "./market-rules";
+import { addDaysTo } from "./dates";
+import { agePolicy, BD_GOV_AGE } from "./market-rules";
 import type { Job, MatchProfile } from './types';
-import { rule } from './countries';
-export interface JobEligibility { minAge?:number|null; maxAge?:number|null; ageAsOf?:string|null; ageException?:boolean; requirementsUnverified?:boolean }
+import { money, rule } from './countries';
+export interface JobEligibility { minAge?:number|null; maxAge?:number|null; ageAsOf?:string|null; ageException?:boolean; requirementsUnverified?:boolean; /** Bangladesh national pay-scale grade (1-20): a government or public-body post. */ payGrade?:number|null; /** A government entry post whose exact grade is not known: a circular whose grades differ but are all entry grades (9-20). */ govPost?:boolean }
 export interface EligibilityIssue { code:string; message:string; blocking:boolean }
-const digits=(s:string)=>s.replace(/[০-৯]/g,c=>String('০১২৩৪৫৬৭৮৯'.indexOf(c)));
+export const digits=(s:string)=>s.replace(/[০-৯]/g,c=>String('০১২৩৪৫৬৭৮৯'.indexOf(c)));
+/** Lines a listing adds about itself (salary, deadline, source notes), which say nothing about the work. */
+export const JOB_META_LINE=/^(?:salary|application deadline|deadline|vacancies|location|age limit|how to apply|application fee|read from the published circular|from the circular|বেতন|আবেদনের শেষ তারিখ)\b/i;
 export function validBirthDate(value:unknown,today=new Date().toISOString().slice(0,10)):boolean {
  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
  const d=new Date(value+'T00:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value&&value<=today&&Number(value.slice(0,4))>=1900;
@@ -15,6 +18,7 @@ export function ageOn(dob:string,asOf:string):number|null {
  return Number(asOf.slice(0,4))-Number(dob.slice(0,4))-(asOf.slice(5)<dob.slice(5)?1:0);
 }
 /** Only literal posted limits; never infer age from experience or a job title. */
+const isEntryGrade=(g:number)=>g>=BD_GOV_AGE.entryGrades[0]&&g<=BD_GOV_AGE.entryGrades[1];
 export function extractEligibility(text:string):JobEligibility {
  const t=digits(text).toLowerCase();const out:JobEligibility={};
  const range=t.match(/(?:\bage(?:d| limits?| range)?\s*[:：]?|বয়স(?:সীমা)?\s*[:ঃ]?|বয়স(?:সীমা)?\s*[:ঃ]?)\s*(?:between\s+|from\s+)?(\d{1,2})\s*(?:[-–—]|to|and|থেকে|হতে)\s*(\d{1,2})/);
@@ -27,13 +31,24 @@ export function extractEligibility(text:string):JobEligibility {
  if(/age.{0,50}(?:relax|exempt)|বয়স.{0,50}শিথিল|বয়স.{0,50}শিথিল/.test(t))out.ageException=true;
  if(/full education, experience and other eligibility requirements are in the official circular/i.test(text))out.requirementsUnverified=true;
  for(const key of ['minAge','maxAge'] as const)if(out[key]!=null&&(out[key]!<14||out[key]!>100))delete out[key];
+ // A national pay-scale grade sits beside a pay figure ("44,000-1,05,900 টাকা (গ্রেড-৯)"), so "Grade 5 teacher" alone is not one.
+ // OCR reads গ্রেড as প্রেড or খ্রেড. A post's own "Salary:" line decides; otherwise a circular's grades count only when they agree.
+ const grades:number[]=[];let own:number|null=null;
+ for(const g of t.matchAll(/(?:grade|[গপখ]্রেড)\s*[-–—:]?\s*(\d{1,2})\b/g)){
+  const n=Number(g[1]),at=g.index??0,near=t.slice(Math.max(0,at-80),at+g[0].length+80);
+  if(n<1||n>20||!/টাকা|\btk\b|taka|৳|scale|স্কেল|বেতন|salary|\bpay\b|\d{2},?\d{3}/.test(near))continue;
+  grades.push(n);if(own==null&&/(?:^|\n)\s*salary\s*[:ঃ][^\n]*$/.test(t.slice(Math.max(0,at-120),at)))own=n;
+ }
+ const pay=own??(grades.length&&grades.every(n=>n===grades[0])?grades[0]:null);if(pay!=null)out.payGrade=pay;
+ else if(grades.length&&grades.every(isEntryGrade))out.govPost=true;
  return out;
 }
 export function normaliseEligibility(raw:unknown):JobEligibility {
  const x=raw&&typeof raw==='object'?raw as Record<string,unknown>:{};const out:JobEligibility={};
  for(const key of ['minAge','maxAge'] as const){const n=Number(x[key]);if(x[key]!=null&&Number.isInteger(n)&&n>=14&&n<=100)out[key]=n;}
  if(typeof x.ageAsOf==='string'&&validBirthDate(x.ageAsOf,String(x.ageAsOf)))out.ageAsOf=x.ageAsOf;
- if(x.ageException===true)out.ageException=true;if(x.requirementsUnverified===true)out.requirementsUnverified=true;return out;
+ if(x.ageException===true)out.ageException=true;if(x.requirementsUnverified===true)out.requirementsUnverified=true;
+ const g=Number(x.payGrade);if(x.payGrade!=null&&Number.isInteger(g)&&g>=1&&g<=20)out.payGrade=g;if(x.govPost===true)out.govPost=true;return out;
 }
 export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Partial<MatchProfile>,today:string){
  const issues:EligibilityIssue[]=[];let cap=100;let reason="";
@@ -43,10 +58,20 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
   const ref=e.ageAsOf||today;const age=P.birthDate?ageOn(P.birthDate,ref):null;
   if(age==null)add('age_unknown','Add your date of birth to check the posted age limit.',true,54);
   else if(e.ageException)add('age_exception','The circular lists age exceptions. Eligibility needs verification against the original circular.',true,54);
+  // No cut-off date: circulars count age on a date near publication, so someone too old even 90 days before it is clearly over.
+  else if(!e.ageAsOf&&e.maxAge!=null&&(ageOn(P.birthDate!,addDaysTo(job.publishedAt||today,-90))??0)>e.maxAge)add('age',`Posted age limit ${e.minAge??'—'}–${e.maxAge}; you are ${age}.`,true,0);
   else if(!e.ageAsOf)add('age_cutoff_unknown','The circular’s age calculation date is not stated. Eligibility cannot be confirmed from today’s age alone.',true,54);
   else if((e.minAge!=null&&age<e.minAge)||(e.maxAge!=null&&age>e.maxAge)){
    add('age',`Posted age limit ${e.minAge??'—'}–${e.maxAge??'—'}; your age is ${age} on ${ref}.`,true,0);
   }
+ }
+ // Bangladesh government entry posts whose circular states no age limit: the legal entry limit (BD_GOV_AGE).
+ // Upper grades and senior titles are experienced hires: no limit is assumed for them; only a posted one counts.
+ const govEntry=e.payGrade!=null?isEntryGrade(e.payGrade):!!e.govPost;
+ if(!hasAge&&job.country==='BD'&&govEntry&&!['senior','manager','head'].includes(job.seniority||'')){
+  const ref=job.publishedAt||today;const age=P.birthDate?ageOn(P.birthDate,ref):null;
+  if(age==null)add('age_unknown','Add your date of birth: government jobs have an age limit.',true,54);
+  else if(age>BD_GOV_AGE.maxAge)add('age',`Government jobs accept applicants up to ${BD_GOV_AGE.maxAge} unless the circular says otherwise. You are ${age}.`,true,0);
  }
  // Age is never a generic ranking factor. Unreviewed restrictions need legal/occupational verification.
  if(hasAge&&agePolicy(job.country)!=='posted-limit')add('age_rule_review','This post includes an unverified age restriction. Verify a lawful occupational requirement; your age does not determine your profile score.',true,79);
@@ -63,11 +88,11 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
  if(job.education?.level&&P.education){const required=EDU[job.education.level];const held=Math.max(-1,...P.education.map(e=>EDU[e.level as keyof typeof EDU]??-1));if(held<required)add('education','Your verified profile does not establish the required education level.',true,54);}
  if(P.skills){const held=new Set(P.skills.map(s=>s.name));const missing=(job.required||[]).filter(s=>!held.has(s)&&!(s==='excel'&&held.has('advanced excel')));if(missing.length)add('required_skills',`Required skills not confirmed: ${missing.slice(0,5).join(', ')}. Add only skills you actually have.`,true,79);}
  if(P.certs)for(const cert of job.certs||[]){if(!cert.required)continue;const held=P.certs.some(c=>c.status==='qualified'&&cert.names.some(n=>c.name.toUpperCase().split(/[^A-Z0-9]+/).includes(n.toUpperCase())));if(!held)add('certification',`Required qualification not confirmed: ${cert.names.join(' or ')}.`,true,69);}
- if(job.minYears==null&&!job.education&&!(job.required||[]).length&&!(job.certs||[]).length&&!(job.resp||[]).length)add('requirements_unknown','This listing does not establish the role requirements. Verify the full original post before treating it as a suitable opportunity.',true,79);
+ if(job.minYears==null&&!job.education&&!(job.required||[]).length&&!(job.certs||[]).length&&!(job.resp||[]).filter(l=>!JOB_META_LINE.test(l)).length)add('requirements_unknown','This listing does not establish the role requirements. Verify the full original post before treating it as a suitable opportunity.',true,79);
  const floor=P.salaryMin;
- if(floor&&job.salaryMax!=null&&job.salaryMax<floor)add('salary',`Published salary tops out at ${job.salaryMax}; your minimum is ${floor} ${rule(job.country).sym.trim()} per ${rule(job.country).per}.`,true,0);
+ if(floor&&job.salaryMax!=null&&job.salaryMax<floor)add('salary',`This job pays up to ${money(job.salaryMax,job.country)} a ${rule(job.country).per}; you expect ${money(floor,job.country)}.`,true,0);
  else if(P.salaryConfirmed===false)add('salary_unknown','Enter your expected salary or current salary before salary suitability can be confirmed.',true,79);
- else if(floor&&job.salaryMax==null)add('salary_unpublished','Salary is not disclosed and is excluded from the fit score. Confirm pay before applying; salary suitability is unverified.',true,100);
+ else if(floor&&job.salaryMax==null)add('salary_unpublished',`${job.salaryMin?`This job publishes only its starting pay (${money(job.salaryMin,job.country)})`:'This job does not publish its salary'}, so pay is left out of the score. You expect ${money(floor,job.country)} a ${rule(job.country).per}: confirm the pay before applying.`,true,100);
  else if(floor&&job.salaryMin!=null&&job.salaryMin<floor)add('salary_range','Only the upper part of the advertised salary range meets your minimum. Confirm the actual offer; higher pay is not established.',false,79);
  return {issues,scoreCap:cap,reason,eligible:!issues.some(i=>i.blocking),blocked:cap===0};
 }
