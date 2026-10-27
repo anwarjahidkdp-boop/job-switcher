@@ -101,7 +101,8 @@ describe("every number on Home equals the list it opens", () => {
     h.st = state(NOW - 10 * H);
     const links = await check();
     const found = links.filter(([href]) => href.includes("fit=found")).map(([, n]) => n);
-    expect(found).toEqual([12, 12]);
+    // Today's Fresh Jobs, Lifetime, and Your Opportunities' total and "View all" link.
+    expect(found).toEqual([12, 12, 12, 12]);
     // The list's "Today's Fresh Jobs" switch opens the very same window as Home's numbers.
     const { default: Page } = await import("@/app/(app)/opportunities/page");
     const list = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({ fit: "found" }) }));

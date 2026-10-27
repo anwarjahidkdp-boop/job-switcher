@@ -32,6 +32,8 @@ Every number a person sees comes from one function. The list that number opens c
 | Home, Today's Fresh Jobs | Applied | `appliedFor(here, "new", since)` | `/applications?when=new&since=…` |
 | Home, Lifetime | Jobs found, 4 fit cards | `jobTotals(scored, null, analysed)` | `/opportunities?fit=…` |
 | Home, Lifetime | Applied, Interviewed, Offer received | `appliedFor(here, all / interview / offer)` | `/applications`, `?status=interview`, `?status=offer` |
+| Home, Your Opportunities | "N jobs found" beside the title and "View all opportunities (N)" | Lifetime Jobs found, `jobTotals(scored, null, analysed).found` | `/opportunities?fit=found` |
+| Opportunity cards (Home, lists), job page | "N% missing · why?" | 100 minus the card's live score (`gapLabel`) | `/insights/job/<id>`, whose reasons add up to N (`scoreGap`) |
 | Home | Career guide "Only N Strong Fits" | Lifetime Strong Fit | the guide on Home |
 | Home | Your best match | best available job at 70% or more, else "No match yet" | `/jobs/<id>` |
 | Home | Applications left (trial) | `trialApplyRoom`, the same rule the server enforces | `/upgrade` (Pro limits from `packLimits`) |
