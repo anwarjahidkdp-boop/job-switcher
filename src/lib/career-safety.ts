@@ -1,5 +1,6 @@
 import { eligibilityCheck } from "./eligibility";
 import type { MatchProfile } from "./types";
+import { salaryReach } from "./market-rules";
 import type { Job, Preferences } from "./types";
 export interface DealBreakers { minSalary?: number|null; minSalarySet?: boolean; excludedCompaniesSet?: boolean; excludedIndustriesSet?: boolean; excludedRoleTypesSet?: boolean; remoteOnly?: boolean; noRelocation?: boolean; noContract?: boolean; sponsorshipRequired?: boolean; workAuthorizationRequired?: boolean; excludedIndustries?: string[]; excludedCompanies?: string[]; excludedRoleTypes?: string[] }
 export interface AnswerLibrary { workAuthorizationSource?:"home_country_default"|"user"; sponsorshipSource?:"home_country_default"|"user"; birthDate?:string|null; salaryCountry?:string; currentSalaryCountry?:string; expectedSalary?: number|null; salaryNegotiable?: boolean; noticeDays?: number|null; workAuthorization?: "yes"|"no"|"unknown"; sponsorshipRequired?: boolean|null; willingToRelocate?: boolean|null; currentSalary?: number|null; managementYears?: number|null; teamSize?: number|null; willingToTravel?: boolean|null }
@@ -17,7 +18,8 @@ export function normaliseDealBreakers(v:unknown):DealBreakers { const x=(v&&type
 export function applicationSafety(job:Job,prefs:Preferences|null,rawBreakers:unknown,answers:AnswerLibrary|null,needsVisa:boolean,eligibility?:{P:MatchProfile;today:string}):SafetyCheck {
  const d=normaliseDealBreakers(rawBreakers),a=answers||{},issues:SafetyIssue[]=[]; const block=(code:string,message:string)=>issues.push({code,message,blocking:true});
  const minSalary=d.minSalarySet ? d.minSalary ?? null : d.minSalary||prefs?.salaryMin||null;
- if(minSalary&&job.salaryMax!=null&&job.salaryMax<minSalary) block("salary",`Salary tops out below your minimum (${minSalary}).`);
+ // A deal-breaker minimum the person set is strict; an expected salary leaves room to negotiate (salaryReach).
+ if(minSalary&&job.salaryMax!=null&&job.salaryMax<(d.minSalarySet||d.minSalary?minSalary:salaryReach(job.country,minSalary))) block("salary",`Salary tops out below your minimum (${minSalary}).`);
  if(d.remoteOnly&&low(job.type)!=="remote"&&!low(job.location).includes("remote")) block("remote","You marked remote-only, but this job is not identified as remote.");
  if(d.noContract&&/contract|temporary|temp|freelance/.test(low(job.type))) block("contract","You excluded contract/temporary work.");
  if(has(job.company,d.excludedCompanies||[])) block("company","This company is on your excluded-company list.");

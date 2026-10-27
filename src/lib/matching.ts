@@ -8,6 +8,7 @@ import { seniorityFromTitle } from "./jobs";
 // A required certification not fully held, or no visa sponsorship when the user needs it, caps the score at 69.
 import { money, HOME_COUNTRY, type CountryCode } from "./countries";
 import { daysUntil } from "./dates";
+import { salaryReach } from "./market-rules";
 import {
   cap1, divOf, EDU, famOf, IND_GROUP, LEVEL, LEVEL_NAME, RELATED, roleHead, skillLabel, titleTokens,
 } from "./taxonomy";
@@ -127,7 +128,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
     const comparableScope = down > 0 && down <= 3
       && job.minYears != null && job.minYears >= 5 && P.years >= job.minYears
       && (job.maxYears == null || P.years <= job.maxYears + 2)
-      && !!P.salaryMin && job.salaryMax != null && job.salaryMax >= P.salaryMin
+      && !!P.salaryMin && job.salaryMax != null && job.salaryMax >= salaryReach(job.country, P.salaryMin, P.dealBreakers?.minSalary)
       && (job.resp || []).some(t=>/\b(lead|manage|supervise|oversee|head)\w*\b.{0,50}\b(team|department|staff|function|unit)\b/i.test(t));
     f.sen = down === 0 || comparableScope ? 1 : Math.abs(down) === 1 ? 0.6 : 0;
     if (down > 0 && !comparableScope) {
@@ -184,7 +185,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
 
   if (P.salaryMin) {
     if (job.salaryMax) {
-      f.sal = job.salaryMax < P.salaryMin ? 0 : 1;
+      f.sal = job.salaryMax < salaryReach(job.country, P.salaryMin, P.dealBreakers?.minSalary) ? 0 : 1;
       if (!f.sal) gaps.push({ k: "sal", o: 2, t: `Pays up to ${money(job.salaryMax, job.country)}; you expect ${money(P.salaryMin, job.country)}+` });
     } // Unpublished pay is not evidence of fit or mismatch; omit its weight.
   }

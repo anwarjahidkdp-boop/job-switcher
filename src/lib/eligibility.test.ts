@@ -19,14 +19,29 @@ it('does not assume missing birth date, cutoff, age exception or source requirem
 it('never applies Bangladesh age exclusions to protected or unreviewed markets',()=>{
  for(const country of ['GB','US','CA','XX']){const r=eligibilityCheck({...job,country},P,today);expect(r.blocked).toBe(false);expect(r.scoreCap).toBe(79);expect(r.issues[0].code).toBe('age_rule_review');}
 });
-it('enforces the exact pay floor, flags undisclosed and overlapping pay, and has no 10 percent tolerance',()=>{
+it('treats pay within 10,000 Tk of the expected salary as meeting it, and only pay further below as a gate (owner 2026-10-27)',()=>{
  const j={...job,eligibility:{}};
- expect(eligibilityCheck({...j,salaryMax:69999},P,today)).toMatchObject({blocked:true,scoreCap:0});
- expect(eligibilityCheck({...j,salaryMin:70000,salaryMax:70000},P,today).eligible).toBe(true);
+ expect(eligibilityCheck({...j,salaryMin:50000,salaryMax:59999},P,today)).toMatchObject({blocked:true,scoreCap:0});
+ const near=eligibilityCheck({...j,salaryMin:50000,salaryMax:60000},P,today);
+ expect(near).toMatchObject({eligible:true,blocked:false,scoreCap:100});expect(near.issues[0]).toMatchObject({code:'salary_near',blocking:false});
+ expect(eligibilityCheck({...j,salaryMin:70000,salaryMax:70000},P,today)).toMatchObject({eligible:true,issues:[]});
  expect(eligibilityCheck({...j,salaryMax:null},P,today)).toMatchObject({scoreCap:100,issues:[{code:"salary_unpublished",blocking:true}]});
  expect(eligibilityCheck({...j,salaryMin:21000,salaryMax:52000},P,today).scoreCap).toBe(0);
- expect(eligibilityCheck({...j,salaryMin:60000},P,today).scoreCap).toBe(79);
+ // A range that reaches the expected pay is not held back by its lower end.
+ expect(eligibilityCheck({...j,salaryMin:40000,salaryMax:90000},P,today)).toMatchObject({scoreCap:100,issues:[{code:'salary_range',blocking:false}]});
+ expect(eligibilityCheck({...j,salaryMin:62000,salaryMax:90000},P,today).issues).toEqual([]);
  expect(eligibilityCheck(j,{...P,salaryMin:null,salaryConfirmed:false},today)).toMatchObject({eligible:false,scoreCap:79});
+});
+it('keeps a minimum salary set as a deal-breaker strict',()=>{
+ const j={...job,eligibility:{},salaryMin:50000,salaryMax:65000} as unknown as Job;
+ expect(eligibilityCheck(j,P,today).eligible).toBe(true);
+ expect(eligibilityCheck(j,{...P,dealBreakers:{minSalary:70000,minSalarySet:true}},today)).toMatchObject({blocked:true,scoreCap:0});
+ expect(eligibilityCheck(j,{...P,salaryMin:75000,dealBreakers:{minSalary:65000,minSalarySet:true}},today).eligible).toBe(true);
+});
+it('gives other countries 15% room below the expected salary',()=>{
+ const uk={...job,country:'GB',eligibility:{}} as unknown as Job,Q={...P,salaryMin:40000};
+ expect(eligibilityCheck({...uk,salaryMin:30000,salaryMax:34000},Q,today).eligible).toBe(true);
+ expect(eligibilityCheck({...uk,salaryMin:30000,salaryMax:33999},Q,today).blocked).toBe(true);
 });
 it('checks work permission and explicit sponsorship rather than guessing residency',()=>{
  const j={...job,eligibility:{}};

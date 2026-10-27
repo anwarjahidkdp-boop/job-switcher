@@ -5,7 +5,7 @@ const SALARY: GapAction = { href: "/profile#application-safety", label: "Update 
 const BIRTH: GapAction = { href: "/profile#application-safety", label: "Add date of birth" };
 
 const BY_CODE: Record<string, GapAction> = {
-  sal: SALARY, salary: SALARY, salary_unpublished: SALARY, salary_range: SALARY, salary_unknown: SALARY,
+  sal: SALARY, salary: SALARY, salary_unpublished: SALARY, salary_range: SALARY, salary_near: SALARY, salary_unknown: SALARY,
   age_unknown: BIRTH,
 };
 
