@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { writeFileSync } from "node:fs";
 import type { UserState } from "@/lib/server/state";
@@ -16,7 +16,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined })
 vi.mock("@/lib/career-safety", async (orig) => ({ ...(await orig<typeof import("@/lib/career-safety")>()), applicationSafety: () => ({ safe: true, issues: [] }) }));
 
 const TODAY = "2026-10-25";
-const NOW = new Date().toISOString(), OLD = "2026-01-01T00:00:00Z";
+const NOW = "2026-10-25T12:00:00.000Z", OLD = "2026-01-01T00:00:00Z";
 function job(id: string, title: string, company: string, extra: Record<string, unknown> = {}) {
   return { id, country: "BD", active: true, title, company, industry: null, category: null, location: "Dhaka", type: null, salaryMin: null, salaryMax: null, minYears: null, maxYears: null, seniority: null, education: null, required: ["SAP FICO", "IFRS"], preferred: ["Power BI"], certs: [], visa: null, deadline: "2026-11-05", publishedAt: "2026-10-23T00:00:00Z", apply: { method: "url", target: null }, url: null, source: "test", resp: [], addedAt: NOW, ...extra };
 }
@@ -43,7 +43,9 @@ function state(): UserState {
 }
 
 describe("career home", () => {
-  beforeEach(() => { h.st = state(); h.sub = { plan_code: "pro", status: "active", current_period_end: "2026-11-12T00:00:00Z" }; h.allowance = { limits: { day: 2, week: 10, month: 40 }, used: { day: 1, week: 4, month: 11 }, left: 1, reason: null }; });
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(NOW)); h.st = state(); h.sub = { plan_code: "pro", status: "active", current_period_end: "2026-11-12T00:00:00Z" }; h.allowance = { limits: { day: 2, week: 10, month: 40 }, used: { day: 1, week: 4, month: 11 }, left: 1, reason: null }; });
+
+  afterEach(() => { vi.useRealTimers(); });
 
   it("shows fit bands in order, progress, best match and career guide", async () => {
     const { default: Inbox } = await import("./page");
@@ -71,6 +73,13 @@ describe("career home", () => {
     expect(html).toContain("In trial");
     expect(html).toContain("5 of 5");
     expect(html).not.toContain("AI applications left");
+  });
+
+  it("does not label an expired trial as active at the exact expiry time", async () => {
+    h.sub = { plan_code: "trial", status: "trialing", trial_ends_at: "2026-10-28T00:00:00Z" };
+    vi.setSystemTime(new Date("2026-10-28T00:00:00Z"));
+    const { default: Inbox } = await import("./page");
+    expect(renderToStaticMarkup(await Inbox())).not.toContain("Pro Trial");
   });
 
   it("counts the summary from the same scores as the opportunities list", async () => {
