@@ -4,11 +4,14 @@ import type { GuidedSetup } from './guided-setup';
 import type { Job } from './types';
 /** A transparent first look, not a verified fit score. Never invent experience from desired titles. */
 export function previewMatches(jobs:Job[],text:string,d:GuidedSetup){
- const words=new Set(titleTokens(d.roles));
  const normalize=(s:string)=>s.toLowerCase().replace(/[^\p{L}\p{N}+#.]+/gu,' ').replace(/\.(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
+ const roleText=(s:string)=>normalize(s).replace(/\bfinancial\b/g,'finance');
+ const wanted=d.roles.split(',').map(roleText).filter(Boolean);
  const cv=' '+normalize(text)+' ';const contains=(s:string)=>cv.includes(' '+normalize(s)+' ');
  return jobs.filter(j=>!j.isSample&&!j.ownerId&&j.country===d.country&&(!j.deadline||j.deadline>=new Date().toISOString().slice(0,10))).flatMap(j=>{
-  if(!titleTokens(j.title).some(t=>words.has(t)))return [];
+  // A shared modifier such as management must not turn an unrelated trainee role into a match.
+  const title=' '+roleText(j.title)+' ';
+  if(!wanted.some(role=>title.includes(' '+role+' ')))return [];
   const skills=[...new Set([...j.required,...j.preferred])].filter(s=>s.length>1&&contains(s));
   // A title preference alone is not a CV match: require evidence of a title term or a listed skill.
   const titleEvidence=titleTokens(j.title).filter(t=>t.length>3&&contains(t));

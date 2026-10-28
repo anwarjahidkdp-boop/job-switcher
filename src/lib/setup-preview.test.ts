@@ -12,3 +12,9 @@ it('respects salary, visa, company, location and Bangladesh age restrictions',()
  expect(previewMatches([job],'Excel accountant',{...setup,locations:'Manchester',willingToRelocate:false})).toHaveLength(0);
  expect(previewMatches([{...job,country:'BD',eligibility:{maxAge:32,ageAsOf:'2026-10-28'}}],'Excel accountant',{...setup,country:'BD',birthDate:'1985-01-01'})).toHaveLength(0);
 });
+
+it('requires a preferred role phrase rather than a shared generic modifier',()=>{
+ const d={...setup,roles:'Management Accountant, Financial Analyst'};
+ const rows=[{...job,title:'Management Trainee'},{...job,title:'Senior Management Accountant'},{...job,title:'Finance Analyst'}];
+ expect(previewMatches(rows,'Management accountant and financial analyst using Excel.',d).map(x=>x.title)).toEqual(['Senior Management Accountant','Finance Analyst']);
+});
