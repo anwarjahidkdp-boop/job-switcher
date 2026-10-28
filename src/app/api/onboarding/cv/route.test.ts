@@ -1,0 +1,14 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+vi.mock('@/lib/server/api',()=>({apiCtx:vi.fn(),unauthorized:()=>Response.json({error:'Sign in'},{status:401}),apiError:(e:Error)=>Response.json({error:e.message},{status:400})}));
+vi.mock('@/lib/server/state',()=>({loadProfile:vi.fn()}));
+vi.mock('@/lib/server/onboarding',()=>({ingestCv:vi.fn()}));
+import {apiCtx} from '@/lib/server/api';
+import {loadProfile} from '@/lib/server/state';
+import {ingestCv} from '@/lib/server/onboarding';
+import {POST} from './route';
+const q={select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn()};
+const request=(country='GB')=>{const f=new FormData();f.set('file',new File(['a'.repeat(250)],'cv.txt',{type:'text/plain'}));f.set('text','a'.repeat(250));f.set('country',country);return new Request('https://jobpao.app/api/onboarding/cv',{method:'POST',body:f});};
+beforeEach(()=>{vi.clearAllMocks();q.select.mockReturnValue(q);q.eq.mockReturnValue(q);q.maybeSingle.mockResolvedValue({data:null,error:null});vi.mocked(apiCtx).mockResolvedValue({db:{from:()=>q},admin:{},userId:'owner'} as never);vi.mocked(loadProfile).mockResolvedValue({target_country:'GB',onboarding_step:'upload',career_meta:{guided_setup:true}} as never);vi.mocked(ingestCv).mockResolvedValue({} as never);});
+it('requires authentication and refuses to overwrite an existing CV',async()=>{vi.mocked(apiCtx).mockResolvedValueOnce(null);expect((await POST(request())).status).toBe(401);q.maybeSingle.mockResolvedValue({data:{id:'existing'},error:null});expect(await (await POST(request())).json()).toMatchObject({existing:true});expect(ingestCv).not.toHaveBeenCalled();});
+it('blocks returning accounts and changed search countries',async()=>{vi.mocked(loadProfile).mockResolvedValueOnce({onboarding_step:'done'} as never);expect((await POST(request())).status).toBe(409);expect((await POST(request('BD'))).status).toBe(409);expect(ingestCv).not.toHaveBeenCalled();});
+it('reuses the existing authenticated ingestion for the same-country empty guided setup',async()=>{expect((await POST(request())).status).toBe(200);expect(ingestCv).toHaveBeenCalledWith(expect.objectContaining({userId:'owner'}),expect.objectContaining({text:'a'.repeat(250),source:'file',file:expect.objectContaining({name:'cv.txt'})}));expect(q.eq).toHaveBeenCalledWith('user_id','owner');});
