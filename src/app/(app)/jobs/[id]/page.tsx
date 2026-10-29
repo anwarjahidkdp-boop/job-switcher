@@ -93,10 +93,10 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const lockedPack = false;
   const preparationExhausted = !!allowance && allowance.left <= 0;
   const aiLeft = !allowance ? null : allowance.left
-    ? `AI preparation: ${allowance.left} of ${allowance.limits.day} available today. For the best results, focus on your strongest-fit jobs. You can apply to other jobs independently using your CV.`
+    ? `Your tailored application plan: ${allowance.left} of ${allowance.limits.day} available today. We suggest focusing on your strongest matches; you can always apply independently with your CV.`
     : allowance.reason === "day"
-      ? "You've completed today's tailored preparations. New AI preparation becomes available tomorrow. You can still download your CV and apply independently to other suitable jobs."
-      : "You've used your current AI preparation allowance. Your saved documents and CV remain available for independent applications.";
+      ? "Quality over quantity. You've prepared today's ${allowance.limits.day} tailored applications. Focus on your strongest matches. You can download your CV to apply independently; tomorrow brings fresh AI preparations."
+      : "Quality over quantity. Your tailored preparation allowance is complete for now. Your CV and saved applications remain available for independent use.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
   const fee = job.country === "BD" ? applicationFee(description) : null;
   const canPrepare = !resolved && eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);

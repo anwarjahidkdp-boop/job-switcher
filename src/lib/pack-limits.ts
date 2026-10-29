@@ -23,9 +23,9 @@ export function packAllowance(times: string[], limits: PackLimits, now = Date.no
 }
 
 export function limitNotice(a: PackAllowance): string {
-  if (a.reason === "month") return `You have used this month's ${a.limits.month} AI-tailored applications.`;
-  if (a.reason === "week") return `You have used this week's ${a.limits.week} AI-tailored applications.`;
-  return `You have used today's ${a.limits.day} AI-tailored applications. More are available tomorrow.`;
+  if (a.reason === "month") return `Quality over quantity: your monthly tailored-preparation allowance is complete. Your CV is still available for independent applications.`;
+  if (a.reason === "week") return `Quality over quantity: your weekly tailored-preparation allowance is complete. You can keep applying independently with your CV.`;
+  return `Quality over quantity: you've completed today's ${a.limits.day} tailored preparations. More are available tomorrow; you can apply independently with your saved CV.`;
 }
 
 /** Free trial: the person can send one application a day, 5 in all; other ready applications wait behind Pro. */

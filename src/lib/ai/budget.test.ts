@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { checkBudget } from "./index";
+import { checkBudget, INTL_PRO_CAP_MICRO_USD } from "./index";
 import { AIError } from "./provider";
 import { costMicroUsd } from "./pricing";
 
 describe("AI monthly cap", () => {
+  it("sets international Pro budget to $3 (3 million micro-USD)", () => expect(INTL_PRO_CAP_MICRO_USD).toBe(3_000_000));
   const base = { spent: 0, cap: 500000, plan: "trial", status: "trialing", trialEndsAt: "2099-01-01T00:00:00Z" };
   it("allows calls under the cap", () => expect(() => checkBudget(base)).not.toThrow());
   it("refuses at or over the cap", () => {
