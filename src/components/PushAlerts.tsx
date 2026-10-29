@@ -67,13 +67,9 @@ export function usePushAlerts() {
 /** The invitation on the notifications page. Once alerts are on it says so briefly, then leaves the page to the list. */
 export function PushAlertsCard() {
   const { state, busy, note, turnOn } = usePushAlerts();
-  const [done, setDone] = useState(false);
-  useEffect(() => {
-    if (state !== "on") return;
-    const t = setTimeout(() => setDone(true), 3500);
-    return () => clearTimeout(t);
-  }, [state]);
-  if (state === "loading" || (state === "on" && (done || !note))) return null;
+  const [testing, setTesting] = useState(false);
+  const [testNote, setTestNote] = useState<string | null>(null);
+  if (state === "loading") return null;
   const ios = isIos();
   return (
     <div style={{ marginTop: 16, maxWidth: 760 }}>
@@ -89,6 +85,7 @@ export function PushAlertsCard() {
             : "See new strong matches, ready applications and reminders the moment they arrive, even when JobPao is closed."}
         </span>
         {note && state !== "on" ? <span className="small pa-note" role="status">{note}</span> : null}
+        {testNote ? <span className="small pa-note" role="status">{testNote}</span> : null}
       </div>
       <div className="pa-act">
         {state === "off" ? <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void turnOn()}>{busy ? "Turning on…" : "Turn on alerts"}</button> : null}
