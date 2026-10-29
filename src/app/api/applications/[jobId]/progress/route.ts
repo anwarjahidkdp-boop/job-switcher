@@ -9,7 +9,7 @@ export async function POST(req:Request,{params}:{params:Promise<{jobId:string}>}
  if(!/^[0-9a-f-]{36}$/i.test(jobId))return NextResponse.json({error:'Invalid application.'},{status:400});
  let raw:string;try{raw=await readLimitedText(req,2048);}catch{return NextResponse.json({error:'Request too large.'},{status:413});}
  let body:{action?:unknown;confirm?:unknown};try{body=JSON.parse(raw);}catch{return NextResponse.json({error:'Invalid update.'},{status:400});}
- if(body?.confirm!==true||!['applied','offer','closed','withdrawn'].includes(String(body.action)))return NextResponse.json({error:'Confirm the application update.'},{status:400});
+ if(body?.confirm!==true||!['applied','interviewed','offer','closed','withdrawn'].includes(String(body.action)))return NextResponse.json({error:'Confirm the application update.'},{status:400});
  try{
   if(body.action==='applied')await confirmExternalApplied(c,jobId);else await updateStatus(c,jobId,String(body.action));
   revalidatePath("/","layout");
