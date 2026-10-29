@@ -59,7 +59,7 @@ export function PackTabs(props: {cv:React.ReactNode;cvEditor:React.ReactNode;can
 
 const DONE: AppStatus[] = ["applied", "interview", "offer", "closed", "withdrawn"];
 
-export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; canApply?: boolean; blockingReason?:string; compact?: boolean; journey?:boolean; continueLabel?:string }) {
+export function ActionsPanel(p: { jobId: string; status: AppStatus | null; hasPack: boolean; reminderDate: string | null; appliedAt: string | null; deadline: string | null; today: string; applyMethod: string; applyTarget: string | null; url: string | null; notYet: boolean; gmailReady: boolean; gmail: string | null; gmailStatus: string | null; canApply?: boolean; blockingReason?:string; compact?: boolean; journey?:boolean; continueLabel?:string; interviewComplete?:boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"main" | "later" | "notyet" | "send">(p.notYet && p.status && !DONE.includes(p.status) ? "notyet" : "main");
   const [busy, setBusy] = useState("");
