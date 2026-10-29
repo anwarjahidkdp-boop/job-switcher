@@ -34,6 +34,27 @@ export function packNumbersCheck(pack: Pick<ApplicationPack, "summary" | "top_bu
   return numbersFlag(unknownNumbers([pack.summary, ...(pack.top_bullets || []), pack.cover_letter, pack.email_body], sources));
 }
 
+/** Safety-critical checks for generated employer-specific correspondence.
+ * Return problems for the caller to reject before saving or sending. No extra AI request.
+ * These checks intentionally avoid subjective prose grading: the job target and numeric
+ * factual claims can be assessed deterministically, whereas style still needs human review.
+ */
+export function packCriticalIssues(pack: ApplicationPack, master: MasterCV, job: {title: string; company: string}, prefs?: unknown, today = ""): string[] {
+  const bad: string[] = [];
+  const cover = (pack.cover_letter || "").trim();
+  const email = (pack.email_body || "").trim();
+  const subject = (pack.email_subject || "").trim();
+  const letters = cover.split(/\\s+/).filter(Boolean);
+  if (!cover || letters.length < 60) bad.push("cover letter is too short to explain the candidate's fit");
+  if (!email || email.split(/\\s+/).filter(Boolean).length < 20) bad.push("application email is incomplete");
+  const mentioned = (text: string, needle: string) => text.toLowerCase().includes(needle.toLowerCase().trim());
+  if (job.title && !mentioned(cover, job.title)) bad.push("cover letter does not identify the target role");
+  if (job.company && !mentioned(cover, job.company)) bad.push("cover letter does not identify the employer");
+  if (job.title && !mentioned(subject, job.title) && !mentioned(email, job.title)) bad.push("email does not identify the target role");
+  if (packNumbersCheck(pack, { master, job, prefs, today }).length) bad.push("generated text contains numbers not verified in the candidate profile");
+  return bad;
+}
+
 const lc = (s: string) => s.toLowerCase().trim();
 
 /**
