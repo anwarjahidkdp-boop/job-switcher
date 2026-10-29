@@ -18,6 +18,6 @@ describe('dashboard application progress', () => {
   });
   it('preserves unsent notifications and follows later interview status', () => {
     expect(currentApplicationNotifications([note], { j: app('ready', true) })[0]).toEqual(note);
-    expect(currentApplicationNotifications([note], { j: app('interview', true) })[0].title).toContain('Interview ·');
+    expect(currentApplicationNotifications([note], { j: app('interview', true) })[0].title).toContain('Interview scheduled ·');
   });
 });
