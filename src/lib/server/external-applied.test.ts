@@ -11,5 +11,5 @@ it('uses the atomic owner-scoped confirmation without a quota or sending call',a
 });
 it('propagates a concurrent-send rejection',async()=>{
  const rpc=vi.fn().mockResolvedValue({error:new Error('A send is still in progress')});
- await expect(confirmExternalApplied({db:{rpc} as unknown as SupabaseClient,admin:{} as SupabaseClient,userId:'owner'},'job')).rejects.toThrow('still in progress');
+ await expect(confirmExternalApplied({db:preparedDb(rpc),admin:{} as SupabaseClient,userId:'owner'},'job')).rejects.toThrow('still in progress');
 });
