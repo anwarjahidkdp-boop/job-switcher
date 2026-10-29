@@ -1,8 +1,10 @@
-import { canReusePack } from "../application-documents";
+import { requireActiveAccess, trialAccess } from "./trial-access";
 // Application lifecycle. The app never submits anything without the user's own press: "applied" (and interview/offer/withdrawn)
 // is set only in the user's session, either by their confirmation or after they press Apply and Gmail accepts the email
 // (see gmail.ts). A DB trigger enforces this again.
 import "server-only";
+import { randomUUID } from "node:crypto";
+import { applicationCv } from "../application-documents";
 import { assertSearchCountry } from "../application-country";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
@@ -53,8 +55,17 @@ export class TrialLimit extends Error {}
 export class ApplicationSafetyError extends Error { constructor(public check: SafetyCheck) { super(check.issues.map((x) => x.message).join(" ")); } }
 
 /** Free plan: one application a day, 5 in all. Every path to "applied" checks this (the database checks it again). */
-export async function assertCanApply(ctx: Pick<Ctx, "db" | "userId">) {
-  if (await hasPro(ctx)) return;
+export async function assertCanApply(ctx: Pick<Ctx, "db" | "userId">, jobId?: string) {
+  const access=await trialAccess(ctx.db,ctx.userId);
+  if(access.pro)return;
+  // A prepared application survives trial expiry and may be submitted once.
+  if(access.expired){
+    if(!jobId)throw new TrialLimit("Subscribe to create new applications.");
+    const {data:existing,error:existingError}=await ctx.db.from("applications").select("pack,applied_at").eq("user_id",ctx.userId).eq("job_id",jobId).maybeSingle();
+    if(existingError)throw existingError;
+    if(existing?.pack&&!existing.applied_at)return;
+    throw new TrialLimit("Subscribe to create new applications.");
+  }
   const { data: sent, error } = await ctx.db.from("applications").select("applied_at").eq("user_id", ctx.userId).not("applied_at", "is", null);
   if (error) throw error;
   if (!trialApplyRoom((sent || []) as { applied_at: string | null }[])) throw new TrialLimit(TRIAL_LIMIT_COPY);
@@ -93,16 +104,22 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   if (job.deadline && job.deadline < st.today) throw new Error("This vacancy has closed.");
   const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!canPrepareDraft(safety)) throw new ApplicationSafetyError(safety);
+  const existing = await getApp(ctx,jobId);
+  if(existing?.pack)return {flags:existing.pack_flags||[],ai:!!existing.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
+  await requireActiveAccess(ctx.db,ctx.userId);
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
-  if (app.pack && canReusePack(app.pack,job.id,st.master.id) && (app.pack_ai || app.pack.user_edited || opts.standardOnly || !aiConfigured())) return {flags:app.pack_flags||[],ai:app.pack_ai};
-  await event(ctx, app.id, "Preparing application");
-  if (app.status !== "reminder") {
-    const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
-    if (error) throw error;
-    if (!preparing) throw new Error("This application is being sent or was already submitted.");
+  if (app.pack) return {flags:app.pack_flags||[],ai:!!app.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
+  const preparationToken=randomUUID();
+  const {data:claimed,error:claimError}=await ctx.db.rpc("claim_application_preparation",{p_job:jobId,p_token:preparationToken});
+  if(claimError)throw claimError;
+  if(!claimed){
+    const latest=await getApp(ctx,jobId);
+    if(latest?.pack)return {flags:latest.pack_flags||[],ai:!!latest.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
+    throw new Error("This application is already being prepared. Open the saved documents when it finishes.");
   }
+  await event(ctx, app.id, "Preparing application");
 
   const master = st.master.content;
   const needVisa = st.profile.needs_visa;
@@ -128,13 +145,16 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   if (!pack.asks?.length) pack.asks = postAsks(description);
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
   checked.pack.prepared_for={job_id:job.id,source_cv_id:st.master.id};
+  // Persist the exact verified CV used for this first preparation. A later Master CV edit must not rewrite it.
+  checked.pack.source_cv_snapshot=structuredClone(master);
+
   if(!ai&&!reviewOnly)checked.pack.preparation_note=notice||"Standard draft: AI tailoring is unavailable. Review before applying.";
   if (reviewOnly) checked.flags.push("Salary not published — confirm pay before applying");
-  const fresh = await getApp(ctx, jobId);
-  const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
-  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
+  // The atomic claim temporarily sets Preparing; keep the pre-existing reminder after saving.
+  const status: AppStatus = app.status === "reminder" ? "reminder" : "ready";
+  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status,preparation_token:null,preparation_started_at:null }).eq("id", app.id).eq("preparation_token",preparationToken).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).is("pack",null).select("id").maybeSingle();
   if (saveErr) throw saveErr;
-  if (!saved) throw new Error("This application is being sent or was already submitted.");
+  if (!saved) return {flags:checked.flags,ai,notice:"This application was already prepared in another request. Its first saved version has been kept."};
   await event(ctx, app.id, "Application ready", status);
   return { flags: checked.flags, ai, notice };
 }
@@ -175,15 +195,23 @@ export async function confirmApplied(ctx: Ctx, jobId: string) {
 
 /** Explicit user confirmation records history; it never sends or spends AI allowance. */
 export async function confirmExternalApplied(ctx: Ctx, jobId: string) {
+  const current=await getApp(ctx,jobId);
+  if(!current?.pack)throw new Error("Prepare the CV and cover letter before confirming your application.");
   const { error } = await ctx.db.rpc("confirm_external_application", { p_job: jobId });
   if (error) throw error;
 }
 
-const LATER: AppStatus[] = ["interview", "offer", "closed", "withdrawn"];
+const LATER: AppStatus[] = ["offer", "closed", "withdrawn"];
 export async function updateStatus(ctx: Ctx, jobId: string, status: string) {
-  if (!LATER.includes(status as AppStatus)) throw new Error("Unknown status");
+  if(status!=="interviewed"&&!LATER.includes(status as AppStatus)) throw new Error("Unknown status");
   const app = await getApp(ctx, jobId);
   if (!app || !["applied", "interview", "offer"].includes(app.status)) throw new Error("Confirm the application first.");
+  if(status==="interviewed"){
+    if(app.status!=="interview"||!app.interview_at)throw new Error("Record the interview schedule before marking it completed.");
+    const {data:old}=await ctx.db.from("application_events").select("id").eq("application_id",app.id).eq("event","Interview completed").limit(1).maybeSingle();
+    if(!old)await event(ctx,app.id,"Interview completed","interview");
+    return;
+  }
   const { error } = await ctx.db.from("applications").update({ status }).eq("id", app.id);
   if (error) throw error;
   const labels: Record<string, string> = { interview: "Interview", offer: "Offer", closed: "Rejected / Closed", withdrawn: "Withdrawn" };

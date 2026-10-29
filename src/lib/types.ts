@@ -148,6 +148,8 @@ export interface InterviewPrep {
 export interface ApplicationPack {
   /** User-edited CV for this application only; the master profile is unchanged. */
   edited_cv?: MasterCV;
+  /** Frozen master CV used when the pack was first generated; later profile edits do not rewrite this application. */
+  source_cv_snapshot?: MasterCV;
   prepared_for?: {job_id:string;source_cv_id:string};
   preparation_note?:string;
   user_edited?:boolean;
@@ -185,4 +187,4 @@ export interface Preferences {
 
 export const APP_STATUSES = ["preparing", "ready", "reminder", "waiting", "applied", "interview", "offer", "closed", "withdrawn"] as const;
 export type AppStatus = (typeof APP_STATUSES)[number];
-export const STATUS_LABEL: Record<AppStatus, string> = { preparing: "Preparing", ready: "Application ready", reminder: "Reminder set", waiting: "Waiting for you", applied: "Applied", interview: "Interview", offer: "Offer", closed: "Rejected / Closed", withdrawn: "Withdrawn" };
+export const STATUS_LABEL: Record<AppStatus, string> = { preparing: "Preparing", ready: "Prepared", reminder: "Prepared · Reminder set", waiting: "Prepared · Awaiting submission", applied: "Applied", interview: "Interview scheduled", offer: "Offer", closed: "Rejected / Closed", withdrawn: "Withdrawn" };

@@ -3,19 +3,20 @@ import type {SupabaseClient} from '@supabase/supabase-js';
 import {DEMO_MASTER} from '../demo';
 const {ai}=vi.hoisted(()=>({ai:vi.fn()}));
 vi.mock('server-only',()=>({}));
+vi.mock('./trial-access',()=>({requireActiveAccess:async()=>{},trialAccess:async()=>({active:true,expired:false,pro:false})}));
 vi.mock('./state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
 vi.mock('../ai',()=>({aiConfigured:()=>true,getBudget:async()=>({plan:'trial'}),runAI:ai}));
 vi.mock('../numbers-check',()=>({checkPack:(pack:unknown)=>({pack,flags:[]})}));
 import {loadState,loadJob} from './state';
 import {preparePack} from './applications';
-it('generates the next job from its own post and latest master, then reuses only that exact saved pack',async()=>{
+it('generates a pack for its job exactly once, preserving the saved pack after CV changes',async()=>{
  const prompts:string[]=[];
  ai.mockImplementation(async(_db:unknown,_user:string,feature:string,callback:(p:unknown)=>Promise<unknown>)=>callback({generateJSON:async(options:{prompt:string})=>{
   prompts.push(options.prompt);
   return {data:feature==='pack'?{summary:'Tailored for B Company',top_bullets:['Verified duty'],skills_order:[],emphasis:[],checklist:[]}:{cover_letter:'Letter for B Company',email_subject:'Job B',email_body:'Email for B Company'},usage:{model:'synthetic-quality-test'}};
  }}));
  let app:Record<string,unknown>={id:'app-b',status:'ready',pack:null};
- const db={from(table:string){
+ const db={rpc:async()=>({data:true,error:null}),from(table:string){
   let patch:Record<string,unknown>|undefined;
   const q:Record<string,unknown>={};
   for(const method of ['select','eq','not','is','maybeSingle','single','gte'])q[method]=()=>q;
@@ -36,12 +37,12 @@ it('generates the next job from its own post and latest master, then reuses only
  st.master.id='new-cv';st.master.content={...DEMO_MASTER,summary:'LATEST_MASTER_CONTENT'};
  vi.mocked(loadJob).mockResolvedValue({id:'b',title:'Finance Manager',company:'B Company',country:'BD',active:true,minYears:0,salaryMin:null,salaryMax:null,required:[],preferred:[],resp:['Financial reporting']} as never);
  await preparePack(ctx,'b');
- expect(ai).toHaveBeenCalledTimes(4);
- expect(prompts.slice(-2).every(p=>p.includes('LATEST_MASTER_CONTENT')&&p.includes('B Company'))).toBe(true);
- expect(app.pack).toMatchObject({prepared_for:{job_id:'b',source_cv_id:'new-cv'}});
+ expect(ai).toHaveBeenCalledTimes(2);
+ expect(prompts.every(p=>!p.includes('LATEST_MASTER_CONTENT'))).toBe(true);
+ expect(app.pack).toMatchObject({prepared_for:{job_id:'b',source_cv_id:'latest-cv'}});
  app={...app,pack_ai:false};
- await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(6);
+ await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(2);
  app={...app,pack_ai:false,pack:{...(app.pack as Record<string,unknown>),user_edited:true}};
- await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(6);
+ await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(2);
  expect(st.apps.a.pack).toEqual(oldPack);
 });

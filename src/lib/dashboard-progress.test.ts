@@ -17,7 +17,10 @@ describe('dashboard application progress', () => {
     expect(note.title).toContain('New');
   });
   it('preserves unsent notifications and follows later interview status', () => {
-    expect(currentApplicationNotifications([note], { j: app('ready', true) })[0]).toEqual(note);
-    expect(currentApplicationNotifications([note], { j: app('interview', true) })[0].title).toContain('Interview ·');
+    const prepared=currentApplicationNotifications([note], { j: app('ready', true) })[0];
+    expect(prepared.title).toContain('Prepared ·');
+    expect(prepared.body).toContain('saved');
+    expect(prepared.link).toBe('/jobs/j#application');
+    expect(currentApplicationNotifications([note], { j: app('interview', true) })[0].title).toContain('Interview scheduled ·');
   });
 });

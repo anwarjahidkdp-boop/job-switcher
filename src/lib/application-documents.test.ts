@@ -22,3 +22,11 @@ it('starts editing from the tailored application content and preserves the maste
  expect(edited.cover_letter).toBe('Existing letter');expect(before).toEqual(DEMO_MASTER);
  expect(applicationCv(before,edited)).toBe(edited.edited_cv);
 });
+
+it('keeps the original application CV snapshot even when the master CV changes',()=>{
+ const original={...DEMO_MASTER,name:'Original Applicant'};
+ const later={...DEMO_MASTER,name:'Updated Applicant'};
+ const saved={...pack,source_cv_snapshot:original};
+ expect(applicationCv(later,saved).name).toBe('Original Applicant');
+ expect(applicationCv(later,saved).summary).toBe('Application summary');
+});

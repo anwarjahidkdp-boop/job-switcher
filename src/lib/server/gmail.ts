@@ -1,5 +1,5 @@
 import { ukApplicationRoute } from "../uk-application";
-import { applicationCv,canReusePack } from "../application-documents";
+import { applicationCv,packBoundToJob } from "../application-documents";
 // "Send from my Gmail": Google OAuth with the gmail.send scope only (we can send, never read the mailbox),
 // and sending one application when the user presses Apply. Nothing is ever sent without that press.
 import "server-only";
@@ -85,7 +85,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   const st = await loadState(ctx.db, ctx.userId, undefined, { skipMatching: true });
   const app = st?.apps[jobId];
   if (!st?.master || !app?.pack) throw new Error("Prepare the application first.");
-  if(!canReusePack(app.pack,jobId,st.master.id))throw new Error("Prepare fresh documents for this job before sending.");
+  if(!packBoundToJob(app.pack,jobId))throw new Error("The saved application belongs to another job.");
   if (["applied", "interview", "offer", "closed", "withdrawn"].includes(app.status)) throw new Error("This application was already sent.");
   const { data: job } = await ctx.db.from("jobs").select("*").eq("id", jobId).maybeSingle();
   if (!job || job.apply_method !== "email" || !job.apply_target) throw new Error("This job does not take applications by email. Apply on the employer's page instead.");
@@ -94,7 +94,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   const safety = applicationSafety(rowToJob(job as JobRow), st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library as AnswerLibrary, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!safety.safe) throw new ApplicationSafetyError(safety);
   const to = cleanAddress(job.apply_target);
-  await assertCanApply(ctx);
+  await assertCanApply(ctx,jobId);
 
   let photoUrl: string | null = null;
   if (st.profile.photo_path) {

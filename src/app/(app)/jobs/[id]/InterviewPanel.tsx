@@ -2,6 +2,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui";
+import { SubscribePrompt } from "@/components/SubscribePrompt";
 import type { InterviewPrep, InterviewTopic } from "@/lib/types";
 
 type Mode = "in_person" | "phone" | "video";
@@ -22,12 +23,13 @@ function when(iso: string) {
   return { label: `${day}, ${t}`, rel, past: days < 0 };
 }
 
-export function InterviewPanel(p: { jobId: string; company: string; at: string | null; mode: Mode | null; where: string | null; notes: string | null; prep: InterviewPrep | null; prepAi: boolean; aiReady: boolean }) {
+export function InterviewPanel(p: { jobId: string; company: string; at: string | null; mode: Mode | null; where: string | null; notes: string | null; prep: InterviewPrep | null; prepAi: boolean; aiReady: boolean; aiLocked?:boolean }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
+  const [subscribe,setSubscribe]=useState(false);
   const [f, setF] = useState({ date: "", time: "10:00", mode: "in_person" as Mode, where: p.where || "", notes: p.notes || "" });
   // Shown in the viewer's own time zone, so it is rendered only in the browser.
   const inBrowser = useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -64,7 +66,8 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
         <>
           <h3>Prepare for this interview</h3>
           <p className="small muted" style={{ marginTop: 4 }}>We read the job description and your CV, then list the questions you are likely to get, with sample answers you can practise.</p>
-          <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={prepare}>Prepare me for this interview</button>
+          <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={prepare}>{p.aiLocked?"Prepare standard questions":"Prepare me for this interview"}</button>
+          {p.aiLocked?<button className="btn btn-ghost btn-sm" style={{marginTop:10}} onClick={()=>setSubscribe(true)}>Unlock AI interview preparation</button>:null}
         </>
       ) : (
         <>
@@ -84,11 +87,12 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
           </div>
           {p.prep.ask_them.length ? <><h3 style={{ marginTop: 16 }}>Questions you can ask them</h3><ul className="why-list">{p.prep.ask_them.map((x) => <li key={x}><span className="mk ok">?</span><span>{x}</span></li>)}</ul></> : null}
           {p.prep.checklist.length ? <><h3 style={{ marginTop: 16 }}>Before the interview</h3><ul className="why-list">{p.prep.checklist.map((x) => <li key={x}><span className="mk ok">✓</span><span>{x}</span></li>)}</ul></> : null}
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={prepare}>{p.aiReady && !p.prepAi ? "Prepare again with Claude" : "Prepare again"}</button>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={p.aiLocked?()=>setSubscribe(true):prepare}>{p.aiLocked?"Unlock AI interview prep":p.aiReady && !p.prepAi ? "Prepare again with Claude" : "Prepare again"}</button>
         </>
       )}
       {notice ? <p className="note" style={{ marginTop: 10 }}>{notice}</p> : null}
       {err ? <p role="alert" className="err" style={{ marginTop: 10 }}>{err}</p> : null}
+      {subscribe?<SubscribePrompt close={()=>setSubscribe(false)} feature="unlock AI interview preparation"/>:null}
     </div>
   );
 

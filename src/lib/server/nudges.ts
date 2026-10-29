@@ -43,7 +43,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
   for (const a of (applied || []) as unknown as { id: string; user_id: string; job_id: string; reply_checked_at?:string|null; jobs: { title: string; company: string; country: string } }[]) {
     if(a.reply_checked_at&&Date.parse(a.reply_checked_at)>now.getTime()-FOLLOWUP_DAYS*DAY)continue;
     const followUp = a.jobs.country !== "BD" ? " No reply yet? We have a short follow-up email ready for you to send." : "";
-    add(a.user_id, { kind: "reply", title: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title}. Tell us if you got an interview call, and we will prepare you for it.`, link: `/jobs/${a.job_id}#reply`, key: `reply:${a.id}:${a.reply_checked_at||"first"}` },
+    add(a.user_id, { kind: "reply", title: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title}. Tell us if you got an interview call, and we will prepare you for it.`, link: `/jobs/${a.job_id}#interview`, key: `reply:${a.id}:${a.reply_checked_at||"first"}` },
       { subject: `Any reply from ${a.jobs.company}?`, body: `You applied for ${a.jobs.title} at ${a.jobs.company} a few days ago. Got an interview call? Tell us in one tap and we will prepare your interview answers.${followUp}`, button: "Update my application" });
   }
 

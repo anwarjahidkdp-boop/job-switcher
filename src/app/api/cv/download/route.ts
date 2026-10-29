@@ -2,8 +2,6 @@ import { applicationCv,packBoundToJob } from "@/lib/application-documents";
 import { NextResponse } from "next/server";
 import { apiCtx, unauthorized } from "@/lib/server/api";
 import { loadState } from "@/lib/server/state";
-import { isPro } from "@/lib/server/page";
-import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
 import { cvDocHtml, cvPrintHtml, safeFileName } from "@/lib/cv/doc";
 import { coverLetterDocHtml, coverLetterPrintHtml } from "@/lib/cv/cover-letter";
 
@@ -15,18 +13,13 @@ export async function GET(req: Request) {
   const format = u.searchParams.get("format") === "print" ? "print" : "doc";
   const jobId = u.searchParams.get("jobId");
   const cover = u.searchParams.get("document") === "cover";
-  // Downloads need the saved CV and trial/application checks, not a fresh job-market ranking.
+  // Saved CV and cover-letter downloads remain available after trial expiry.
   const st = await loadState(c.db, c.userId, undefined, { skipMatching: true });
   if (!st?.master) return NextResponse.json({ error: "No CV yet." }, { status: 404 });
   if (!["done", "reveal"].includes(st.profile.onboarding_step)) return NextResponse.json({ error: "Complete your current country's setup and rebuild your CV before downloading." }, { status: 409 });
   const app = jobId ? st.apps[jobId] : null;
   if (jobId && !app?.pack) return NextResponse.json({ error: "No application pack for this job." }, { status: 404 });
   if(app?.pack&&jobId&&!packBoundToJob(app.pack,jobId))return NextResponse.json({error:"Prepare fresh documents for this job."},{status:409});
-  // Free trial: a ready application beyond today's one stays locked behind Pro here too (same rule as the job page).
-  if (app && (app.status === "ready" || app.status === "reminder") && !(await isPro(c.db, c.userId))) {
-    const apps = Object.values(st.apps);
-    if (!unlockedReady(apps, trialApplyRoom(apps)).has(app.job_id)) return NextResponse.redirect(new URL("/upgrade?from=trial", req.url));
-  }
   const master=app?.pack?applicationCv(st.master.content,app.pack):st.master.content;
   if (cover) {
     if (!app?.pack?.cover_letter) return NextResponse.json({ error: 'No cover letter for this application.' }, { status: 404 });

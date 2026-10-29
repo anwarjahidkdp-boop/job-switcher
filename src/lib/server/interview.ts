@@ -1,6 +1,7 @@
 import { applicationCv,packBoundToJob } from "../application-documents";
 // Interview tracking (the user records an interview call) and AI interview preparation from the job and the verified Master CV.
 import "server-only";
+import { trialAccess } from "./trial-access";
 import { aiConfigured, runAI } from "../ai";
 import { aiErrCopy } from "../ai/provider";
 import { InterviewPrepSchema } from "../ai/schemas";
@@ -47,7 +48,8 @@ export async function prepareInterview(ctx: Ctx, jobId: string): Promise<{ ai: b
   if(app.pack&&!packBoundToJob(app.pack,jobId))throw new Error("Prepare documents for this job before interview preparation.");
   const cv=app.pack?applicationCv(st.master.content,app.pack):st.master.content;
   let prep: InterviewPrep | null = null, ai = false, notice: string | undefined;
-  if (aiConfigured()) {
+  const access=await trialAccess(ctx.db,ctx.userId);
+  if (access.active && aiConfigured()) {
     try {
       const r = await runAI(ctx.admin, ctx.userId, "interview", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: INTERVIEW_PROMPT(cv, job, app.interview_mode ?? null), schema: InterviewPrepSchema }));
       prep = r.data as InterviewPrep;
@@ -56,7 +58,10 @@ export async function prepareInterview(ctx: Ctx, jobId: string): Promise<{ ai: b
       notice = aiErrCopy(e) + " Showing the standard preparation.";
     }
   }
-  if (!ai) prep = templateInterview(job, cv);
+  if (!ai) {
+    prep = templateInterview(job, cv);
+    if (access.expired) notice = "Standard interview preparation is available. Subscribe for new AI-generated questions.";
+  }
   prep = withSalaryPrep(prep!, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country));
   const { error } = await ctx.db.from("applications").update({ interview_prep: prep, interview_prep_ai: ai }).eq("id", app.id);
   if (error) throw error;

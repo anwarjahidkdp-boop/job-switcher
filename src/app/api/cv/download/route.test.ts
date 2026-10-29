@@ -26,8 +26,8 @@ it('returns private printable cover letters and Word attachments', async () => {
   expect(word.headers.get('content-disposition')).toContain('Synthetic-Cover-Letter.doc');
   expect(loadState).toHaveBeenCalledWith(expect.anything(), 'synthetic', undefined, {skipMatching:true});
 });
-it('applies the existing trial lock to cover letters as well as CVs', async () => {
+it('keeps previously prepared cover letters downloadable after the trial ends', async () => {
   vi.mocked(isPro).mockResolvedValue(false);
   const response = await GET(new Request('https://example.invalid/api/cv/download?document=cover&format=print&jobId=own'));
-  expect(response.status).toBe(307); expect(response.headers.get('location')).toContain('/upgrade?from=trial');
+  expect(response.status).toBe(200); expect(await response.text()).toContain('Private cover letter');
 });
