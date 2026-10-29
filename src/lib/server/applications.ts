@@ -8,7 +8,7 @@ import { applicationCv } from "../application-documents";
 import { assertSearchCountry } from "../application-country";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
-import { checkPack } from "../numbers-check";
+import { checkPack, packCriticalIssues } from "../numbers-check";
 import { PACK_PROMPT, SYSTEM_RULES } from "../prompts";
 import { postAsks } from "../job-asks";
 import { PackLetterSchema, PackTailorSchema } from "../ai/schemas";
@@ -142,7 +142,16 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
       const td = tailor.data as { asks?: string[]; instructions?: string | null };
       const letter = await runAI(ctx.admin, ctx.userId, "pack_letter", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry, { asks: td.asks, instructions: td.instructions }), schema: PackLetterSchema }));
       pack = { ...(tailor.data as Omit<ApplicationPack, "cover_letter" | "email_subject" | "email_body">), ...(letter.data as Pick<ApplicationPack, "cover_letter" | "email_subject" | "email_body">) };
-      ai = true; model = `${tailor.usage.model} + ${letter.usage.model}`;
+      // Deterministic QA gate: do not save an AI letter that omits the job target,
+      // is incomplete, or asserts unverified numbers. Revert to grounded draft.
+      const critical = packCriticalIssues(pack, master, { title: job.title, company: job.company }, st.P, st.today);
+      if (critical.length) {
+        notice = "This AI draft did not pass our document quality checks. A standard draft was prepared instead; please review it before applying.";
+        pack = null;
+        model = null;
+      } else {
+        ai = true; model = `${tailor.usage.model} + ${letter.usage.model}`;
+      }
     } catch (e) {
       notice = aiErrCopy(e) + " Showing the template version.";
     }
