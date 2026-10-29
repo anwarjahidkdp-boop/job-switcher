@@ -112,7 +112,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   // People can still use their existing CV and apply independently to any suitable vacancy.
   const currentAllowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
   if (currentAllowance && currentAllowance.left <= 0) {
-    throw new ApplicationPreparationLimit(limitNotice(currentAllowance) + " You can still download your CV and apply independently. Choose your strongest opportunities for tailored preparation.");
+    throw new ApplicationPreparationLimit(limitNotice(currentAllowance) + " Your saved CV is available for independent applications. We recommend focusing on your strongest-fit opportunities.");
   }
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
