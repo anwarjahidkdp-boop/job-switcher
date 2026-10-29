@@ -46,8 +46,8 @@ it("picks by the live score, mentions a post listed twice only once, and never c
     aiCheck: new Map([["e", {}], ["f", {}], ["g", {}], ["h", {}]]),
   });
   const settled: string[][] = [];
-  await processNewMatches(db([row("e", 55), twin("f"), twin("g"), row("h", 90)], settled), ["u"], { appUrl: "https://x" });
-  const titles = m.notify.mock.calls[0][2].map((n: { title: string }) => n.title);
+  await processNewMatches(db([row("e", 55), twin("f"), twin("g"), row("h", 90)], settled), ["u"], { appUrl: "https://x", now: new Date("2026-10-29T10:00:00Z") });
+  const titles = m.notify.mock.calls.flatMap((call) => call[2].map((n: { title: string }) => n.title));
   expect(titles).toEqual(["New 84% match: Job e", "New 80% match: Finance Business Partner"]);
   expect(settled.at(-1)).toEqual(["e", "f", "g", "h"]);
 });
