@@ -43,6 +43,6 @@ it('generates a pack for its job exactly once, preserving the saved pack after C
  app={...app,pack_ai:false};
  await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(2);
  app={...app,pack_ai:false,pack:{...(app.pack as Record<string,unknown>),user_edited:true}};
- await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(6);
+ await preparePack(ctx,'b');expect(ai).toHaveBeenCalledTimes(2);
  expect(st.apps.a.pack).toEqual(oldPack);
 });
