@@ -34,7 +34,8 @@ import { daysUntil } from "@/lib/dates";
 import { FOLLOWUP_DAYS } from "@/lib/server/nudges";
 import { normCompany } from "@/lib/ingest/sponsors";
 import { packAllowanceFor } from "@/lib/server/applications";
-import { trialApplyRoom, unlockedReady } from "@/lib/pack-limits";
+import { trialApplyRoom } from "@/lib/pack-limits";
+import { trialAccess } from "@/lib/server/trial-access";
 import { applicationFee, askRows, feeLine, postAsks } from "@/lib/job-asks";
 import { gapAction } from "@/lib/gap-actions";
 import { scamCheck } from "@/lib/scam-check";
@@ -57,12 +58,13 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const storedApp = st.apps[job.id];
   const a=storedApp?.pack&&!packBoundToJob(storedApp.pack,job.id)?{...storedApp,pack:null}:storedApp;
   const resolved=isResolvedApplication(a);
-  const sourceNeedsRefresh=!resolved&&!!a?.pack&&!canReusePack(a.pack,job.id,st.master.id);
-  const canUpgradeStandard=!resolved&&!!a?.pack&&!a.pack_ai&&!a.pack.user_edited&&aiConfigured();
+  // A job-specific pack is created only once, even after the master CV changes.
+  const sourceNeedsRefresh=false;
+  const canUpgradeStandard=false;
   const packMaster=a?.pack?applicationCv(st.master.content,a.pack):st.master.content;
   const canEmail = job.apply.method === "email" && !!job.apply.target && gmailConfigured();
   // Every read below is its own round trip to the database, so they all run at once.
-  const [{ data: descRow }, { data: occurrences }, sponsor, photo, gmail, allowance, pro] = await Promise.all([
+  const [{ data: descRow }, { data: occurrences }, sponsor, photo, gmail, allowance, access] = await Promise.all([
     // The full post, so the person can judge the job themselves before applying (list loads leave it out).
     db.from("jobs").select("description,source_kind").eq("id", job.id).maybeSingle(),
     job.country === "BD" ? db.from("job_source_occurrences").select("discovered_url, original_source_url").eq("job_id", job.id).limit(20) : { data: null },
@@ -72,7 +74,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
     a?.pack ? photoUrl(db, st.profile.photo_path) : null,
     canEmail ? gmailAccount(createAdminClient(), st.userId) : null,
     !resolved&&(!a?.pack||sourceNeedsRefresh||canUpgradeStandard) && aiConfigured() ? packAllowanceFor(createAdminClient(), st.userId) : null,
-    isPro(db, st.userId),
+    trialAccess(db, st.userId),
   ]);
   const description = String(descRow?.description || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 20000);
   const ukRoute = job.country === "GB" ? ukApplicationRoute({ method: job.apply.method, target: job.apply.target, url: job.url, description }) : null;
@@ -83,17 +85,19 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const r = rule(job.country);
   const { tpl, accent } = resolveStyle(st.profile.cv_style, job.country);
   const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
-  const needsFreshPack=sourceNeedsRefresh||(canUpgradeStandard&&!!allowance?.left);
+  const pro=access.pro;
+  const needsFreshPack=false;
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
   const room = trialApplyRoom(apps);
-  const lockedPack = !!a?.pack && (a.status === "ready" || a.status === "reminder") && !pro && !unlockedReady(apps, room).has(job.id);
+  // Prepared files remain available even when the trial has ended.
+  const lockedPack = false;
   const aiLeft = !allowance ? null : allowance.left
     ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
     : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
   const fee = job.country === "BD" ? applicationFee(description) : null;
-  const canPrepare = !resolved && eligibility.eligible && (!a?.pack||needsFreshPack) && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
+  const canPrepare = !resolved && eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
   return (
     <>
       <PageHead slim back={{ href: "/opportunities", label: "Back to opportunities" }} />
@@ -102,7 +106,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <div className="job-review-header">
               <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
-              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?<PrepareApplicationButton key={job.id} jobId={job.id} label={ukRoute ? "Prepare application" : "Apply"} openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">{ukRoute ? "Review application" : "Apply"}</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">{ukRoute ? "Prepare application" : "Apply"}</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
+              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?<PrepareApplicationButton key={job.id} jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Prepared · View Application</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Prepare Application</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
@@ -139,8 +143,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application">
             {ukRoute ? <UKApplicationJourney prepared={false} opened={false} submitted={false} route={ukRoute}/>:null}
             <h2>{ukRoute ? '01 · Prepare your application' : 'Your CV & cover letter'}</h2>
-            {canPrepare ? <><p className="small muted">{ukRoute ? 'Prepare a CV and cover letter for this role. Then review your documents and saved answers before continuing to the application.' : 'Review the company and job details first. Press Apply beside the company name when you are ready to prepare your CV, cover letter and email draft. Reviewing this page does not use AI.'}</p>
-              {ukRoute ? <PrepareApplicationButton jobId={job.id} label="Prepare CV & cover letter" openPack/>:null}
+            {canPrepare ? <><p className="small muted">{ukRoute ? 'Prepare a CV and cover letter for this role. Then review your documents and saved answers before continuing to the application.' : 'Review the company and job details first. Press Prepare Application beside the company name to create and save your CV, cover letter and email draft once. Reviewing this page does not use AI.'}</p>
+              {ukRoute ? <PrepareApplicationButton jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>:null}
               {!safety.safe?<p className="note small" role="status">This job does not publish its salary. Confirm the pay before you send your application.</p>:null}
             </>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}
           </section>:null}
@@ -175,7 +179,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
                   </div>
                 ) : <p className="small muted" style={{ marginTop: 10 }}>The post does not list documents, so your tailored CV and cover letter are ready to send.</p>;
               })()}
-              {needsFreshPack?<p className="note small" role="status">Prepare fresh documents from your latest CV before continuing with this application.</p>:null}
+              <p className="small muted" role="status">Prepared and saved for this job. You can view or download this same pack again without generating another one.</p>
               <PackTabs key={job.id}
                 showEmail={!ukRoute || ukRoute.kind === "email"}
                 canEdit={["ready","reminder","waiting"].includes(a.status)}
@@ -194,9 +198,9 @@ export default async function JobPage({ params, searchParams }: { params: Promis
                 <UKApplicationStep id="uk-submit" number={3} title={ukRoute.kind === 'email' ? 'Send your application email' : ukRoute.kind === 'review' ? 'Check how to submit' : 'Continue to the application'} sub={ukRoute.kind === 'email' ? 'The advert explicitly names an email application route.' : 'Keep your reviewed documents ready. Submit on the original site.'}>
                   {ukRoute.kind === 'review' ? <><p className="note small">An application email could not be verified. Check the original advert for the correct submission instructions.</p>{ukRoute.href ? <a className="btn btn-primary btn-sm" href={ukRoute.href} target="_blank" rel="noopener noreferrer nofollow">View original application instructions ↗</a>:<p className="small muted">No valid HTTPS application link was supplied. Verify it with the original source.</p>}</> :
                   <ActionsPanel journey jobId={job.id} status={a.status} hasPack reminderDate={a.reminder_date} appliedAt={a.applied_at} deadline={job.deadline} today={st.today} applyMethod={ukRoute.kind} applyTarget={ukRoute.recipient} url={ukRoute.href} notYet={sp.notyet === '1'} canApply={safety.safe} blockingReason={safety.issues.filter(i=>i.blocking).map(i=>i.message).join(' ')} gmailReady={canEmail && ukRoute.kind === 'email'} gmail={gmail} gmailStatus={sp.gmail ?? null} continueLabel={ukRoute.label}/>}</UKApplicationStep>
-                <UKApplicationStep id="uk-track" number={4} title="Confirm & track" sub="Only record a submission after you have actually sent it."><ApplicationProgress key={`uk-progress-${job.id}`} jobId={job.id} status={a.status} appliedAt={a.applied_at} interviewAt={a.interview_at} history={a.application_events||[]} trial={!pro} remaining={room} journey/></UKApplicationStep>
+                <UKApplicationStep id="uk-track" number={4} title="Confirm & track" sub="Only record a submission after you have actually sent it."><ApplicationProgress key={`uk-progress-${job.id}`} jobId={job.id} status={a.status} appliedAt={a.applied_at} interviewAt={a.interview_at} history={a.application_events||[]} trial={access.active&&!pro} remaining={access.expired?1:room} journey/></UKApplicationStep>
               </>:null}
-              {!ukRoute ? <ApplicationProgress key={`progress-${job.id}`} jobId={job.id} status={a.status} appliedAt={a.applied_at} interviewAt={a.interview_at} history={a.application_events||[]} trial={!pro} remaining={room}/>:null}
+              {!ukRoute ? <ApplicationProgress key={`progress-${job.id}`} jobId={job.id} status={a.status} appliedAt={a.applied_at} interviewAt={a.interview_at} history={a.application_events||[]} trial={access.active&&!pro} remaining={access.expired?1:room}/>:null}
             </div>
           ) : null}
           {a?.status === "offer" ? <OfferPanel job={{ title: job.title, company: job.company, country: job.country, salaryMin: job.salaryMin, salaryMax: job.salaryMax }} facts={salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)} name={st.profile.full_name || st.master.content.name} sym={rule(job.country).sym} per={rule(job.country).per === "year" ? "a year" : "a month"} /> : null}
@@ -207,10 +211,10 @@ export default async function JobPage({ params, searchParams }: { params: Promis
         </div>
         <aside className="side">
           {!pro ? <div className="card panel upsell" role="status">
-            <p className="eyebrow">Free trial</p>
-            <h3 style={{ margin: "4px 0 6px" }}>1 application per day · {room} remaining today</h3>
-            <p className="small">Your allowance is shared across all countries. Changing country does not reset it.</p>
-            {!room ? <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade">Go Pro and apply to more</Link> : null}
+            <p className="eyebrow">{access.expired?"Trial ended":"Free trial"}</p>
+            <h3 style={{ margin: "4px 0 6px" }}>{access.expired?"Subscribe to prepare more applications":`1 application per day · ${room} remaining today`}</h3>
+            <p className="small">{access.expired?"Previously prepared applications and your career tracking remain available.":"Your allowance is shared across all countries. Changing country does not reset it."}</p>
+            {access.expired||!room ? <Link className="btn btn-gold" style={{ marginTop: 10 }} href="/upgrade">View subscription</Link> : null}
           </div> : null}
           <div className="card panel">
             <p className="eyebrow">Why this job?</p>
