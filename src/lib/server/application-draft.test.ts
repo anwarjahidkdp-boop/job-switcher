@@ -14,7 +14,7 @@ it('creates and saves an unpublished-pay review pack without AI, while actual ap
  const db={rpc:async()=>({data:true,error:null}),from(table:string){
   let patch:Record<string,unknown>|undefined;
   const q:Record<string,unknown>={};
-  for(const method of ['select','eq','not','is','maybeSingle','single','insert'])q[method]=()=>q;
+  for(const method of ['select','eq','not','is','maybeSingle','single','insert','gte'])q[method]=()=>q;
   q.update=(p:Record<string,unknown>)=>{patch=p;return q;};
   q.then=(resolve:(r:unknown)=>unknown)=>{if(patch)patches.push(patch);return Promise.resolve({error:null,data:table==='profiles'?{target_country:'BD'}:table==='applications'?{id:'app',status:'ready',pack:null}:null}).then(resolve);};
   return q;
@@ -25,6 +25,6 @@ it('creates and saves an unpublished-pay review pack without AI, while actual ap
  const result=await preparePack(ctx,'j',{standardOnly:true});
  expect(result.ai).toBe(false);expect(result.flags).toContain('Salary not published — confirm pay before applying');
  expect(patches.at(-1)).toMatchObject({status:'ready',pack:{cover_letter:'Review cover letter'},pack_ai:false});
- expect(runAI).not.toHaveBeenCalled();expect(getBudget).not.toHaveBeenCalled();
+ expect(runAI).not.toHaveBeenCalled();expect(getBudget).toHaveBeenCalled();
  await expect(markOpened(ctx,'j')).rejects.toThrow('This job does not publish its salary');
 });
