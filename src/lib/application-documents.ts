@@ -8,7 +8,8 @@ export const ApplicationDocumentSchema=z.discriminatedUnion('document',[
 ]);
 /** Materialise the tailored CV without touching the user's master CV. */
 export function applicationCv(master:MasterCV,pack:ApplicationPack):MasterCV{
- return pack.edited_cv||{...master,summary:pack.summary||master.summary,experience:(master.experience||[]).map((e,i)=>i===0&&pack.top_bullets?.length?{...e,bullets:[...pack.top_bullets]}:e)};
+ const basis=pack.source_cv_snapshot||master;
+ return pack.edited_cv||{...basis,summary:pack.summary||basis.summary,experience:(basis.experience||[]).map((e,i)=>i===0&&pack.top_bullets?.length?{...e,bullets:[...pack.top_bullets]}:e)};
 }
 export function editApplicationCv(master:MasterCV,pack:ApplicationPack,input:ManualCv):ApplicationPack{
  const edited=manualContent(input,applicationCv(master,pack),[]).master;
