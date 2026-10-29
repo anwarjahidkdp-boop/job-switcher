@@ -52,6 +52,7 @@ export async function hasPro(ctx: Pick<Ctx, "db" | "userId">): Promise<boolean> 
 
 /** The free trial's daily application is used; callers send the person to the Pro page. */
 export class TrialLimit extends Error {}
+export class ApplicationPreparationLimit extends Error {}
 export class ApplicationSafetyError extends Error { constructor(public check: SafetyCheck) { super(check.issues.map((x) => x.message).join(" ")); } }
 
 /** Free plan: one application a day, 5 in all. Every path to "applied" checks this (the database checks it again). */
@@ -107,6 +108,12 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const existing = await getApp(ctx,jobId);
   if(existing?.pack)return {flags:existing.pack_flags||[],ai:!!existing.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
   await requireActiveAccess(ctx.db,ctx.userId);
+  // Do not silently save an irreversible standard pack when the AI allowance is exhausted.
+  // People can still use their existing CV and apply independently to any suitable vacancy.
+  const currentAllowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
+  if (currentAllowance && currentAllowance.left <= 0) {
+    throw new ApplicationPreparationLimit(limitNotice(currentAllowance) + " You can still download your CV and apply independently. Choose your strongest opportunities for tailored preparation.");
+  }
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
@@ -128,8 +135,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const description = (jd?.description as string | null) || null;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
   if (opts.standardOnly) notice = "Standard draft requested. No AI allowance was used.";
-  const allowance = !opts.standardOnly && aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
-  if (allowance && !allowance.left) notice = `${limitNotice(allowance)} We made the standard version for you to review.${allowance.plan === "trial" ? " Go Pro to get more AI-tailored applications." : ""}`;
+  const allowance = opts.standardOnly ? null : currentAllowance;
   if (allowance?.left) {
     try {
       const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry, { description }), schema: PackTailorSchema }));

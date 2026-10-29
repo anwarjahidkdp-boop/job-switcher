@@ -91,9 +91,12 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const room = trialApplyRoom(apps);
   // Prepared files remain available even when the trial has ended.
   const lockedPack = false;
+  const preparationExhausted = !!allowance && allowance.left <= 0;
   const aiLeft = !allowance ? null : allowance.left
-    ? `AI tailoring: ${allowance.left} pack${allowance.left === 1 ? "" : "s"} available today.`
-    : allowance.reason === "day" ? "Standard version available · AI tailoring renews tomorrow." : "Standard version available · AI allowance used.";
+    ? `AI preparation: ${allowance.left} of ${allowance.limits.day} available today. For the best results, focus on your strongest-fit jobs. You can apply to other jobs independently using your CV.`
+    : allowance.reason === "day"
+      ? "You've completed today's tailored preparations. New AI preparation becomes available tomorrow. You can still download your CV and apply independently to other suitable jobs."
+      : "You've used your current AI preparation allowance. Your saved documents and CV remain available for independent applications.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
   const fee = job.country === "BD" ? applicationFee(description) : null;
   const canPrepare = !resolved && eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
@@ -105,7 +108,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <div className="job-review-header">
               <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
-              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?<PrepareApplicationButton key={job.id} jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Prepared · View Application</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Prepare Application</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
+              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?(preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">Use your CV to apply independently</Link> : <PrepareApplicationButton key={job.id} jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>):a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Prepared · View Application</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Prepare Application</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
@@ -135,7 +138,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               deadline={job.deadline} today={st.today} applyMethod={job.apply.method} applyTarget={job.apply.target} url={job.url} notYet={sp.notyet === "1"}
               canApply={safety.safe} blockingReason={safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ")} gmailReady={canEmail} gmail={gmail} gmailStatus={sp.gmail ?? null} interviewComplete={!!a?.application_events?.some(e=>e.event==="Interview completed")} /></div> : null}
             </div> : null}
-            {canPrepare && aiLeft ? <p className="small muted jd-ai-note">{aiLeft}</p> : null}
+            {canPrepare && aiLeft ? <p className="small muted jd-ai-note" role="status">{aiLeft} {preparationExhausted ? <Link href="/cv">Download your CV</Link> : null}</p> : null}
             <div className="row" style={{marginTop:12}}><Link prefetch={false} className="btn btn-ghost btn-sm" href="/opportunities">Choose another job</Link>{!a?.applied_at?<QueueDismissButton jobId={job.id} advance/>:null}</div>
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
@@ -143,7 +146,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             {ukRoute ? <UKApplicationJourney prepared={false} opened={false} submitted={false} route={ukRoute}/>:null}
             <h2>{ukRoute ? '01 · Prepare your application' : 'Your CV & cover letter'}</h2>
             {canPrepare ? <><p className="small muted">{ukRoute ? 'Prepare a CV and cover letter for this role. Then review your documents and saved answers before continuing to the application.' : 'Review the company and job details first. Press Prepare Application beside the company name to create and save your CV, cover letter and email draft once. Reviewing this page does not use AI.'}</p>
-              {ukRoute ? <PrepareApplicationButton jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>:null}
+              {ukRoute ? (preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">View and download your CV</Link> : <PrepareApplicationButton jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>):null}
               {!safety.safe?<p className="note small" role="status">This job does not publish its salary. Confirm the pay before you send your application.</p>:null}
             </>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}
           </section>:null}
