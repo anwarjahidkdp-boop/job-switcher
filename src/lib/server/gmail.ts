@@ -94,7 +94,7 @@ export async function sendApplication(ctx: Ctx, jobId: string): Promise<{ to: st
   const safety = applicationSafety(rowToJob(job as JobRow), st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library as AnswerLibrary, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!safety.safe) throw new ApplicationSafetyError(safety);
   const to = cleanAddress(job.apply_target);
-  await assertCanApply(ctx);
+  await assertCanApply(ctx,jobId);
 
   let photoUrl: string | null = null;
   if (st.profile.photo_path) {
