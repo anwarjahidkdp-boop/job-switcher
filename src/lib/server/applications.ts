@@ -150,8 +150,8 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
 
   if(!ai&&!reviewOnly)checked.pack.preparation_note=notice||"Standard draft: AI tailoring is unavailable. Review before applying.";
   if (reviewOnly) checked.flags.push("Salary not published — confirm pay before applying");
-  const fresh = await getApp(ctx, jobId);
-  const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
+  // The atomic claim temporarily sets Preparing; keep the pre-existing reminder after saving.
+  const status: AppStatus = app.status === "reminder" ? "reminder" : "ready";
   const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status,preparation_token:null,preparation_started_at:null }).eq("id", app.id).eq("preparation_token",preparationToken).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).is("pack",null).select("id").maybeSingle();
   if (saveErr) throw saveErr;
   if (!saved) return {flags:checked.flags,ai,notice:"This application was already prepared in another request. Its first saved version has been kept."};
