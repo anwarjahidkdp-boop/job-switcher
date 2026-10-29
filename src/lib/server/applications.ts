@@ -110,7 +110,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   await requireActiveAccess(ctx.db,ctx.userId);
   // Do not silently save an irreversible standard pack when the AI allowance is exhausted.
   // People can still use their existing CV and apply independently to any suitable vacancy.
-  const currentAllowance = !opts.standardOnly && aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
+  const currentAllowance = aiConfigured() ? await packAllowanceFor(ctx.admin, ctx.userId) : null;
   if (currentAllowance && currentAllowance.left <= 0) {
     throw new ApplicationPreparationLimit(limitNotice(currentAllowance) + " You can still download your CV and apply independently. Choose your strongest opportunities for tailored preparation.");
   }
@@ -135,7 +135,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const description = (jd?.description as string | null) || null;
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
   if (opts.standardOnly) notice = "Standard draft requested. No AI allowance was used.";
-  const allowance = currentAllowance;
+  const allowance = opts.standardOnly ? null : currentAllowance;
   if (allowance?.left) {
     try {
       const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry, { description }), schema: PackTailorSchema }));
