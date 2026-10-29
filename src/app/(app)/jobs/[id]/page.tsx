@@ -205,7 +205,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           {a?.status === "offer" ? <OfferPanel job={{ title: job.title, company: job.company, country: job.country, salaryMin: job.salaryMin, salaryMax: job.salaryMax }} facts={salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)} name={st.profile.full_name || st.master.content.name} sym={rule(job.country).sym} per={rule(job.country).per === "year" ? "a year" : "a month"} /> : null}
           {a && ["applied", "interview", "offer"].includes(a.status) ? (
             <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
-              prep={a.interview_prep ? withSalaryPrep(a.interview_prep, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)) : null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()} />
+              prep={a.interview_prep ? withSalaryPrep(a.interview_prep, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)) : null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()&&access.active} aiLocked={access.expired} />
           ) : null}
         </div>
         <aside className="side">
