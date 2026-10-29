@@ -1,9 +1,9 @@
-import { canReusePack } from "../application-documents";
 import { requireActiveAccess, trialAccess } from "./trial-access";
 // Application lifecycle. The app never submits anything without the user's own press: "applied" (and interview/offer/withdrawn)
 // is set only in the user's session, either by their confirmation or after they press Apply and Gmail accepts the email
 // (see gmail.ts). A DB trigger enforces this again.
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { assertSearchCountry } from "../application-country";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
@@ -110,12 +110,15 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
   if (app.pack) return {flags:app.pack_flags||[],ai:!!app.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
-  await event(ctx, app.id, "Preparing application");
-  if (app.status !== "reminder") {
-    const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
-    if (error) throw error;
-    if (!preparing) throw new Error("This application is being sent or was already submitted.");
+  const preparationToken=randomUUID();
+  const {data:claimed,error:claimError}=await ctx.db.rpc("claim_application_preparation",{p_job:jobId,p_token:preparationToken});
+  if(claimError)throw claimError;
+  if(!claimed){
+    const latest=await getApp(ctx,jobId);
+    if(latest?.pack)return {flags:latest.pack_flags||[],ai:!!latest.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
+    throw new Error("This application is already being prepared. Open the saved documents when it finishes.");
   }
+  await event(ctx, app.id, "Preparing application");
 
   const master = st.master.content;
   const needVisa = st.profile.needs_visa;
@@ -145,7 +148,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   if (reviewOnly) checked.flags.push("Salary not published — confirm pay before applying");
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
-  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).is("pack",null).select("id").maybeSingle();
+  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status,preparation_token:null,preparation_started_at:null }).eq("id", app.id).eq("preparation_token",preparationToken).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).is("pack",null).select("id").maybeSingle();
   if (saveErr) throw saveErr;
   if (!saved) return {flags:checked.flags,ai,notice:"This application was already prepared in another request. Its first saved version has been kept."};
   await event(ctx, app.id, "Application ready", status);
