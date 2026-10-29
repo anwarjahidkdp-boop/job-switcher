@@ -13,6 +13,6 @@ export function AppliedJobCard({application:a,job,controls}:{application:Applica
   <div className="applied-job-heading"><div><h2>{job.title}</h2><p>{job.company}{job.location?` · ${job.location}`:''}</p></div><span className="applied-status">{STATUS_LABEL[a.status]}</span></div>
   {a.applied_at?<p className="small muted">Applied on {fmtDate(a.applied_at.slice(0,10))}</p>:null}
   <dl className="applied-job-stages"><div><dt>Interview</dt><dd>{interviewWhen|| (stages.interview?'Call recorded':'Not recorded yet')}</dd></div><div><dt>Job offer</dt><dd>{stages.offer?'Received':'Not recorded yet'}</dd></div></dl>
-  <div className="row applied-job-actions"><Link prefetch={false} className="btn btn-primary btn-sm" href={`/jobs/${job.id}${a.status==='applied'||a.status==='interview'?'#interview':'#application-progress'}`}>Manage application</Link>{controls}</div>
+  <div className="row applied-job-actions"><Link prefetch={false} className="btn btn-primary btn-sm" href={`/jobs/${job.id}${a.status==='interview'?'#interview':'#application-progress'}`}>{a.status==='interview'?'Interview preparation':'Manage application'}</Link>{controls}</div>
  </article>;
 }
