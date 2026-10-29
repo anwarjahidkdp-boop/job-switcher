@@ -37,7 +37,9 @@ export function pushMessage(items: { title: string; body?: string | null; link?:
     title: more ? `${items.length} new updates from JobPao` : first.title,
     body: body.slice(0, 180),
     link: more ? "/notifications" : safeLink(first.link),
-    tag: more ? "jobpao-updates" : `jobpao-${first.kind}`,
+    tag: more ? "jobpao-updates" : first.kind === "match" && first.link?.startsWith("/jobs/")
+      ? `jobpao-match-${first.link.slice("/jobs/".length).split(/[/?#]/)[0].slice(0, 64)}`
+      : `jobpao-${first.kind}`,
   };
 }
 
