@@ -6,7 +6,7 @@ vi.mock('server-only',()=>({}));
 vi.mock('./trial-access',()=>({requireActiveAccess:async()=>{},trialAccess:async()=>({active:true,expired:false,pro:false})}));
 vi.mock('./state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
 vi.mock('../ai',()=>({aiConfigured:()=>true,getBudget:async()=>({plan:'trial'}),runAI:ai}));
-vi.mock('../numbers-check',()=>({checkPack:(pack:unknown)=>({pack,flags:[]})}));
+vi.mock('../numbers-check',()=>({checkPack:(pack:unknown)=>({pack,flags:[]}),packCriticalIssues:()=>[]}));
 import {loadState,loadJob} from './state';
 import {preparePack} from './applications';
 it('generates a pack for its job exactly once, preserving the saved pack after CV changes',async()=>{
