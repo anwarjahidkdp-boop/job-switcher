@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkMasterCv, checkPack, packNumbersCheck, unknownNumbers } from "./numbers-check";
+import { checkMasterCv, checkPack, packCriticalIssues, packNumbersCheck, unknownNumbers } from "./numbers-check";
 import { DEMO_CV_TEXT, DEMO_MASTER, DEMO_PREFS, SAMPLE_JOBS_RAW } from "./demo";
 import { sampleToJob } from "./jobs";
 import { templatePack } from "./template-pack";
@@ -69,5 +69,21 @@ describe("expandAmounts", () => {
   it("accepts a written-out lakh or k amount", () => {
     expect(unknownNumbers(["more than 200,000 customers", "50,000 invoices"], "served 2 lacs+ customers, 50k invoices")).toEqual([]);
     expect(unknownNumbers(["300,000 customers"], "2 lacs+ customers")).toEqual(["300,000"]);
+  });
+});
+
+describe("corporate application quality gate", () => {
+  const valid = {
+    ...templatePack(job, DEMO_MASTER, buildMatchProfile({ name: DEMO_MASTER.name, facts: groundExtraction(DEMO_EXTRACT, DEMO_CV_TEXT), meta: { industries: DEMO_EXTRACT.industries, categories: DEMO_EXTRACT.categories, seniority: "senior", target_roles: [], location: "Dhaka" }, prefs: DEMO_PREFS, country: "BD" }), { needVisa: false }),
+  };
+  it("rejects incomplete or generic employer letters", () => {
+    const issues = packCriticalIssues({ ...valid, cover_letter: "Dear Hiring Manager, I am a great candidate.", email_subject: "Application", email_body: "Hello" }, DEMO_MASTER, job, DEMO_PREFS, TODAY);
+    expect(issues.join(" ")).toMatch(/too short/);
+    expect(issues.join(" ")).toMatch(/target role/);
+    expect(issues.join(" ")).toMatch(/incomplete/);
+  });
+  it("detects unsupported numbers even when letter is long and employer-specific", () => {
+    const issues = packCriticalIssues({ ...valid, cover_letter: valid.cover_letter + " Increased revenue by 89%." }, DEMO_MASTER, job, DEMO_PREFS, TODAY);
+    expect(issues.join(" ")).toMatch(/not verified/);
   });
 });
