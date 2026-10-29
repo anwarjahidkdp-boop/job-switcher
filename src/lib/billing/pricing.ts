@@ -28,7 +28,7 @@ type Row = { currency: string; local: Quad; usd: Quad };
 // Minor units for [15 days, 30 days, 3 months, 1 year]. Bangladesh and the card prices ($15, $25, $55) set by the owner
 // 2026-10-20; the year is $99. Local amounts are about the card price at Oct 2026 exchange rates.
 export const PACK_PRICES: Record<CountryCode, Row> = {
-  BD: { currency: "BDT", local: [45000, 65000, 145000, 405000], usd: [0, 0, 0, 0] },
+  BD: { currency: "BDT", local: [50000, 90000, 185000, 405000], usd: [0, 0, 0, 0] },
   US: { currency: "USD", local: [1500, 2500, 5500, 9900], usd: [1500, 2500, 5500, 9900] },
   GB: { currency: "GBP", local: [1149, 1899, 4199, 7499], usd: [1500, 2500, 5500, 9900] },
   CA: { currency: "CAD", local: [2099, 3499, 7699, 13700], usd: [1500, 2500, 5500, 9900] },

@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { chargedPrice, countryFromHeader, formatPrice, localHint, MIN_CARD_USD, packsForCountry, PACK_PRICES, PACKS, packPrice, PAYABLE_CURRENCIES, perDay, proPrice } from "./pricing";
 
 describe("country pricing", () => {
-  it("prices the five Bangladesh packs set by the owner on 23 October", () => {
-    expect(packsForCountry("BD").map((p) => packPrice("BD", p.id).minor)).toEqual([45000, 65000, 145000, 255000, 405000]);
+  it("prices the five Bangladesh packs with revised 29 October short-duration rates", () => {
+    expect(packsForCountry("BD").map((p) => packPrice("BD", p.id).minor)).toEqual([50000, 90000, 185000, 255000, 405000]);
     expect(packsForCountry("BD").map(p => p.days)).toEqual([15, 30, 90, 180, 365]);
     expect(packsForCountry("GB").map(p => p.days)).toEqual([15, 30, 90, 365]);
     expect(() => packPrice("US", "180d")).toThrow("Bangladesh only");
     expect(PACKS.map((p) => p.days)).toEqual([15, 30, 90, 365]);
-    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 65000 });
+    expect(proPrice("BD")).toEqual({ country: "BD", currency: "BDT", minor: 90000 });
     expect(proPrice("nope").country).toBe("BD");
   });
   it("falls back to 30 days for an unknown pack", () => {
@@ -44,8 +44,8 @@ describe("country pricing", () => {
 });
 
 describe("perDay", () => {
-  it("turns ৳650 a month into ৳22 a day", () => {
-    expect(perDay(proPrice("BD"))).toBe("৳22");
+  it("turns ৳900 a month into ৳30 a day", () => {
+    expect(perDay(proPrice("BD"))).toBe("৳30");
   });
   it("rounds other currencies up to the cent", () => {
     expect(perDay(proPrice("US"))).toBe("$0.84");
@@ -59,7 +59,7 @@ describe("charged price", () => {
     expect(localHint(p)).toBe("about £18.99");
   });
   it("needs no guide where the local currency is the one charged", () => {
-    expect(chargedPrice(packPrice("BD", "30d"))).toEqual({ minor: 65000, currency: "BDT" });
+    expect(chargedPrice(packPrice("BD", "30d"))).toEqual({ minor: 90000, currency: "BDT" });
     expect(localHint(packPrice("BD", "30d"))).toBeNull();
     expect(localHint(packPrice("US", "30d"))).toBeNull();
     expect(localHint(packPrice("XX", "30d"))).toBeNull();
