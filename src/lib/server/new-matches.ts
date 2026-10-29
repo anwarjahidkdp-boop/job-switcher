@@ -9,6 +9,8 @@ import { notify } from "./notify";
 import { aiConfigured } from "../ai";
 import { fitCard, foundMs } from "./search-summary";
 import { loadState } from "./state";
+import { eligibleForMatchAlerts, matchPushRoom, MATCH_PUSH_PER_24H } from "../match-alert-policy";
+import { inSendWindow } from "./reminders";
 
 /** How long a new match waits for its AI reading before the bell rings on the rule score alone. */
 const AI_WAIT_MS = 24 * 3_600_000;
@@ -21,22 +23,29 @@ const DIGEST_MAX = 8;
 const NEW_FOR_MS = 3 * 86_400_000;
 /** Same title at the same company: one job, even when the source lists it under two ids. */
 export const sameJob = (r: { jobs: { title: string; company: string } }) => `${r.jobs.title}|${r.jobs.company}`.toLowerCase().replace(/\s+/g, " ").trim();
-const NOTIFY_PER_RUN = 5;
+const NOTIFY_PER_RUN = MATCH_PUSH_PER_24H;
 
 export interface NewMatchResult { users: number; notified: number; prepared: number; emailed: number; failed: number }
 
 interface Row { job_id: string; score: number; ai_fit?: string | null; ai_score?: number | null; jobs: { title: string; company: string; location: string | null; active: boolean } }
 
-export async function processNewMatches(admin: SupabaseClient, userIds: string[], opts: { appUrl: string; dryRun?: boolean; prepare?: boolean }): Promise<NewMatchResult> {
+export async function processNewMatches(admin: SupabaseClient, userIds: string[], opts: { appUrl: string; dryRun?: boolean; prepare?: boolean; now?: Date }): Promise<NewMatchResult> {
   const res: NewMatchResult = { users: 0, notified: 0, prepared: 0, emailed: 0, failed: 0 };
   const base = opts.appUrl.replace(/\/$/, "");
+  const now = opts.now ?? new Date();
   for (const userId of userIds) {
     try {
       const { data, error } = await admin.from("matches").select("job_id, score, ai_fit, ai_score, jobs!inner(title, company, location, active)")
         .eq("user_id", userId).is("notified_at", null).eq("relevant", true).eq("jobs.active", true).or("ai_fit.is.null,ai_fit.neq.no")
         .order("score", { ascending: false }).limit(200);
       if (error) throw error;
-      const { data: prof } = await admin.from("profiles").select("email, full_name, email_reminders, dismissed_job_ids").eq("id", userId).maybeSingle();
+      const [{ data: prof }, { data: subscription }] = await Promise.all([
+        admin.from("profiles").select("email, full_name, target_country, email_reminders, dismissed_job_ids").eq("id", userId).maybeSingle(),
+        admin.from("subscriptions").select("plan_code, status, trial_ends_at, current_period_end").eq("user_id", userId).maybeSingle(),
+      ]);
+      // Keep job discovery briefly after trial expiration, without restoring AI application access.
+      // Never send a phone alert overnight in the users search country.
+      if (!eligibleForMatchAlerts(subscription, now) || !inSendWindow(prof?.target_country, now)) continue;
       const dismissed = new Set<string>((prof?.dismissed_job_ids as string[] | null) || []);
       const { data: apps } = await admin.from("applications").select("job_id, status").eq("user_id", userId);
       const started = new Set((apps || []).map((a) => a.job_id as string));
@@ -65,27 +74,46 @@ export async function processNewMatches(admin: SupabaseClient, userIds: string[]
       const once = fresh.filter((r) => !seen.has(sameJob(r)) && !!seen.add(sameJob(r)));
       fresh.splice(0, fresh.length, ...once);
 
-      const ready = new Set<string>();
-      // Ranking is automatic; document generation is an explicit Apply action only.
-
-      if (!settled.length) continue;
+      // Notify only the best new jobs, not every low-fit match. No AI packs are generated here.
+      let room = NOTIFY_PER_RUN;
       if (!opts.dryRun && fresh.length) {
-        // In the app: one notification per strong new match (best few), so the bell and the email say the same thing.
-        await notify(admin, userId, fresh.slice(0, NOTIFY_PER_RUN).map((r) => ready.has(r.job_id)
-          ? { kind: "ready" as const, title: `Application ready: ${r.jobs.title} at ${r.jobs.company}`, body: `${r.score}% match. We prepared your CV and cover letter. Review it and apply?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` }
-          : { kind: "match" as const, title: `New ${r.score}% match: ${r.jobs.title}`, body: `${r.jobs.company}${r.jobs.location ? ` · ${r.jobs.location}` : ""}. Want us to prepare your application?`, link: `/jobs/${r.job_id}`, key: `match:${r.job_id}` })).catch((e) => console.error("  notify failed", userId, e));
-        if (prof?.email && prof.email_reminders !== false && emailProvider()) {
-          const msg = newMatchesEmail({ name: prof.full_name || "", link: `${base}/inbox`, jobs: fresh.slice(0, DIGEST_MAX).map((r) => ({ title: r.jobs.title, company: r.jobs.company, location: r.jobs.location, score: r.score, link: `${base}/jobs/${r.job_id}`, ready: ready.has(r.job_id) })), total: fresh.length });
-          // The market is scanned three times a day; the email digest goes out once a day at most (the bell gets every scan).
-          const delivery = await deliverEmail(admin, userId, `matches-day:${new Date().toISOString().slice(0, 10)}`, { to: prof.email, ...msg });
-          if (delivery === "sent") res.emailed++; else res.failed++;
+        const cutoff = new Date(now.getTime() - 86_400_000).toISOString();
+        const { count, error: capError } = await admin.from("notifications").select("id", { count: "exact", head: true })
+          .eq("user_id", userId).eq("kind", "match").gte("created_at", cutoff);
+        if (capError) throw capError;
+        room = Math.min(NOTIFY_PER_RUN, matchPushRoom(count ?? 0));
+      }
+      const selected = fresh.slice(0, room);
+      if (opts.dryRun) { res.notified += selected.length; continue; }
+      const pending = new Set(fresh.slice(room).map((r) => r.job_id));
+      const completed = settled.filter((id) => !pending.has(id));
+      const sent: Row[] = [];
+      for (const r of selected) {
+        try {
+          // Each job gets its own device alert and tap-through link, in descending fit order.
+          await notify(admin, userId, [{ kind: "match", title: "New " + r.score + "% match: " + r.jobs.title,
+            body: r.jobs.company + (r.jobs.location ? " · " + r.jobs.location : "") + ". See why it fits your profile.",
+            link: "/jobs/" + r.job_id, key: "match:" + r.job_id }]);
+          sent.push(r);
+        } catch (e) {
+          res.failed++;
+          console.error("match alert failed", userId, r.job_id, e);
+          const i = completed.indexOf(r.job_id);
+          if (i >= 0) completed.splice(i, 1);
         }
       }
-      if (!opts.dryRun) {
-        const now = new Date().toISOString();
-        await admin.from("matches").update({ notified_at: now }).eq("user_id", userId).in("job_id", settled);
+      if (prof?.email && prof.email_reminders !== false && emailProvider() && sent.length) {
+        const msg = newMatchesEmail({ name: prof.full_name || "", link: base + "/inbox",
+          jobs: sent.slice(0, DIGEST_MAX).map((r) => ({ title: r.jobs.title, company: r.jobs.company,
+            location: r.jobs.location, score: r.score, link: base + "/jobs/" + r.job_id, ready: false })), total: sent.length });
+        const delivery = await deliverEmail(admin, userId, "matches-day:" + now.toISOString().slice(0, 10), { to: prof.email, ...msg });
+        if (delivery === "sent") res.emailed++; else res.failed++;
       }
-      res.notified += fresh.length;
+      if (completed.length) {
+        const { error: updateError } = await admin.from("matches").update({ notified_at: now.toISOString() }).eq("user_id", userId).in("job_id", completed);
+        if (updateError) throw updateError;
+      }
+      res.notified += sent.length;
     } catch (e) {
       res.failed++;
       console.error("  new matches failed", userId, e);
