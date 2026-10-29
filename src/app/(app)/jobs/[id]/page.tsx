@@ -3,7 +3,7 @@ import { ukApplicationRoute, ukApplicationAnswers } from "@/lib/uk-application";
 import {isResolvedApplication} from "@/lib/applied-history";
 import {JobApplicationAction} from "@/components/JobApplicationAction";
 import { ApplicationProgress } from "@/components/ApplicationProgress";
-import { applicationCv,packBoundToJob,canReusePack } from "@/lib/application-documents";
+import { applicationCv,packBoundToJob } from "@/lib/application-documents";
 import { manualDraft } from "@/lib/manual-cv";
 import { ManualCvEditor } from "@/components/ManualCvEditor";
 import { QueueDismissButton } from "@/components/QueueDismissButton";
@@ -12,7 +12,7 @@ import { PrepareApplicationButton } from "@/components/PrepareApplicationButton"
 import { PageHead } from "@/components/PageHead";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isPro, requireAppState, photoUrl } from "@/lib/server/page";
+import { requireAppState, photoUrl } from "@/lib/server/page";
 import { loadJob, withAiScores } from "@/lib/server/state";
 import { scoreJob, BAND, fitLabel } from "@/lib/matching";
 import { rule, cname, salaryText } from "@/lib/countries";
@@ -86,7 +86,6 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const { tpl, accent } = resolveStyle(st.profile.cv_style, job.country);
   const safety = applicationSafety(job,st.profile.preferences,st.profile.deal_breakers,st.profile.answer_library,st.profile.needs_visa,{P:st.P,today:st.today});
   const pro=access.pro;
-  const needsFreshPack=false;
   // Free trial: one ready application a day can be opened; the rest wait behind Pro (the Apply Queue shows the same).
   const apps = Object.values(st.apps);
   const room = trialApplyRoom(apps);
