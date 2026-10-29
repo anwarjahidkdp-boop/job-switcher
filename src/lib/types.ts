@@ -148,6 +148,8 @@ export interface InterviewPrep {
 export interface ApplicationPack {
   /** User-edited CV for this application only; the master profile is unchanged. */
   edited_cv?: MasterCV;
+  /** Frozen master CV used when the pack was first generated; later profile edits do not rewrite this application. */
+  source_cv_snapshot?: MasterCV;
   prepared_for?: {job_id:string;source_cv_id:string};
   preparation_note?:string;
   user_edited?:boolean;
