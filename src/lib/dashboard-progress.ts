@@ -13,8 +13,13 @@ export function currentApplicationNotifications(notes: NotificationRow[], apps: 
   return notes.map(n => {
     const jobId = n.link?.match(/^\/jobs\/([^/?#]+)(?:[?#].*)?$/)?.[1];
     const a = jobId ? apps[jobId] : undefined;
-    if (!a || !isResolvedApplication(a) || !['match', 'ready', 'reminder'].includes(n.kind)) return n;
-    const status = ['applied', 'interview', 'offer', 'closed', 'withdrawn'].includes(a.status) ? STATUS_LABEL[a.status] : 'Applied';
+    if (!a || !['match', 'ready', 'reminder'].includes(n.kind)) return n;
+    if(!isResolvedApplication(a) && a.pack){
+      const title=n.title.replace(/^New\\s+/i,'');
+      return {...n,applicationStatus:'Prepared',title:`Prepared · ${title}`,body:'Your CV and cover letter are saved. Review and download them, then confirm once you apply.',link:`/jobs/${jobId}#application`};
+    }
+    if(!isResolvedApplication(a))return n;
+    const status = a.status==='interview' && a.application_events?.some(e=>e.event==='Interview completed') ? 'Interviewed' : ['applied', 'interview', 'offer', 'closed', 'withdrawn'].includes(a.status) ? STATUS_LABEL[a.status] : 'Applied';
     const title = n.title.replace(/^New\s+/i, '');
     return { ...n, applicationStatus: status, title: `${status} · ${title}`, body: a.applied_at || ['applied', 'interview', 'offer'].includes(a.status) ? 'Application already submitted. View its status in Applied.' : 'This opportunity is closed. Review other available jobs.', link: a.applied_at || ['applied', 'interview', 'offer'].includes(a.status) ? '/applications' : '/opportunities' };
   });
