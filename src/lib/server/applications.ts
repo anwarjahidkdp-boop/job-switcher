@@ -98,14 +98,14 @@ export async function packAllowanceFor(admin: Ctx["admin"], userId: string) {
 export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:boolean}={}): Promise<{ flags: string[]; ai: boolean; notice?: string }> {
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
-  const existing = await getApp(ctx,jobId);
-  if(existing?.pack)return {flags:existing.pack_flags||[],ai:!!existing.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
-  await requireActiveAccess(ctx.db,ctx.userId);
   const job = await requireJob(ctx, jobId);
   if (job.active === false) throw new Error("This listing is unavailable while its status or source is reviewed. Choose an active opportunity.");
   if (job.deadline && job.deadline < st.today) throw new Error("This vacancy has closed.");
   const safety = applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});
   if (!canPrepareDraft(safety)) throw new ApplicationSafetyError(safety);
+  const existing = await getApp(ctx,jobId);
+  if(existing?.pack)return {flags:existing.pack_flags||[],ai:!!existing.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
+  await requireActiveAccess(ctx.db,ctx.userId);
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
