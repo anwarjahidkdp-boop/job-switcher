@@ -1,4 +1,5 @@
 import { canReusePack } from "../application-documents";
+import { requireActiveAccess, trialAccess } from "./trial-access";
 // Application lifecycle. The app never submits anything without the user's own press: "applied" (and interview/offer/withdrawn)
 // is set only in the user's session, either by their confirmation or after they press Apply and Gmail accepts the email
 // (see gmail.ts). A DB trigger enforces this again.
@@ -53,8 +54,17 @@ export class TrialLimit extends Error {}
 export class ApplicationSafetyError extends Error { constructor(public check: SafetyCheck) { super(check.issues.map((x) => x.message).join(" ")); } }
 
 /** Free plan: one application a day, 5 in all. Every path to "applied" checks this (the database checks it again). */
-export async function assertCanApply(ctx: Pick<Ctx, "db" | "userId">) {
-  if (await hasPro(ctx)) return;
+export async function assertCanApply(ctx: Pick<Ctx, "db" | "userId">, jobId?: string) {
+  const access=await trialAccess(ctx.db,ctx.userId);
+  if(access.pro)return;
+  // A prepared application survives trial expiry and may be submitted once.
+  if(access.expired){
+    if(!jobId)throw new TrialLimit("Subscribe to create new applications.");
+    const {data:existing,error:existingError}=await ctx.db.from("applications").select("pack,applied_at").eq("user_id",ctx.userId).eq("job_id",jobId).maybeSingle();
+    if(existingError)throw existingError;
+    if(existing?.pack&&!existing.applied_at)return;
+    throw new TrialLimit("Subscribe to create new applications.");
+  }
   const { data: sent, error } = await ctx.db.from("applications").select("applied_at").eq("user_id", ctx.userId).not("applied_at", "is", null);
   if (error) throw error;
   if (!trialApplyRoom((sent || []) as { applied_at: string | null }[])) throw new TrialLimit(TRIAL_LIMIT_COPY);
@@ -88,6 +98,9 @@ export async function packAllowanceFor(admin: Ctx["admin"], userId: string) {
 export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:boolean}={}): Promise<{ flags: string[]; ai: boolean; notice?: string }> {
   const st = await loadState(ctx.db, ctx.userId);
   if (!st || !st.P || !st.master) throw new Error("Finish your profile first.");
+  const existing = await getApp(ctx,jobId);
+  if(existing?.pack)return {flags:existing.pack_flags||[],ai:!!existing.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
+  await requireActiveAccess(ctx.db,ctx.userId);
   const job = await requireJob(ctx, jobId);
   if (job.active === false) throw new Error("This listing is unavailable while its status or source is reviewed. Choose an active opportunity.");
   if (job.deadline && job.deadline < st.today) throw new Error("This vacancy has closed.");
@@ -96,7 +109,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const reviewOnly = !safety.safe;
   const app = await ensureApp(ctx, jobId);
   if (SUBMITTED.includes(app.status)) throw new Error("This application is already sent.");
-  if (app.pack && canReusePack(app.pack,job.id,st.master.id) && (app.pack_ai || app.pack.user_edited || opts.standardOnly || !aiConfigured())) return {flags:app.pack_flags||[],ai:app.pack_ai};
+  if (app.pack) return {flags:app.pack_flags||[],ai:!!app.pack_ai,notice:"Already prepared. Your saved documents have not been changed."};
   await event(ctx, app.id, "Preparing application");
   if (app.status !== "reminder") {
     const { data: preparing, error } = await ctx.db.from("applications").update({ status: "preparing" }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
@@ -132,9 +145,9 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   if (reviewOnly) checked.flags.push("Salary not published — confirm pay before applying");
   const fresh = await getApp(ctx, jobId);
   const status: AppStatus = fresh?.status === "reminder" ? "reminder" : "ready";
-  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).select("id").maybeSingle();
+  const { data: saved, error: saveErr } = await ctx.db.from("applications").update({ pack: checked.pack, pack_flags: checked.flags, pack_ai: ai, pack_model: model, status }).eq("id", app.id).not("status", "in", `(${SUBMITTED.join(",")})`).is("sending_at", null).is("pack",null).select("id").maybeSingle();
   if (saveErr) throw saveErr;
-  if (!saved) throw new Error("This application is being sent or was already submitted.");
+  if (!saved) return {flags:checked.flags,ai,notice:"This application was already prepared in another request. Its first saved version has been kept."};
   await event(ctx, app.id, "Application ready", status);
   return { flags: checked.flags, ai, notice };
 }
