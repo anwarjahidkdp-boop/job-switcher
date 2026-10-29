@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export async function trialAccess(db: SupabaseClient, userId: string): Promise<{active:boolean;expired:boolean;pro:boolean}> {
   const {data,error} = await db.from("subscriptions").select("plan_code,status,trial_ends_at,current_period_end").eq("user_id",userId).maybeSingle();
   if(error)throw error;
-  const pro=!!data&&data.plan_code==="pro"&&data.status==="active"&&!!data.current_period_end&&Date.parse(data.current_period_end)>Date.now();
+  const pro=!!data&&data.plan_code==="pro"&&data.status==="active"&&(!data.current_period_end||Date.parse(data.current_period_end)>Date.now());
   const activeTrial=!!data&&data.status==="trialing"&&!!data.trial_ends_at&&Date.parse(data.trial_ends_at)>Date.now();
   return {active:pro||activeTrial,expired:!pro&&!activeTrial,pro};
 }
