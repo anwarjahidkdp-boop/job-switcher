@@ -11,9 +11,9 @@ vi.mock('../apply-queue',()=>({AUTO_QUEUE_SIZE:3,applyQueue:mocks.queue,queueSaf
 vi.mock('./applications',()=>({preparePack:mocks.prepare,ApplicationSafetyError:class extends Error{}}));
 import { processNewMatches } from './new-matches';
 beforeEach(()=>{vi.clearAllMocks();mocks.prepare.mockResolvedValue({ai:true});mocks.load.mockResolvedValue({apps:{old:{pack:{}}}});mocks.queue.mockReturnValue([{job:{id:'best'}},{job:{id:'next'}}]);});
-function db(){return {from:(table:string)=>{const result={data:table==='profiles'?{}:[],error:null};const q={select:()=>q,eq:()=>q,is:()=>q,gte:()=>q,or:()=>q,order:()=>q,limit:()=>q,maybeSingle:async()=>result,then:(resolve:(r:unknown)=>unknown)=>Promise.resolve(result).then(resolve)};return q;}} as unknown as SupabaseClient;}
+function db(){return {from:(table:string)=>{const result={data:table==='profiles'?{target_country:'BD'}:table==='subscriptions'?{plan_code:'pro',status:'active'}:[],error:null};const q={select:()=>q,eq:()=>q,is:()=>q,gte:()=>q,or:()=>q,order:()=>q,limit:()=>q,maybeSingle:async()=>result,then:(resolve:(r:unknown)=>unknown)=>Promise.resolve(result).then(resolve)};return q;}} as unknown as SupabaseClient;}
 it('keeps automatic discovery from preparing documents or spending AI',async()=>{
- const result=await processNewMatches(db(),['user'],{appUrl:'https://example.com'});
+ const result=await processNewMatches(db(),['user'],{appUrl:'https://example.com',now:new Date('2026-10-29T10:00:00Z')});
  expect(mocks.prepare).not.toHaveBeenCalled();expect(result.prepared).toBe(0);
 });
 it('respects dry-run and explicit no-prepare without spending',async()=>{
