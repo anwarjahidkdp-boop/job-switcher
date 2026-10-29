@@ -59,7 +59,7 @@ describe("charged price", () => {
     expect(localHint(p)).toBe("about £18.99");
   });
   it("needs no guide where the local currency is the one charged", () => {
-    expect(chargedPrice(packPrice("BD", "30d"))).toEqual({ minor: 65000, currency: "BDT" });
+    expect(chargedPrice(packPrice("BD", "30d"))).toEqual({ minor: 90000, currency: "BDT" });
     expect(localHint(packPrice("BD", "30d"))).toBeNull();
     expect(localHint(packPrice("US", "30d"))).toBeNull();
     expect(localHint(packPrice("XX", "30d"))).toBeNull();
