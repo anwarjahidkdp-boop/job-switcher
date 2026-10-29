@@ -185,4 +185,4 @@ export interface Preferences {
 
 export const APP_STATUSES = ["preparing", "ready", "reminder", "waiting", "applied", "interview", "offer", "closed", "withdrawn"] as const;
 export type AppStatus = (typeof APP_STATUSES)[number];
-export const STATUS_LABEL: Record<AppStatus, string> = { preparing: "Preparing", ready: "Application ready", reminder: "Reminder set", waiting: "Waiting for you", applied: "Applied", interview: "Interview", offer: "Offer", closed: "Rejected / Closed", withdrawn: "Withdrawn" };
+export const STATUS_LABEL: Record<AppStatus, string> = { preparing: "Preparing", ready: "Prepared", reminder: "Prepared · Reminder set", waiting: "Prepared · Awaiting submission", applied: "Applied", interview: "Interview scheduled", offer: "Offer", closed: "Rejected / Closed", withdrawn: "Withdrawn" };
