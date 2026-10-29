@@ -191,15 +191,23 @@ export async function confirmApplied(ctx: Ctx, jobId: string) {
 
 /** Explicit user confirmation records history; it never sends or spends AI allowance. */
 export async function confirmExternalApplied(ctx: Ctx, jobId: string) {
+  const current=await getApp(ctx,jobId);
+  if(!current?.pack)throw new Error("Prepare the CV and cover letter before confirming your application.");
   const { error } = await ctx.db.rpc("confirm_external_application", { p_job: jobId });
   if (error) throw error;
 }
 
 const LATER: AppStatus[] = ["interview", "offer", "closed", "withdrawn"];
 export async function updateStatus(ctx: Ctx, jobId: string, status: string) {
-  if (!LATER.includes(status as AppStatus)) throw new Error("Unknown status");
+  if(status!=="interviewed"&&!LATER.includes(status as AppStatus)) throw new Error("Unknown status");
   const app = await getApp(ctx, jobId);
   if (!app || !["applied", "interview", "offer"].includes(app.status)) throw new Error("Confirm the application first.");
+  if(status==="interviewed"){
+    if(app.status!=="interview"||!app.interview_at)throw new Error("Record the interview schedule before marking it completed.");
+    const {data:old}=await ctx.db.from("application_events").select("id").eq("application_id",app.id).eq("event","Interview completed").limit(1).maybeSingle();
+    if(!old)await event(ctx,app.id,"Interview completed","interview");
+    return;
+  }
   const { error } = await ctx.db.from("applications").update({ status }).eq("id", app.id);
   if (error) throw error;
   const labels: Record<string, string> = { interview: "Interview", offer: "Offer", closed: "Rejected / Closed", withdrawn: "Withdrawn" };
