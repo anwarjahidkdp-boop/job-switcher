@@ -4,6 +4,7 @@ import { requireActiveAccess, trialAccess } from "./trial-access";
 // (see gmail.ts). A DB trigger enforces this again.
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { applicationCv } from "../application-documents";
 import { assertSearchCountry } from "../application-country";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
@@ -144,6 +145,9 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   if (!pack.asks?.length) pack.asks = postAsks(description);
   const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
   checked.pack.prepared_for={job_id:job.id,source_cv_id:st.master.id};
+  // Persist the exact verified CV used for this first preparation. A later Master CV edit must not rewrite it.
+  checked.pack.source_cv_snapshot=structuredClone(master);
+
   if(!ai&&!reviewOnly)checked.pack.preparation_note=notice||"Standard draft: AI tailoring is unavailable. Review before applying.";
   if (reviewOnly) checked.flags.push("Salary not published — confirm pay before applying");
   const fresh = await getApp(ctx, jobId);
