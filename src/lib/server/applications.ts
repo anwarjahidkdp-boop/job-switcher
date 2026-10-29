@@ -197,7 +197,7 @@ export async function confirmExternalApplied(ctx: Ctx, jobId: string) {
   if (error) throw error;
 }
 
-const LATER: AppStatus[] = ["interview", "offer", "closed", "withdrawn"];
+const LATER: AppStatus[] = ["offer", "closed", "withdrawn"];
 export async function updateStatus(ctx: Ctx, jobId: string, status: string) {
   if(status!=="interviewed"&&!LATER.includes(status as AppStatus)) throw new Error("Unknown status");
   const app = await getApp(ctx, jobId);
