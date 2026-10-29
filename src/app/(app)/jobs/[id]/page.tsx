@@ -108,7 +108,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
           <div className="card panel">
             <div className="job-review-header">
               <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
-              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?{preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">Use your CV to apply independently</Link> : <PrepareApplicationButton key={job.id} jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>}:a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Prepared · View Application</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Prepare Application</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
+              <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?(preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">Use your CV to apply independently</Link> : <PrepareApplicationButton key={job.id} jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>):a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Prepared · View Application</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Prepare Application</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
             </div>
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
@@ -146,7 +146,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             {ukRoute ? <UKApplicationJourney prepared={false} opened={false} submitted={false} route={ukRoute}/>:null}
             <h2>{ukRoute ? '01 · Prepare your application' : 'Your CV & cover letter'}</h2>
             {canPrepare ? <><p className="small muted">{ukRoute ? 'Prepare a CV and cover letter for this role. Then review your documents and saved answers before continuing to the application.' : 'Review the company and job details first. Press Prepare Application beside the company name to create and save your CV, cover letter and email draft once. Reviewing this page does not use AI.'}</p>
-              {ukRoute ? {preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">View and download your CV</Link> : <PrepareApplicationButton jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>}:null}
+              {ukRoute ? (preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">View and download your CV</Link> : <PrepareApplicationButton jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>):null}
               {!safety.safe?<p className="note small" role="status">This job does not publish its salary. Confirm the pay before you send your application.</p>:null}
             </>:<p className="note small" role="status">{safety.issues.filter(i=>i.blocking).map(i=>i.message).join(" ") || "This application cannot be prepared in its current state."}</p>}
           </section>:null}
