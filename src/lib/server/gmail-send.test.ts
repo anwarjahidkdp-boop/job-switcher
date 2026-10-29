@@ -128,4 +128,4 @@ describe("Gmail send delivery boundary (no external requests)", () => {
   });
 });
 
-it("refuses a pack prepared from an older CV before contacting Gmail",async()=>{const x=fixture();x.state.master.id="cv-new";const f=google();await expect(sendApplication(x.ctx,"job")).rejects.toThrow("fresh documents");expect(f).not.toHaveBeenCalled();});
+it("sends the original saved pack even after the Master CV changes",async()=>{const x=fixture();x.state.master.id="cv-new";const f=google();await expect(sendApplication(x.ctx,"job")).resolves.toMatchObject({to:"hr@example.invalid"});expect(f).toHaveBeenCalled();});
