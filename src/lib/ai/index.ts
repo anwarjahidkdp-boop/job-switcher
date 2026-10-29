@@ -23,8 +23,8 @@ export const RATE_MAX_CALLS = 30, RATE_WINDOW_MS = 10 * 60_000;
 /** Calls the daily jobs make for the person (capped there), never blocked by the per-person rate limit. */
 const BACKGROUND = new Set<AIFeature>(["match_check", "alert_parse"]);
 
-/** Monthly AI allowance for Pro users living outside Bangladesh: US$2. */
-export const INTL_PRO_CAP_MICRO_USD = 2_000_000;
+/** Monthly AI allowance for Pro users living outside Bangladesh: US$3. */
+export const INTL_PRO_CAP_MICRO_USD = 3_000_000;
 
 export interface Budget { spent: number; cap: number; plan: string; status: string; trialEndsAt: string | null; periodEnd?: string | null }
 
@@ -35,7 +35,7 @@ export async function getBudget(admin: SupabaseClient, userId: string): Promise<
   if (error || !data || !data[0]) return null;
   const r = data[0] as { spent_micro_usd: number; cap_micro_usd: number; plan_code: string; status: string; trial_ends_at: string | null; current_period_end?: string | null };
   let cap = Number(r.cap_micro_usd);
-  // Pro outside Bangladesh pays more, so it gets twice the monthly AI allowance (owner decision 2026-10-21).
+  // Pro outside Bangladesh pays more, so it gets three times the monthly AI allowance (owner decision 2026-10-21).
   if (r.plan_code === "pro") {
     const { data: prof } = await admin.from("profiles").select("home_country").eq("id", userId).maybeSingle();
     if (prof && prof.home_country !== "BD") cap = Math.max(cap, INTL_PRO_CAP_MICRO_USD);
