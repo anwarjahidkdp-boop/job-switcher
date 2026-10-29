@@ -1,6 +1,7 @@
 import {expect,it,vi} from 'vitest';
 import type {SupabaseClient} from '@supabase/supabase-js';
 vi.mock('server-only',()=>({}));
+vi.mock('./trial-access',()=>({requireActiveAccess:async()=>{},trialAccess:async()=>({active:true,expired:false,pro:false})}));
 vi.mock('./state',()=>({loadState:vi.fn(),loadJob:vi.fn()}));
 vi.mock('../ai',()=>({aiConfigured:()=>true,getBudget:vi.fn(),runAI:vi.fn()}));
 vi.mock('../template-pack',()=>({templatePack:()=>({summary:'Verified summary',cover_letter:'Review cover letter',email_subject:'Application',email_body:'Review email',top_bullets:[],skills_order:[]})}));
@@ -10,7 +11,7 @@ import {runAI,getBudget} from '../ai';
 import {preparePack,markOpened} from './applications';
 it('creates and saves an unpublished-pay review pack without AI, while actual application remains blocked',async()=>{
  const patches:Record<string,unknown>[]=[];
- const db={from(table:string){
+ const db={rpc:async()=>({data:true,error:null}),from(table:string){
   let patch:Record<string,unknown>|undefined;
   const q:Record<string,unknown>={};
   for(const method of ['select','eq','not','is','maybeSingle','single','insert'])q[method]=()=>q;
