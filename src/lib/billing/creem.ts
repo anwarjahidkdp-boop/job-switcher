@@ -1,15 +1,25 @@
 // Creem card payments (Merchant of Record) for everyone living outside Bangladesh, who pays with bKash.
-// The store sells one "JobPao Pro" one-time product in US dollars; each payment gets its own hosted checkout with a
-// custom price, and Pro is activated only from a signed checkout.completed webhook whose checkout id, payment id and
-// amount match our row.
+// Each international plan has its own fixed-price one-time product. Never rely on an unsupported
+// custom_price checkout option. Access is granted only on a signed, plan-matched paid webhook.
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export interface CreemConfig { apiKey: string; productId: string; webhookSecret: string; test: boolean }
+export const CREEM_PLAN_PRODUCTS = {
+  "15d": "prod_vP4sJzTUe3m0nJTpYou5T",
+  "30d": "prod_2DNLvuqFCOXzlFjYBFANfL",
+  "90d": "prod_5DHDmQ3zHhofZsoExkW96p",
+  "365d": "prod_6B0p9GM4tvS2sl1CO2xZiP",
+} as const;
+export type CreemPlan = keyof typeof CREEM_PLAN_PRODUCTS;
+export function creemProductForPlan(plan: string): string | null {
+  return Object.prototype.hasOwnProperty.call(CREEM_PLAN_PRODUCTS, plan)
+    ? CREEM_PLAN_PRODUCTS[plan as CreemPlan] : null;
+}
+export interface CreemConfig { apiKey: string; webhookSecret: string; test: boolean }
 
 /** On only when every CREEM_* value is set (GitHub secrets copied to the Worker at deploy). Test keys use the test API. */
 export function creemConfig(env: Record<string, string | undefined> = process.env): CreemConfig | null {
-  const apiKey = env.CREEM_API_KEY, productId = env.CREEM_PRODUCT_ID, webhookSecret = env.CREEM_WEBHOOK_SECRET;
-  return apiKey && productId && webhookSecret ? { apiKey, productId, webhookSecret, test: apiKey.startsWith("creem_test_") } : null;
+  const apiKey = env.CREEM_API_KEY, webhookSecret = env.CREEM_WEBHOOK_SECRET;
+  return apiKey && webhookSecret ? { apiKey, webhookSecret, test: apiKey.startsWith("creem_test_") } : null;
 }
 
 const apiBase = (cfg: CreemConfig) => cfg.test ? "https://test-api.creem.io" : "https://api.creem.io";
@@ -23,7 +33,7 @@ export function verifySignature(rawBody: string, signature: string | null, secre
 
 const idOf = (v: unknown): string | null => typeof v === "string" ? v : v && typeof (v as { id?: unknown }).id === "string" ? (v as { id: string }).id : null;
 
-export interface CreemCheckoutEvent { kind: "checkout"; checkoutId: string; status: string; orderId: string | null; orderStatus: string; amount: number; currency: string; paymentId: string | null; mode: string }
+export interface CreemCheckoutEvent { kind: "checkout"; checkoutId: string; status: string; orderId: string | null; orderStatus: string; amount: number; currency: string; paymentId: string | null; productId: string | null; mode: string }
 export interface CreemRefundEvent { kind: "refund"; refundId: string; status: string; orderId: string | null; transactionStatus: string; mode: string }
 
 /** The fields we rely on from a webhook; anything missing makes the event unusable. */
@@ -37,7 +47,8 @@ export function parseEvent(body: unknown): CreemCheckoutEvent | CreemRefundEvent
     const pid = (o.metadata as Record<string, unknown> | null)?.payment_id;
     return {
       kind: "checkout", checkoutId: o.id, status: String(o.status ?? ""), orderId: idOf(o.order), orderStatus: String(order.status ?? ""),
-      amount: Number(order.amount ?? NaN), currency: String(order.currency ?? ""), paymentId: typeof pid === "string" ? pid : null, mode,
+      amount: Number(order.amount ?? NaN), currency: String(order.currency ?? ""), paymentId: typeof pid === "string" ? pid : null,
+      productId: idOf(order.product) ?? idOf(o.product), mode,
     };
   }
   if (b.eventType === "refund.created") {
@@ -48,12 +59,12 @@ export function parseEvent(body: unknown): CreemCheckoutEvent | CreemRefundEvent
 }
 
 /** Create a hosted checkout for one payment. Returns its id and the URL to send the customer to. */
-export async function createCreemCheckout(cfg: CreemConfig, input: { priceMinor: number; paymentId: string; userId: string; email: string | null; successUrl: string; consentAt?: string }, f: typeof fetch = fetch): Promise<{ id: string; url: string }> {
+export async function createCreemCheckout(cfg: CreemConfig, input: { productId: string; paymentId: string; userId: string; email: string | null; successUrl: string; consentAt?: string }, f: typeof fetch = fetch): Promise<{ id: string; url: string }> {
   const r = await f(`${apiBase(cfg)}/v1/checkouts`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": cfg.apiKey },
     body: JSON.stringify({
-      product_id: cfg.productId, units: 1, custom_price: input.priceMinor, request_id: input.paymentId, success_url: input.successUrl,
+      product_id: input.productId, units: 1, request_id: input.paymentId, success_url: input.successUrl,
       ...(input.email ? { customer: { email: input.email } } : {}),
       metadata: { payment_id: input.paymentId, user_id: input.userId, ...(input.consentAt ? { start_now_consent_at: input.consentAt } : {}) },
     }),
