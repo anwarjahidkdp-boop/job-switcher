@@ -99,7 +99,13 @@ export default async function JobPage({ params, searchParams }: { params: Promis
       : "Quality over quantity. Your tailored preparation allowance is complete for now. Your CV and saved applications remain available for independent use.";
   const eligibility = {issues:safety.issues,eligible:canPrepareDraft(safety)};
   const fee = job.country === "BD" ? applicationFee(description) : null;
-  const canPrepare = !resolved && eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today);
+  const canPrepare = !resolved && eligibility.eligible && !a?.pack && job.active !== false && !["applied", "interview", "offer", "closed", "withdrawn"].includes(a?.status || "") && (!job.deadline || job.deadline >= st.today); 
+  const interviewScheduled = a?.status === "interview" && !!a.interview_at;
+  const interviewPanel = a && ["applied", "interview", "offer"].includes(a.status)
+    ? <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
+        prep={a.interview_prep ? withSalaryPrep(a.interview_prep, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)) : null}
+        prepAi={!!a.interview_prep_ai} aiReady={aiConfigured() && access.active} aiLocked={access.expired} />
+    : null;
   return (
     <>
       <PageHead slim back={{ href: "/opportunities", label: "Back to opportunities" }} />
@@ -110,6 +116,13 @@ export default async function JobPage({ params, searchParams }: { params: Promis
               <div className="job-review-company"><h1 style={{ fontSize: 26 }}>{job.title}</h1><p className="muted" style={{ marginTop: 4 }}>{job.company}{job.location ? ` · ${job.location}` : ""} · {job.type || "Full-time"}</p></div>
               <div className="job-review-action"><JobApplicationAction application={a}>{canPrepare?(preparationExhausted ? <Link className="btn btn-ghost btn-sm" href="/cv">Use your CV to apply independently</Link> : <PrepareApplicationButton key={job.id} jobId={job.id} label="Prepare Application" locked={!access.active} openPack/>):a?.pack?<Link prefetch={false} className="btn btn-primary btn-sm queue-review-cta" href="#application">Prepared · View Application</Link>:<button className="btn btn-primary btn-sm" disabled title="Review the eligibility requirements below">Prepare Application</button>}</JobApplicationAction><Ring score={m.score} band={m.band} /></div>
             </div>
+            {interviewScheduled ? <div className="note" role="region" aria-label="Your scheduled interview and preparation" style={{ marginTop: 14, padding: 14, borderLeft: "3px solid #bb9652", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 180, flex: "1 1 220px" }}>
+                <p style={{ fontWeight: 700, margin: 0 }}>Interview Scheduled</p>
+                <p className="small muted" style={{ marginTop: 4 }}>{a?.interview_prep ? "Your interview questions and practice answers are ready." : "Your next step: practise likely interview questions and answers tailored to this job."}</p>
+              </div>
+              <a className="btn btn-primary btn-sm" href="#interview">{a?.interview_prep ? "Review Interview Prep ↓" : "Prepare for Interview ↓"}</a>
+            </div> : null}
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
               <span className="pill p-neutral">{salaryText(job.salaryMin, job.salaryMax, job.country) || "Salary not published"}</span>
@@ -142,6 +155,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             <div className="row" style={{marginTop:12}}><Link prefetch={false} className="btn btn-ghost btn-sm" href="/opportunities">Choose another job</Link>{!a?.applied_at?<QueueDismissButton jobId={job.id} advance/>:null}</div>
             {foundAt.length ? <p className="small muted" style={{ marginTop: 10 }}>Found on: {foundAt.map((u, i) => <span key={u}>{i ? " · " : ""}<a href={u} target="_blank" rel="noopener noreferrer nofollow">{new URL(u).hostname}</a></span>)}{original ? <> · <a href={original} target="_blank" rel="noopener noreferrer nofollow">Employer / original circular ↗</a></> : null}</p> : null}
           </div>
+          {interviewScheduled ? interviewPanel : null}
           {!a?.pack && !["applied","interview","offer","closed","withdrawn"].includes(a?.status||"") ? <section className="card panel application-workspace" id="application">
             {ukRoute ? <UKApplicationJourney prepared={false} opened={false} submitted={false} route={ukRoute}/>:null}
             <h2>{ukRoute ? '01 · Prepare your application' : 'Your CV & cover letter'}</h2>
@@ -206,10 +220,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             </div>
           ) : null}
           {a?.status === "offer" ? <OfferPanel job={{ title: job.title, company: job.company, country: job.country, salaryMin: job.salaryMin, salaryMax: job.salaryMax }} facts={salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)} name={st.profile.full_name || st.master.content.name} sym={rule(job.country).sym} per={rule(job.country).per === "year" ? "a year" : "a month"} /> : null}
-          {a && ["applied", "interview", "offer"].includes(a.status) ? (
-            <InterviewPanel jobId={job.id} company={job.company} at={a.interview_at ?? null} mode={a.interview_mode ?? null} where={a.interview_where ?? null} notes={a.interview_notes ?? null}
-              prep={a.interview_prep ? withSalaryPrep(a.interview_prep, job, salaryFacts(st.profile.answer_library, st.profile.preferences, job.country, st.country)) : null} prepAi={!!a.interview_prep_ai} aiReady={aiConfigured()&&access.active} aiLocked={access.expired} />
-          ) : null}
+          {!interviewScheduled ? interviewPanel : null}
         </div>
         <aside className="side">
           {!pro ? <div className="card panel upsell" role="status">

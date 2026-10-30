@@ -52,7 +52,7 @@ export async function sendNudges(admin: SupabaseClient, opts: { appUrl: string; 
     .eq("status", "interview").gte("interview_at", now.toISOString()).lte("interview_at", new Date(now.getTime() + DAY).toISOString()).limit(500);
   for (const a of (iv || []) as unknown as { id: string; user_id: string; job_id: string; interview_at: string; interview_prep: unknown; jobs: { title: string; company: string } }[]) {
     // Say the prep is ready only when it has been made; otherwise invite them to make it.
-    add(a.user_id, { kind: "interview", title: `Interview soon with ${a.jobs.company}`, body: a.interview_prep ? "Practise your answers now: your interview prep is ready in the app." : "Open the job to get the likely questions and answers from your CV.", link: `/jobs/${a.job_id}`, key: `interview:${a.id}:${a.interview_at.slice(0, 10)}` },
+    add(a.user_id, { kind: "interview", title: `Interview soon with ${a.jobs.company}`, body: a.interview_prep ? "Practise your answers now: your interview prep is ready in the app." : "Open the job to get the likely questions and answers from your CV.", link: `/jobs/${a.job_id}#interview`, key: `interview:${a.id}:${a.interview_at.slice(0, 10)}` },
       { subject: `Your ${a.jobs.company} interview is coming up`, body: `Your interview for ${a.jobs.title} at ${a.jobs.company} is within the next day. ${a.interview_prep ? "Open JobPao to practise the likely questions and your answers." : "Open JobPao to get the likely questions and answers built from your CV."}`, button: a.interview_prep ? "Practise now" : "Prepare now" });
   }
 
