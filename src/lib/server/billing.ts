@@ -10,7 +10,7 @@ import { paymentEmail } from "../email/templates";
 import { emailProvider, sendEmail } from "../email/send";
 import { publicEnv } from "../env";
 import { formatPrice, packPrice, PAYABLE_CURRENCIES, type PackPrice } from "../billing/pricing";
-import { createCreemCheckout, creemConfig, parseEvent as parseCreemEvent, verifySignature as verifyCreemSignature } from "../billing/creem";
+import { createCreemCheckout, creemConfig, creemProductForPlan, parseEvent as parseCreemEvent, verifySignature as verifyCreemSignature } from "../billing/creem";
 
 export interface PaymentRow {
   id: string; user_id: string; plan_code: string; method: "bkash_manual" | "bkash_checkout" | "lemonsqueezy" | "paddle" | "creem"; amount_minor: number; currency: string;
@@ -199,6 +199,8 @@ export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: st
   const price = await priceForUser(ctx.admin, ctx.userId, pack);
   if (PAYABLE_CURRENCIES.includes(price.currency)) throw new PaymentError("In Bangladesh, pay with bKash.");
   const usd = price.usd;
+  const productId = creemProductForPlan(price.pack);
+  if (!productId) throw new PaymentError("This plan is not available for international card checkout.");
   const plan = await proPlan(ctx.admin);
   const { data: prof } = await ctx.admin.from("profiles").select("email").eq("id", ctx.userId).maybeSingle();
   const { data: row, error } = await ctx.admin.from("payments").insert({
@@ -207,7 +209,7 @@ export async function startCardCheckout(ctx: { admin: SupabaseClient; userId: st
   }).select("id").single();
   if (error) throw error;
   try {
-    const co = await createCreemCheckout(cfg, { priceMinor: usd, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, successUrl: `${publicEnv.appUrl}/upgrade?payment=card`, consentAt });
+    const co = await createCreemCheckout(cfg, { productId, paymentId: row.id, userId: ctx.userId, email: prof?.email ?? null, successUrl: `${publicEnv.appUrl}/upgrade?payment=card`, consentAt });
     // The webhook must name this exact checkout before Pro starts; on payment it is replaced by the order id.
     const { error: e2 } = await ctx.admin.from("payments").update({ provider_order_id: co.id }).eq("id", row.id);
     if (e2) throw e2;
@@ -236,11 +238,16 @@ export async function handleCreemWebhook(admin: SupabaseClient, rawBody: string,
   if (ev && !cfg.test && TEST_MODES.includes(ev.mode)) return { status: 200, note: "test mode ignored" };
   if (ev?.kind === "refund") return handleCreemRefund(admin, ev);
   if (!ev || !ev.paymentId) return { status: 200, note: "ignored" };
-  const { data: p } = await admin.from("payments").select("id, user_id, amount_minor, currency, status, method, provider_order_id").eq("id", ev.paymentId).maybeSingle();
+  const { data: p } = await admin.from("payments").select("id, user_id, amount_minor, currency, period_days, status, method, provider_order_id").eq("id", ev.paymentId).maybeSingle();
   if (!p || p.method !== "creem") return { status: 200, note: "unknown payment" };
   if (p.status === "approved") return { status: 200, note: "already done" };
   if (p.provider_order_id !== ev.checkoutId) return { status: 200, note: "unknown payment" };
   if (ev.status !== "completed" || ev.orderStatus !== "paid" || !ev.orderId) return { status: 200, note: "not paid" };
+  const expectedPlan = `${p.period_days}d`;
+  if (!ev.productId || ev.productId !== creemProductForPlan(expectedPlan)) {
+    console.error("creem product mismatch", p.id);
+    return { status: 200, note: "product mismatch" };
+  }
   if (ev.currency !== "USD" || !(ev.amount >= p.amount_minor)) {
     await admin.from("payments").update({ status: "failed", review_note: `amount mismatch: ${ev.currency} ${ev.amount} (order ${ev.orderId})` }).eq("id", p.id).eq("status", "initiated");
     return { status: 200, note: "amount mismatch" };
