@@ -98,7 +98,7 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
 
   const label = MODES.find((m) => m[0] === f.mode)![2];
   if (editing) return (
-    <div className="card panel" id="interview">
+    <div className="card panel" id="interview" style={{ scrollMarginTop: 100 }}>
       <h2 style={{ fontSize: 19 }}>Interview details</h2>
       <div className="ivform">
         <label className="f">Date<input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
@@ -147,7 +147,10 @@ export function InterviewPanel(p: { jobId: string; company: string; at: string |
       </div>
       {p.notes ? <p className="note" style={{ marginTop: 10 }}>{p.notes}</p> : null}
 
-      {prepBlock}
+      <div style={{ marginTop: 18, paddingTop: 12, borderTop: "1px solid var(--border, #dfe5ec)" }}>
+        <p className="eyebrow">Your next step</p>
+        {prepBlock}
+      </div>
     </div>
   );
 }
