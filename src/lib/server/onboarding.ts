@@ -1,4 +1,5 @@
 import { localSearchAnswers } from "../application-defaults";
+import { normalisePhone } from "../cv/contact";
 import { fillPersonalFromCv } from "../cv/personal-read";
 import { setupRequirements,validBirthDate } from "../eligibility";
 import type { AnswerLibrary } from "../career-safety";
@@ -108,6 +109,9 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
   const questions: (CvQuestion & { demo?: string })[] = [...fresh, ...extraction.questions].slice(0, 6);
 
   const facts = groundExtraction(extraction, text);
+  // The phone given at signup (or saved on Profile) is the CV phone; the CV's own number is only a fallback.
+  const { data: au } = await ctx.db.auth.getUser();
+  const phone = normalisePhone(profile.phone) || normalisePhone(au.user?.user_metadata?.phone) || extraction.phone;
   const { data: docId, error } = await ctx.db.rpc("replace_cv", {
     p_document: {
       storage_path: storagePath, file_name: fileName, mime_type: mime, size_bytes: size, text_content: text, text_source: source,
@@ -116,7 +120,7 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
     },
     p_facts: facts,
     p_profile: {
-      full_name: extraction.name || profile.full_name, phone: extraction.phone, city: extraction.location,
+      full_name: extraction.name || profile.full_name, phone, city: extraction.location,
       career_meta: { ...(profile.career_meta?.guided_setup ? {guided_setup:true} : {}), industries: extraction.industries, categories: extraction.categories, seniority: extraction.seniority, target_roles: extraction.target_roles, location: extraction.location },
     },
   });

@@ -13,7 +13,7 @@ import { LEVEL, LEVEL_NAME, skillLabel } from "@/lib/taxonomy";
 import { CvPreview } from "@/components/CvPreview";
 import { CvToolbar } from "@/components/CvToolbar";
 import { backToStepAction, setReminderPrefAction } from "@/app/actions";
-import { CountryPanel, SkillAdder, FactReview, DangerZone, GmailPanel } from "./client";
+import { CountryPanel, SkillAdder, FactReview, DangerZone, GmailPanel, ContactPanel } from "./client";
 import { gmailAccount, gmailConfigured } from "@/lib/server/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sitesDone } from "@/lib/setup";
@@ -39,6 +39,9 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const setupSites = portals(st.country);
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const pending = st.facts.filter((f) => !f.verified && f.kind !== "answer" && f.id).map((f) => ({ id: f.id!, kind: f.kind, text: describeFact(f.kind, f.data) }));
+  // Everything personal the CV can use, in one place (owner 2026-11-01); empty items are left out.
+  const pd = st.profile.personal || {};
+  const personalRows = ([["Full name", st.profile.full_name || st.master.content.name], ["City", st.profile.city], ["Date of birth", pd.dob], ["Nationality", pd.nationality], ["Father's name", pd.fatherName], ["Mother's name", pd.motherName], ["Marital status", pd.marital], ["Religion", pd.religion], ["Address", pd.address], ["Driving licence", pd.licence], ["Visa status", pd.visa]] as [string, string | null | undefined][]).filter((x): x is [string, string] => !!x[1]);
   const srcTitle = (s: string) => (s === "cv" ? "From your CV" : s === "answer" ? "From your answers" : "Added by you");
   return (
     <>
@@ -59,6 +62,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           {st.master.flags.length ? <p className="note" style={{ marginTop: 12 }}>Fact check on this CV: {st.master.flags.join("; ")}.</p> : null}
         </div>
         <aside className="side profile-sidebar">
+          <ContactPanel loginEmail={st.profile.email || ""} phone={st.profile.phone || ""} cvEmail={st.profile.personal?.cvEmail || ""} onCv={st.master.content.contact} details={personalRows} />
           <div className="card panel profile-card"><h3>JobPao on your phone</h3><p className="small muted">Install again any time. Sign in with the same email to keep your saved CV and application history.</p><Link className="btn btn-primary btn-sm" href="/install" style={{marginTop:12}}>Install / reinstall app</Link></div>
           <CountryPanel current={country} needsVisa={st.profile.needs_visa} homeCountry={st.homeCountry} />
           <div className="card panel profile-card" data-tone="good"><ProfileCardTitle icon="skills">Verified skills</ProfileCardTitle>
