@@ -29,5 +29,6 @@ const summary = { origin, requests: rows.length, parallel, failed: failed.length
 writeFileSync("load-check-results.json", JSON.stringify({ summary, rows }, null, 1));
 console.log(JSON.stringify(summary, null, 1));
 // One line the run page shows without opening the log.
-console.log(`::notice title=Load check::${rows.length} requests, ${parallel} at a time: ${failed.length} failed (${summary.cpuLimit} CPU limit), p50 ${summary.p50} ms, p95 ${summary.p95} ms`);
+const why = Object.entries(failed.reduce((m, r) => { const k = `${r.path} ${r.status || "no answer"} after ${Math.round(r.ms / 1000)}s`; m[k] = (m[k] || 0) + 1; return m; }, {})).map(([k, n]) => `${n}× ${k}`).slice(0, 8).join("; ");
+console.log(`::notice title=Load check::${rows.length} requests, ${parallel} at a time: ${failed.length} failed (${summary.cpuLimit} CPU limit), p50 ${summary.p50} ms, p95 ${summary.p95} ms${why ? `. Failures: ${why}` : ""}`);
 if (failed.length) process.exit(1);

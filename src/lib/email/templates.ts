@@ -56,3 +56,23 @@ export function nudgeEmail(p: { name: string; subject: string; body: string; but
 <p><a href="${esc(p.link)}" style="display:inline-block;background:#14275A;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">${esc(p.button)}</a></p></div>`;
   return { subject: p.subject, text, html };
 }
+
+/** The Gmail half of the job-alert setup, for doing it on a computer (Gmail shows forwarding settings only there). */
+export function setupGuideEmail(p: { name: string; site: string; address: string; from: string; hasnot: string; link: string }) {
+  const first = (p.name || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(" ")[0] || "there";
+  const steps = [
+    `Open Gmail on a computer: https://mail.google.com/mail/u/0/#settings/fwdandpop (be signed in to the Gmail that gets your ${p.site} emails).`,
+    `Click "Add a forwarding address", paste ${p.address}, then Next, Proceed, OK.`,
+    `Open the JobPao setup page (button below). A "Confirm in Gmail" button appears there in a few seconds. Click it, then Confirm on Google's page.`,
+    `Back on the JobPao setup page, press "Open the ready-made filter", then in Gmail click Create filter, tick "Forward it to", choose ${p.address} and click Create filter. (If the boxes are empty: From = ${p.from}, Doesn't have = ${p.hasnot}.)`,
+  ];
+  const subject = `Your ${p.site} alerts setup: the Gmail steps for a computer`;
+  const text = `Hi ${first},\n\nGmail lets you change forwarding only on a computer, so here are the last steps to get your ${p.site} alerts into JobPao. About 2 minutes.\n\nYour JobPao address: ${p.address}\n\n${steps.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n\nOpen the setup page: ${p.link}\n\nOnly ${p.site} job emails reach JobPao; your other emails stay private.\n`;
+  const html = `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#0F1B2D;max-width:560px">
+<p>Hi ${esc(first)},</p><p>Gmail lets you change forwarding only on a computer, so here are the last steps to get your ${esc(p.site)} alerts into JobPao. About 2 minutes.</p>
+<p style="background:#F4F1E8;border-radius:8px;padding:10px 12px">Your JobPao address: <b>${esc(p.address)}</b></p>
+<ol>${steps.map((x) => `<li style="margin:6px 0">${esc(x)}</li>`).join("")}</ol>
+<p><a href="${esc(p.link)}" style="display:inline-block;background:#14275A;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Open the setup page</a></p>
+<p style="color:#4A5568;font-size:13px">Only ${esc(p.site)} job emails reach JobPao; your other emails stay private.</p></div>`;
+  return { subject, text, html };
+}

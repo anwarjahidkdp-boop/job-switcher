@@ -7,12 +7,11 @@ import { completeSetupStepAction, resetSiteSetupAction, toggleSetupStepAction } 
 import { CopyButton } from "@/components/CopyButton";
 import { CodeWatcher } from "./CodeWatcher";
 import { PORTAL_HELP } from "@/lib/portalHelp";
-import { accountKind, forwardKey, siteDone, siteKey, sitesDone } from "@/lib/setup";
-import { AccountChoice } from "./AccountChoice";
+import { accountKind, FILTER_HASNOT, forwardKey, siteDone, siteKey, sitesDone } from "@/lib/setup";
+import { EmailGuideButton } from "./EmailGuideButton";
+import { ExternalLink } from "@/components/ExternalLink";
 
 export const metadata = { title: "Automatic jobs setup" };
-// Keeps login, OTP and password-reset emails from the job sites out of the forward.
-const FILTER_HASNOT = "password OR OTP OR verify OR reset OR code";
 
 /** One wizard step: only the current step is open; finished ones fold to a single line, later ones wait. */
 function Step({ k, n, title, isDone, active, children }: { k: string; n: number; title: string; isDone: boolean; active: boolean; children: React.ReactNode }) {
@@ -65,13 +64,14 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
   const since = steps[`since:${site}`];
   const confirmLink = !gmail2 || (typeof since === "string" && (f?.gmail_code_received_at || "") > since) ? f?.gmail_verification_link || null : null;
   const confirmCode = confirmLink || !gmail2 ? f?.gmail_verification_code || null : null;
+  // The one thing to do on the site sits next to the button, so nobody has to come back to re-read the steps.
   const siteHow = (
     <>
-      <p className="small muted">Search for jobs like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null}, then:</p>
-      {help ? <><Ol items={help.steps} /><a className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} href={help.url} target="_blank" rel="noopener noreferrer">Open {site} ↗</a></> : <Ol items={["Sign in, search for your job, and look for a button like \"Create job alert\" or \"Save search\"."]} />}
+      {help?.todo ? <p className="small" style={{ margin: 0 }}>{help.todo}</p> : <p className="small" style={{ margin: 0 }}>Search for jobs like <b>{roles}</b>{st.country !== "XX" ? <> in <b>{cname(st.country)}</b></> : null} and save the search as an email alert.</p>}
+      {help ? <ExternalLink className="btn btn-primary btn-sm" style={{ marginTop: 8 }} href={help.url}>Open {site} ↗</ExternalLink> : null}
+      {help && !help.todo ? <details className="small" style={{ marginTop: 8 }}><summary>Need more help?</summary><Ol items={help.steps} /></details> : null}
     </>
   );
-  const me = <b>{email || "your JobPao email"}</b>;
   const filterUrl = `${gmailBase}#create-filter/from=${encodeURIComponent(filterFrom)}&hasnot=${encodeURIComponent(FILTER_HASNOT)}`;
 
   return (
@@ -99,31 +99,24 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
           </div>
         ) : null}
         <div className="stack" style={{ marginTop: 16 }}>
-          <Step k={k.alerts} isDone={!!steps[k.alerts]} active={current === "alerts"} n={1} title={`Turn on job alerts on ${site}`}>
-            <p className="small muted">Which email does your {site} account use?</p>
-            <AccountChoice site={site} value={acct} options={[
-              { v: "new", label: `I don't have ${/^[aeiou]/i.test(site) ? "an" : "a"} ${site} account` },
-              { v: "same", label: `The same email I use here (${email || "my JobPao email"})` },
-              { v: "gmail2", label: "A different Gmail" },
-              { v: "other", label: "Outlook, Yahoo or another email" },
-            ]} panels={{
-              new: <><p className="small">Create a free {site} account with {me}.</p>{siteHow}</>,
-              same: siteHow,
-              gmail2: <><p className="small">Easiest: in your {site} account settings, change the email to {me}. Or keep that Gmail; step 2 then connects it too.</p>{siteHow}</>,
-              other: <><p className="small">In your {site} account settings, change the email to {me}, so alerts come to your Gmail.</p>{siteHow}<p className="small muted" style={{ marginTop: 8 }}>Want to keep Outlook? In Outlook, open Settings → Mail → Rules → Add new rule: From <b>{filterFrom}</b>, Forward to <b>{addr || "your JobPao address"}</b>. Then press Done on steps 2 and 3.</p></>,
-            }} />
+          <Step k={k.alerts} isDone={!!steps[k.alerts]} active={current === "alerts"} n={1} title={help?.todo ? `On ${site}, turn on job alert emails` : `Turn on job alerts on ${site}`}>
+            {siteHow}
           </Step>
-          <Step k={k.forward} isDone={!!steps[k.forward]} active={current === "forward"} n={2} title={gmail2 ? `Connect your other Gmail to JobPao` : "Connect your Gmail to JobPao"}>
-            <p className="small muted">Do this on a computer (on a phone, open gmail.com in Chrome and choose &ldquo;Desktop version&rdquo;). {gmail2 ? <>Be signed in to the Gmail your <b>{site}</b> account uses. Check the address at the top right of Gmail, and switch account there if needed.</> : <>Be signed in to the <b>same Gmail</b> that gets your job alerts. If you use more than one Gmail, check the address at the top right of Gmail before you start.</>}</p>
+          <Step k={k.forward} isDone={!!steps[k.forward]} active={current === "forward"} n={2} title={`In Gmail, add your JobPao address for forwarding`}>
+            <p className="small" style={{ margin: 0 }}>Open the Gmail that gets your {site} emails, add this address under <b>Forwarding</b>, then tap <b>Confirm in Gmail</b> here when it appears.</p>
             {inboundReady ? <div className="row" style={{ marginTop: 10, flexWrap: "nowrap" }}><code className="copybox" style={{ padding: "8px 10px", flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{addr || "Could not create your address. Reload the page."}</code>{addr ? <CopyButton text={addr} label="Copy" /> : null}</div> : <p className="small" style={{ marginTop: 8 }}>Your JobPao address will appear here soon.</p>}
-            <Ol items={[<>Click <b>Copy</b> above, then <a className="btn btn-primary btn-sm" style={{ margin: "4px 0" }} href={`${gmailBase}#settings/fwdandpop`} target="_blank" rel="noopener noreferrer">Open Gmail settings ↗</a></>, <>Click <b>Add a forwarding address</b>, paste, then <b>Next → Proceed → OK</b>. If you see a box with a list instead of that button, click the box and choose <b>Add a forwarding address</b>. If your JobPao address is already in that list, this step is done.</>, <>Come back here. A <b>Confirm in Gmail</b> button appears below in a few seconds. Click it, then <b>Confirm</b> on Google&apos;s page.</>]} />
+            <ExternalLink className="btn btn-primary btn-sm" style={{ marginTop: 8 }} href={`${gmailBase}#settings/fwdandpop`}>Open Gmail forwarding ↗</ExternalLink>
+            <p className="small muted" style={{ marginTop: 6 }}>There: <b>Add a forwarding address</b> → paste → <b>Next → Proceed → OK</b>.</p>
+            <div className="sg-phone note">
+              <p className="small" style={{ margin: 0 }}><b>On a phone,</b> Gmail shows this only as a desktop page: in Chrome tap <b>⋮</b> → <b>Desktop site</b>, then the gear <b>⚙</b> → <b>See all settings</b> → <b>Forwarding and POP/IMAP</b>. Easier on a computer:</p>
+              <EmailGuideButton site={site} />
+            </div>
             <CodeWatcher code={confirmCode} link={confirmLink} stepKey={k.forward} />
-            <p className="small muted" style={{ marginTop: 8 }}>Keep <b>Disable forwarding</b> selected in Gmail. Your other emails stay private; the next step sends only job emails.</p>
           </Step>
-          <Step k={k.filter} isDone={!!steps[k.filter]} active={current === "filter"} n={3} title={`Send only ${site} job emails to JobPao`}>
-            <p className="small muted">We filled in the Gmail filter for you. It picks only emails from {site}, and never login or password emails.{otherDone.length ? <> This is a new filter; keep the one you made for {otherDone.join(" and ")}.</> : null}</p>
-            <Ol items={[<><a className="btn btn-primary btn-sm" style={{ margin: "4px 0" }} href={filterUrl} target="_blank" rel="noopener noreferrer">Open the ready-made filter ↗</a></>, <>In Gmail, click <b>Create filter</b>.</>, <>Tick <b>Forward it to</b>, choose <b>{addr || "your JobPao address"}</b>, and click <b>Create filter</b>.</>]} />
-            <p className="small muted" style={{ marginTop: 8 }}>If the boxes are empty, type <b>{filterFrom}</b> in <b>From</b> and <b>{FILTER_HASNOT}</b> in <b>Doesn&apos;t have</b>.</p>
+          <Step k={k.filter} isDone={!!steps[k.filter]} active={current === "filter"} n={3} title={`Forward only ${site} emails`}>
+            <p className="small" style={{ margin: 0 }}>We filled in the Gmail filter. Tick <b>Forward it to</b>, choose your JobPao address, and tap <b>Create filter</b>. Your other emails stay private.</p>
+            <ExternalLink className="btn btn-primary btn-sm" style={{ marginTop: 8 }} href={filterUrl}>Open the ready-made filter ↗</ExternalLink>
+            <p className="small muted" style={{ marginTop: 6 }}>If the boxes are empty: From <b>{filterFrom}</b>, Doesn&apos;t have <b>{FILTER_HASNOT}</b>.{otherDone.length ? <> Keep the filter you made for {otherDone.join(" and ")}.</> : null}</p>
           </Step>
           <Step k={k.test} isDone={!!steps[k.test]} active={current === "test"} n={4} title={`All set: your next ${site} alert shows up here`}>
             <p className="small muted">When the next {site} alert email comes, its jobs appear in your Opportunities with the site name. This step ticks itself.</p>

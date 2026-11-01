@@ -22,3 +22,6 @@ export const accountKind = (s: SetupSteps, site: string): AccountKind | null => 
 /** A site whose alerts go to a second Gmail needs that Gmail connected too; every other site shares the main Gmail. */
 export const forwardKey = (s: SetupSteps, site: string) => (accountKind(s, site) === "gmail2" ? `forward:${site}` : "forward");
 export const sitesDone = (s: SetupSteps, sites: string[]) => sites.filter((p) => siteDone(s, p)).length;
+
+/** Keeps login, OTP and password-reset emails from the job sites out of the forward. */
+export const FILTER_HASNOT = "password OR OTP OR verify OR reset OR code";
