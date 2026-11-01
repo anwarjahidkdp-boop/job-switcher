@@ -3,12 +3,14 @@
  * Menu names on these sites change from time to time, so the steps name what to look for, not exact pixels.
  */
 /** `from` is what the Gmail filter matches: the site's alert sender, or its domain when alerts come from several addresses. */
-export type PortalHelp = { url: string; from: string; steps: string[] };
+/** `todo` is the one thing to do on the site, shown on the button side so nobody has to come back to re-read the steps. */
+export type PortalHelp = { url: string; from: string; steps: string[]; todo?: string };
 
 export const PORTAL_HELP: Record<string, PortalHelp> = {
   Bdjobs: {
     from: "bdjobs.com",
     url: "https://mybdjobs.bdjobs.com/jobseeker-panel/email-notification",
+    todo: "Sign in and turn on \"Hot Job Notification\". That is the only setting; your email can stay as it is.",
     steps: [
       "Use Open Bdjobs below to go directly to Email Notification. Sign in on Bdjobs if asked.",
       "Turn on the \"Hot Job Notification\" switch. Bdjobs then emails you the hot jobs that match your qualification.",
