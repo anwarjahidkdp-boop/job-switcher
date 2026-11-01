@@ -16,6 +16,7 @@ import { loadProfile } from "./state";
 import { safeUrl } from "./jobs";
 import { PORTAL_HELP } from "../portalHelp";
 import { SITE_STEPS, siteKey } from "../setup";
+import { isAdminEmail } from "../billing/manual";
 
 export interface InboundInput { alias: string; raw: string; rawKey?: string | null }
 
@@ -65,7 +66,13 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   }
 
   const profile = await loadProfile(admin, userId);
-  const country = cc(profile?.target_country);
+  // The owner's own alert address feeds every user (owner decision 2026-11-01): job sites such as Bdjobs send the
+  // same "Hot Job" email to everyone, so one central subscription replaces a Gmail setup by each user. Its jobs are
+  // stored as public listings and each person's own matching decides who sees them.
+  const { data: au } = await admin.auth.admin.getUserById(userId);
+  const shared = !!au?.user?.email_confirmed_at && isAdminEmail(au.user.email);
+  // A Bdjobs alert lists Bangladesh jobs whatever the receiving account targets.
+  const country = shared && /bdjobs/i.test(parsed.from) ? "BD" : cc(profile?.target_country);
   const today = todayStr(rule(country).timeZone);
 
   // 1) Deterministic pass over the email itself (no AI, no page fetches).
@@ -103,19 +110,25 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
   }
 
   // 3) Store what the alert says, with its link. Duplicates: by URL (unique index) and by (title, company).
-  const { data: recent } = await admin.from("jobs").select("title, company").eq("owner_id", userId).eq("source_kind", "email_alert").gte("created_at", new Date(Date.now() - 60 * 86_400_000).toISOString()).limit(1000);
+  const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
+  const recentQ = admin.from("jobs").select("title, company, url").eq("source_kind", "email_alert").gte("created_at", since);
+  const { data: recent } = await (shared ? recentQ.is("owner_id", null) : recentQ.eq("owner_id", userId)).limit(1000);
   const known = new Set((recent || []).map((r: { title: string; company: string }) => titleCompanyKey(r)).filter(Boolean));
+  // Public rows have no owner, and Postgres never treats two NULL owners as a conflict, so shared links are checked here.
+  const knownUrls = new Set((recent || []).map((r: { url: string | null }) => r.url).filter(Boolean));
   const rows = items.filter((j) => j.title).slice(0, 50).flatMap((j) => {
     const key = titleCompanyKey(j);
     if (key && known.has(key)) return [];
     if (key) known.add(key);
     const url = j.url ? safeUrl(j.url) : null;
+    if (shared && url && knownUrls.has(url)) return [];
+    if (url) knownUrls.add(url);
     const job = normaliseJobText({ title: j.title!.slice(0, 200), company: j.company || "Company not stated", text: [j.title, j.company, j.location].filter(Boolean).join("\n"), country, location: j.location, url, deadline: j.deadline, source: `${det.portal} alert email`, today });
-    return [jobToRow(job, { owner_id: userId, source_kind: "email_alert", external_id: url, description: null, raw: { inbound_email_id: rec.id, portal: det.portal, alert: j } })];
+    return [jobToRow(job, { owner_id: shared ? null : userId, source_kind: "email_alert", external_id: url, description: null, raw: { inbound_email_id: rec.id, portal: det.portal, alert: j } })];
   });
   let created = 0;
   for (const r of rows) {
-    const { error } = r.url
+    const { error } = r.url && !shared
       ? await admin.from("jobs").upsert(r, { onConflict: "owner_id,url", ignoreDuplicates: true })
       : await admin.from("jobs").insert(r);
     if (!error) created++;

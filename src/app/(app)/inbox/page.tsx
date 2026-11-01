@@ -14,7 +14,7 @@ import { cname, portals, rule } from "@/lib/countries";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import { STATUS_LABEL, type Band } from "@/lib/types";
 import { listNotifications } from "@/lib/server/notify";
-import { siteDone, sitesDone } from "@/lib/setup";
+import { siteDone, sitesDone, userSetupSites } from "@/lib/setup";
 import { LINKEDIN_DONE, LINKEDIN_URL } from "@/lib/setup";
 import { cookies } from "next/headers";
 import { VISIT_COOKIE } from "@/lib/visit";
@@ -72,7 +72,7 @@ export default async function Inbox() {
   const queue = applyQueue(st);
   const answered = Object.values(st.cvDoc?.answers || {}).filter(Boolean).length;
   const comp = completeness(P, answered);
-  const setupSites = portals(country);
+  const setupSites = userSetupSites(portals(country));
   const setupDone = sitesDone(st.profile.setup_steps || {}, setupSites);
   const now = nowMs();
   // Start the page's other reads together (each is a round trip); the awaits below pick up these same cached requests.

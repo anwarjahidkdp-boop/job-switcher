@@ -24,4 +24,11 @@ export const forwardKey = (s: SetupSteps, site: string) => (accountKind(s, site)
 export const sitesDone = (s: SetupSteps, sites: string[]) => sites.filter((p) => siteDone(s, p)).length;
 
 /** Keeps login, OTP and password-reset emails from the job sites out of the forward. */
+/**
+ * Job sites JobPao already receives centrally (owner decision 2026-11-01): the owner's own alert address feeds their
+ * "Hot Job" emails to every user, so users are never asked to set these up. /setup still offers them as optional.
+ */
+export const CENTRAL_SITES: readonly string[] = ["Bdjobs"];
+/** The job sites a person is asked to connect themselves. */
+export const userSetupSites = (sites: string[]) => sites.filter((p) => !CENTRAL_SITES.includes(p));
 export const FILTER_HASNOT = "password OR OTP OR verify OR reset OR code";

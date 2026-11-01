@@ -59,7 +59,7 @@ describe("career home", () => {
     const order = ["Today&#x27;s <em>Fresh Jobs</em>", "Strong Fit", "Best Fit", "Good Fit", "Stretch &amp; others", "Career guide", "Your best match · Ready to apply", "Lifetime", "Interviewed"].map((l) => html.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
-    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Top match", "70% and above", "Offer received", "Connect Bdjobs", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
+    for (const t of ["Welcome back", "Rahim", "Ready to apply", "Applied", "Interviewed", "Senior Accounts Manager", "Grow your matches", "SAP FICO", "AI applications left", "1 of 2", "Deadlines &amp; queue", "Jobs found", "Top match", "70% and above", "Offer received", "Connect LinkedIn", ">1,248<", ">4<", ">1,244<", "100%"]) expect(html).toContain(t);
     // Every summary number opens the jobs behind it; the best match asks for review before any AI work.
     for (const h of ['href="/opportunities?fit=found&amp;when=new&amp;since=', 'href="/opportunities?fit=ex&amp;when=new&amp;since=', 'href="/opportunities?fit=rest"', 'href="/opportunities?fit=matched&amp;when=new&amp;since=', 'href="/applications?when=new&amp;since=', 'href="/applications?status=interview"', 'href="/applications?status=offer"', "Review &amp; apply →"]) expect(html).toContain(h);
     expect(html).not.toContain("Open &amp; apply");
@@ -130,10 +130,12 @@ describe("career home", () => {
     expect(html).toMatch(/<b>0<\/b><span[^>]*>Interviewed/);
     expect(html).toMatch(/<b>0<\/b><span[^>]*>Applied/);
   });
-  it("offers LinkedIn beside Bdjobs until the person has updated their profile", async () => {
+  it("offers LinkedIn until the person has updated their profile, and never asks BD users to connect Bdjobs", async () => {
     const { default: Inbox } = await import("./page");
     let html = renderToStaticMarkup(await Inbox());
-    expect(html).toMatch(/href="\/linkedin"[^>]*>[\s\S]*Connect LinkedIn[\s\S]*Connect Bdjobs/);
+    expect(html).toMatch(/href="\/linkedin"[^>]*>[\s\S]*Connect LinkedIn/);
+    // Bdjobs Hot Jobs reach everyone through the owner's central alert address (owner decision 2026-11-01).
+    expect(html).not.toContain("Connect Bdjobs");
     const st = h.st as unknown as { profile: { setup_steps: Record<string, unknown> } };
     st.profile.setup_steps = { "linkedin:url": "https://www.linkedin.com/in/rahim" };
     html = renderToStaticMarkup(await Inbox());

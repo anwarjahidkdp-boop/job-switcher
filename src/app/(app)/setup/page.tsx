@@ -7,7 +7,7 @@ import { completeSetupStepAction, resetSiteSetupAction, toggleSetupStepAction } 
 import { CopyButton } from "@/components/CopyButton";
 import { CodeWatcher } from "./CodeWatcher";
 import { PORTAL_HELP } from "@/lib/portalHelp";
-import { accountKind, FILTER_HASNOT, forwardKey, siteDone, siteKey, sitesDone } from "@/lib/setup";
+import { accountKind, CENTRAL_SITES, FILTER_HASNOT, userSetupSites, forwardKey, siteDone, siteKey, sitesDone } from "@/lib/setup";
 import { EmailGuideButton } from "./EmailGuideButton";
 import { ExternalLink } from "@/components/ExternalLink";
 
@@ -46,7 +46,7 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
   const done = sitesDone(steps, ports);
   // One job site at a time: the one asked for, else the first one not set up yet.
   const asked = (await searchParams).site;
-  const site = ports.find((p) => p === asked) ?? ports.find((p) => !siteDone(steps, p)) ?? ports[0];
+  const site = ports.find((p) => p === asked) ?? userSetupSites(ports).find((p) => !siteDone(steps, p)) ?? ports.find((p) => !siteDone(steps, p)) ?? ports[0];
   const help = PORTAL_HELP[site];
   const acct = accountKind(steps, site);
   const gmail2 = acct === "gmail2";
@@ -89,6 +89,7 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
         <div className="sg-tabs">
           {ports.map((p) => <Link key={p} href={`/setup?site=${encodeURIComponent(p)}`} className={`sg-tab${p === site ? " on" : ""}`} aria-current={p === site ? "page" : undefined}>{siteDone(steps, p) ? "✓ " : ""}{p}</Link>)}
         </div>
+        {CENTRAL_SITES.includes(site) && !siteDone(steps, site) ? <p className="note" style={{ marginTop: 14 }}><b>Optional.</b> {site} Hot Jobs already come in for everyone, with no setup. Do this only if you also want your own {site} alerts.</p> : null}
         {siteDone(steps, site) ? (
           <div className="note" style={{ marginTop: 14 }}>
             <b>{site} is set up.</b> {next.length ? <>Set up {next.join(" and ")} too, so you get jobs from there as well.</> : <>All your job sites are set up.</>}
