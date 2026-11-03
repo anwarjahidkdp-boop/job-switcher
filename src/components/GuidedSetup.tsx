@@ -5,6 +5,7 @@ import { cname, rule } from '@/lib/countries';
 import { draftEnvelope, emptySetup, GuidedSetupSchema, guidedSteps, readSetupDraft, SETUP_DRAFT_KEY, stepError, type GuidedSetup as Values, type SetupDraft } from '@/lib/guided-setup';
 import styles from './GuidedSetup.module.css';
 import {saveSetupCv} from '@/lib/cv/setup-draft';
+import {suggestJobTitles} from '@/lib/job-titles';
 export function GuidedSetup({initial,authenticated=false,billingLocked=false,onComplete}:{initial?:SetupDraft;authenticated?:boolean;billingLocked?:boolean;onComplete:(d:Values)=>Promise<void>}) {
  const [d,setD]=useState<SetupDraft>(initial||emptySetup());const [step,setStep]=useState(authenticated?'review':'country');const [returnToReview,setReturnToReview]=useState(false);const [ready,setReady]=useState(authenticated);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [storageNote,setStorageNote]=useState('');const panel=useRef<HTMLDivElement>(null);
  // Restore the external browser draft after hydration; do not read browser storage during SSR.
@@ -43,15 +44,22 @@ export function GuidedSetup({initial,authenticated=false,billingLocked=false,onC
 }
 function localStorageSafe(){try{return localStorage.getItem(SETUP_DRAFT_KEY);}catch{return null;}}
 
-const suggestedRoles=['Accountant','Financial Accountant','Finance Manager','Accounts Manager','Clerk','Administrative Officer','Software Engineer','Sales Executive','Customer Service Representative'];
 function RolePicker({value,onChange}:{value:string;onChange:(v:string)=>void}) {
- const [text,setText]=useState('');const [message,setMessage]=useState('');
+ const [text,setText]=useState('');const [message,setMessage]=useState('');const [open,setOpen]=useState(false);const [active,setActive]=useState(-1);const box=useRef<HTMLInputElement>(null);
  const selected=value.split(',').map(x=>x.trim()).filter(Boolean);
- function add(){const titles=text.split(',').map(x=>x.trim()).filter(Boolean);const all=[...selected];for(const title of titles)if(!all.some(x=>x.toLowerCase()===title.toLowerCase()))all.push(title);if(all.join(', ').length>500){setMessage('Please shorten your list of job titles.');return;}onChange(all.join(', '));setText('');setMessage('');}
- function toggle(title:string){if(selected.some(x=>x.toLowerCase()===title.toLowerCase()))onChange(selected.filter(x=>x.toLowerCase()!==title.toLowerCase()).join(', '));else if([...selected,title].join(', ').length<=500)onChange([...selected,title].join(', '));else setMessage('Please shorten your list of job titles.');}
- return <div><p className="small muted">Pick as many as you like, or add your own.</p>
- <div className={styles.options} role="group" aria-label="Suggested job titles">{suggestedRoles.map(title=><button type="button" className="btn btn-ghost" key={title} aria-pressed={selected.some(x=>x.toLowerCase()===title.toLowerCase())} onClick={()=>toggle(title)}>{selected.some(x=>x.toLowerCase()===title.toLowerCase())?'✓ ':''}{title}</button>)}</div>
- <label className="f">Add another job title<input value={text} maxLength={500} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}} placeholder="Type a job title, then tap Add" autoComplete="off"/></label><button type="button" className="btn btn-ghost" disabled={!text.trim()} onClick={add}>Add job title</button>
- {text.trim()?<p className="small">Tap “Add job title” to include this title before continuing.</p>:null}
- <p className="small" aria-live="polite">{selected.length} job title{selected.length===1?'':'s'} selected</p><div className={styles.chips}>{selected.map(title=><button key={title} type="button" className="btn btn-ghost" aria-label={`Remove ${title}`} onClick={()=>toggle(title)}>{title} ×</button>)}</div>{message?<p role="alert" className="err">{message}</p>:null}</div>;
+ const has=(t:string)=>selected.some(x=>x.toLowerCase()===t.toLowerCase());
+ const typed=text.trim();const suggestions=suggestJobTitles(typed,selected);
+ const options=[...suggestions.map(t=>({t,own:false})),...(typed&&!has(typed)&&!suggestions.some(t=>t.toLowerCase()===typed.toLowerCase())&&!typed.includes(',')?[{t:typed,own:true}]:[])];
+ const show=open&&options.length>0;
+ function addTitles(titles:string[]){const all=[...selected];for(const title of titles)if(!all.some(x=>x.toLowerCase()===title.toLowerCase()))all.push(title);if(all.join(', ').length>500){setMessage('Please shorten your list of job titles.');return;}onChange(all.join(', '));setText('');setActive(-1);setMessage('');}
+ function add(){addTitles(text.split(',').map(x=>x.trim()).filter(Boolean));}
+ function pick(title:string){addTitles([title]);box.current?.focus();}
+ function remove(title:string){onChange(selected.filter(x=>x.toLowerCase()!==title.toLowerCase()).join(', '));}
+ function key(e:React.KeyboardEvent<HTMLInputElement>){if(e.key==='ArrowDown'&&options.length){e.preventDefault();setOpen(true);setActive(a=>(a+1)%options.length);}else if(e.key==='ArrowUp'&&options.length){e.preventDefault();setOpen(true);setActive(a=>a<=0?options.length-1:a-1);}else if(e.key==='Enter'){e.preventDefault();if(show&&active>=0&&options[active])pick(options[active].t);else add();}else if(e.key==='Escape'){setOpen(false);setActive(-1);}}
+ return <div><p className="small muted">Type a word and pick from the list, for example Cash, Accounts or Bank. Add as many as you like, or add your own.</p>
+ <div className={styles.combo}><label className="f" htmlFor="role-search">Job title</label><input id="role-search" ref={box} role="combobox" aria-expanded={show} aria-controls="role-options" aria-autocomplete="list" aria-activedescendant={show&&active>=0?`role-opt-${active}`:undefined} value={text} maxLength={500} onChange={e=>{setText(e.target.value);setOpen(true);setActive(-1);}} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)} onKeyDown={key} placeholder="Start typing a job title" autoComplete="off" autoCapitalize="words" enterKeyHint="done"/>
+ {show?<ul id="role-options" role="listbox" aria-label="Matching job titles" className={styles.suggest}>{options.map((o,i)=><li key={o.t+(o.own?'+':'')} id={`role-opt-${i}`} role="option" aria-selected={i===active} data-own={o.own||undefined} onMouseDown={e=>e.preventDefault()} onClick={()=>pick(o.t)}>{o.own?<>Add “{o.t}” as your own title</>:highlight(o.t,typed)}</li>)}</ul>:null}</div>
+ {typed&&!show?<button type="button" className="btn btn-ghost" style={{marginTop:10}} onClick={add}>Add job title</button>:null}
+ <p className="small" aria-live="polite">{selected.length} job title{selected.length===1?'':'s'} selected</p><div className={styles.chips}>{selected.map(title=><button key={title} type="button" className="btn btn-ghost" aria-label={`Remove ${title}`} onClick={()=>remove(title)}>{title} ×</button>)}</div>{message?<p role="alert" className="err">{message}</p>:null}</div>;
 }
+function highlight(title:string,q:string){const words=q.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);if(!words.length)return title;const parts=title.split(/(\s+|-|\/|\()/);return parts.map((p,i)=>{const w=words.find(w=>p.toLowerCase().startsWith(w));return w?<React.Fragment key={i}><b>{p.slice(0,w.length)}</b>{p.slice(w.length)}</React.Fragment>:<React.Fragment key={i}>{p}</React.Fragment>;});}
