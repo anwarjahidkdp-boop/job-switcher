@@ -10,7 +10,7 @@ it('invalidates old opinions before rechecking all existing jobs and persisting 
   q.select=()=>q;
   q.update=(value:unknown)=>{calls.push({kind:'update',value});return q;};
   q.eq=(...value:unknown[])=>{calls.push({kind:'eq',value});return q;};
-  q.not=()=>q;q.upsert=(value:unknown)=>{calls.push({kind:'upsert',value});return q;};
+  q.not=()=>q;q.order=()=>q;q.range=()=>q;q.in=()=>q;q.upsert=(value:unknown)=>{calls.push({kind:'upsert',value});return q;};
   q.then=(resolve:(x:unknown)=>unknown)=>resolve({data:[],error:null});return q;
  }} as unknown as SupabaseClient;
  vi.mocked(loadState).mockImplementation(async()=>{
