@@ -29,11 +29,19 @@ it('reviews authenticated answers first, asks only missing fields, and never ove
  const edit=host.querySelectorAll('dl button')[0] as HTMLButtonElement;await act(async()=>edit.click());expect((host.querySelector('select') as HTMLSelectElement).disabled).toBe(true);await click('Save answer →');expect(host.textContent).toContain('Does this look right');
 });
 
-it('selects multiple suggested titles, adds custom titles and removes independently',async()=>{
+it('suggests titles as you type, adds picks and custom titles, and removes independently',async()=>{
  localStorage.setItem(SETUP_DRAFT_KEY,draftEnvelope(emptySetup('GB')));
  await act(async()=>root.render(<GuidedSetup onComplete={vi.fn()}/>));await click('Continue →');
- await click('Accountant');await click('Financial Accountant');expect(host.textContent).toContain('2 job titles selected');
- await input('input','Audit Manager');await click('Add job title');expect(host.textContent).toContain('3 job titles selected');
+ expect(host.querySelector('[role=listbox]')).toBeNull();expect(host.textContent).not.toContain('Financial Accountant');
+ const box=()=>host.querySelector('input[role=combobox]') as HTMLInputElement;
+ const opt=async(text:string)=>{const o=Array.from(host.querySelectorAll('[role=option]')).find(o=>o.textContent===text) as HTMLElement;if(!o)throw new Error('Missing option '+text+' in '+Array.from(host.querySelectorAll('[role=option]')).map(o=>o.textContent).join(' | '));await act(async()=>o.click());};
+ await act(async()=>box().focus());await input('input[role=combobox]','cash');
+ const shown=Array.from(host.querySelectorAll('[role=option]')).map(o=>o.textContent);expect(shown.slice(0,2)).toEqual(['Cash In-charge','Cash Officer']);
+ await opt('Cash In-charge');expect(box().value).toBe('');expect(host.textContent).toContain('1 job title selected');
+ await input('input[role=combobox]','a');await opt('Accountant');await input('input[role=combobox]','financial acc');await opt('Financial Accountant');expect(host.textContent).toContain('3 job titles selected');
+ await input('input[role=combobox]','cash');expect(Array.from(host.querySelectorAll('[role=option]')).map(o=>o.textContent)).not.toContain('Cash In-charge');
+ await input('input[role=combobox]','Zakat Fund Coordinator');await opt('Add “Zakat Fund Coordinator” as your own title');expect(host.textContent).toContain('4 job titles selected');
+ await input('input[role=combobox]','b');await act(async()=>{box().dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));});await act(async()=>{box().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));});expect(host.querySelector('[aria-label="Remove Bank Officer"]')).not.toBeNull();
  await act(async()=>{(host.querySelector('[aria-label="Remove Accountant"]') as HTMLButtonElement).click();});
- await click('Continue →');await click('← Back');expect(host.querySelector('[aria-label="Remove Audit Manager"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Financial Accountant"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Accountant"]')).toBeNull();
+ await click('Continue →');await click('← Back');expect(host.querySelector('[aria-label="Remove Zakat Fund Coordinator"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Financial Accountant"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Accountant"]')).toBeNull();
 });
