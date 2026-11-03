@@ -96,7 +96,7 @@ export async function processInbound(admin: SupabaseClient, input: InboundInput)
         items = dedupeJobs(((res.data as AlertJobsOut).jobs || []).filter((j) => j.title && j.company).map((j) => {
           // Only keep a URL that really was in the email.
           const canon = j.url ? jobUrl(j.url)?.url ?? safeUrl(unwrapUrl(j.url)) : null;
-          return { title: j.title, company: j.company, location: j.location, deadline: isIso(j.deadline) ? j.deadline : null, url: canon && links.has(canon) ? canon : "" };
+          return { title: j.title, company: j.company, location: j.location || null, deadline: isIso(j.deadline) ? j.deadline : null, url: canon && links.has(canon) ? canon : "" };
         }));
       }
     } catch (e) {

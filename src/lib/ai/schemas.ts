@@ -77,14 +77,17 @@ export const PackSchema = z.object({
 export const PackTailorSchema = PackSchema.pick({ summary: true, top_bullets: true, skills_order: true, emphasis: true, checklist: true, asks: true, instructions: true });
 export const PackLetterSchema = PackSchema.pick({ cover_letter: true, email_subject: true, email_body: true });
 
+// Structured outputs allow at most 16 union-typed fields (["string","null"], anyOf) per schema.
+// Text fields the post may not state are plain strings: "" means "not stated" (read back as null in code).
+// src/test/ai-schema-limits.test.ts keeps every AI schema inside the API limits.
 const JobFields = {
   title: z.string(),
   company: z.string(),
-  industry: z.string().nullable(),
-  category: z.string().nullable(),
-  location: z.string().nullable(),
-  type: z.string().nullable(),
-  eligibility: z.object({minAge:z.number().nullable(),maxAge:z.number().nullable(),ageAsOf:z.string().nullable(),ageException:z.boolean().optional(),requirementsUnverified:z.boolean().optional()}).optional(),
+  industry: z.string(),
+  category: z.string(),
+  location: z.string(),
+  type: z.string(),
+  eligibility: z.object({minAge:z.number().nullable(),maxAge:z.number().nullable(),ageAsOf:z.string(),ageException:z.boolean().optional(),requirementsUnverified:z.boolean().optional()}).optional(),
   salaryMin: z.number().nullable(),
   salaryMax: z.number().nullable(),
   visa: z.boolean().nullable(),
@@ -95,8 +98,8 @@ const JobFields = {
   required: z.array(z.string()),
   preferred: z.array(z.string()),
   certs: z.array(z.object({ names: z.array(z.string()), required: z.boolean() })),
-  deadline: z.string().nullable(),
-  apply: z.object({ method: z.enum(["email", "portal", "unknown"]), target: z.string().nullable() }),
+  deadline: z.string(),
+  apply: z.object({ method: z.enum(["email", "portal", "unknown"]), target: z.string() }),
   resp: z.array(z.string()),
 };
 export const PastedJobSchema = z.object(JobFields);
