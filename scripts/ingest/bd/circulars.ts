@@ -66,6 +66,13 @@ Circular transcription (data):
 ${ocr.slice(0, 14000)}
 """`;
 
+/** Added on the second try after a reply was cut off: the same facts, in far fewer words. */
+export const COMPACT = `
+Your previous reply was too long and was cut off. Reply again, much shorter: at most 10 vacancies; for each, at most 4 requirements and 4 responsibilities of under 12 words; how_to_apply under 20 words; null for anything not printed.`;
+
+/** The AI reply ended mid-JSON (hit its length limit), as opposed to a refusal or an outage. */
+export const cutOff = (e: unknown) => (e instanceof AIError && e.code === 'invalid_json') || /Unterminated string|Unexpected end of JSON|Failed to parse structured output|max_tokens/i.test(e instanceof Error ? e.message : String(e));
+
 const GENERIC = /^(?:company not stated|unknown|confidential|anonymous|a reputed company|a renowned company|a leading company|reputed|n\/?a|null)$/i;
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim();
 const slug = (s: string) => norm(s).replace(/\s+/g, '-').slice(0, 60);
@@ -252,7 +259,16 @@ export async function readHeldCirculars(db: SupabaseClient, ai: AIProvider | nul
       let ocr = cleanOcr(freeText);
       if (pics.length && ocr.length < 400) { const r = await ai.readImages({ tier: 'fast', system: SYSTEM, prompt: OCR_PROMPT, images: pics, maxTokens: 4000 }); ocr = r.text; stats.costMicroUsd += r.usage.costMicroUsd; }
       // Bangla text takes many tokens: leave room so the answer is never cut off mid-JSON.
-      const ex = await ai.generateJSON({ tier: 'fast', system: SYSTEM, prompt: EXTRACT_PROMPT(pageText, ocr || pageText), schema: CircularSchema, maxTokens: 8000 });
+      let ex;
+      try {
+        ex = await ai.generateJSON({ tier: 'fast', system: SYSTEM, prompt: EXTRACT_PROMPT(pageText, ocr || pageText), schema: CircularSchema, maxTokens: 8000 });
+      } catch (e) {
+        // A long Bangla circular can fill the reply before the JSON closes: ask once more for a shorter list.
+        if (!cutOff(e)) throw e;
+        stats.costMicroUsd += e instanceof AIError && e.usage ? e.usage.costMicroUsd : FAILED_AI_CALL_MICRO_USD;
+        if (opts.maxCostMicroUsd != null && stats.costMicroUsd >= opts.maxCostMicroUsd) { await note({ reason: 'Reading was cut off; a shorter reading waits for tomorrow\'s AI budget' }); continue; }
+        ex = await ai.generateJSON({ tier: 'fast', system: SYSTEM, prompt: EXTRACT_PROMPT(pageText, ocr || pageText) + COMPACT, schema: CircularSchema, maxTokens: 12000 });
+      }
       stats.costMicroUsd += ex.usage.costMicroUsd;
       const { jobs, reason } = circularJobs(ex.data, ctx);
       if (opts.dry) { console.log(`    circular ${doc.url}: ${jobs.length} job(s)${reason ? ` (${reason})` : ''}`); continue; }
