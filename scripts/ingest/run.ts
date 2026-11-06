@@ -2,6 +2,7 @@
 // whose local update is due next (src/lib/scan-schedule.ts); a manual or push run scans everything.
 //   npm run ingest                 all active sources
 //   npm run ingest -- --source <id> --dry-run
+import { appendFileSync } from "node:fs";
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
 import { fetchSource, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
 import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
@@ -19,6 +20,7 @@ import { discoverCareerPages } from "./bd/discover";
 import { getProvider } from "../../src/lib/ai";
 import { dueMarkets } from "../../src/lib/scan-schedule";
 import { retireDuplicateJobs } from "./dedupe";
+import { failingSince, failureNote, newlyBroken, plainError, withRetry } from "./health";
 
 async function main() {
   const db = scriptAdmin();
@@ -40,7 +42,7 @@ async function main() {
     } catch (e) { console.error(`  career page check failed: ${errText(e)}`); }
   }
 
-  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url, last_status").eq("active", true);
+  let q = db.from("ingestion_sources").select("id, kind, name, url, board_token, country, company, detail_path, cursor_url, last_status, last_error, last_run_at, jobs_found").eq("active", true);
   if (only) q = q.eq("id", only);
   const { data: all, error } = await q;
   if (error) throw error;
@@ -56,6 +58,18 @@ async function main() {
 
   const touchedCountries = new Set<string>();
   let total = 0, failed = 0, newlyFailed = 0;
+  // Sources failing in this run (shown in the run summary) and the ones that just passed a day of failing (these alert).
+  const failing: { name: string; since: number; error: string }[] = [];
+  const broken: string[] = [];
+  /** Records a failure; returns the row fields to store (jobs_found is kept, so a source that worked is still known to). */
+  const sourceFailed = (src: SourceRow, msg: string) => {
+    const now = Date.now();
+    const since = failingSince(src, now);
+    failed++;
+    failing.push({ name: `${src.kind} "${src.name}"`, since, error: plainError(msg) });
+    if (newlyBroken(src, now)) { newlyFailed++; broken.push(`${src.kind} "${src.name}"`); }
+    return { last_run_at: new Date(now).toISOString(), last_status: "error", last_error: failureNote(since, msg) };
+  };
   // Bangladesh collection must not wait behind the much larger international employer boards.
   for (const src of (sources as SourceRow[]).sort((a, b) => Number(b.country === "BD") - Number(a.country === "BD"))) {
     try {
@@ -63,9 +77,9 @@ async function main() {
       if (src.kind === "bdweb") {
         const { data: retry, error } = await db.from("source_documents").select("url").eq("source_id", src.id).eq("state", "fetch_failed").order("last_seen_at").limit(20);
         if (error) throw error;
-        batch = await fetchBangladesh(src.board_token || "", today, { cursor: src.cursor_url, retryUrls: (retry || []).map(r => r.url) });
+        batch = await withRetry(() => fetchBangladesh(src.board_token || "", today, { cursor: src.cursor_url, retryUrls: (retry || []).map(r => r.url) }));
       }
-      const jobs = batch ? batch.jobs : await fetchSource(src, today, fetch, { queries: demand.get(src.country) || [] });
+      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: demand.get(src.country) || [] }));
       total += jobs.length;
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
@@ -86,14 +100,13 @@ async function main() {
       }
       for (const j of jobs) touchedCountries.add(j.country);
       const detail = batch?.failures ? `${batch.failures} detail page fetch(es) failed; saved for retry` : batch?.documents.length ? `${batch.documents.length} circular(s) need extraction/review before matching` : null;
-      await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: batch?.failures ? "error" : "ok", last_error: detail, jobs_found: jobs.length }).eq("id", src.id);
-      if (batch?.failures) { failed++; if (src.last_status !== "error") newlyFailed++; }
+      const state = batch?.failures ? sourceFailed(src, detail!) : { last_run_at: new Date().toISOString(), last_status: "ok", last_error: detail };
+      await db.from("ingestion_sources").update({ ...state, jobs_found: jobs.length }).eq("id", src.id);
     } catch (e) {
-      failed++;
-      if (src.last_status !== "error") newlyFailed++;
       const msg = errText(e);
       console.error(`  ${src.kind} "${src.name}" failed: ${msg}`);
-      if (!dry) await db.from("ingestion_sources").update({ last_run_at: new Date().toISOString(), last_status: "error", last_error: msg.slice(0, 500) }).eq("id", src.id);
+      const state = sourceFailed(src, msg);
+      if (!dry) await db.from("ingestion_sources").update(state).eq("id", src.id);
     }
   }
 
@@ -156,10 +169,26 @@ async function main() {
       console.log(`ingest: new matches for ${nm.users} user(s): ${nm.notified} job(s), ${nm.prepared} pack(s) prepared, ${nm.emailed} email(s), ${nm.failed} failed`);
     }
   }
-  console.log(`ingest: done, ${total} job(s), ${failed} failed source(s), ${newlyFailed} of them newly`);
-  // A source that starts failing alerts once (the run goes red and opens an issue). One that keeps failing, such as a
-  // site that blocks us, stays recorded on its ingestion_sources row and in the log but no longer turns every hourly run red.
+  console.log(`ingest: done, ${total} job(s), ${failed} failed source(s), ${broken.length} newly broken for a day`);
+  writeSummary(total, failing, broken);
+  // A source failing now and then (a timeout, a short block) is recorded on its row and in the run summary, and is retried
+  // next scan. The run goes red (and opens an issue) only when a source that used to deliver jobs has been failing for a
+  // whole day (once), when nothing was collected, or when a core step crashed (scripts/ingest/health.ts).
   if (newlyFailed || !total) process.exitCode = 1;
+}
+
+/** A readable list of failing sources on the run's page (GitHub Actions job summary). */
+function writeSummary(total: number, failing: { name: string; since: number; error: string }[], broken: string[]) {
+  const file = process.env.GITHUB_STEP_SUMMARY;
+  if (!file) return;
+  const hours = (t: number) => Math.max(0, Math.round((Date.now() - t) / 3_600_000));
+  const lines = [`### Job collection: ${total} job(s), ${failing.length} source(s) failing`, ""];
+  if (broken.length) lines.push(`**Failing for a day (needs a look):** ${broken.join(", ")}`, "");
+  if (failing.length) {
+    lines.push("| Source | Failing for | Error |", "|---|---|---|");
+    for (const f of failing) lines.push(`| ${f.name.replace(/\|/g, "/")} | ${hours(f.since)} h | ${f.error.slice(0, 160).replace(/\|/g, "/").replace(/\n/g, " ")} |`);
+  }
+  try { appendFileSync(file, lines.join("\n") + "\n"); } catch { /* the summary is a convenience */ }
 }
 
 const errText = (e: unknown) => e instanceof Error ? e.message : e && typeof e === "object" ? [(e as { message?: string }).message, (e as { details?: string }).details, (e as { code?: string }).code].filter(Boolean).join(" | ") || JSON.stringify(e) : String(e);
