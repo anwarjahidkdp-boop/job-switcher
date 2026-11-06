@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ProfileCardTitle } from "@/components/ProfileCardTitle";
 import { useRouter } from "next/navigation";
 import { addSkillAction, reviewFactAction, setCountryAction, setNeedsVisaAction } from "@/app/actions";
@@ -101,6 +101,52 @@ export function GmailPanel({ email, status, ready }: { email: string | null; sta
         <p className="small muted">With your permission, JobPao sends each application from your own Gmail after you review and press Send application. We can only send, never read your email.</p>
         <a className="btn btn-primary btn-sm" style={{ marginTop: 10 }} href="/api/gmail/connect?next=/profile">Connect Gmail</a>
       </>}
+    </div>
+  );
+}
+
+/** Profile → Contact details: login email (read-only), the phone and the email used on the CV. */
+export function ContactPanel({ loginEmail, phone, cvEmail, onCv, details }: { loginEmail: string; phone: string; cvEmail: string; onCv: string; details: [string, string][] }) {
+  const router = useRouter();
+  const [ph, setPh] = useState(phone);
+  const [other, setOther] = useState(!!cvEmail);
+  const [mail, setMail] = useState(cvEmail);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const changed = ph !== phone || (other ? mail : "") !== cvEmail;
+  async function save() {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await fetch("/api/profile/contact", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: ph, cvEmail: other ? mail : "" }) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) { setMsg({ ok: false, text: j.error || "We could not save that. Please try again." }); return; }
+      setMsg({ ok: true, text: "Saved. Your CV now uses these details." });
+      router.refresh();
+    } catch { setMsg({ ok: false, text: "Can't reach JobPao right now. Check your connection and try again." }); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div className="card panel profile-card" data-tone="accent" id="contact"><ProfileCardTitle icon="email">Contact details</ProfileCardTitle>
+      <p className="small">Signed in as <b style={{ overflowWrap: "anywhere" }}>{loginEmail}</b></p>
+      <label className="f" htmlFor="cphone" style={{ marginTop: 10 }}>Mobile number (used on your CV)
+        <input id="cphone" type="tel" inputMode="tel" autoComplete="tel" value={ph} maxLength={24} placeholder="e.g. +880 1711-000000" onChange={(e) => setPh(e.target.value)} />
+      </label>
+      <fieldset className="small" style={{ border: 0, padding: 0, margin: "10px 0 0" }}>
+        <legend className="small" style={{ fontWeight: 600, marginBottom: 4 }}>Email on your CV</legend>
+        <label className="row" style={{ gap: 8, flexWrap: "nowrap" }}><input type="radio" name="cvmail" checked={!other} onChange={() => setOther(false)} /> Same as my login email</label>
+        <label className="row" style={{ gap: 8, flexWrap: "nowrap" }}><input type="radio" name="cvmail" checked={other} onChange={() => setOther(true)} /> A different email</label>
+        {other ? <input aria-label="Email on your CV" type="email" inputMode="email" value={mail} maxLength={120} placeholder="you@example.com" onChange={(e) => setMail(e.target.value)} style={{ marginTop: 6 }} /> : null}
+      </fieldset>
+      <p className="small muted" style={{ marginTop: 8 }}>On your CV: <b>{onCv || "Not set"}</b></p>
+      {changed ? <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save contact details"}</button> : null}
+      {msg ? <p role={msg.ok ? "status" : "alert"} className={msg.ok ? "small" : "err small"} style={{ marginTop: 8 }}>{msg.text}</p> : null}
+      {details.length ? <>
+        <h4 className="small" style={{ margin: "14px 0 4px" }}>Personal details</h4>
+        <dl className="small" style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 10px" }}>
+          {details.map(([k, v]) => <Fragment key={k}><dt className="muted">{k}</dt><dd style={{ margin: 0, overflowWrap: "anywhere" }}>{v}</dd></Fragment>)}
+        </dl>
+      </> : null}
+      <a className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} href="/onboarding?step=prefs">Edit personal details</a>
     </div>
   );
 }

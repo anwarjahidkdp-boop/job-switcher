@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { AuthCaptcha } from "@/components/AuthCaptcha";
 import { PasswordInput } from "@/components/PasswordInput";
 import { Spinner } from "@/components/ui";
+import { normalisePhone } from "@/lib/cv/contact";
 
 type Mode = "login" | "signup" | "code" | "forgot";
 type Sent = null | "code" | "signup" | "forgot";
@@ -19,6 +20,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const [mode, setMode] = useState<Mode>(initial);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState<Sent>(null);
   const [busy, setBusy] = useState(false);
@@ -35,6 +37,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if(siteKey&&!captchaToken){setErr("Complete the security check first.");return;}
+    if(mode==="signup"&&!normalisePhone(phone)){setErr("Enter your mobile number with its country code, for example +880 1711-000000.");return;}
     setBusy(true); setErr("");
     const token=captchaToken;setCaptchaToken("");
     const supabase = createClient();
@@ -47,7 +50,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
       if (/confirm/i.test(error.message)) { setUnconfirmed(true); setErr("Your email is not confirmed yet. Get a 6-digit sign-in code: it confirms your email and logs you in."); return; }
       setErr(rate(error.message) ? "Too many attempts. Wait a minute and try again." : "Email or password is wrong. If you used to sign in with an email code, click \"Forgot password?\" to set one.");
     } else if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next), captchaToken:token } });
+      const { data, error } = await supabase.auth.signUp({ email: addr, password, options: { emailRedirectTo: confirmUrl(next), captchaToken:token, data: { phone: normalisePhone(phone) } } });
       setBusy(false);setCaptchaAttempt(x=>x+1);
       if (error && offline(error)) { setErr(OFFLINE); return; }
       if (error?.code === "user_already_exists" || (error && /already.*(registered|exists)/i.test(error.message)) || (!error && !data.session && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
@@ -108,13 +111,15 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
         {mode === "forgot" ? <p className="small">Enter your email and we send you a link to set a new password.</p> : null}
         {mode === "code" ? <p className="small">We email you a one-time sign-in code. No password needed, and it confirms your email too.</p> : null}
         <label className="f" htmlFor="email">Email address<input id="email" type="text" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>
+        {mode === "signup" ? <label className="f" htmlFor="phone">Mobile number<input id="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={24} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +880 1711-000000" aria-describedby="phone-hint" /></label> : null}
+        {mode === "signup" ? <p id="phone-hint" className="small muted" style={{ marginTop: -4 }}>Used on your CV with this email. You can change both later in Profile.</p> : null}
         {needsPw ? <label className="f" htmlFor="password">{mode === "signup" ? "Choose a password" : "Password"}<PasswordInput key={mode} id="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : ""} aria-describedby={mode === "signup" ? "pw-hint" : undefined} /></label> : null}
         {needsPw && mode === "signup" ? <p id="pw-hint" className="small" style={{ marginTop: -4, color: password.length >= 8 ? "var(--good)" : "var(--ink-2)" }}>{password.length >= 8 ? "✓ Password is long enough" : `Password must be at least 8 characters (${password.length}/8)`}</p> : null}
         {mode === "signup" ? <label className="small row consent"><input type="checkbox" required /> <span>I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and acknowledge the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>, including AI processing of my CV.</span></label> : null}
         {siteKey?<AuthCaptcha key={captchaAttempt} siteKey={siteKey} onToken={setCaptchaToken}/>:null}
         {err ? <p role="alert" className="err">{err}</p> : null}
         {unconfirmed ? <button type="button" className="btn btn-gold" onClick={() => go("code")}>Email me a sign-in code</button> : null}
-        <button className="btn btn-primary" disabled={busy || (!!siteKey&&!captchaToken) || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1))}>
+        <button className="btn btn-primary" disabled={busy || (!!siteKey&&!captchaToken) || !email.includes("@") || (needsPw && password.length < (mode === "signup" ? 8 : 1)) || (mode === "signup" && !normalisePhone(phone))}>
           {busy ? <><Spinner /> Please wait</> : mode === "login" ? "Log in" : mode === "signup" ? "Create my account" : mode === "forgot" ? "Send me the link" : "Send me a code"}
         </button>
         {mode === "login" ? <div className="row" style={{ justifyContent: "space-between" }}><button type="button" className="btn-text small" onClick={() => go("forgot")}>Forgot password?</button><button type="button" className="btn-text small" onClick={() => go("code")}>Email me a code instead</button></div> : null}

@@ -171,6 +171,8 @@ export interface Referee { name: string; title?: string; org?: string; phone?: s
 /** What the person typed for their CV's personal-details and references sections. Shown only where the country expects each item. */
 export interface PersonalDetails {
   nationality?: string; dob?: string; visa?: string;
+  /** Email shown on the CV when it differs from the login email (empty = use the login email). */
+  cvEmail?: string;
   fatherName?: string; motherName?: string; marital?: string; religion?: string; address?: string; licence?: string;
   references?: Referee[];
 }

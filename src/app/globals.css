@@ -1310,3 +1310,5 @@ div.opp:has(.opp-open:focus-visible){outline:2px solid var(--accent);outline-off
 /* Setup guide: phone-only help (Gmail shows forwarding settings only on its desktop page). */
 .sg-phone{display:none;margin:8px 0 10px}
 @media (max-width:760px){.sg-phone{display:block}}
+/* Phone inputs (signup and Profile contact details) look like the other text inputs. */
+input[type=tel]{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
