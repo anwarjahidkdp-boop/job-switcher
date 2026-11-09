@@ -4,6 +4,10 @@ import { loadState } from "./state";
 import { fitCard } from "./search-summary";
 import type { Scored } from "@/lib/matching";
 
+/** Ids per update request: keeps each URL short (about 40 characters per id). */
+export const STALE_BATCH = 150;
+const PAGE = 1000;
+
 export async function refreshMatches(db: SupabaseClient, userId: string, opts: { invalidateAi?: boolean } = {}): Promise<number> {
   if (opts.invalidateAi) {
     const { error } = await db.from("matches").update({ai_fit:null,ai_score:null,ai_reason:null,ai_checked_at:null}).eq("user_id",userId);
@@ -16,11 +20,21 @@ export async function refreshMatches(db: SupabaseClient, userId: string, opts: {
     reason: m.reason, matched: m.matched, gaps: m.gaps, computed_at: new Date().toISOString(),
   }));
   // Jobs no longer scored (outside the person's categories, or no longer relevant under new rules) must not reach the digest.
-  const keep = rows.map((r) => r.job_id);
-  let stale = db.from("matches").update({ relevant: false }).eq("user_id", userId).eq("relevant", true);
-  if (keep.length) stale = stale.not("job_id", "in", `(${keep.join(",")})`);
-  const { error: se } = await stale;
-  if (se) throw se;
+  // Read the currently relevant ids and retire the difference in small batches: a "not in (every scored id)" filter
+  // grows with the job pool and, past ~1,000 jobs, makes the request URL too long (PostgREST answers 400).
+  const keep = new Set(rows.map((r) => r.job_id));
+  const stale: string[] = [];
+  for (let from = 0; ; from += PAGE) { // the API returns at most 1,000 rows per request
+    const { data, error: ce } = await db.from("matches").select("job_id").eq("user_id", userId).eq("relevant", true).order("job_id").range(from, from + PAGE - 1);
+    if (ce) throw ce;
+    const page = (data || []) as { job_id: string }[];
+    for (const r of page) if (!keep.has(r.job_id)) stale.push(r.job_id);
+    if (page.length < PAGE) break;
+  }
+  for (let i = 0; i < stale.length; i += STALE_BATCH) {
+    const { error: se } = await db.from("matches").update({ relevant: false }).eq("user_id", userId).in("job_id", stale.slice(i, i + STALE_BATCH));
+    if (se) throw se;
+  }
   for (let i = 0; i < rows.length; i += 500) {
     const { error } = await db.from("matches").upsert(rows.slice(i, i + 500), { onConflict: "user_id,job_id" });
     if (error) throw error;

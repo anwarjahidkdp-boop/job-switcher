@@ -55,8 +55,8 @@ const isoDate = (s: unknown): string | null => (typeof s === "string" && /^\d{4}
 /** AI-structured job post -> Job (prototype pasteJob mapping). */
 export function aiJobToJob(j: PastedJobOut & { url?: string | null }, ctx: { country: CountryCode; source: string; url?: string | null; today: string }): Omit<Job, "id"> {
   return {
-    country: ctx.country, title: j.title, company: j.company, industry: j.industry && INDUSTRY_LIST.includes(j.industry.toLowerCase()) ? j.industry.toLowerCase() : j.industry,
-    category: j.category && CATEGORIES.includes(j.category) ? j.category : j.category || "Other", location: j.location, type: j.type,
+    country: ctx.country, title: j.title, company: j.company, industry: j.industry && INDUSTRY_LIST.includes(j.industry.toLowerCase()) ? j.industry.toLowerCase() : j.industry || null,
+    category: j.category && CATEGORIES.includes(j.category) ? j.category : j.category || "Other", location: j.location || null, type: j.type || null,
     eligibility: normaliseEligibility(j.eligibility),
     salaryMin: num(j.salaryMin), salaryMax: num(j.salaryMax), minYears: num(j.minYears), maxYears: num(j.maxYears),
     seniority: isSeniority(j.seniority) ? j.seniority : null,

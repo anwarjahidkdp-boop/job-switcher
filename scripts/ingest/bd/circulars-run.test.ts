@@ -30,12 +30,30 @@ describe('reading held circulars', () => {
     const r = await readHeldCirculars(db(), ai, '2026-10-26', { limit: 3, maxCostMicroUsd: 90_000, dry: true, fetcher, ocr: async () => UNCONFIRMED });
     expect(ai.readImages).not.toHaveBeenCalled();
     expect(generateJSON.mock.calls[0][0]).toMatchObject({ maxTokens: 8000 });
-    // Two failed calls at the $0.05 estimate pass the $0.09 budget, so the third circular waits.
-    expect(r).toMatchObject({ read: 2, costMicroUsd: 100_000 });
+    // A cut-off reply is asked once more, shorter; both failed calls at the $0.05 estimate pass the $0.09 budget, so
+    // the other circulars wait.
+    expect(generateJSON.mock.calls[1][0]).toMatchObject({ maxTokens: 12000 });
+    expect(generateJSON).toHaveBeenCalledTimes(2);
+    expect(r).toMatchObject({ read: 1, costMicroUsd: 100_000 });
   });
   it('uses the reported cost of a failed call when the provider gives it', async () => {
     const generateJSON = vi.fn(async () => { throw new AIError('invalid_json', undefined, { model: 'm', inputTokens: 1, outputTokens: 1, costMicroUsd: 7 }); });
     const r = await readHeldCirculars(db(), { readImages: vi.fn(), generateJSON } as unknown as AIProvider, '2026-10-26', { limit: 3, dry: true, fetcher, ocr: async () => UNCONFIRMED });
-    expect(r.costMicroUsd).toBe(21);
+    expect(r.costMicroUsd).toBe(42); // three circulars, each tried twice
+  });
+  it('asks once more for a shorter list when a long Bangla reply is cut off mid-JSON', async () => {
+    const usage = { model: 'm', inputTokens: 1, outputTokens: 1, costMicroUsd: 5 };
+    const generateJSON = vi.fn()
+      .mockRejectedValueOnce(new AIError('upstream', 'Failed to parse structured output: SyntaxError: Unterminated string in JSON at position 8500'))
+      .mockResolvedValue({ data: { is_recruitment_circular: false, employer: null, jobs: [] }, usage });
+    const r = await readHeldCirculars(db(), { readImages: vi.fn(), generateJSON } as unknown as AIProvider, '2026-10-26', { limit: 1, dry: true, fetcher, ocr: async () => UNCONFIRMED });
+    expect(generateJSON).toHaveBeenCalledTimes(2); // cut off, then the short reading
+    expect(String((generateJSON.mock.calls[1][0] as { prompt: string }).prompt)).toContain('much shorter');
+    expect(r).toMatchObject({ read: 1, costMicroUsd: 50_005 }); // the cut-off call is counted at the estimate
+  });
+  it('does not retry a refusal or an outage', async () => {
+    const generateJSON = vi.fn(async () => { throw new AIError('upstream', 'Anthropic API error 529'); });
+    await readHeldCirculars(db(), { readImages: vi.fn(), generateJSON } as unknown as AIProvider, '2026-10-26', { limit: 3, dry: true, fetcher, ocr: async () => UNCONFIRMED });
+    expect(generateJSON).toHaveBeenCalledTimes(3);
   });
 });
