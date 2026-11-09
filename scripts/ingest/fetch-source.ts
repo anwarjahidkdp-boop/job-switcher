@@ -168,6 +168,42 @@ export const UNSEEN_CLOSE_DAYS = 10;
 /** Closed jobs in a country nobody searches (remote "XX" jobs excepted) are no use to anyone and are deleted after this many days. */
 export const UNWATCHED_PRUNE_DAYS = 2;
 export const watchedCountry = (country: string, targeted: Set<string>) => country === "XX" || targeted.has(country);
+/**
+ * Everyday UK roles searched on Reed beside what users ask for, so UK visitors in non-tech careers find jobs from day one.
+ * A third of them are searched per run (starterQueries): the UK scans fall in different eight-hour blocks of the day
+ * (morning, midday, evening), so every role is searched once a day without straining the API.
+ */
+export const UK_STARTER_ROLES = [
+  "accountant", "finance assistant", "payroll", "credit controller", "administrator", "office manager",
+  "customer service", "sales executive", "account manager", "marketing executive", "HR advisor", "recruitment consultant",
+  "project manager", "operations manager", "business analyst", "data analyst", "procurement", "logistics coordinator",
+  "compliance officer", "legal assistant", "teaching assistant", "care assistant", "retail manager", "quantity surveyor",
+];
+export const STARTER_QUERIES_PER_RUN = 8;
+/** The slice of `roles` for this run: it moves on every eight hours, so the morning, midday and evening scans differ. */
+export function starterQueries(roles: string[], now: number, n = STARTER_QUERIES_PER_RUN): string[] {
+  if (!roles.length) return [];
+  const start = (Math.floor(now / (8 * 3_600_000)) * n) % roles.length;
+  return Array.from({ length: Math.min(n, roles.length) }, (_, i) => roles[(start + i) % roles.length]);
+}
+
+/** Open jobs kept per country nobody searches yet: enough for a visitor's pre-signup match preview, which reads the newest 1,000. */
+export const UNWATCHED_COUNTRY_CAP = 1000;
+
+/**
+ * The rows to save from one fetch. Searched countries and remote jobs are always saved. In a country nobody searches, a
+ * listing already stored is refreshed, and a new one is added only while the country holds fewer than the cap of open jobs.
+ * `stored` (open jobs per country) is updated in place, so later sources in the same run see the rows added here.
+ */
+export function capUnwatchedRows<T extends { country: string; external_id?: string | null }>(rows: T[], watched: (country: string) => boolean, stored: Map<string, number>, existing: Set<string>, cap = UNWATCHED_COUNTRY_CAP): T[] {
+  return rows.filter((r) => {
+    if (watched(r.country) || existing.has(r.external_id ?? "")) return true;
+    const n = stored.get(r.country) ?? 0;
+    if (n >= cap) return false;
+    stored.set(r.country, n + 1);
+    return true;
+  });
+}
 
 export function staleIds(previous: string[], current: string[]): string[] {
   const now = new Set(current);
