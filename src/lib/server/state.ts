@@ -3,6 +3,7 @@ import {careerHeadline} from "../cv/experience";
 import { applyQueue, queueSafety } from "../apply-queue";
 import { localSearchAnswers } from "../application-defaults";
 import { fillPersonalFromCv } from "../cv/personal-read";
+import { cvContact, cvEmailOf } from "../cv/contact";
 import type { AnswerLibrary,DealBreakers } from "../career-safety";
 import { applicationInSearch } from "../application-country";
 // Loads everything a signed-in page needs, through a Supabase client (user-scoped with RLS, or admin for cron/inbound).
@@ -168,7 +169,7 @@ export async function loadState(db: SupabaseClient, userId: string, profileP?: P
   const country = cc(profile.target_country);
   const today = todayStr(rule(country).timeZone);
   const master = (masterRes.data as MasterRow) || null;
-  if(master)master.content={...master.content,headline:careerHeadline(master.content.experience,master.content.headline)};
+  if(master)master.content={...master.content,headline:careerHeadline(master.content.experience,master.content.headline),contact:cvContact(master.content.contact,{email:cvEmailOf(profile.email,profile.personal),phone:profile.phone})};
   const P = profileFrom(profile, facts, master);
   const [jobs, analysed] = P && !opts.skipMatching ? await Promise.all([loadVisibleJobs(db, userId, country, P.categories, { all: opts.allJobs }), countVisibleJobs(db, userId, country)]) : [[], 0];
   // A job collected before the account existed was found for this person when they joined, never earlier.

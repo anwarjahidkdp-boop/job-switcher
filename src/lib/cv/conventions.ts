@@ -122,7 +122,7 @@ export function cleanReferees(r: unknown, max = 3): Referee[] {
     .filter((x) => x.name && (x.phone || x.email || x.org)).slice(0, max);
 }
 
-const STR_FIELDS = ["fatherName", "motherName", "dob", "nationality", "marital", "religion", "address", "visa", "licence"] as const;
+const STR_FIELDS = ["cvEmail", "fatherName", "motherName", "dob", "nationality", "marital", "religion", "address", "visa", "licence"] as const;
 /**
  * Applies what the preferences form sent to the stored details: only keys the form sent change (a blank box clears
  * that item), so details kept for another country survive a form that does not show them.
