@@ -29,7 +29,7 @@ export function CardCheckoutButton({ label, pack }: { label: string; pack: strin
     <div className="stack">
       <label className="small" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
         <input type="checkbox" checked={startNow} onChange={(e) => setStartNow(e.target.checked)} style={{ marginTop: 3 }} />
-        <span>Start my Pro access now. If I cancel within 14 days, I get a full refund in the first 7 days, then a refund for the days I have not used. See the <a href="/refund" target="_blank" rel="noopener">Refund Policy</a>.</span>
+        <span>Start my Pro access now. I understand that if I cancel within 14 days, I get back only the days I have not used. See the <a href="/refund" target="_blank" rel="noopener">Refund Policy</a>.</span>
       </label>
       <CheckoutButton label={label} pack={pack} endpoint="/api/billing/card" opening="Opening secure checkout" extra={{ startNow }} blocked={!startNow} />
     </div>

@@ -4,7 +4,7 @@
 //   npm run ingest -- --source <id> --dry-run
 import { appendFileSync } from "node:fs";
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
-import { capUnwatchedRows, fetchSource, starterQueries, UK_STARTER_ROLES, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, fetchSource, MAX_QUERIES, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
 import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
 import { extractEligibility, normaliseEligibility } from "../../src/lib/eligibility";
 import { todayStr } from "../../src/lib/dates";
@@ -84,7 +84,7 @@ async function main() {
         if (error) throw error;
         batch = await withRetry(() => fetchBangladesh(src.board_token || "", today, { cursor: src.cursor_url, retryUrls: (retry || []).map(r => r.url) }));
       }
-      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: searchQueries(src, demand) }));
+      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: searchQueries(src, demand), maxQueries: MAX_QUERIES + STARTER_QUERIES_PER_RUN }));
       total += jobs.length;
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
@@ -310,10 +310,13 @@ async function pruneOldJobs(db: ReturnType<typeof scriptAdmin>): Promise<number>
   return n;
 }
 
-/** What a search source looks for: users' roles first; Reed adds a rotating set of everyday UK roles after them. */
+/**
+ * What a search source looks for: every user's own role (taking turns when there are many, see userQueries), and on Reed
+ * also a rotating set of everyday UK roles, so a role nobody has asked for yet still has jobs waiting.
+ */
 function searchQueries(src: SourceRow, demand: Map<string, string[]>): string[] {
-  const wanted = demand.get(src.country) || [];
-  return src.kind === "reed" ? [...wanted, ...starterQueries(UK_STARTER_ROLES, Date.now())] : wanted;
+  const mine = userQueries(demand.get(src.country) || [], Date.now());
+  return src.kind === "reed" ? [...mine, ...starterQueries(UK_STARTER_ROLES, Date.now())] : mine;
 }
 
 async function targetedCountries(db: ReturnType<typeof scriptAdmin>): Promise<string[]> {

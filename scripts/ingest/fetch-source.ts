@@ -44,7 +44,7 @@ export function detailLinks(html:string,pageUrl:string,path:string) {
  return [...urls];
 }
 
-export async function fetchSource(src: SourceRow, today: string, fetcher: Fetcher = fetch, opts: { queries?: string[]; env?: Record<string, string | undefined> } = {}): Promise<IngestedJob[]> {
+export async function fetchSource(src: SourceRow, today: string, fetcher: Fetcher = fetch, opts: { queries?: string[]; maxQueries?: number; env?: Record<string, string | undefined> } = {}): Promise<IngestedJob[]> {
   const country = cc(src.country);
   const sourceLabel = src.name;
   // "Company@bd" reads a global employer's board for its jobs in one country only (e.g. a multinational's Bangladesh office).
@@ -97,7 +97,7 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
     return data;
   };
   const env = opts.env || process.env;
-  const queries = [...new Set((opts.queries || []).map((q) => q.trim()).filter(Boolean))].slice(0, MAX_QUERIES);
+  const queries = [...new Set((opts.queries || []).map((q) => q.trim()).filter(Boolean))].slice(0, opts.maxQueries ?? MAX_QUERIES);
   const jobs = await readBoard();
   return only ? jobs.filter((j) => j.country === only) : jobs;
   async function readBoard(): Promise<IngestedJob[]> {
@@ -156,7 +156,7 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
   }
 }
 
-const MAX_QUERIES = 12;
+export const MAX_QUERIES = 12;
 const MAX_DETAILS = 60;
 const dedupe = (jobs: IngestedJob[]) => [...new Map(jobs.map((j) => [j.externalId, j])).values()];
 
@@ -187,8 +187,18 @@ export function starterQueries(roles: string[], now: number, n = STARTER_QUERIES
   return Array.from({ length: Math.min(n, roles.length) }, (_, i) => roles[(start + i) % roles.length]);
 }
 
-/** Open jobs kept per country nobody searches yet: enough for a visitor's pre-signup match preview, which reads the newest 1,000. */
-export const UNWATCHED_COUNTRY_CAP = 1000;
+/**
+ * Users' roles (most wanted first) to search in one run. When they fit, all are searched. When there are more, the most
+ * wanted half is searched every run and the rest take turns, so every user's role, however rare, is searched regularly.
+ */
+export function userQueries(wanted: string[], now: number, max = MAX_QUERIES): string[] {
+  if (wanted.length <= max) return wanted;
+  const fixed = Math.ceil(max / 2);
+  return [...wanted.slice(0, fixed), ...starterQueries(wanted.slice(fixed), now, max - fixed)];
+}
+
+/** Open jobs kept per country nobody searches yet (a sample for visitors' pre-signup preview). A launched market joins LAUNCH_MARKETS. */
+export const UNWATCHED_COUNTRY_CAP = 300;
 
 /**
  * The rows to save from one fetch. Searched countries and remote jobs are always saved. In a country nobody searches, a

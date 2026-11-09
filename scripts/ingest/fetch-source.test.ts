@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capUnwatchedRows, fetchSource, starterQueries, UK_STARTER_ROLES, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, fetchSource, starterQueries, UK_STARTER_ROLES, userQueries, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
 
 const page = `<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Senior Accountant","hiringOrganization":{"name":"Example Ltd."},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"BD"}},"description":"<p>3+ years. Skills: Excel, VAT, IFRS.</p>","datePosted":"2026-10-01","validThrough":"2026-11-01","identifier":{"value":"A-1"}}</script></html>`;
 const src: SourceRow = { id: "s1", kind: "jsonld", name: "Example careers", url: "https://example.com/careers", board_token: null, country: "BD", company: "Example Ltd." };
@@ -92,5 +92,23 @@ describe("UK starter searches on Reed", () => {
     }
     expect(starterQueries(UK_STARTER_ROLES, 0)).toHaveLength(8);
     expect(starterQueries([], 0)).toEqual([]);
+  });
+});
+
+describe("users' own roles", () => {
+  const hour = 3_600_000;
+  it("searches every role when they fit", () => {
+    expect(userQueries(["accountant", "nurse"], 0)).toEqual(["accountant", "nurse"]);
+  });
+  it("with many roles keeps the most wanted every run and gives every rare role a turn each day", () => {
+    const roles = Array.from({ length: 20 }, (_, i) => `role ${i}`);
+    const seen = new Set<string>();
+    for (const h of [6, 11, 20]) {
+      const q = userQueries(roles, 20400 * 24 * hour + h * hour);
+      expect(q).toHaveLength(12);
+      expect(q.slice(0, 6)).toEqual(roles.slice(0, 6));
+      q.forEach((r) => seen.add(r));
+    }
+    expect(seen.size).toBe(20);
   });
 });

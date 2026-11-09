@@ -34,7 +34,7 @@ export default function Terms() {
         <li>Prices are shown on the <Link href="/#pricing">pricing section</Link> before you pay. The price depends on the country you live in.</li>
         <li>In Bangladesh you pay with bKash. Elsewhere you pay by card through Creem (creem.io), our reseller and Merchant of Record for all card orders, which handles the payment, receipt and any sales tax.</li>
         <li>Plans include fair-use limits on applications and AI use, shown in the app, so the service stays fast and affordable for everyone.</li>
-        <li>If you live in the UK or EU you have 14 days to cancel a card purchase. Because Pro starts as soon as you pay, you are asked at checkout to agree to it starting straight away; if you then cancel within 14 days you get a full refund in the first 7 days, and after that a refund for the days you have not used.</li>
+        <li>If you live in the UK or EU you have 14 days to cancel a card purchase. Because Pro starts as soon as you pay, you are asked at checkout to agree to it starting straight away; if you then cancel within 14 days, we refund the days you have not used. Apart from that, Pro packs are not refundable once started, except for mistaken charges or a fault on our side.</li>
         <li>Refunds follow our <Link href="/refund">Refund Policy</Link>.</li>
       </ul>
 
