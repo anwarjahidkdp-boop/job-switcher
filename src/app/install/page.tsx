@@ -4,7 +4,7 @@ import {SiteFooter} from "@/components/SiteFooter";
 import {PageHead} from "@/components/PageHead";
 import {InstallButton} from "@/components/InstallApp";
 import {INSTALL_GUIDE} from "@/lib/pwa/install";
-export const metadata={title:"Install or reinstall JobPao",description:"Install JobPao again on Android, iPhone or computer and sign in to your existing account."};
+export const metadata={title:"Install or reinstall JobPao",description:"Install JobPao again on Android, iPhone or computer and sign in to your existing account.",alternates:{canonical:"/install"}};
 export default function InstallPage(){
  return <><SiteHeader inApp={false}/><main><div className="wrap">
   <PageHead kicker="Always available" title={<>Install or reinstall <span>JobPao</span></>} sub="Removed the app from your phone? You can install it again here."/>

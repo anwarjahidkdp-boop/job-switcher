@@ -3,6 +3,7 @@ import { trustedMutation } from "./lib/request-security";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { nextVisit, VISIT_COOKIE } from "./lib/visit";
+import { SITE_URL } from "./lib/site";
 
 const PROTECTED = ["/onboarding", "/inbox", "/notifications", "/jobs", "/queue", "/applications", "/insights", "/linkedin", "/profile", "/setup", "/upgrade", "/admin", "/account"];
 
@@ -10,6 +11,10 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (path.startsWith("/api/") && path !== "/api/billing/creem" && !trustedMutation(request))
     return NextResponse.json({error:"This request must come from JobPao."},{status:403});
+  // The old workers.dev address serves the same site: send people and search engines to jobpao.app for pages.
+  // APIs (webhooks, the email worker) and sign-in links keep working there unchanged.
+  if ((request.headers.get("host") ?? request.nextUrl.host).split(":")[0].endsWith(".workers.dev") && (request.method === "GET" || request.method === "HEAD") && !path.startsWith("/api/") && !path.startsWith("/auth/"))
+    return NextResponse.redirect(new URL(path + request.nextUrl.search, SITE_URL), 301);
   // The sign-out handler owns session removal. An extra refresh here can fail before it gets to run.
   if (path === "/auth/signout" && request.method === "POST") {
     if (!trustedMutation(request)) return NextResponse.json({error:"This request must come from JobPao."},{status:403});

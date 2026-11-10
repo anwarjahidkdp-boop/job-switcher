@@ -1,6 +1,6 @@
 import { LegalPage, SUPPORT_EMAIL } from "../legal/LegalPage";
 
-export const metadata = { title: "Refund Policy", description: "How refunds work for JobPao Pro packs." };
+export const metadata = { title: "Refund Policy", description: "How refunds work for JobPao Pro packs.", alternates: { canonical: "/refund" } };
 
 export default function Refund() {
   return (
