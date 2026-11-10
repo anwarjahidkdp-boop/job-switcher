@@ -323,4 +323,13 @@ describe('audit reliability boundaries',()=>{
   expect(await scalar<number>('select count(*)::int from match_assessments where user_id=$1 and job_id=$2',[U,j])).toBe(1);
   expect(await scalar<number>('select score from match_assessments where user_id=$1 and job_id=$2',[U,j])).toBe(90);
  });
+ it('adds history only when a match really changes, not on every daily refresh',async()=>{
+  await role('postgres');const j=await scalar<string>("insert into jobs(source_kind,source_label,country,title,company,apply_method) values('paste','test','BD','Steady role','Test','portal') returning id");
+  await db.query("insert into matches(user_id,job_id,score,band,relevant,computed_at) values($1,$2,75,'st',true,'2026-11-01')",[U,j]);
+  for(const day of ['2026-11-02','2026-11-03','2026-11-04'])await db.query("update matches set computed_at=$3 where user_id=$1 and job_id=$2",[U,j,day]);
+  expect(await scalar<number>('select count(*)::int from match_assessments where user_id=$1 and job_id=$2',[U,j])).toBe(1);
+  await db.query("update matches set score=88,computed_at='2026-11-05' where user_id=$1 and job_id=$2",[U,j]);
+  expect(await scalar<number>('select count(*)::int from match_assessments where user_id=$1 and job_id=$2',[U,j])).toBe(2);
+  expect(await scalar<number>('select score from matches where user_id=$1 and job_id=$2',[U,j])).toBe(88);
+ });
 });
