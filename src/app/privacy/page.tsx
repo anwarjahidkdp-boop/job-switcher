@@ -1,6 +1,6 @@
 import { LegalPage, SUPPORT_EMAIL, UK_REPRESENTATIVE } from "../legal/LegalPage";
 
-export const metadata = { title: "Privacy Policy", description: "What JobPao collects, why, and how you control it." };
+export const metadata = { title: "Privacy Policy", description: "What JobPao collects, why, and how you control it.", alternates: { canonical: "/privacy" } };
 
 export default function Privacy() {
   return (

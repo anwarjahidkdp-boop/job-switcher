@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LegalPage, SUPPORT_EMAIL } from "../legal/LegalPage";
 
-export const metadata = { title: "Terms of Service", description: "The terms for using JobPao, your personal job assistant." };
+export const metadata = { title: "Terms of Service", description: "The terms for using JobPao, your personal job assistant.", alternates: { canonical: "/terms" } };
 
 export default function Terms() {
   return (

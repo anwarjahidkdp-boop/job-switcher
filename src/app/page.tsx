@@ -9,6 +9,8 @@ import { AutoFlow } from "./AutoFlow";
 import { HeroStage } from "./HeroStage";
 
 export const dynamic = "force-dynamic";
+// Search engines treat https://jobpao.app as the one address of this page (not workers.dev, not ?query variants).
+export const metadata = { alternates: { canonical: "/" } };
 
 // Line icons drawn on a 24px grid; stroke follows currentColor.
 const ICONS: Record<string, React.ReactNode> = {

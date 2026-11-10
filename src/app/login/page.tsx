@@ -6,7 +6,8 @@ import { LoginForm } from "./LoginForm";
 import { safeNext } from "@/lib/safe-next";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
-  return { title: (await searchParams).mode === "signup" ? "Create your account" : "Log in" };
+  // Every login variant (?mode=signup, ?next=...) is one page for search engines.
+  return { title: (await searchParams).mode === "signup" ? "Create your account" : "Log in", alternates: { canonical: "/login" } };
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; mode?: string; quiz?:string; signedout?:string; logout?:string }> }) {
