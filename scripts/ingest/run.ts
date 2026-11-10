@@ -4,7 +4,7 @@
 //   npm run ingest -- --source <id> --dry-run
 import { appendFileSync } from "node:fs";
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
-import { fetchSource, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, fetchSource, MAX_QUERIES, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
 import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
 import { extractEligibility, normaliseEligibility } from "../../src/lib/eligibility";
 import { todayStr } from "../../src/lib/dates";
@@ -56,6 +56,11 @@ async function main() {
   if (!sources.length && scheduled) return;
   console.log(`ingest: ${sources.length} active source(s)${dry ? " (dry run)" : ""}`);
 
+  // Countries someone searches (plus the launch markets) keep every job; the rest keep a capped sample (UNWATCHED_COUNTRY_CAP).
+  const searched = new Set([...LAUNCH_MARKETS, ...(await targetedCountries(db))]);
+  const watched = (country: string) => watchedCountry(country, searched);
+  const openJobs = new Map<string, number>();
+
   const touchedCountries = new Set<string>();
   let total = 0, failed = 0, newlyFailed = 0;
   // Sources failing in this run (shown in the run summary) and the ones that just passed a day of failing (these alert).
@@ -79,7 +84,7 @@ async function main() {
         if (error) throw error;
         batch = await withRetry(() => fetchBangladesh(src.board_token || "", today, { cursor: src.cursor_url, retryUrls: (retry || []).map(r => r.url) }));
       }
-      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: demand.get(src.country) || [] }));
+      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: searchQueries(src, demand), maxQueries: MAX_QUERIES + STARTER_QUERIES_PER_RUN }));
       total += jobs.length;
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
@@ -87,8 +92,10 @@ async function main() {
       if (src.country === "BD") await persistBangladeshJobs(db, src, jobs, today);
       if (batch) await persistBangladeshBatch(db, src, batch);
       const rows = src.country === "BD" ? [] : [...new Map(jobs.map((j) => [j.externalId, j])).values()].map((j) => ({ ...jobToRow(j, { owner_id: null, source_kind: src.kind, source_id: src.id, external_id: j.externalId, description: j.description.slice(0, 20000) }), active: true }));
-      for (let i = 0; i < rows.length; i += 200) {
-        const { error: e } = await db.from("jobs").upsert(rows.slice(i, i + 200), { onConflict: "source_id,external_id" });
+      const saved = await keepWithinCap(db, src.id, rows, watched, openJobs);
+      if (saved.length < rows.length) console.log(`    skipped ${rows.length - saved.length} new job(s) in countries nobody searches (over ${UNWATCHED_COUNTRY_CAP} open)`);
+      for (let i = 0; i < saved.length; i += 200) {
+        const { error: e } = await db.from("jobs").upsert(saved.slice(i, i + 200), { onConflict: "source_id,external_id" });
         if (e) throw e;
       }
       // Only retire old listings when the fetch returned something (an empty result may be a page change, not "no jobs").
@@ -146,6 +153,7 @@ async function main() {
     // Before matches are refreshed, so nobody is matched or notified twice for one vacancy.
     try { console.log(`ingest: hid ${await retireDuplicateJobs(db)} duplicate listing(s)`); } catch (e) { console.error(`  duplicate check failed: ${errText(e)}`); }
     console.log(`ingest: pruned ${await pruneOldJobs(db)} closed job(s)`);
+    try { console.log(`ingest: removed ${await pruneUnwatchedSurplus(db, [...openJobs.keys()])} surplus job(s) in countries nobody searches`); } catch (e) { console.error(`  surplus clean-up failed: ${errText(e)}`); }
     console.log(`ingest: re-categorised ${await recategorise(db)} job(s)`);
     const facts = await refreshBdFacts(db);
     if (facts) touchedCountries.add("BD");
@@ -298,6 +306,66 @@ async function pruneOldJobs(db: ReturnType<typeof scriptAdmin>): Promise<number>
     if (!del.length) continue;
     const { error } = await db.from("jobs").delete().in("id", del);
     if (!error) n += del.length;
+  }
+  return n;
+}
+
+/**
+ * What a search source looks for: every user's own role (taking turns when there are many, see userQueries), and on Reed
+ * also a rotating set of everyday UK roles, so a role nobody has asked for yet still has jobs waiting.
+ */
+function searchQueries(src: SourceRow, demand: Map<string, string[]>): string[] {
+  const mine = userQueries(demand.get(src.country) || [], Date.now());
+  return src.kind === "reed" ? [...mine, ...starterQueries(UK_STARTER_ROLES, Date.now())] : mine;
+}
+
+async function targetedCountries(db: ReturnType<typeof scriptAdmin>): Promise<string[]> {
+  const { data } = await db.from("profiles").select("target_country").limit(10000);
+  return (data || []).map((p) => p.target_country as string).filter(Boolean);
+}
+
+/** Open public jobs in one country (counted once per run and per country, then kept up to date by capUnwatchedRows). */
+async function openJobsIn(db: ReturnType<typeof scriptAdmin>, country: string): Promise<number> {
+  const { count, error } = await db.from("jobs").select("id", { count: "exact", head: true }).is("owner_id", null).eq("active", true).eq("country", country);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Drops new rows for countries nobody searches once that country already holds UNWATCHED_COUNTRY_CAP open jobs. */
+async function keepWithinCap<T extends { country: string; external_id?: string | null }>(db: ReturnType<typeof scriptAdmin>, sourceId: string, rows: T[], watched: (c: string) => boolean, openJobs: Map<string, number>): Promise<T[]> {
+  const outside = rows.filter((r) => !watched(r.country));
+  if (!outside.length) return rows;
+  for (const c of new Set(outside.map((r) => r.country))) if (!openJobs.has(c)) openJobs.set(c, await openJobsIn(db, c));
+  const existing = new Set<string>();
+  const ids = outside.map((r) => r.external_id).filter((id): id is string => !!id);
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await db.from("jobs").select("external_id").eq("source_id", sourceId).in("external_id", ids.slice(i, i + 100));
+    if (error) throw error;
+    for (const r of data || []) existing.add(r.external_id as string);
+  }
+  return capUnwatchedRows(rows, watched, openJobs, existing);
+}
+
+/**
+ * Countries nobody searches keep only their newest UNWATCHED_COUNTRY_CAP open jobs (what a visitor's pre-signup preview
+ * reads). Older ones are deleted unless someone started an application; capUnwatchedRows stops them coming back.
+ */
+async function pruneUnwatchedSurplus(db: ReturnType<typeof scriptAdmin>, countries: string[]): Promise<number> {
+  let n = 0;
+  for (const country of countries) {
+    const { data, error } = await db.from("jobs").select("id").is("owner_id", null).eq("active", true).eq("country", country)
+      .order("created_at", { ascending: false }).range(UNWATCHED_COUNTRY_CAP, UNWATCHED_COUNTRY_CAP + 4999);
+    if (error) throw error;
+    const ids = (data || []).map((r) => r.id as string);
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { data: apps } = await db.from("applications").select("job_id").in("job_id", batch);
+      const keep = new Set((apps || []).map((a) => a.job_id as string));
+      const del = batch.filter((id) => !keep.has(id));
+      if (!del.length) continue;
+      const { error: e } = await db.from("jobs").delete().in("id", del);
+      if (!e) n += del.length;
+    }
   }
   return n;
 }

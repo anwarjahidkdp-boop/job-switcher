@@ -1,4 +1,4 @@
-import { LegalPage, SUPPORT_EMAIL } from "../legal/LegalPage";
+import { LegalPage, SUPPORT_EMAIL, UK_REPRESENTATIVE } from "../legal/LegalPage";
 
 export const metadata = { title: "Privacy Policy", description: "What JobPao collects, why, and how you control it." };
 
@@ -43,7 +43,10 @@ export default function Privacy() {
         <li><b>Creem</b> (card payments, as Merchant of Record) and <b>bKash</b> (Bangladesh payments).</li>
         <li><b>Email providers</b> (such as Brevo) to deliver our emails, and <b>Google</b> if you connect Gmail.</li>
       </ul>
-      <p>Some of these providers process data outside your country. They use standard safeguards for international transfers.</p>
+      <p>Some of these providers process data outside your country. Our database is hosted by Supabase in South Korea, the AI runs with Anthropic in the United States, and Cloudflare serves the site from the data centre nearest to you. Where data leaves the UK or EU, these providers use the approved safeguards for international transfers, such as the UK International Data Transfer Addendum and the EU Standard Contractual Clauses.</p>
+
+      <h2>Match scores and AI</h2>
+      <p>The AI scores how well each job fits your CV and drafts your documents. These scores only help you choose: nothing is sent to an employer and no decision about you is made without you. You can ignore any score, edit every document, and ask us to check a score by email.</p>
 
       <h2>Employers</h2>
       <p>Your CV and cover letter go to an employer only when you apply to that job yourself.</p>
@@ -55,7 +58,9 @@ export default function Privacy() {
       <p>We keep your data while your account is open. When you delete your account, your CVs, photo, profile, applications and forwarded emails are deleted straight away. Encrypted backups are kept for up to 90 days and then removed. Payment records are kept as long as tax law requires, without your CV or profile.</p>
 
       <h2>Your rights</h2>
-      <p>You can see and edit your details in the app, download your documents, and delete your account from your Profile. You can also ask us to access, correct, export or delete your data, or object to how we use it, by emailing <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. If you are in the UK or EU you may also complain to your data protection authority.</p>
+      <p>You can see and edit your details in the app, download your documents, and delete your account from your Profile. You can also ask us to access, correct, export or delete your data, or object to how we use it, by emailing <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. We reply within one month.</p>
+      <p>If you are in the UK, you can complain to the Information Commissioner&apos;s Office (ICO) at <a href="https://ico.org.uk/make-a-complaint/" rel="noopener noreferrer" target="_blank">ico.org.uk/make-a-complaint</a> or on 0303 123 1113. If you are in the EU, you can complain to the data protection authority where you live. We would be grateful for the chance to put things right first.</p>
+      {UK_REPRESENTATIVE && <p>Because we are based outside the UK, we have a representative in the UK under Article 27 of the UK GDPR: {UK_REPRESENTATIVE}.</p>}
 
       <h2>Security</h2>
       <p>Data is encrypted in transit, each person can only reach their own records, and payment and email keys are kept as server secrets. No system is perfectly secure, so please tell us at once if you notice anything wrong.</p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchSource, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, fetchSource, starterQueries, UK_STARTER_ROLES, userQueries, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
 
 const page = `<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Senior Accountant","hiringOrganization":{"name":"Example Ltd."},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"BD"}},"description":"<p>3+ years. Skills: Excel, VAT, IFRS.</p>","datePosted":"2026-10-01","validThrough":"2026-11-01","identifier":{"value":"A-1"}}</script></html>`;
 const src: SourceRow = { id: "s1", kind: "jsonld", name: "Example careers", url: "https://example.com/careers", board_token: null, country: "BD", company: "Example Ltd." };
@@ -63,5 +63,52 @@ describe("database clean-up", () => {
     expect(watchedCountry("BD", targeted)).toBe(true);
     expect(watchedCountry("XX", targeted)).toBe(true);
     expect(watchedCountry("US", targeted)).toBe(false);
+  });
+});
+
+describe("open jobs in countries nobody searches", () => {
+  const watched = (c: string) => watchedCountry(c, new Set(["BD", "GB"]));
+  const row = (country: string, external_id: string) => ({ country, external_id });
+  it("always saves searched countries and remote jobs", () => {
+    const rows = [row("GB", "a"), row("XX", "b"), row("BD", "c")];
+    expect(capUnwatchedRows(rows, watched, new Map([["GB", 5000]]), new Set(), 1)).toEqual(rows);
+  });
+  it("adds new listings only up to the cap and keeps refreshing stored ones", () => {
+    const stored = new Map([["US", 1]]);
+    const out = capUnwatchedRows([row("US", "old"), row("US", "n1"), row("US", "n2"), row("DE", "d1"), row("DE", "d2")], watched, stored, new Set(["old"]), 2);
+    expect(out.map((r) => r.external_id)).toEqual(["old", "n1", "d1", "d2"]);
+    expect(stored.get("US")).toBe(2);
+    expect(stored.get("DE")).toBe(2);
+  });
+});
+
+describe("UK starter searches on Reed", () => {
+  const hour = 3_600_000, day = 24 * hour;
+  it("covers every role across the UK morning, midday and evening scans", () => {
+    for (const d of [20400, 20401, 20500]) {
+      const seen = new Set<string>();
+      for (const h of [6, 11, 20]) starterQueries(UK_STARTER_ROLES, d * day + h * hour).forEach((r) => seen.add(r));
+      expect(seen.size).toBe(UK_STARTER_ROLES.length);
+    }
+    expect(starterQueries(UK_STARTER_ROLES, 0)).toHaveLength(8);
+    expect(starterQueries([], 0)).toEqual([]);
+  });
+});
+
+describe("users' own roles", () => {
+  const hour = 3_600_000;
+  it("searches every role when they fit", () => {
+    expect(userQueries(["accountant", "nurse"], 0)).toEqual(["accountant", "nurse"]);
+  });
+  it("with many roles keeps the most wanted every run and gives every rare role a turn each day", () => {
+    const roles = Array.from({ length: 20 }, (_, i) => `role ${i}`);
+    const seen = new Set<string>();
+    for (const h of [6, 11, 20]) {
+      const q = userQueries(roles, 20400 * 24 * hour + h * hour);
+      expect(q).toHaveLength(12);
+      expect(q.slice(0, 6)).toEqual(roles.slice(0, 6));
+      q.forEach((r) => seen.add(r));
+    }
+    expect(seen.size).toBe(20);
   });
 });
