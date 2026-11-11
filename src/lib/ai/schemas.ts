@@ -145,3 +145,12 @@ export const UkStatementSchema = z.object({
 });
 
 export const FormAnswerSchema = z.object({ answer: z.string() });
+
+/** "Strengthen my CV": the results questions a professional CV writer would ask, one role at a time. */
+export const BoostQuestionsSchema = z.object({
+  questions: z.array(z.object({ role: z.number().int(), question: z.string(), placeholder: z.string(), suggestions: z.array(z.string()) })),
+});
+/** The person's answers written into the bullets of the roles they belong to. */
+export const BoostApplySchema = z.object({
+  roles: z.array(z.object({ role: z.number().int(), bullets: z.array(z.string()) })),
+});

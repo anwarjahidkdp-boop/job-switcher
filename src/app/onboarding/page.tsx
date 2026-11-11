@@ -16,6 +16,9 @@ import { resolveStyle } from "@/lib/cv/render";
 import { convention, personalFields } from "@/lib/cv/conventions";
 import { jobTotals } from "@/lib/server/search-summary";
 import { aiConfigured } from "@/lib/ai";
+import { CvBoost } from "@/components/CvBoost";
+import { boostOffered, boostStatus } from "@/lib/cv-boost";
+import { trialAccess } from "@/lib/server/trial-access";
 import { finishOnboardingAction, backToStepAction } from "../actions";
 import { QuestionsForm } from "./QuestionsForm";
 import { ScrollTop } from "./ScrollTop";
@@ -110,6 +113,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     body = <>
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {t.matched} Top matches</button></form></div></div>
+      {boostOffered(country) ? <div style={{ marginTop: 18 }}><CvBoost {...boostStatus(st.cvDoc?.questions, st.cvDoc?.answers, m)} aiReady={aiConfigured() && (await trialAccess(supabase, user.id)).active} /></div> : null}
       <CvSuggestions items={m.suggestions || []} toggle />
       {st.master.flags.length ? <p className="note" style={{ marginTop: 12, borderColor: "var(--warn)" }}>Our fact check {st.master.flags.join("; ")}.</p> : null}
       {(m.improvements || []).length ? (
