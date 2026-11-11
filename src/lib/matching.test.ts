@@ -162,6 +162,33 @@ describe("guessCategory", () => {
     expect(guessCategory("Senior Accounts Manager")).toBe("Finance & Accounting");
     expect(guessCategory("Analyst", ["accounts payable"])).toBe("Finance & Accounting");
   });
+
+  // Every category a person can be given must have jobs filed under it (a job list holds only the person's categories).
+  it.each([
+    ["Registered Nurse - Night Shifts", "Healthcare"], ["Care Assistant", "Healthcare"], ["Support Worker", "Healthcare"],
+    ["Senior Veterinary Surgeon - Small Animal", "Healthcare"], ["Dental Nurse", "Healthcare"], ["Pharmacist", "Healthcare"],
+    ["Sous Chef", "Hospitality"], ["Kitchen Porter", "Hospitality"], ["Bar Staff", "Hospitality"], ["Hotel Receptionist", "Administration"],
+    ["Solicitor - Conveyancing", "Legal"], ["Senior Paralegal", "Legal"], ["Head of Compliance", "Legal"],
+    ["Second Charge Mortgage Underwriter", "Banking & Financial Services"], ["Investment Banking Analyst", "Banking & Financial Services"], ["Claims Handler", "Banking & Financial Services"],
+    ["Mechanical Engineer", "Engineering"], ["Civil Engineer", "Engineering"], ["Field Service Engineer", "Engineering"], ["Electrician", "Engineering"], ["Quantity Surveyor", "Engineering"], ["Diesel Mechanic", "Engineering"],
+    ["HGV Class 1 Driver", "Supply Chain"], ["Transport Manager", "Supply Chain"], ["Forklift Driver", "Supply Chain"],
+    ["Operations Manager", "Operations"], ["Project Manager", "Operations"], ["Health and Safety Manager", "Operations"], ["Security Officer", "Operations"],
+    ["SEN Teaching Assistant", "Education"], ["Nursery Practitioner", "Education"],
+    ["Customer Advisor", "Customer Service"], ["Complaints Handler", "Customer Service"],
+    ["Assistant Store Manager", "Sales"], ["Retail Assistant", "Sales"],
+    ["Social Media Executive", "Marketing"], ["Executive Assistant to COO", "Administration"], ["Administration Officer", "Administration"],
+    ["Senior Product Manager", "IT"], ["Security Operations Analyst", "IT"], ["Reward Manager", "HR"], ["Credit Controller", "Finance & Accounting"],
+  ])("files %s under %s", (title, cat) => expect(guessCategory(title)).toBe(cat));
+
+  it("keeps software engineers in IT and the categories older rules already gave", () => {
+    expect(guessCategory("Senior Software Engineer")).toBe("IT");
+    expect(guessCategory("Data Engineer")).toBe("IT");
+    expect(guessCategory("Site Reliability Engineer")).toBe("IT");
+    expect(guessCategory("Supply Chain Associate (Civil Engineer)")).toBe("Supply Chain");
+    expect(guessCategory("Construction Accountant")).toBe("Finance & Accounting");
+    expect(guessCategory("Medical Sales Representative")).toBe("Sales");
+    expect(guessCategory("Executive")).toBe("Other");
+  });
 });
 
 describe('career level guardrails after a promotion',()=>{

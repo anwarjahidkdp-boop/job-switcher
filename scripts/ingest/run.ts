@@ -118,7 +118,7 @@ async function main() {
   }
 
   // Held image/newspaper circulars: read free with OCR first; AI reads only what OCR could not confirm, until the
-  // day's AI budget is spent (BD_CIRCULAR_AI_BUDGET_USD, default $0.50 per Bangladesh day across all scans; 0 = free reading only).
+  // day's AI budget is spent (BD_CIRCULAR_AI_BUDGET_USD per Bangladesh day across all scans; 0 = free reading only, which ingest.yml uses by default since the UK-first launch).
   // BD_CIRCULAR_AI_LIMIT caps how many circulars one run looks at (default 200, 0 turns circular reading off).
   const ai = getProvider();
   const circularLimit = Math.max(0, Math.min(1000, Number(process.env.BD_CIRCULAR_AI_LIMIT ?? 200) || 0));
