@@ -4,7 +4,7 @@
 //   npm run ingest -- --source <id> --dry-run
 import { appendFileSync } from "node:fs";
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
-import { capUnwatchedRows, CLOSED_KEEP_DAYS, fetchSource, MAX_QUERIES, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, CLOSED_KEEP_DAYS, pausedMarkets, fetchSource, MAX_QUERIES, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
 import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
 import { extractEligibility, normaliseEligibility } from "../../src/lib/eligibility";
 import { todayStr } from "../../src/lib/dates";
@@ -27,15 +27,19 @@ async function main() {
   const dry = hasFlag("dry-run");
   const only = flagValue("source");
   const today = todayStr("UTC");
+  // Markets whose job search is paused (PAUSED_MARKETS, e.g. "BD"): none of their sources are scanned and nothing new is
+  // added there. Their existing jobs, users and data are kept untouched; removing the code from the list resumes scanning.
+  const paused = pausedMarkets(process.env.PAUSED_MARKETS);
+  if (paused.size) console.log(`ingest: paused ${[...paused].join(", ")}`);
 
   // Job-search APIs are queried with what our users are looking for, per target country.
   const demand = await roleDemand(db);
   // The launch markets get search sources even before anyone there signs up, so their first users find jobs waiting.
   if (!only && !dry) await ensureSearchSources(db, [...new Set([...LAUNCH_MARKETS, ...demand.keys()])]);
-  if (!only && !dry) await ensureBangladeshSources(db);
+  if (!only && !dry && !paused.has("BD")) await ensureBangladeshSources(db);
   // Bangladesh employers' own career pages: a few per run are checked (and rechecked weekly) for a public job board or
   // structured job data, which then becomes a source of its own (scripts/ingest/bd/discover.ts).
-  if (!only && !dry) {
+  if (!only && !dry && !paused.has("BD")) {
     try {
       const d = await discoverCareerPages(db, { max: 25, maxMs: 5 * 60_000 });
       console.log(`ingest: checked ${d.checked} Bangladesh career page(s) ${JSON.stringify(d.tally)}; ${d.boardsAdded} confirmed board(s) added`);
@@ -49,9 +53,9 @@ async function main() {
   // Hourly schedule: only the markets whose fresh-jobs update is due. Remote (XX) boards ride along with the launch markets.
   const scheduled = !only && process.env.GITHUB_EVENT_NAME === "schedule";
   const markets = [...new Set([...LAUNCH_MARKETS, ...demand.keys(), ...(all || []).map((s) => s.country as string)])].filter((c) => c && c !== "XX");
-  const due = new Set(scheduled ? dueMarkets(markets, Date.now()) : markets);
+  const due = new Set((scheduled ? dueMarkets(markets, Date.now()) : markets).filter((c) => !paused.has(c)));
   if (LAUNCH_MARKETS.some((c) => due.has(c))) due.add("XX");
-  const sources = (all || []).filter((s) => !scheduled || due.has(s.country as string));
+  const sources = (all || []).filter((s) => !paused.has(s.country as string) && (!scheduled || due.has(s.country as string)));
   if (scheduled) console.log(`ingest: update due for ${[...due].join(", ") || "no market"}`);
   if (!sources.length && scheduled) return;
   console.log(`ingest: ${sources.length} active source(s)${dry ? " (dry run)" : ""}`);

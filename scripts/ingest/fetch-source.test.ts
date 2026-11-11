@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capUnwatchedRows, fetchSource, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, fetchSource, pausedMarkets, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
 
 const page = `<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Senior Accountant","hiringOrganization":{"name":"Example Ltd."},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"BD"}},"description":"<p>3+ years. Skills: Excel, VAT, IFRS.</p>","datePosted":"2026-10-01","validThrough":"2026-11-01","identifier":{"value":"A-1"}}</script></html>`;
 const src: SourceRow = { id: "s1", kind: "jsonld", name: "Example careers", url: "https://example.com/careers", board_token: null, country: "BD", company: "Example Ltd." };
@@ -110,5 +110,14 @@ describe("users' own roles", () => {
       q.forEach((r) => seen.add(r));
     }
     expect(seen.size).toBe(20);
+  });
+});
+
+describe("pausedMarkets", () => {
+  it("reads country codes and ignores anything else", () => {
+    expect([...pausedMarkets("BD")]).toEqual(["BD"]);
+    expect([...pausedMarkets(" bd, in ,x,GBR")]).toEqual(["BD", "IN"]);
+    expect(pausedMarkets("none").size).toBe(0);
+    expect(pausedMarkets(undefined).size).toBe(0);
   });
 });
