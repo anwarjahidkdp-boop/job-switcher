@@ -4,6 +4,7 @@ name: Weekly database backup
 # Restore: download the artifact, then
 #   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in jobpao-backup.tar.gz.enc -pass env:KEY | tar xz
 on:
+  # GitHub stopped this timer silently 2026-11-09; workers/watchdog restarts the run and emails if it stops again.
   schedule:
     - cron: "0 22 * * 6"    # Sunday 04:00 Asia/Dhaka
   workflow_dispatch:

@@ -1,5 +1,6 @@
 name: Send reminders and deadline alerts
 on:
+  # GitHub stopped this timer silently 2026-11-09; workers/watchdog restarts the run and emails if it stops again.
   schedule:
     # 02:00 UTC = 08:00 Bangladesh; 07:00 and 08:00 UTC = 08:00 UK in summer (BST) and winter (GMT);
     # 12:00 and 17:00 UTC give every other time zone a daytime run. Users only get messages 08:00-21:00 local.

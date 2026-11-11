@@ -1,15 +1,19 @@
 // Pure logic of the watchdog: which workflows are overdue, what to start, when to email.
 // Kept free of Worker types so it is unit-tested with the app's vitest.
 
-export interface Check { workflow: string; label: string; maxAgeHours: number }
+export interface Check { workflow: string; label: string; maxAgeHours: number; alertAfterHours: number }
 
-// Overdue = no run of any kind (schedule, manual, watchdog) started for this long. Each limit is the
-// workflow's longest normal gap plus a margin, so a healthy schedule never trips it.
+// maxAgeHours: start the workflow when no run of any kind (schedule, manual, watchdog) started for this long.
+// alertAfterHours: email the owner when GitHub's own timer has not started it for this long. The two are
+// separate because the watchdog's restarts keep the job alive, which must not hide that the timer is dead.
+// Limits sit above each workflow's normal gap so a healthy (even late) schedule never trips them.
 export const CHECKS: Check[] = [
-  { workflow: "ingest.yml", label: "Job scan (Ingest public job listings)", maxAgeHours: 3 },       // hourly
-  { workflow: "reminders.yml", label: "Reminders and deadline alerts", maxAgeHours: 12 },          // longest gap 9 h (17:00 -> 02:00)
-  { workflow: "backup.yml", label: "Weekly database backup", maxAgeHours: 8 * 24 },                // weekly
-  { workflow: "sponsors.yml", label: "UK visa sponsor register", maxAgeHours: 8 * 24 },            // weekly
+  // Hourly at :10. 1.5 h restarts it every 2 h while the timer is dead, which still covers every market's
+  // scan window (each run scans markets due in the next 2 h, src/lib/scan-schedule.ts).
+  { workflow: "ingest.yml", label: "Job scan (Ingest public job listings)", maxAgeHours: 1.5, alertAfterHours: 3 },
+  { workflow: "reminders.yml", label: "Reminders and deadline alerts", maxAgeHours: 12, alertAfterHours: 12 }, // longest gap 9 h (17:00 -> 02:00)
+  { workflow: "backup.yml", label: "Weekly database backup", maxAgeHours: 8 * 24, alertAfterHours: 8 * 24 },
+  { workflow: "sponsors.yml", label: "UK visa sponsor register", maxAgeHours: 8 * 24, alertAfterHours: 8 * 24 },
 ];
 
 export interface Env {
@@ -20,7 +24,7 @@ export interface Env {
   ADMIN_EMAILS?: string;
 }
 
-export interface Finding { check: Check; lastRun: Date | null; ageHours: number; started: boolean; error?: string }
+export interface Finding { check: Check; lastRun: Date | null; ageHours: number; lastScheduled: Date | null; started: boolean; error?: string }
 
 const H = 3_600_000;
 
@@ -52,8 +56,9 @@ function gh(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
-export async function lastRunStart(env: Env, workflow: string): Promise<Date | null> {
-  const r = await gh(env, `/actions/workflows/${workflow}/runs?per_page=1`);
+/** Start time of the latest run; with event "schedule", the latest run GitHub's own timer started. */
+export async function lastRunStart(env: Env, workflow: string, event?: "schedule"): Promise<Date | null> {
+  const r = await gh(env, `/actions/workflows/${workflow}/runs?per_page=1${event ? `&event=${event}` : ""}`);
   if (!r.ok) throw new Error(`GitHub ${r.status} reading ${workflow}`);
   const j = (await r.json()) as { workflow_runs?: { created_at?: string }[] };
   const at = j.workflow_runs?.[0]?.created_at;
@@ -70,12 +75,13 @@ export async function startWorkflow(env: Env, workflow: string): Promise<void> {
 
 export function emailText(findings: Finding[], repo: string): { subject: string; html: string } {
   const rows = findings.map((f) => {
-    const when = f.lastRun ? `${Math.floor(f.ageHours)} hours ago (${f.lastRun.toISOString().slice(0, 16).replace("T", " ")} UTC)` : "never";
-    const what = f.started ? "The watchdog started it again." : `Could not start it: ${f.error ?? "unknown error"}. Start it by hand.`;
-    return `<li><b>${f.check.label}</b>: last ran ${when}. ${what}</li>`;
+    const stamp = (d: Date) => `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+    const timer = f.lastScheduled ? `GitHub's timer last started it ${stamp(f.lastScheduled)}` : "GitHub's timer has not started it";
+    const what = f.started ? "The watchdog started it now." : f.error ? `Could not start it: ${f.error}. Start it by hand.` : "The watchdog keeps it running meanwhile.";
+    return `<li><b>${f.check.label}</b>: ${timer}. ${what}</li>`;
   });
   return {
-    subject: `JobPao watchdog: ${findings.length === 1 ? findings[0].check.label + " was" : findings.length + " scheduled jobs were"} not running`,
+    subject: `JobPao watchdog: ${findings.length === 1 ? findings[0].check.label + " is" : findings.length + " scheduled jobs are"} not running on schedule`,
     html: `<p>GitHub's timer missed these scheduled jobs:</p><ul>${rows.join("")}</ul>`
       + `<p>Check <a href="https://github.com/${repo}/actions">GitHub Actions</a>. If GitHub stopped the schedules, open each workflow, choose ··· then Disable workflow, then Enable workflow.</p>`,
   };
@@ -94,26 +100,30 @@ export async function sendEmail(env: Env, subject: string, html: string): Promis
   if (!r.ok) throw new Error(`Brevo ${r.status}`);
 }
 
-/** One hourly pass. Returns what it found, for logs and tests. */
+/** One hourly pass. Returns the workflows it restarted or emailed about, for logs and tests. */
 export async function runWatchdog(env: Env, now = new Date(), checks = CHECKS): Promise<Finding[]> {
   const overdue: Finding[] = [];
   const toEmail: Finding[] = [];
   for (const check of checks) {
-    let lastRun: Date | null;
-    try { lastRun = await lastRunStart(env, check.workflow); }
+    let lastRun: Date | null, lastScheduled: Date | null;
+    try { [lastRun, lastScheduled] = await Promise.all([lastRunStart(env, check.workflow), lastRunStart(env, check.workflow, "schedule")]); }
     catch (e) { console.error("watchdog read", check.workflow, e); continue; }
     const age = ageHours(lastRun, now);
-    if (age < check.maxAgeHours) continue;
-    const f: Finding = { check, lastRun, ageHours: age, started: false };
-    try { await startWorkflow(env, check.workflow); f.started = true; }
-    catch (e) { f.error = e instanceof Error ? e.message : String(e); }
+    const restart = age >= check.maxAgeHours;
+    const alert = shouldEmail(ageHours(lastScheduled, now), check.alertAfterHours);
+    if (!restart && !alert) continue;
+    const f: Finding = { check, lastRun, ageHours: age, lastScheduled, started: false };
+    if (restart) {
+      try { await startWorkflow(env, check.workflow); f.started = true; }
+      catch (e) { f.error = e instanceof Error ? e.message : String(e); }
+    }
     overdue.push(f);
-    if (shouldEmail(age, check.maxAgeHours)) toEmail.push(f);
+    if (alert || (restart && !f.started && shouldEmail(age, check.maxAgeHours))) toEmail.push(f);
   }
   if (toEmail.length) {
     const { subject, html } = emailText(toEmail, env.REPO);
     try { await sendEmail(env, subject, html); } catch (e) { console.error("watchdog email", e); }
   }
-  for (const f of overdue) console.log("watchdog overdue", f.check.workflow, Math.round(f.ageHours), f.started ? "started" : f.error);
+  for (const f of overdue) console.log("watchdog", f.check.workflow, Math.round(f.ageHours), f.started ? "started" : f.error ?? "timer late");
   return overdue;
 }

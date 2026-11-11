@@ -1,5 +1,6 @@
 name: Refresh UK visa sponsor register
 on:
+  # GitHub stopped this timer silently 2026-11-09; workers/watchdog restarts the run and emails if it stops again.
   schedule:
     - cron: "30 3 * * 1"    # weekly, Monday morning UK time
   workflow_dispatch:
