@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ukApplicationAnswers, ukApplicationRoute } from './uk-application';
+import { cleanFormQuestion, formWordLimit, ukApplicationAnswers, ukApplicationRoute, ukStatementLikely } from './uk-application';
 const input = { method: 'portal', target: null, url: 'https://careers.example.com/jobs/1', description: '' };
 describe('UK application channel', () => {
   it('keeps a contact email out of the application route', () => {
@@ -26,5 +26,21 @@ describe('UK copyable answers', () => {
   it('uses explicit saved answers including zero notice and refuses foreign-country salary', () => {
     const rows = ukApplicationAnswers({ workAuthorization: 'yes', workAuthorizationSource: 'user', sponsorshipRequired: false, noticeDays: 0, expectedSalary: 70000, salaryCountry: 'BD' }, null);
     expect(rows.map(r => r.value)).toEqual(['Yes', 'No', null, 'Available immediately']);
+  });
+});
+
+describe('UK supporting statements and form questions', () => {
+  it('expects a supporting statement from public-sector employers or adverts that ask for one', () => {
+    expect(ukStatementLikely({ company: 'Manchester University NHS Foundation Trust', title: 'Staff Nurse' }, '')).toBe(true);
+    expect(ukStatementLikely({ company: 'Leeds City Council', title: 'Finance Officer' }, '')).toBe(true);
+    expect(ukStatementLikely({ company: 'Acme Ltd', title: 'Administrator' }, 'Please read the person specification before applying.')).toBe(true);
+    expect(ukStatementLikely({ company: 'Northbridge Retail Ltd', title: 'Management Accountant' }, 'Apply with your CV.')).toBe(false);
+  });
+  it('reads a word limit typed by the person or stated in the question', () => {
+    expect(formWordLimit('250')).toBe(250);
+    expect(formWordLimit(null, 'Describe your experience (max 300 words)')).toBe(300);
+    expect(formWordLimit('5', 'Why this role?')).toBeNull();
+    expect(cleanFormQuestion('  Tell us\n about   a time ')).toBe('Tell us about a time');
+    expect(cleanFormQuestion('x'.repeat(2000))).toHaveLength(1200);
   });
 });

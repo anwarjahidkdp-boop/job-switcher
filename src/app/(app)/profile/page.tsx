@@ -41,7 +41,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const pending = st.facts.filter((f) => !f.verified && f.kind !== "answer" && f.id).map((f) => ({ id: f.id!, kind: f.kind, text: describeFact(f.kind, f.data) }));
   // Everything personal the CV can use, in one place (owner 2026-11-01); empty items are left out.
   const pd = st.profile.personal || {};
-  const personalRows = ([["Full name", st.profile.full_name || st.master.content.name], ["City", st.profile.city], ["Date of birth", pd.dob], ["Nationality", pd.nationality], ["Father's name", pd.fatherName], ["Mother's name", pd.motherName], ["Marital status", pd.marital], ["Religion", pd.religion], ["Address", pd.address], ["Driving licence", pd.licence], ["Visa status", pd.visa]] as [string, string | null | undefined][]).filter((x): x is [string, string] => !!x[1]);
+  const personalRows = ([["Full name", st.profile.full_name || st.master.content.name], ["City", st.profile.city], ["Date of birth", pd.dob], ["Nationality", pd.nationality], ["Father's name", pd.fatherName], ["Mother's name", pd.motherName], ["Marital status", pd.marital], ["Religion", pd.religion], ["Address", pd.address], ["Driving licence", pd.licence], ["Checks & registrations", pd.checks], ["Visa status", pd.visa]] as [string, string | null | undefined][]).filter((x): x is [string, string] => !!x[1]);
   const srcTitle = (s: string) => (s === "cv" ? "From your CV" : s === "answer" ? "From your answers" : "Added by you");
   return (
     <>

@@ -63,9 +63,19 @@ describe("CV templates", () => {
     expect(careerHighlights([{ bullets: ["No numbers here at all, only duties listed"] }])).toEqual([]);
     const h = renderCvHtml({ master: DEMO_MASTER, country: "GB" });
     expect(h).toContain("Areas of Expertise");
-    expect(h).toContain("Executive Profile");
+    expect(h).toContain("Professional Profile"); // UK wording
+    expect(renderCvHtml({ master: DEMO_MASTER, country: "BD" })).toContain("Executive Profile");
     for (const b of careerHighlights(DEMO_MASTER.experience)) expect(h.split(b.replace(/&/g, "&amp;")).length - 1).toBeLessThanOrEqual(1);
     expect(cvDocHtml({ master: DEMO_MASTER, country: "GB" })).toContain('class="corp"');
+  });
+  it("UK classic CV puts Key Skills straight after the Professional Profile", () => {
+    const h = renderCvHtml({ master: DEMO_MASTER, country: "GB", style: { tpl: "classic" } });
+    const at = (x: string) => h.indexOf(`<h3>${x}</h3>`);
+    expect(at("Professional Profile")).toBeGreaterThan(-1);
+    expect(at("Professional Profile")).toBeLessThan(at("Key Skills"));
+    expect(at("Key Skills")).toBeLessThan(at("Professional Experience"));
+    const bd = renderCvHtml({ master: DEMO_MASTER, country: "BD", style: { tpl: "classic" } });
+    expect(bd.indexOf("<h3>Skills</h3>")).toBeGreaterThan(bd.indexOf("<h3>Education</h3>"));
   });
 });
 
@@ -119,7 +129,7 @@ describe("country conventions on the CV", () => {
     expect(h).not.toContain("Abdul Karim");
     expect(h).not.toContain("Rafiqul");
     expect(h).toContain("Right to work");
-    expect(h).toContain("Available on request.");
+    expect(h).toContain("<dt>References</dt><dd>Available on request</dd>"); // one line under Additional information, never a lone section
     expect(h).not.toContain("I hereby declare");
   });
   it("US: no references section at all", () => {

@@ -6,7 +6,7 @@ import { cc, rule } from "../countries";
 import { WORLD_BY_CODE, type Region } from "../world";
 import type { PersonalDetails, Referee } from "../types";
 
-export type PField = "fatherName" | "motherName" | "dob" | "nationality" | "marital" | "religion" | "address" | "visa" | "licence" | "notice";
+export type PField = "fatherName" | "motherName" | "dob" | "nationality" | "marital" | "religion" | "address" | "visa" | "licence" | "checks" | "notice";
 
 export interface CvConvention {
   paper: "A4" | "Letter";
@@ -67,7 +67,9 @@ const COUNTRY: Record<string, Partial<CvConvention>> = {
   SG: { fields: ["nationality", "visa", "notice"], visaLabel: "Work pass", refs: "request" },
   PH: { paper: "Letter", margin: US_MARGIN, fields: ["nationality", "visa"], refs: "list", refCount: 3 },
   // UK: no DOB, nationality or marital status; "References available on request" (National Careers Service).
-  GB: { margin: "18mm 18mm 16mm 18mm", fields: ["visa"], visaLabel: "Right to work", refs: "request" },
+  // A driving licence and UK checks or registrations (Enhanced DBS, NMC PIN, CSCS, SIA) are listed when the person gives
+  // them: care, health, education, construction, security and driving roles screen on them.
+  GB: { margin: "18mm 18mm 16mm 18mm", fields: ["visa", "licence", "checks"], visaLabel: "Right to work", refs: "request" },
   IE: { fields: ["visa"], visaLabel: "Right to work", refs: "list", refCount: 2 },
   // US and Canada: references go on a separate sheet, never on the résumé.
   US: { paper: "Letter", margin: US_MARGIN, fields: ["visa"], visaLabel: "Work authorization", refs: "none" },
@@ -100,7 +102,7 @@ export function convention(c: unknown): CvConvention {
 
 export const FIELD_LABEL: Record<Exclude<PField, "visa">, string> = {
   fatherName: "Father's name", motherName: "Mother's name", dob: "Date of birth", nationality: "Nationality",
-  marital: "Marital status", religion: "Religion", address: "Permanent address", licence: "Driving licence", notice: "Notice period",
+  marital: "Marital status", religion: "Religion", address: "Permanent address", licence: "Driving licence", checks: "Checks & registrations", notice: "Notice period",
 };
 
 export const fieldLabel = (f: PField, cv: CvConvention) => (f === "visa" ? cv.visaLabel : FIELD_LABEL[f]);
@@ -122,7 +124,7 @@ export function cleanReferees(r: unknown, max = 3): Referee[] {
     .filter((x) => x.name && (x.phone || x.email || x.org)).slice(0, max);
 }
 
-const STR_FIELDS = ["cvEmail", "fatherName", "motherName", "dob", "nationality", "marital", "religion", "address", "visa", "licence"] as const;
+const STR_FIELDS = ["cvEmail", "fatherName", "motherName", "dob", "nationality", "marital", "religion", "address", "visa", "licence", "checks"] as const;
 /**
  * Applies what the preferences form sent to the stored details: only keys the form sent change (a blank box clears
  * that item), so details kept for another country survive a form that does not show them.
@@ -148,7 +150,7 @@ export function signDate(cv: CvConvention, d: Date): string {
 
 const HINT: Record<Exclude<PField, "notice" | "visa">, string> = {
   fatherName: "e.g. Md. Abdul Karim", motherName: "e.g. Rokeya Begum", dob: "e.g. 12 March 1992", nationality: "e.g. Bangladeshi",
-  marital: "e.g. Married", religion: "e.g. Islam", address: "e.g. Village, Upazila, District", licence: "e.g. Full driving licence (light vehicle)",
+  marital: "e.g. Married", religion: "e.g. Islam", address: "e.g. Village, Upazila, District", licence: "e.g. Full driving licence (light vehicle)", checks: "e.g. Enhanced DBS (2025), NMC PIN, CSCS card, SIA licence",
 };
 const VISA_HINT: Record<string, string> = {
   "Right to work": "e.g. British citizen, or Requires Skilled Worker sponsorship",
@@ -160,5 +162,5 @@ const VISA_HINT: Record<string, string> = {
 export function personalFields(c: unknown): { k: Exclude<PField, "notice">; label: string; hint: string }[] {
   const cv = convention(c);
   return cv.fields.filter((f): f is Exclude<PField, "notice"> => f !== "notice")
-    .map((k) => ({ k, label: fieldLabel(k, cv), hint: k === "visa" ? VISA_HINT[cv.visaLabel] || "e.g. Requires employment visa" : HINT[k] }));
+    .map((k) => ({ k, label: fieldLabel(k, cv), hint: k === "visa" ? VISA_HINT[cv.visaLabel] || "e.g. Requires employment visa" : k === "licence" && cc(c) === "GB" ? "e.g. Full UK driving licence (category B)" : HINT[k] }));
 }

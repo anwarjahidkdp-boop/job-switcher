@@ -99,8 +99,14 @@ export function renderCvHtml(inp: RenderInput): string {
   const pd = inp.personal || {};
   const cv = convention(country);
   const personal = personalRows(cv, pd, inp.noticeDays);
+  // A UK CV says references are available in one line under Additional Information, so a lone "References" heading never
+  // spills onto a page of its own.
+  const refsInline = country === "GB" && cv.refs === "request";
+  if (refsInline) personal.push(["References", "Available on request"]);
   const contact = String(m.contact || "").split(/\s*·\s*/).filter(Boolean);
-  const H = r.doc === "Résumé" ? { sum: "Summary", exp: "Work Experience" } : { sum: "Profile", exp: "Professional Experience" };
+  // UK CVs use "Professional Profile" and "Key Skills" straight after it (National Careers Service, UK CV writers).
+  const uk = country === "GB";
+  const H = r.doc === "Résumé" ? { sum: "Summary", exp: "Work Experience" } : { sum: uk ? "Professional Profile" : "Profile", exp: "Professional Experience" };
   const sumTxt = t && t.summary && t.summary !== m.summary ? (forDoc || inp.highlightChanges === false ? esc(t.summary) : `<mark>${esc(t.summary)}</mark>`) : esc(m.summary);
   const photo = inp.photoUrl && SAFE_IMG.test(inp.photoUrl) ? inp.photoUrl : null;
   const photoMarkup = !r.photo ? "" : photo ? `<img class="ph" src="${esc(photo)}" alt="Profile photo" width="104" height="104">` : forDoc ? "" : `<div class="ph ph-empty" title="Add a photo from the toolbar">${esc(initials(m.name))}</div>`;
@@ -109,7 +115,7 @@ export function renderCvHtml(inp: RenderInput): string {
   const list = (a: string[] | undefined) => ((a || []).length ? `<ul>${(a || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const chips = (a: string[]) => (!a.length ? "" : forDoc ? `<p>${a.map(esc).join(" · ")}</p>` : `<div class="cvchips">${a.map((x) => `<span>${esc(x)}</span>`).join("")}</div>`);
   const pers = personal.length ? `<dl class="pd">${personal.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
-  const persH = r.personal ? "Personal details" : "Additional information";
+  const persH = r.personal ? "Personal details" : country === "GB" ? "Additional Information" : "Additional information";
   // References, declaration, signature and consent: the closing block every template ends with.
   const refs = cleanReferees(pd.references, cv.refCount);
   const refBody = cv.refs === "none" ? "" : cv.refs === "list" && refs.length
@@ -121,7 +127,7 @@ export function renderCvHtml(inp: RenderInput): string {
   const endBlock = (cv.declaration ? sec("Declaration", `<p>${DECLARATION}</p>`) : "")
     + (cv.sign ? `<div class="sign"><div><span class="sig-line"></span><b>${esc(m.name)}</b></div><span>Date: ${esc(signDate(cv, inp.today || new Date()))}</span></div>` : "")
     + (cv.consent ? `<p class="gdpr">${esc(cv.consent)}</p>` : "");
-  const closing = sec("References", refBody) + (endBlock ? `<div class="cv-end">${endBlock}</div>` : "");
+  const closing = (refsInline ? "" : sec("References", refBody)) + (endBlock ? `<div class="cv-end">${endBlock}</div>` : "");
   const langs = (m.languages || []).length ? `<p>${m.languages.map(esc).join(", ")}</p>` : "";
   const expH = exp.map((e) => {
     const dt = `${fmtYM(e.start)} – ${fmtYM(e.end)}`;
@@ -164,8 +170,8 @@ export function renderCvHtml(inp: RenderInput): string {
     const langList = (m.languages || []).length ? `<ul class="plain">${m.languages.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : "";
     const tail = `${sec("Languages", langList)}${sec(persH, pers)}`;
     const extra = closing;
-    const body = `${sec(r.doc === "Résumé" ? "Executive Summary" : "Executive Profile", `<p>${sumTxt}</p>`).replace('class="cs"', 'class="cs sum"')}`
-      + `${hi.length ? sec("Career Highlights", `<ul class="hi">${hi.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`) : ""}`
+    const body = `${sec(r.doc === "Résumé" ? "Executive Summary" : uk ? "Professional Profile" : "Executive Profile", `<p>${sumTxt}</p>`).replace('class="cs"', 'class="cs sum"')}`
+      + `${hi.length ? sec(uk ? "Key Achievements" : "Career Highlights", `<ul class="hi">${hi.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`) : ""}`
       + `${sec("Areas of Expertise", expertise)}${sec(H.exp, roles)}${sec("Education", list(m.education))}${sec("Professional Qualifications", list(m.certifications))}`
       + (forDoc ? tail : tail ? `<div class="two">${tail}</div>` : "") + extra;
     if (forDoc) return `<div class="corp">${head}<hr>${body}</div>`;
@@ -187,6 +193,9 @@ export function renderCvHtml(inp: RenderInput): string {
   const classicHead = forDoc
     ? `<table width="100%" cellspacing="0" cellpadding="0"><tr><td valign="top">${classicIdentity}</td>${ph ? `<td align="right" valign="top" width="96">${ph}</td>` : ""}</tr></table>`
     : `<div class="identity">${classicIdentity}</div>${ph}`;
-  const inner = `<header>${classicHead}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${sec("Skills", skills.length ? `<p>${skills.map(esc).join(" · ")}</p>` : "")}${sec("Languages", langs)}${sec(persH, pers)}${closing}`;
+  const skillsSec = sec(uk ? "Key Skills" : "Skills", skills.length ? `<p>${skills.map(esc).join(" · ")}</p>` : "");
+  const inner = uk
+    ? `<header>${classicHead}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${skillsSec}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional Qualifications", list(m.certifications))}${sec("Languages", langs)}${sec(persH, pers)}${closing}`
+    : `<header>${classicHead}</header>${sec(H.sum, `<p>${sumTxt}</p>`)}${sec(H.exp, expH)}${sec("Education", list(m.education))}${sec("Professional qualifications", list(m.certifications))}${skillsSec}${sec("Languages", langs)}${sec(persH, pers)}${closing}`;
   return forDoc ? `<div class="classic">${inner}</div>` : `<article class="cv t-classic" style="--cva:${acc}">${inner}</article>`;
 }

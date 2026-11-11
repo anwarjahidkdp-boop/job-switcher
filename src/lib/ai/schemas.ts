@@ -138,3 +138,10 @@ export const InterviewPrepSchema = z.object({
   ask_them: z.array(z.string()),
   checklist: z.array(z.string()),
 });
+
+export const UkStatementSchema = z.object({
+  statement: z.string(),
+  criteria: z.array(z.object({ criterion: z.string(), evidence: z.string(), status: z.enum(["met", "partly", "gap"]) })),
+});
+
+export const FormAnswerSchema = z.object({ answer: z.string() });

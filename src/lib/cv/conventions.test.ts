@@ -10,7 +10,8 @@ describe("CV conventions", () => {
     expect(convention("XX").paper).toBe("A4");
   });
   it("keeps personal details off countries that avoid them unless hand-checked", () => {
-    expect(convention("GB").fields).toEqual(["visa"]);
+    expect(convention("GB").fields).toEqual(["visa", "licence", "checks"]);
+    expect(personalFields("GB").find((x) => x.k === "licence")?.hint).toContain("UK driving licence");
     expect(convention("ES").fields).toContain("dob");
     expect(convention("PL").fields.every((f) => ["visa", "licence", "notice"].includes(f))).toBe(true);
   });
