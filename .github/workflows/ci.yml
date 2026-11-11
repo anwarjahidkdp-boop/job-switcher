@@ -40,3 +40,4 @@ jobs:
         run: npm run build || (sleep 5 && npm run build)
       - run: npx opennextjs-cloudflare build
       - run: npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/cf"
+      - run: npx tsc --noEmit -p workers/watchdog && npx wrangler deploy --dry-run -c workers/watchdog/wrangler.toml --outdir "$RUNNER_TEMP/cf-watchdog"

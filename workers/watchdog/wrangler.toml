@@ -1,0 +1,18 @@
+# Watchdog for the scheduled GitHub Actions jobs (job scan, reminders, backup, UK sponsor list).
+# GitHub's own timer stopped silently once (2026-11-09 to 11-11) and nothing noticed for two days.
+# Every hour this Worker checks when each workflow last started; if one is overdue it starts it
+# (workflow_dispatch) and emails the owner. Deployed by .github/workflows/deploy.yml.
+# Secrets (copied from repository secrets at deploy): WATCHDOG_GITHUB_TOKEN, BREVO_API_KEY, EMAIL_FROM, ADMIN_EMAILS.
+name = "jobpao-watchdog"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+[triggers]
+crons = ["40 * * * *"]
+
+[observability]
+enabled = true
+
+[vars]
+REPO = "anwarjahidkdp-boop/job-switcher"
