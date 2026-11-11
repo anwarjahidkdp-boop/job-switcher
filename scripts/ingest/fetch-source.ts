@@ -167,6 +167,11 @@ export const FULL_BOARDS = ["greenhouse", "lever", "ashby", "workable", "recruit
 export const UNSEEN_CLOSE_DAYS = 10;
 /** Closed jobs in a country nobody searches (remote "XX" jobs excepted) are no use to anyone and are deleted after this many days. */
 export const UNWATCHED_PRUNE_DAYS = 2;
+/**
+ * Closed jobs everywhere else are deleted after this many days. Users only ever see open jobs, so no list or count moves;
+ * a job someone started an application for is never deleted. 7 days keeps the database at a steady size (~1,000 new jobs a day).
+ */
+export const CLOSED_KEEP_DAYS = 7;
 export const watchedCountry = (country: string, targeted: Set<string>) => country === "XX" || targeted.has(country);
 /**
  * Everyday UK roles searched on Reed beside what users ask for, so a UK visitor in any career finds jobs from day one

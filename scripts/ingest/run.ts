@@ -4,7 +4,7 @@
 //   npm run ingest -- --source <id> --dry-run
 import { appendFileSync } from "node:fs";
 import { scriptAdmin, flagValue, hasFlag } from "../lib/admin";
-import { capUnwatchedRows, fetchSource, MAX_QUERIES, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, CLOSED_KEEP_DAYS, fetchSource, MAX_QUERIES, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, FULL_BOARDS, staleIds, UNSEEN_CLOSE_DAYS, UNWATCHED_COUNTRY_CAP, UNWATCHED_PRUNE_DAYS, watchedCountry, type SourceRow } from "./fetch-source";
 import { guessCategory, jobToRow, parseSalary } from "../../src/lib/jobs";
 import { extractEligibility, normaliseEligibility } from "../../src/lib/eligibility";
 import { todayStr } from "../../src/lib/dates";
@@ -287,14 +287,14 @@ async function retireUnseen(db: ReturnType<typeof scriptAdmin>): Promise<number>
 }
 
 /**
- * Closed public jobs are deleted to keep the database small, unless someone started an application: after 30 days, or
+ * Closed public jobs are deleted to keep the database small, unless someone started an application: after CLOSED_KEEP_DAYS, or
  * after UNWATCHED_PRUNE_DAYS in a country nobody searches (no one was matched to them, so no count on any page moves).
  */
 async function pruneOldJobs(db: ReturnType<typeof scriptAdmin>): Promise<number> {
   const day = 86400_000;
   const { data: prof } = await db.from("profiles").select("target_country").limit(10000);
   const targeted = new Set((prof || []).map((p) => p.target_country as string).filter(Boolean));
-  const { data: old } = await db.from("jobs").select("id").is("owner_id", null).eq("active", false).lt("updated_at", new Date(Date.now() - 30 * day).toISOString()).limit(2000);
+  const { data: old } = await db.from("jobs").select("id").is("owner_id", null).eq("active", false).lt("updated_at", new Date(Date.now() - CLOSED_KEEP_DAYS * day).toISOString()).limit(2000);
   const { data: recent } = await db.from("jobs").select("id, country").is("owner_id", null).eq("active", false).lt("updated_at", new Date(Date.now() - UNWATCHED_PRUNE_DAYS * day).toISOString()).limit(5000);
   const ids = [...new Set([...(old || []).map((r) => r.id as string), ...(recent || []).filter((r) => !watchedCountry(r.country as string, targeted)).map((r) => r.id as string)])];
   let n = 0;
