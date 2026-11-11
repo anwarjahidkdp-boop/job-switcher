@@ -42,9 +42,11 @@ export function resolveStyle(style: CvStyle | null | undefined, country: Country
 }
 
 /** Up to four measurable results already on the CV (a number or %), one per role first, for the highlights block. */
+/** A real result: a percentage, money, a large figure or a counted outcome (not "Tally ERP 9" or "Mushak 9.1"). */
+export const isMeasurable = (b: string) => b.length >= 30 && (/\d\s?%|[£$€৳]\s?\d|\b\d{2,}(,\d{3})*\b(?!\.\d)|\b\d+(\.\d+)?\s?(million|lakh|lac|crore|k|m|bn)\b/i.test(b) || /\b\d+\s+(\w+\s)?(staff|people|members|entities|branches|stores|sites|projects|clients|countries|days|weeks|months)\b/i.test(b));
+
 export function careerHighlights(exp: { bullets: string[] }[], max = 4): string[] {
-  // A real result: a percentage, money, a large figure or a counted outcome (not "Tally ERP 9" or "Mushak 9.1").
-  const measurable = (b: string) => b.length >= 30 && (/\d\s?%|[£$€৳]\s?\d|\b\d{2,}(,\d{3})*\b(?!\.\d)|\b\d+(\.\d+)?\s?(million|lakh|lac|crore|k|m|bn)\b/i.test(b) || /\b\d+\s+(\w+\s)?(staff|people|members|entities|branches|stores|sites|projects|clients|countries|days|weeks|months)\b/i.test(b));
+  const measurable = isMeasurable;
   const out: string[] = [];
   for (const e of exp) { const b = e.bullets.find(measurable); if (b && out.length < max) out.push(b); }
   for (const e of exp) for (const b of e.bullets) if (out.length < max && measurable(b) && !out.includes(b)) out.push(b);

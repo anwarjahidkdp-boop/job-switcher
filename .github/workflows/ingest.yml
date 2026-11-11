@@ -29,7 +29,17 @@ jobs:
           cache: npm
       - run: npm ci
       # Free OCR for image circulars (Bangla + English); AI reads only what this cannot confirm.
-      - run: sudo apt-get update -q && sudo apt-get install -y -q tesseract-ocr tesseract-ocr-ben
+      # Ubuntu's package servers are sometimes unreachable from the runner: try three times, and if OCR still cannot be
+      # installed, scan anyway (image circulars are then handled as when OCR cannot read them) instead of losing every source.
+      - name: Install OCR
+        continue-on-error: true
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get update -q && sudo apt-get install -y -q tesseract-ocr tesseract-ocr-ben && exit 0
+            sleep $((i * 20))
+          done
+          echo "::warning::OCR could not be installed; scanning without it this run"
+          exit 1
       - run: npm run ingest -- ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -39,6 +49,7 @@ jobs:
           JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
           REED_API_KEY: ${{ secrets.REED_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PAUSED_MARKETS: ${{ vars.PAUSED_MARKETS || 'BD' }}   # UK-first launch (owner 2026-11-11): Bangladesh job search paused, its jobs and users kept; set the repo variable to "none" to resume
           BD_CIRCULAR_AI_LIMIT: ${{ vars.BD_CIRCULAR_AI_LIMIT || 200 }}
           BD_CIRCULAR_AI_BUDGET_USD: ${{ vars.BD_CIRCULAR_AI_BUDGET_USD || 0 }}   # UK-first launch (2026-11-11): BD circulars read free (OCR) only; set the repo variable (e.g. 0.5) to let AI read the rest again
           NEXT_PUBLIC_APP_URL: ${{ secrets.APP_URL || 'https://jobpao.app' }}

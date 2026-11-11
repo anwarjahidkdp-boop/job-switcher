@@ -246,7 +246,7 @@ function finishMaster(m: MasterCV, vf: VerifiedFacts, facts: CareerFact[], src: 
   return { master: dropRemoved(checked.master, src.removed), flags: checked.flags };
 }
 
-async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null, profile: ProfileRow, completeSetup = false) {
+export async function saveMaster(ctx: Ctx, content: MasterCV, flags: string[], ai: boolean, model: string | null, docId: string | null, profile: ProfileRow, completeSetup = false) {
   const { error } = await ctx.db.rpc("publish_country_master_cv", { p_content: content, p_flags: flags, p_ai: ai, p_model: model, p_document_id: docId, p_country: profile.target_country, p_revision: profile.search_country_version, p_complete_setup: completeSetup });
   if (error) throw error;
   await refreshCareerMatches(ctx.admin,ctx.userId);

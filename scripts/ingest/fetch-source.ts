@@ -172,6 +172,9 @@ export const UNWATCHED_PRUNE_DAYS = 2;
  * a job someone started an application for is never deleted. 7 days keeps the database at a steady size (~1,000 new jobs a day).
  */
 export const CLOSED_KEEP_DAYS = 7;
+/** Country codes from PAUSED_MARKETS ("BD", "BD, IN"); "none" or empty pauses nothing. */
+export const pausedMarkets = (v: string | undefined): Set<string> =>
+  new Set((v || "").split(",").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)));
 export const watchedCountry = (country: string, targeted: Set<string>) => country === "XX" || targeted.has(country);
 /**
  * Everyday UK roles searched on Reed beside what users ask for, so a UK visitor in any career finds jobs from day one
