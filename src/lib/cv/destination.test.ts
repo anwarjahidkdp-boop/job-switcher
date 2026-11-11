@@ -16,6 +16,13 @@ describe("destination CV adaptation without AI", () => {
     expect(m.summary).toContain("Analyzed");
     expect(destinationProse(out.summary, "US")).toBe(m.summary);
   });
+  it("writes British English for UK employers across common CV verbs and nouns", () => {
+    expect(destinationProse("Utilized SAP to standardize month-end, minimizing delays; modeling cash flow and fulfilling labor and behavior policies.", "GB"))
+      .toBe("Utilised SAP to standardise month-end, minimising delays; modelling cash flow and fulfilling labour and behaviour policies.");
+    expect(destinationProse("Recognized for the digitization of the catalog and enrollment.", "GB")).toBe("Recognised for the digitisation of the catalogue and enrolment.");
+    expect(destinationProse("Recognised for the digitisation of the catalogue.", "US")).toBe("Recognized for the digitization of the catalog.");
+    expect(destinationProse("Prized the size of the seize.", "GB")).toBe("Prized the size of the seize.");
+  });
   it("does not translate prose for destinations without an explicit spelling mapping", () => {
     expect(destinationProse("Organized 25 reports", "BD")).toBe("Organized 25 reports");
   });

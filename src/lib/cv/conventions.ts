@@ -67,7 +67,8 @@ const COUNTRY: Record<string, Partial<CvConvention>> = {
   SG: { fields: ["nationality", "visa", "notice"], visaLabel: "Work pass", refs: "request" },
   PH: { paper: "Letter", margin: US_MARGIN, fields: ["nationality", "visa"], refs: "list", refCount: 3 },
   // UK: no DOB, nationality or marital status; "References available on request" (National Careers Service).
-  GB: { margin: "18mm 18mm 16mm 18mm", fields: ["visa"], visaLabel: "Right to work", refs: "request" },
+  // A driving licence is listed when the person gives one (care, delivery, field and sales roles often require it).
+  GB: { margin: "18mm 18mm 16mm 18mm", fields: ["visa", "licence"], visaLabel: "Right to work", refs: "request" },
   IE: { fields: ["visa"], visaLabel: "Right to work", refs: "list", refCount: 2 },
   // US and Canada: references go on a separate sheet, never on the résumé.
   US: { paper: "Letter", margin: US_MARGIN, fields: ["visa"], visaLabel: "Work authorization", refs: "none" },
@@ -160,5 +161,5 @@ const VISA_HINT: Record<string, string> = {
 export function personalFields(c: unknown): { k: Exclude<PField, "notice">; label: string; hint: string }[] {
   const cv = convention(c);
   return cv.fields.filter((f): f is Exclude<PField, "notice"> => f !== "notice")
-    .map((k) => ({ k, label: fieldLabel(k, cv), hint: k === "visa" ? VISA_HINT[cv.visaLabel] || "e.g. Requires employment visa" : HINT[k] }));
+    .map((k) => ({ k, label: fieldLabel(k, cv), hint: k === "visa" ? VISA_HINT[cv.visaLabel] || "e.g. Requires employment visa" : k === "licence" && cc(c) === "GB" ? "e.g. Full UK driving licence (category B)" : HINT[k] }));
 }
