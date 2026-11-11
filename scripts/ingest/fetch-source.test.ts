@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capUnwatchedRows, fetchSource, starterQueries, UK_STARTER_ROLES, userQueries, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
+import { capUnwatchedRows, fetchSource, starterQueries, STARTER_QUERIES_PER_RUN, UK_STARTER_ROLES, userQueries, staleIds, watchedCountry, type SourceRow } from "./fetch-source";
 
 const page = `<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Senior Accountant","hiringOrganization":{"name":"Example Ltd."},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"BD"}},"description":"<p>3+ years. Skills: Excel, VAT, IFRS.</p>","datePosted":"2026-10-01","validThrough":"2026-11-01","identifier":{"value":"A-1"}}</script></html>`;
 const src: SourceRow = { id: "s1", kind: "jsonld", name: "Example careers", url: "https://example.com/careers", board_token: null, country: "BD", company: "Example Ltd." };
@@ -90,7 +90,7 @@ describe("UK starter searches on Reed", () => {
       for (const h of [6, 11, 20]) starterQueries(UK_STARTER_ROLES, d * day + h * hour).forEach((r) => seen.add(r));
       expect(seen.size).toBe(UK_STARTER_ROLES.length);
     }
-    expect(starterQueries(UK_STARTER_ROLES, 0)).toHaveLength(8);
+    expect(starterQueries(UK_STARTER_ROLES, 0)).toHaveLength(STARTER_QUERIES_PER_RUN);
     expect(starterQueries([], 0)).toEqual([]);
   });
 });

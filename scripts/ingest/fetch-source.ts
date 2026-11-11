@@ -169,17 +169,33 @@ export const UNSEEN_CLOSE_DAYS = 10;
 export const UNWATCHED_PRUNE_DAYS = 2;
 export const watchedCountry = (country: string, targeted: Set<string>) => country === "XX" || targeted.has(country);
 /**
- * Everyday UK roles searched on Reed beside what users ask for, so UK visitors in non-tech careers find jobs from day one.
- * A third of them are searched per run (starterQueries): the UK scans fall in different eight-hour blocks of the day
- * (morning, midday, evening), so every role is searched once a day without straining the API.
+ * Everyday UK roles searched on Reed beside what users ask for, so a UK visitor in any career finds jobs from day one
+ * (UK-first launch, owner 2026-11-11: every category of user must get plenty of jobs). A third of them are searched per
+ * run (starterQueries): the UK scans fall in different eight-hour blocks of the day (morning, midday, evening), so every
+ * role is searched once a day, one page (100 newest) each.
  */
 export const UK_STARTER_ROLES = [
+  // Office, finance and business
   "accountant", "finance assistant", "payroll", "credit controller", "administrator", "office manager",
   "customer service", "sales executive", "account manager", "marketing executive", "HR advisor", "recruitment consultant",
   "project manager", "operations manager", "business analyst", "data analyst", "procurement", "logistics coordinator",
-  "compliance officer", "legal assistant", "teaching assistant", "care assistant", "retail manager", "quantity surveyor",
+  "compliance officer", "legal assistant", "receptionist", "personal assistant", "underwriter", "mortgage adviser",
+  // Health and care
+  "care assistant", "support worker", "registered nurse", "healthcare assistant", "dental nurse", "pharmacy assistant",
+  "social worker", "mental health", "physiotherapist", "senior carer",
+  // Education
+  "teaching assistant", "teacher", "nursery practitioner", "SEN",
+  // Retail, hospitality and customer-facing
+  "retail assistant", "retail manager", "chef", "kitchen porter", "waiter", "bar staff", "hotel", "housekeeper",
+  "call centre", "barista",
+  // Trades, engineering and construction
+  "electrician", "plumber", "maintenance engineer", "mechanical engineer", "civil engineer", "quantity surveyor",
+  "site manager", "labourer", "vehicle technician", "gas engineer",
+  // Driving, warehouse and facilities
+  "HGV driver", "delivery driver", "warehouse operative", "forklift driver", "cleaner", "security officer",
+  "solicitor", "paralegal", "software developer", "IT support", "graduate", "apprentice",
 ];
-export const STARTER_QUERIES_PER_RUN = 8;
+export const STARTER_QUERIES_PER_RUN = 24;
 /** The slice of `roles` for this run: it moves on every eight hours, so the morning, midday and evening scans differ. */
 export function starterQueries(roles: string[], now: number, n = STARTER_QUERIES_PER_RUN): string[] {
   if (!roles.length) return [];

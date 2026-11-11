@@ -215,7 +215,13 @@ export function normaliseJobText(input: { title: string; company: string; text: 
 
 // Read from the role part of the title first (see roleHead), in this order: "Customer Experience Representative,
 // Trump Accounts" is customer service and "Account Executive" is sales, not finance.
+// Engineering trades come before IT, which reads any "engineer" as software: "Mechanical Engineer" is engineering.
+// The rules after the first Administration line were added for the UK launch (2026-11-11). They come last, so a title
+// the earlier rules already place keeps its category; they give a home to titles that used to fall into "Other" (nurse,
+// chef, solicitor, driver...). A person's job list holds only their categories (loadVisibleJobs), so a category with no
+// jobs filed under it left Healthcare, Legal, Hospitality, Engineering, Banking and Operations users with nothing.
 const TITLE_HINTS: [string, RegExp][] = [
+  ["Engineering", /\b(?:civil|mechanical|electrical|structural|chemical|manufacturing|maintenance|process|building services|hvac|mep|piping|field service|commissioning|controls|instrumentation|automotive|aerospace|nuclear|rail|highways?|geotechnical|electronics?|gas|service) engineers?\b/],
   ["IT", /\b(software|developer|engineer|engineering|programmer|devops|sre|architect|data scientist|data engineer|machine learning|frontend|backend|full[- ]?stack|qa|tester|it support|sysadmin|web designer)\b/],
   ["Customer Service", /customer (service|support|experience|success|care)|support (specialist|agent|associate)|call cent|help ?desk/],
   ["Sales", /\b(sales|account (manager|executive|director|representative|lead)|business development|bdr|sdr|representative|partnerships?|partner (manager|development)|territory|seller)\b/],
@@ -225,6 +231,21 @@ const TITLE_HINTS: [string, RegExp][] = [
   ["Supply Chain", /supply chain|procurement|logistics|merchandis|sourcing|inventory|warehouse/],
   ["Education", /\b(teacher|lecturer|tutor|instructor|professor|teaching)\b/],
   ["Administration", /\b(admin|administrator|administrative|facilities|office manager|receptionist)\b/],
+  ["Banking & Financial Services", /\b(bank|banking|banker|underwrit\w*|mortgages?|insurance|actuar\w*|investments?|investor|wealth|portfolio|fund manager|equity|trader|trading|broker|lending|loans?|credit (manager|risk|director|officer)|claims|loss handler|kyc|kyb|aml|fincrime|financial crime|fraud|m&a|mergers|private equity|venture|valuations?|settlements|middle office|hedge fund)\b/],
+  ["Legal", /\b(solicitor|paralegal|lawyer|legal|counsel|barrister|conveyancer|conveyancing|litigation|attorney|company secretary|compliance|regulatory|mlro|sanctions|privacy|dpo|data protection)\b/],
+  ["Healthcare", /\b(nurse|nursing|midwife|doctor|physician|gp|general practitioner|surgeon|dentist|dental|pharmacist|pharmacy|physio\w*|therapist|radiograph\w*|radiologist|sonographer|paramedic|clinician|clinical|healthcare|health ?care|care (assistant|worker|manager|coordinator|home|leader)|carer|support worker|hca|phlebotomist|optometrist|optician|dietitian|psychologist|counsellor|social worker|registered manager|veterinary|vet|patient|medical|mental health|prescriptions?)\b/],
+  ["Hospitality", /\b(chef|cook|kitchen|catering|waiter|waitress|waiting staff|bartender|bar (staff|person|supervisor|manager)|barista|hotel|housekeep\w*|front of house|restaurant|hospitality|food service|f&b|commis|sous|pub|cafe|concierge|events? (manager|coordinator|lead|executive)|hygiene|gym)\b/],
+  ["IT", /\b(cyber|infosec|information security|security (analyst|engineer|operations|monitoring|specialist|architect|lead)|soc|grc|devsecops|it (manager|operations|technician|asset|change|specialist)|product (manager|owner|designer|lead|director|management|specialist|design)|ux|ui|scrum master|technical (program|programme|project|product|lead|director|account)|tech lead|research scientist|machine learning|ai|ml|mainframe|sdet|data|analytics|bi)\b/],
+  ["Engineering", /\b(electrician|plumber|mechanic|welder|fabricator|joiner|carpenter|bricklayer|plasterer|labourer|scaffolder|surveyor|site manager|construction|draughts(man|person)|estimator|technician|engineering|cad|hvac|electrical|mechanical|manufacturing)\b/],
+  ["Education", /\b(school|education|sen|senco|early years|nursery|learning support|exams|tutoring|graduate teacher)\b/],
+  ["Supply Chain", /\b(driver|hgv|lgv|courier|delivery driver|forklift|picker|packer|transport|distribution|fleet|stock (controller|assistant)|buyer|purchasing|category manager|import|export|shipping|freight|depot)\b/],
+  ["Customer Service", /\b(customer (advisor|adviser|assistant|operations|manager|trust)|complaints?|call handler|contact cent(re|er)|client success|tenancy|aftercare)\b/],
+  ["Sales", /\b(retail|store|shop|cashier|checkout|commercial|account handler|relationship manager|client (executive|partner|director|manager)|customer director|go-to-market|gtm|bd manager|franchise)\b/],
+  ["Marketing", /\b(social media|ppc|paid (social|media)|crm|influencer|pr|public relations|copywriter|creative|designer|motion|video|campaigns?|demand generation|growth|media planning|community manager)\b/],
+  ["Administration", /\b(administration|pa|personal assistant|executive assistant|secretary|ea|clerk|data entry|office (assistant|coordinator)|workplace (manager|coordinator))\b/],
+  ["HR", /\b(reward|employee relations|hrbp|learning (and|&) development|l&d|training (manager|coordinator)|people)\b/],
+  ["Finance & Accounting", /\b(controllers?|credit control\w*|external reporting|cost business partner|pricing|revenue manager)\b/],
+  ["Operations", /\b(operations|operational|project (manager|coordinator|director|support|lead)|programme|program manager|pmo|delivery manager|process improvement|transformation|change (lead|manager)|business manager|general manager|assistant manager|branch manager|area manager|regional manager|property manager|estate manager|block manager|team leader|supervisor|quality|health,? (and )?safety|hse|she|sheq|qhse|risk|security officer|cleaner|cleaning|chief of staff|strategy|bids?|bid manager|proposal|tender|implementation|resource (manager|planner)|production manager|installations?|maintenance manager)\b/],
 ];
 const SKILL_HINTS: [string, RegExp][] = [
   ["Finance & Accounting", /account|finance|financial|audit|tax|treasury|fp&a|controller|ledger|payable|receivable/],
