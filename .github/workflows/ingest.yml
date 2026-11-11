@@ -29,7 +29,17 @@ jobs:
           cache: npm
       - run: npm ci
       # Free OCR for image circulars (Bangla + English); AI reads only what this cannot confirm.
-      - run: sudo apt-get update -q && sudo apt-get install -y -q tesseract-ocr tesseract-ocr-ben
+      # Ubuntu's package servers are sometimes unreachable from the runner: try three times, and if OCR still cannot be
+      # installed, scan anyway (image circulars are then handled as when OCR cannot read them) instead of losing every source.
+      - name: Install OCR
+        continue-on-error: true
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get update -q && sudo apt-get install -y -q tesseract-ocr tesseract-ocr-ben && exit 0
+            sleep $((i * 20))
+          done
+          echo "::warning::OCR could not be installed; scanning without it this run"
+          exit 1
       - run: npm run ingest -- ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
