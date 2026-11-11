@@ -84,6 +84,27 @@ jobs:
           APP_ORIGIN: ${{ secrets.APP_URL || 'https://jobpao.app' }}
         run: |
           curl --fail --silent --show-error --retry 3 --retry-delay 5 --max-time 30 "$APP_ORIGIN/api/health" | jq -e '.ok == true'
+      # Hourly watchdog (workers/watchdog): restarts overdue scheduled workflows and emails the owner.
+      - name: Deploy the scheduled-jobs watchdog
+        env:
+          WATCHDOG_GITHUB_TOKEN: ${{ secrets.WATCHDOG_GITHUB_TOKEN }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+        run: |
+          set -e
+          npx wrangler deploy -c workers/watchdog/wrangler.toml
+          json="{}"
+          for name in WATCHDOG_GITHUB_TOKEN BREVO_API_KEY EMAIL_FROM ADMIN_EMAILS; do
+            value="${!name}"
+            if [ -n "$value" ]; then json=$(jq -c --arg k "$name" --arg v "$value" '. + {($k): $v}' <<<"$json"); fi
+          done
+          if [ "$json" != "{}" ]; then
+            printf '%s' "$json" > "$RUNNER_TEMP/watchdog-secrets.json"
+            npx wrangler secret bulk "$RUNNER_TEMP/watchdog-secrets.json" -c workers/watchdog/wrangler.toml
+            rm -f "$RUNNER_TEMP/watchdog-secrets.json"
+          fi
+          [ -n "$WATCHDOG_GITHUB_TOKEN" ] || echo "::warning::WATCHDOG_GITHUB_TOKEN is not set: the watchdog can email about stalled jobs but cannot restart them."
       - name: Tell the owner it failed
         if: failure()
         env:
