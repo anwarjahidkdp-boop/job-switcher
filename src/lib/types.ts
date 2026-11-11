@@ -165,7 +165,20 @@ export interface ApplicationPack {
   asks?: string[];
   /** Special instructions from the post, such as the required email subject. */
   instructions?: string | null;
+  /** UK supporting statement written against the advert's person specification, on request (NHS, Civil Service, councils, schools). */
+  uk_statement?: UkStatement;
+  /** Answers to the employer's application-form questions, on request, newest first. */
+  form_answers?: FormAnswer[];
 }
+
+export interface UkStatement {
+  statement: string;
+  /** Each requirement of the advert and the CV evidence the statement used for it; "gap" = nothing in the CV shows it. */
+  criteria: { criterion: string; evidence: string; status: "met" | "partly" | "gap" }[];
+  ai: boolean;
+  at: string;
+}
+export interface FormAnswer { question: string; answer: string; limit: number | null; at: string }
 
 export interface Referee { name: string; title?: string; org?: string; phone?: string; email?: string; relation?: string }
 /** What the person typed for their CV's personal-details and references sections. Shown only where the country expects each item. */
@@ -174,6 +187,8 @@ export interface PersonalDetails {
   /** Email shown on the CV when it differs from the login email (empty = use the login email). */
   cvEmail?: string;
   fatherName?: string; motherName?: string; marital?: string; religion?: string; address?: string; licence?: string;
+  /** UK checks and registrations the person holds (Enhanced DBS, NMC PIN, CSCS card, SIA licence). */
+  checks?: string;
   references?: Referee[];
 }
 export interface CvStyle { tpl?: CvTemplate; accent?: string }
