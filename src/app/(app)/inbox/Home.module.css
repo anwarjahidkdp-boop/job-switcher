@@ -276,3 +276,7 @@
 :root[data-theme="dark"] .ended{background:linear-gradient(135deg,#2B1513 0%,#221815 100%);border-color:#6B2A24;border-left-color:#E5554A}
 :root[data-theme="dark"] .endedTx h2{color:#FF8A80}
 :root[data-theme="dark"] .endedTx p{color:#E3D3CF}
+/* Ended banner takes the floating slot over the hero; Today sits below it instead of covering it */
+.ended{position:relative;z-index:2;margin:-50px 0 14px}
+.ended + .summary.pToday{margin-top:0;border-top:1px solid var(--line)}
+@media (max-width:650px){.ended{margin:-44px 0 12px}}
