@@ -333,3 +333,50 @@ describe('audit reliability boundaries',()=>{
   expect(await scalar<number>('select score from matches where user_id=$1 and job_id=$2',[U,j])).toBe(88);
  });
 });
+
+describe('security audit 2026-11-12 abuse limits',()=>{
+ const A='a1111111-1111-4111-8111-111111111111',B='b2222222-2222-4222-8222-222222222222';
+ beforeAll(async()=>{await role('postgres');await db.query("insert into auth.users values($1,'a@example.invalid'),($2,'b@example.invalid')",[A,B]);});
+ it('counts a cut-off AI call at an estimate, never at US$0',async()=>{
+  await role('postgres');
+  const big=await scalar<string>("insert into ai_usage(user_id,feature,provider,model,cost_micro_usd,ok,created_at) values($1,'__reservation__','test','__reserved__',400000,false,now()-interval '4 minutes') returning id",[A]);
+  await role('service_role');await db.query('select expire_ai_reservations()');
+  expect(Number(await scalar<string>('select cost_micro_usd from ai_usage where id=$1',[big]))).toBe(50000);
+  await role('postgres');
+  const small=await scalar<string>("insert into ai_usage(user_id,feature,provider,model,cost_micro_usd,ok,created_at) values($1,'__reservation__','test','__reserved__',20000,false,now()-interval '4 minutes') returning id",[A]);
+  await role('service_role');await db.query('select expire_ai_reservations()');
+  expect(Number(await scalar<string>('select cost_micro_usd from ai_usage where id=$1',[small]))).toBe(20000);
+  await role('postgres');await db.query('delete from ai_usage where user_id=$1',[A]);
+ });
+ it('pauses free-trial AI for everyone once the shared daily trial budget is spent, but not Pro or background checks',async()=>{
+  await role('postgres');
+  expect(await scalar<string>('select status from subscriptions where user_id=$1',[A])).toBe('trialing');
+  await db.query("insert into ai_usage(user_id,feature,provider,model,cost_micro_usd,ok) values($1,'cv_build','test','m',5000000,true)",[B]);
+  await role('service_role');
+  await expect(db.query("select reserve_ai_call($1,'cv_build','test')",[A])).rejects.toThrow('busy');
+  const bg=await scalar<number>("select reserve_ai_call($1,'match_check','test')",[A]);expect(bg).toBeTruthy();
+  await role('postgres');await db.query("delete from ai_usage where id=$1",[bg]);
+  await db.query("update ai_usage set created_at=now()-interval '25 hours' where user_id=$1",[B]);
+  await role('service_role');
+  const ok=await scalar<number>("select reserve_ai_call($1,'cv_build','test')",[A]);expect(ok).toBeTruthy();
+  await role('postgres');await db.query('delete from ai_usage where user_id in ($1,$2)',[A,B]);
+ });
+ it('caps pasted jobs written straight through the API at 300 per person and 128 KB each',async()=>{
+  await role('authenticated',A);
+  await expect(db.query("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method,description) values($1,'paste','x','BD','Big','x','portal',repeat('a',140000))",[A])).rejects.toThrow('too large');
+  await db.query("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method) select $1,'paste','x','BD','Role '||g,'x','portal' from generate_series(1,300) g",[A]);
+  await expect(db.query("insert into jobs(owner_id,source_kind,source_label,country,title,company,apply_method) values($1,'paste','x','BD','One more','x','portal')",[A])).rejects.toThrow('maximum of 300');
+  await role('postgres');
+  await db.query("insert into jobs(source_kind,source_label,country,title,company,apply_method,description) values('greenhouse','ingest','BD','Ingest role','x','portal',repeat('a',140000))");
+  await db.query("delete from jobs where owner_id=$1",[A]);
+ });
+ it('caps CV storage files at 120 per person',async()=>{
+  await role('postgres');await db.exec('grant select,insert on storage.objects to authenticated');
+  await role('authenticated',A);
+  await db.query("insert into storage.objects(bucket_id,name) select 'cv-files',$1||'/f'||g from generate_series(1,120) g",[A]);
+  await expect(db.query("insert into storage.objects(bucket_id,name) values('cv-files',$1||'/one-more')",[A])).rejects.toThrow();
+  await role('authenticated',B);
+  await db.query("insert into storage.objects(bucket_id,name) values('cv-files',$1||'/first')",[B]);
+  await role('postgres');await db.query("delete from storage.objects where bucket_id='cv-files'");
+ });
+});

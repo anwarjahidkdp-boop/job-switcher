@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 process.env.ANTHROPIC_API_KEY = "test-key";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AIError, RATE_MAX_CALLS, runAI } from "./index";
+import { AIError, RATE_MAX_CALLS, UNKNOWN_AI_COST_MICRO_USD, aiErrCopy, runAI } from "./index";
 
 /** Admin client stand-in: a Pro budget with room left, and `recent` AI calls in the last 10 minutes. */
 function admin(recent: number) {
@@ -45,5 +45,16 @@ describe("runAI rate limit", () => {
 
 it("releases an unknown provider failure without deleting its audit record",async()=>{
  const a=admin(0);await expect(runAI(a.db,"u1","cv_edit",async()=>{throw new Error("timeout");})).rejects.toThrow("timeout");
- expect(a.inserts).toContainEqual(expect.objectContaining({model:"__failed_unknown__",cost_micro_usd:0,ok:false}));
+ expect(a.inserts).toContainEqual(expect.objectContaining({model:"__failed_unknown__",cost_micro_usd:UNKNOWN_AI_COST_MICRO_USD,ok:false}));
+ expect(UNKNOWN_AI_COST_MICRO_USD).toBeGreaterThan(0);
+});
+
+it("records a definite provider error at US$0 and passes on the shared trial pause",async()=>{
+ const a=admin(0);
+ await expect(runAI(a.db,"u1","cv_edit",async()=>{throw new AIError("upstream","Anthropic API error 529",{model:"__api_error_529__",inputTokens:0,outputTokens:0,costMicroUsd:0});})).rejects.toMatchObject({code:"upstream"});
+ expect(a.inserts).toContainEqual(expect.objectContaining({model:"__api_error_529__",cost_micro_usd:0,ok:false}));
+ const b=admin(0);const old=b.db.rpc;
+ b.db.rpc=vi.fn(async(name:string,...args:unknown[])=>name==="reserve_ai_call"?{data:null,error:{message:"busy"}}:old(name,...args)) as unknown as typeof b.db.rpc;
+ await expect(runAI(b.db,"u1","cv_edit",call)).rejects.toMatchObject({code:"busy"});
+ expect(aiErrCopy(new AIError("busy"))).toMatch(/tomorrow/);
 });

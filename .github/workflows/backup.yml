@@ -1,6 +1,8 @@
 name: Weekly database backup
-# Copies every table, encrypts the copy (AES-256) with the Supabase service role key as the password, and keeps it
-# as a workflow artifact for 90 days. The repository is public, so the copy is never stored unencrypted.
+# Copies every table, encrypts the copy (AES-256) and keeps it as a workflow artifact for 90 days. The repository is
+# public, so anyone signed in to GitHub can download the artifact: it is never stored unencrypted.
+# Password: the repository secret BACKUP_ENCRYPTION_KEY (a long random value used only for backups; keep a copy offline).
+# Until it is set, the Supabase service role key is used, which a leak of that one key would also expose.
 # Restore: download the artifact, then
 #   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in jobpao-backup.tar.gz.enc -pass env:KEY | tar xz
 on:
@@ -36,6 +38,15 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Check the backup password
+        env:
+          OWN_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$OWN_KEY" ]; then
+            echo "::warning::Add the repository secret BACKUP_ENCRYPTION_KEY (a long random password used only for backups). This backup falls back to the service role key."
+          elif [ ${#OWN_KEY} -lt 32 ]; then
+            echo "::error::BACKUP_ENCRYPTION_KEY must be at least 32 characters."; exit 1
+          fi
       - name: Encrypt
         env:
           KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}

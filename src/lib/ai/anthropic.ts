@@ -17,7 +17,10 @@ function mapError(e: unknown): never {
   if (e instanceof AIError) throw e;
   if (e instanceof Anthropic.RateLimitError) throw new AIError("rate_limited");
   if (e instanceof Anthropic.AuthenticationError) throw new AIError("not_configured", "Anthropic API key rejected");
-  if (e instanceof Anthropic.APIError) throw new AIError("upstream", `Anthropic API error ${e.status}`);
+  // The API answered with an error status: nothing was generated, so nothing is billed.
+  // Timeouts and dropped connections have no status and stay "unknown" (counted at an estimate in runAI).
+  if (e instanceof Anthropic.APIError && typeof e.status === "number") throw new AIError("upstream", `Anthropic API error ${e.status}`, { model: `__api_error_${e.status}__`, inputTokens: 0, outputTokens: 0, costMicroUsd: 0 });
+  if (e instanceof Anthropic.APIError) throw new AIError("upstream", "Anthropic API connection failed");
   throw new AIError("upstream", e instanceof Error ? e.message : String(e));
 }
 
