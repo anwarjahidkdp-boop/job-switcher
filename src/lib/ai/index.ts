@@ -26,6 +26,12 @@ const BACKGROUND = new Set<AIFeature>(["match_check", "alert_parse"]);
 /** Monthly AI allowance for Pro users living outside Bangladesh: US$3. */
 export const INTL_PRO_CAP_MICRO_USD = 3_000_000;
 
+/**
+ * A call whose outcome is unknown (timed out, connection dropped) may still be billed by the provider, so it counts
+ * as this estimate (US$0.05), never US$0. Keep equal to public.unknown_ai_cost_micro_usd() in the database.
+ */
+export const UNKNOWN_AI_COST_MICRO_USD = 50_000;
+
 export interface Budget { spent: number; cap: number; plan: string; status: string; trialEndsAt: string | null; periodEnd?: string | null }
 
 export async function getBudget(admin: SupabaseClient, userId: string): Promise<Budget | null> {
@@ -76,7 +82,7 @@ export async function runAI<T extends { usage: AIUsage }>(admin: SupabaseClient,
   const { data: reservation, error: reserveError } = await admin.rpc("reserve_ai_call", { p_user: userId, p_feature: feature, p_provider: p.name });
   if (reserveError || reservation == null) {
     const code = reserveError?.message;
-    if (["over_cap", "trial_expired", "plan_expired", "rate_limited", "unresolved"].includes(code || "")) throw new AIError(code as "over_cap" | "trial_expired" | "plan_expired" | "rate_limited" | "unresolved");
+    if (["over_cap", "trial_expired", "plan_expired", "rate_limited", "unresolved", "busy"].includes(code || "")) throw new AIError(code as "over_cap" | "trial_expired" | "plan_expired" | "rate_limited" | "unresolved" | "busy");
     throw new AIError("upstream", "Could not reserve AI allowance");
   }
   let res: T;
@@ -90,8 +96,8 @@ export async function runAI<T extends { usage: AIUsage }>(admin: SupabaseClient,
       const { error } = await admin.from("ai_usage").update({ feature, model: "__rejected__", cost_micro_usd: 0, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
       if (error) console.error("AI rejected reservation reconciliation failed", reservation, error);
     } else {
-      // Keep an auditable failed attempt, but never hold the entire allowance forever.
-      const { error } = await admin.from("ai_usage").update({ feature, model: "__failed_unknown__", cost_micro_usd: 0, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
+      // Unknown outcome: the provider may have billed it, so count an estimate (never US$0) and release the hold.
+      const { error } = await admin.from("ai_usage").update({ feature, model: "__failed_unknown__", cost_micro_usd: UNKNOWN_AI_COST_MICRO_USD, ok: false }).eq("id", reservation).eq("user_id", userId).eq("model", "__reserved__");
       if (error) console.error("AI failure release pending expiry", reservation, error);
     }
     throw e;
