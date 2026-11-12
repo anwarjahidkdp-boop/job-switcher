@@ -23,8 +23,18 @@ it('continues waiting questions and becomes a slim line once done', () => {
   expect(done).not.toContain('Strengthen my CV →');
 });
 
-it('explains why the button is off when there is no trial or plan', () => {
+it('keeps a normal, clickable button once the trial or plan has ended (the Pro note opens on press)', () => {
+  const html = renderToStaticMarkup(<CvBoost asked={[]} answered={0} results={1} aiReady={false} locked />);
+  expect(html).toContain('Strengthen my CV →');
+  expect(html).not.toContain('disabled');
+  expect(html).not.toContain('Not available right now');
+  const slim = renderToStaticMarkup(<CvBoost asked={[]} answered={2} results={3} aiReady={false} locked />);
+  expect(slim).toContain('Add more results');
+  expect(slim).not.toContain('disabled');
+});
+
+it('says when the AI is briefly unavailable for an active account', () => {
   const html = renderToStaticMarkup(<CvBoost asked={[]} answered={0} results={1} aiReady={false} />);
-  expect(html).toContain('Available while your trial or plan is active');
+  expect(html).toContain('Not available right now');
   expect(html).toContain('disabled');
 });

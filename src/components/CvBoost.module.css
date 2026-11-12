@@ -23,3 +23,8 @@
 :root:not([data-theme="light"]) .input{background:#121B23;border-color:#34404C;color:#E7ECF1}
 :root:not([data-theme="light"]) .doneLine{color:#CDEBDD}}
 @media(max-width:650px){.card{padding:15px 14px 14px}.title{font-size:17px}.input{font-size:16px}}
+.pro{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1px solid #D9C48C;box-shadow:0 4px 12px rgba(20,39,90,.06);animation:proIn .18s ease-out}
+.pro p{margin:0;font-size:14px;line-height:1.55;color:#14275A}
+.pro .row{margin-top:10px}
+@keyframes proIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pro{background:#18202A;border-color:#5C4A20}:root:not([data-theme="light"]) .pro p{color:#F1E6C8}}

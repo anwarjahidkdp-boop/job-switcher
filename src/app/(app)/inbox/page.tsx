@@ -53,6 +53,7 @@ const ICON = {
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
   arrow: '<path d="M7 17 17 7M8 7h9v9"/>',
   linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
 };
 
@@ -96,6 +97,9 @@ export default async function Inbox() {
   // Plan line in the hero: what the person paid for, or how much trial is left.
   const daysLeft = (iso: string | null | undefined) => (iso ? Math.max(0, Math.ceil((Date.parse(iso) - now) / DAY)) : null);
   const planLine = pro ? { label: "Pro", left: daysLeft(sub?.current_period_end) } : sub?.status === "trialing" && sub.trial_ends_at && Date.parse(sub.trial_ends_at) > now ? { label: "Pro Trial", left: daysLeft(sub.trial_ends_at) } : null;
+  // No trial or plan running: a clear banner under the hero says so and leads to Pro (owner 2026-11-12), because the
+  // small "Trial ended" plan line alone was easy to miss.
+  const ended: "trial" | "plan" | null = planLine ? null : sub?.plan_code === "pro" ? "plan" : "trial";
 
   // Applications left: Pro counts AI-tailored packs (rolling day/week/month); the trial counts sent applications.
   // Trial limits stay account-wide (the server counts every sent application), so they read all applications.
@@ -215,6 +219,17 @@ export default async function Inbox() {
           </div>
         </div>
       </section>
+
+      {ended ? (
+        <section className={s.ended} aria-labelledby="ended-h">
+          <span className={s.endedIc} aria-hidden="true"><Svg d={ICON.lock} /></span>
+          <div className={s.endedTx}>
+            <h2 id="ended-h">{ended === "trial" ? "Your free trial has ended" : "Your Pro plan has ended"}</h2>
+            <p>Go Pro to keep tailored CVs, cover letters and job alerts coming. One-off payment, no auto-renewal.</p>
+          </div>
+          <Link prefetch={false} className={s.endedBtn} href="/upgrade">Go Pro <Svg d={ICON.arrow} /></Link>
+        </section>
+      ) : null}
 
       {panel("today-h", <span className={s.brief}><span className={s.briefK}>Last 24 hours</span><span>Today&apos;s <em>Fresh Jobs</em></span></span>, "", today, appliedToday, s.pToday, <><i className={s.live} aria-hidden="true" />{freshChip(brief, rule(country).timeZone)}</>, true)}
 

@@ -2,6 +2,7 @@
 // "Strengthen my CV": the questions a professional CV writer asks about results, one at a time, then the answers
 // are written into the CV. Shown where people look at their CV (CV ready step, Profile) for UK searches.
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Spinner } from "./ui";
 import { answerChoices } from "@/app/onboarding/QuestionsForm";
@@ -9,7 +10,9 @@ import { patientPost } from "@/lib/patient-post";
 import type { CvQuestion } from "@/lib/types";
 import styles from "./CvBoost.module.css";
 
-export interface CvBoostProps { asked: CvQuestion[]; answered: number; results: number; aiReady: boolean; startOpen?: boolean }
+/** `locked`: the trial or plan has ended. The button still looks and works like a button; pressing it shows a short
+ *  "Pro unlocks this" note with an upgrade link instead of a greyed-out button (owner 2026-11-12). */
+export interface CvBoostProps { asked: CvQuestion[]; answered: number; results: number; aiReady: boolean; locked?: boolean; startOpen?: boolean }
 
 const resultsLine = (n: number) => n === 0 ? "Right now your CV shows no results with numbers." : `Right now your CV shows ${n} result${n === 1 ? "" : "s"} with numbers.`;
 
@@ -23,8 +26,10 @@ export function CvBoost(p: CvBoostProps) {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [done, setDone] = useState<string>("");
+  const [upsell, setUpsell] = useState(false);
 
   async function start() {
+    if (p.locked) { setUpsell(true); return; }
     setErr(""); setDone("");
     if (qs.length) { setOpen(true); setI(0); return; }
     setBusy("ask"); setMsg("");
@@ -73,7 +78,8 @@ export function CvBoost(p: CvBoostProps) {
   if (p.answered > 0 && !qs.length) {
     return <section className={`${styles.card} ${styles.slim}`} aria-label="Strengthen my CV">
       <p className={styles.doneLine}><span className={styles.tick} aria-hidden>✓</span>{done || `Your CV now shows ${p.results} result${p.results === 1 ? "" : "s"} with numbers. Recruiters notice these first.`}</p>
-      <button type="button" className="btn btn-ghost btn-sm" disabled={!p.aiReady || !!busy} onClick={start}>{busy === "ask" ? <><Spinner /> {msg || "Preparing questions…"}</> : "Add more results"}</button>
+      <button type="button" className="btn btn-ghost btn-sm" disabled={(!p.aiReady && !p.locked) || !!busy} onClick={start}>{busy === "ask" ? <><Spinner /> {msg || "Preparing questions…"}</> : "Add more results"}</button>
+      {upsell ? <ProNote onClose={() => setUpsell(false)} /> : null}
       {err ? <p className="err small" role="alert">{err}</p> : null}
     </section>;
   }
@@ -86,8 +92,20 @@ export function CvBoost(p: CvBoostProps) {
     {done ? <p className={styles.doneLine}><span className={styles.tick} aria-hidden>✓</span>{done}</p> : null}
     {err ? <p className="err small" role="alert">{err}</p> : null}
     <div className={styles.row}>
-      <button type="button" className="btn btn-gold" disabled={!p.aiReady || !!busy} onClick={start}>{busy === "ask" ? <><Spinner /> {msg || "Reading your CV…"}</> : qs.length ? "Continue →" : "Strengthen my CV →"}</button>
-      {!p.aiReady ? <span className="small muted">Available while your trial or plan is active.</span> : null}
+      <button type="button" className="btn btn-gold" disabled={(!p.aiReady && !p.locked) || !!busy} onClick={start}>{busy === "ask" ? <><Spinner /> {msg || "Reading your CV…"}</> : qs.length ? "Continue →" : "Strengthen my CV →"}</button>
+      {!p.aiReady && !p.locked ? <span className="small muted">Not available right now. Please try again later.</span> : null}
     </div>
+    {upsell ? <ProNote onClose={() => setUpsell(false)} /> : null}
   </section>;
+}
+
+/** Shown when someone whose trial or plan has ended presses the button: short, friendly, one clear next step. */
+export function ProNote({ onClose }: { onClose: () => void }) {
+  return <div className={styles.pro} role="status">
+    <p><b>A Pro feature.</b> Upgrade to Pro and your stronger CV is about 3 minutes away.</p>
+    <div className={styles.row}>
+      <Link prefetch={false} className="btn btn-primary btn-sm" href="/upgrade">Upgrade to Pro →</Link>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Not now</button>
+    </div>
+  </div>;
 }
