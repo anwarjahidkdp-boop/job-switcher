@@ -82,6 +82,20 @@ describe("career home", () => {
     expect(renderToStaticMarkup(await Inbox())).not.toContain("Pro Trial");
   });
 
+  it("shows a clear Go Pro banner once the trial has ended, and none while it runs", async () => {
+    h.sub = { plan_code: "trial", status: "trialing", trial_ends_at: "2026-10-20T00:00:00Z" };
+    const { default: Inbox } = await import("./page");
+    const html = renderToStaticMarkup(await Inbox());
+    if (process.env.DUMP_ENDED) writeFileSync(process.env.DUMP_ENDED, html);
+    expect(html).toContain("Your free trial has ended");
+    expect(html.indexOf("Your free trial has ended")).toBeLessThan(html.indexOf("today-h"));
+    expect(html).toMatch(/href="\/upgrade"[^>]*>Go Pro/);
+    h.sub = { plan_code: "pro", status: "active", current_period_end: "2026-10-20T00:00:00Z" };
+    expect(renderToStaticMarkup(await Inbox())).toContain("Your Pro plan has ended");
+    h.sub = { plan_code: "trial", status: "trialing", trial_ends_at: "2026-10-28T00:00:00Z" };
+    expect(renderToStaticMarkup(await Inbox())).not.toContain("has ended");
+  });
+
   it("counts the summary from the same scores as the opportunities list", async () => {
     const { default: Inbox } = await import("./page");
     const html = renderToStaticMarkup(await Inbox());

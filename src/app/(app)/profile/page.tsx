@@ -53,7 +53,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
       <ApplicationProfileNotice country={st.country} answers={{...st.profile.answer_library,birthDate:st.profile.answer_library?.birthDate||st.profile.personal?.dob}} rules={st.profile.deal_breakers || {}} onProfile />
       <div className="dash document-layout" style={{ marginTop: 18 }}>
         <div>
-          {boostOffered(country) ? <CvBoost {...boostStatus(st.cvDoc?.questions, st.cvDoc?.answers, st.master.content)} aiReady={aiConfigured() && access.active} /> : null}
+          {boostOffered(country) ? <CvBoost {...boostStatus(st.cvDoc?.questions, st.cvDoc?.answers, st.master.content)} aiReady={aiConfigured() && access.active} locked={!access.active} /> : null}
           <CvToolbar tpl={tpl} accent={accent} photoAllowed={r.photo} hasPhoto={!!st.profile.photo_path} countryLabel={cname(country)} rules={r.rules} downloads={{ pdf: "/api/cv/download?format=print", doc: "/api/cv/download?format=doc", label: "Your Master CV" }} />
           <ManualCvEditor initial={manualDraft(st.master.content, st.facts)} baseId={st.master.id} country={country} revision={st.profile.search_country_version} />
           <CvPreview master={st.master.content} country={country} homeCountry={st.homeCountry} style={st.profile.cv_style} personal={st.profile.personal} noticeDays={st.profile.preferences?.notice ?? null} photoUrl={photo} />

@@ -106,14 +106,14 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     // The same totals Home shows on day one (jobTotals), so the numbers here and on the dashboard agree.
     const t = jobTotals(st.scored, null, Math.max(st.analysed, st.scored.length));
     const { tpl, accent } = resolveStyle(st.profile.cv_style, country);
-    const photo = await photoUrl(supabase, st.profile.photo_path);
+    const [photo, boostActive] = await Promise.all([photoUrl(supabase, st.profile.photo_path), trialAccess(supabase, user.id).then((a) => a.active)]);
     head = <Head cur="reveal" back="prefs" kicker="Step 5 of 5" title={<>Your new CV is <span>ready.</span></>}
       sub={<>Next step: check your CV below, then open your dashboard. We checked {t.found} jobs for you: {t.matched} are Top matches (70%+), best first.</>}
       action={<form action={finishOnboardingAction}><button className="btn btn-gold">Go to my dashboard →</button></form>} />;
     body = <>
       <div className="banner"><div><h2 style={{ fontSize: 22 }}>Your new professional CV is ready.</h2><p className="muted">{(m.improvements || []).length} weak lines rewritten. Nothing was added that you did not tell us.</p></div>
         <div className="row"><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=doc">Download (Word)</a><a className="btn btn-ghost btn-sm" href="/api/cv/download?format=print" target="_blank" rel="noopener">PDF</a><form action={finishOnboardingAction}><button className="btn btn-primary">See my {t.matched} Top matches</button></form></div></div>
-      {boostOffered(country) ? <div style={{ marginTop: 18 }}><CvBoost {...boostStatus(st.cvDoc?.questions, st.cvDoc?.answers, m)} aiReady={aiConfigured() && (await trialAccess(supabase, user.id)).active} /></div> : null}
+      {boostOffered(country) ? <div style={{ marginTop: 18 }}><CvBoost {...boostStatus(st.cvDoc?.questions, st.cvDoc?.answers, m)} aiReady={aiConfigured() && boostActive} locked={!boostActive} /></div> : null}
       <CvSuggestions items={m.suggestions || []} toggle />
       {st.master.flags.length ? <p className="note" style={{ marginTop: 12, borderColor: "var(--warn)" }}>Our fact check {st.master.flags.join("; ")}.</p> : null}
       {(m.improvements || []).length ? (
