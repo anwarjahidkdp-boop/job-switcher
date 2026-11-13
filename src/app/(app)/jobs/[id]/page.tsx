@@ -1,6 +1,6 @@
 import { UKApplicationJourney, UKApplicationAnswers, UKApplicationStep } from "@/components/UKApplicationJourney";
 import { UKWritingPanel } from "@/components/UKWritingPanel";
-import { ukApplicationRoute, ukApplicationAnswers, ukStatementLikely } from "@/lib/uk-application";
+import { advertIsThin, ukApplicationRoute, ukApplicationAnswers, ukStatementLikely } from "@/lib/uk-application";
 import {isResolvedApplication} from "@/lib/applied-history";
 import {JobApplicationAction} from "@/components/JobApplicationAction";
 import { ApplicationProgress } from "@/components/ApplicationProgress";
@@ -211,7 +211,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
                 checklist={a.pack.checklist || []}
               />
               {ukRoute ? <>
-                <UKApplicationStep id="uk-answers" number={2} title="Review your answers" sub="Saved information, a supporting statement and answers to the form’s questions, ready to copy into the employer’s form."><UKApplicationAnswers answers={ukApplicationAnswers(st.profile.answer_library, st.profile.preferences)}/><UKWritingPanel jobId={job.id} likely={ukStatementLikely(job, description)} statement={a.pack.uk_statement ?? null} answers={a.pack.form_answers ?? []} aiReady={access.active}/></UKApplicationStep>
+                <UKApplicationStep id="uk-answers" number={2} title="Review your answers" sub="Saved information, a supporting statement and answers to the form’s questions, ready to copy into the employer’s form."><UKApplicationAnswers answers={ukApplicationAnswers(st.profile.answer_library, st.profile.preferences)}/><UKWritingPanel jobId={job.id} likely={ukStatementLikely(job, description)} statement={a.pack.uk_statement ?? null} answers={a.pack.form_answers ?? []} aiReady={access.active} spec={a.pack.uk_spec ?? ""} thin={advertIsThin(description)}/></UKApplicationStep>
                 <UKApplicationStep id="uk-submit" number={3} title={ukRoute.kind === 'email' ? 'Send your application email' : ukRoute.kind === 'review' ? 'Check how to submit' : 'Continue to the application'} sub={ukRoute.kind === 'email' ? 'The advert explicitly names an email application route.' : 'Keep your reviewed documents ready. Submit on the original site.'}>
                   {ukRoute.kind === 'review' ? <><p className="note small">An application email could not be verified. Check the original advert for the correct submission instructions.</p>{ukRoute.href ? <a className="btn btn-primary btn-sm" href={ukRoute.href} target="_blank" rel="noopener noreferrer nofollow">View original application instructions ↗</a>:<p className="small muted">No valid HTTPS application link was supplied. Verify it with the original source.</p>}</> :
                   <ActionsPanel journey jobId={job.id} status={a.status} hasPack reminderDate={a.reminder_date} appliedAt={a.applied_at} deadline={job.deadline} today={st.today} applyMethod={ukRoute.kind} applyTarget={ukRoute.recipient} url={ukRoute.href} notYet={sp.notyet === '1'} canApply={safety.safe} blockingReason={safety.issues.filter(i=>i.blocking).map(i=>i.message).join(' ')} gmailReady={canEmail && ukRoute.kind === 'email'} gmail={gmail} gmailStatus={sp.gmail ?? null} continueLabel={ukRoute.label} interviewComplete={!!a?.application_events?.some(e=>e.event==="Interview completed")}/>}</UKApplicationStep>

@@ -45,6 +45,16 @@ export function ukStatementLikely(job: { company: string; title: string }, descr
   return STATEMENT_WORDS.test(description) || PUBLIC_EMPLOYER.test(job.company || "");
 }
 
+/** Longest person specification or advert text we accept for the statement (about 4,000 tokens). */
+export const MAX_SPEC_CHARS = 15000;
+/** The person specification as the person pasted it: line breaks kept (criteria are often one per line), other whitespace tidied. */
+export function cleanSpec(v: unknown): string {
+  return String(v ?? "").replace(/\r\n?/g, "\n").replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, MAX_SPEC_CHARS);
+}
+/** Below this many characters we only hold a summary of the advert (Reed's search gives about 450), not its person specification. */
+export const THIN_ADVERT_CHARS = 1500;
+export const advertIsThin = (description: string) => description.trim().length < THIN_ADVERT_CHARS;
+
 export const MAX_FORM_ANSWERS = 8;
 /** The employer's question as the person pasted it: whitespace tidied, at most 1,200 characters. */
 export function cleanFormQuestion(v: unknown): string {

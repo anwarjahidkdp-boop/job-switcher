@@ -6,7 +6,7 @@ import { applicationCv, packBoundToJob } from "../application-documents";
 import { aiConfigured, runAI } from "../ai";
 import { FormAnswerSchema, UkStatementSchema } from "../ai/schemas";
 import { FORM_ANSWER_PROMPT, SYSTEM_RULES, UK_STATEMENT_PROMPT } from "../prompts";
-import { cleanFormQuestion, formWordLimit, MAX_FORM_ANSWERS } from "../uk-application";
+import { cleanFormQuestion, cleanSpec, formWordLimit, MAX_FORM_ANSWERS } from "../uk-application";
 import type { ApplicationPack, FormAnswer, UkStatement } from "../types";
 import { loadJob, loadState } from "./state";
 import { trialAccess } from "./trial-access";
@@ -34,16 +34,18 @@ async function savePack(ctx: Ctx, appId: string, patch: Partial<ApplicationPack>
   if (e) throw e;
 }
 
-export async function writeUkStatement(ctx: Ctx, jobId: string): Promise<UkStatement> {
+/** rawSpec: the person specification the person pasted ("" clears it); undefined keeps the one saved with this application. */
+export async function writeUkStatement(ctx: Ctx, jobId: string, rawSpec?: unknown): Promise<UkStatement> {
   const { app, job, cv } = await writingContext(ctx, jobId);
+  const spec = rawSpec === undefined ? cleanSpec(app.pack?.uk_spec) : cleanSpec(rawSpec);
   const { data: d } = await ctx.db.from("jobs").select("description").eq("id", jobId).maybeSingle();
   const description = String(d?.description || "");
   // AI errors go up as they are: the API turns them into the right message and status, and the page retries cut-off calls.
-  const r = await runAI(ctx.admin, ctx.userId, "uk_statement", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: UK_STATEMENT_PROMPT(cv, job, description), schema: UkStatementSchema, maxTokens: 4000 }));
+  const r = await runAI(ctx.admin, ctx.userId, "uk_statement", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: UK_STATEMENT_PROMPT(cv, job, description, spec), schema: UkStatementSchema, maxTokens: 4000 }));
   const data = r.data as Omit<UkStatement, "ai" | "at">;
   if (!data.statement?.trim()) throw new Error("The statement came back empty. Try again.");
   const out: UkStatement = { statement: data.statement.trim().slice(0, 12000), criteria: (data.criteria || []).slice(0, 20), ai: true, at: new Date().toISOString() };
-  await savePack(ctx, app.id, { uk_statement: out });
+  await savePack(ctx, app.id, { uk_statement: out, uk_spec: spec || undefined });
   return out;
 }
 

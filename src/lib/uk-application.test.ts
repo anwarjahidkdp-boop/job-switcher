@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanFormQuestion, formWordLimit, ukApplicationAnswers, ukApplicationRoute, ukStatementLikely } from './uk-application';
+import { advertIsThin, cleanFormQuestion, cleanSpec, formWordLimit, MAX_SPEC_CHARS, ukApplicationAnswers, ukApplicationRoute, ukStatementLikely } from './uk-application';
 const input = { method: 'portal', target: null, url: 'https://careers.example.com/jobs/1', description: '' };
 describe('UK application channel', () => {
   it('keeps a contact email out of the application route', () => {
@@ -42,5 +42,17 @@ describe('UK supporting statements and form questions', () => {
     expect(formWordLimit('5', 'Why this role?')).toBeNull();
     expect(cleanFormQuestion('  Tell us\n about   a time ')).toBe('Tell us about a time');
     expect(cleanFormQuestion('x'.repeat(2000))).toHaveLength(1200);
+  });
+});
+
+describe('pasted person specification', () => {
+  it('keeps one criterion per line, tidies spacing and caps the length', () => {
+    expect(cleanSpec('Essential:\r\n  NMC   registration \n\n\n\nDesirable:\tICU')).toBe('Essential:\nNMC registration\n\nDesirable: ICU');
+    expect(cleanSpec(null)).toBe('');
+    expect(cleanSpec('x'.repeat(MAX_SPEC_CHARS + 50)).length).toBe(MAX_SPEC_CHARS);
+  });
+  it('flags a summary-only advert such as Reed search text', () => {
+    expect(advertIsThin('Care Assistant needed in Leeds. '.repeat(14))).toBe(true);
+    expect(advertIsThin('Person specification. '.repeat(100))).toBe(false);
   });
 });

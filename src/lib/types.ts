@@ -167,6 +167,8 @@ export interface ApplicationPack {
   instructions?: string | null;
   /** UK supporting statement written against the advert's person specification, on request (NHS, Civil Service, councils, schools). */
   uk_statement?: UkStatement;
+  /** The person specification or full advert the person pasted for the statement, kept so "Write again" uses it too. */
+  uk_spec?: string;
   /** Answers to the employer's application-form questions, on request, newest first. */
   form_answers?: FormAnswer[];
 }

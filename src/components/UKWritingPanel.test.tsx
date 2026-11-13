@@ -32,3 +32,19 @@ it('explains that writing needs a subscription once the trial has ended', () => 
   expect(html).toContain('Subscribe to write supporting statements');
   expect(html).toMatch(/disabled=""[^>]*>Write my supporting statement/);
 });
+
+it('asks for the person specification when only a short advert summary is held', () => {
+  const html = renderToStaticMarkup(<UKWritingPanel jobId="j1" likely statement={null} answers={[]} aiReady thin />);
+  expect(html).toContain('We only have a short summary of this advert');
+  expect(html).toContain('Person specification or full advert');
+  expect(html).toContain('recommended');
+});
+
+it('keeps the pasted specification with a saved statement and offers to change it', () => {
+  const statement = { statement: 'I am applying.', criteria: [], ai: true, at: '2026-11-13T08:00:00Z' };
+  const html = renderToStaticMarkup(<UKWritingPanel jobId="j1" likely statement={statement} answers={[]} aiReady spec="Essential: NMC registration" />);
+  expect(html).toContain('written against the person specification you pasted');
+  expect(html).toContain('Change the person specification');
+  expect(html).toContain('Essential: NMC registration');
+  expect(html).not.toContain('We only have a short summary');
+});
