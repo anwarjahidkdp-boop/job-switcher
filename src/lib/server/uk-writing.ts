@@ -49,12 +49,12 @@ export async function writeUkStatement(ctx: Ctx, jobId: string, rawSpec?: unknow
   return out;
 }
 
-export async function answerFormQuestion(ctx: Ctx, jobId: string, rawQuestion: unknown, rawLimit: unknown): Promise<FormAnswer> {
+export async function answerFormQuestion(ctx: Ctx, jobId: string, rawQuestion: unknown, rawLimit: unknown, rawExample?: unknown): Promise<FormAnswer> {
   const question = cleanFormQuestion(rawQuestion);
   if (!question) throw new Error("Paste the question from the application form.");
   const limit = formWordLimit(rawLimit, question);
   const { app, job, cv } = await writingContext(ctx, jobId);
-  const r = await runAI(ctx.admin, ctx.userId, "form_answer", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: FORM_ANSWER_PROMPT(cv, job, question, limit), schema: FormAnswerSchema, maxTokens: 1500 }));
+  const r = await runAI(ctx.admin, ctx.userId, "form_answer", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: FORM_ANSWER_PROMPT(cv, job, question, limit, cleanFormQuestion(rawExample)?.slice(0, 800) || null), schema: FormAnswerSchema, maxTokens: 1500 }));
   const answer = String((r.data as { answer: string }).answer || "").trim();
   if (!answer) throw new Error("The answer came back empty. Try again.");
   const item: FormAnswer = { question, answer: answer.slice(0, 6000), limit, at: new Date().toISOString() };
