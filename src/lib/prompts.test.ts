@@ -33,6 +33,14 @@ describe("UK writing prompts", () => {
     expect(p).toContain("Eligibility questions");
     expect(FORM_ANSWER_PROMPT(DEMO_MASTER, job, "Why this role?", null)).toContain("150-250 words");
   });
+  it("form answer: no invented actions; the applicant's own example is the basis when given", () => {
+    const bare = FORM_ANSWER_PROMPT(DEMO_MASTER, job, "Tell us about a time you calmed a distressed person.", 250);
+    expect(bare).toContain("Never describe things the applicant did");
+    expect(bare).not.toContain("applicant's own example");
+    const withEx = FORM_ANSWER_PROMPT(DEMO_MASTER, job, "Tell us about a time you calmed a distressed person.", 250, "Sat with a resident at night and played music");
+    expect(withEx).toContain("build the answer on it");
+    expect(withEx).toContain("Sat with a resident at night");
+  });
   it("UK country rules ask for British English and UK qualification forms without adding credentials", () => {
     const g = rule("GB").prompt;
     expect(g).toContain("British English");

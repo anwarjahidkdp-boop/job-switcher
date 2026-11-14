@@ -144,9 +144,10 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
       pack = { ...(tailor.data as Omit<ApplicationPack, "cover_letter" | "email_subject" | "email_body">), ...(letter.data as Pick<ApplicationPack, "cover_letter" | "email_subject" | "email_body">) };
       // Deterministic QA gate: do not save an AI letter that omits the job target,
       // is incomplete, or asserts unverified numbers. Revert to grounded draft.
-      const critical = packCriticalIssues(pack, master, { title: job.title, company: job.company }, st.P, st.today);
+      const critical = packCriticalIssues(pack, master, job, st.P, st.today, description);
       if (critical.length) {
         console.error("pack quality gate", jobId, critical.join("; "));
+        await event(ctx, app.id, `AI draft held back by quality checks: ${critical.join("; ")}`);
         notice = "This AI draft did not pass our document quality checks. A standard draft was prepared instead; please review it before applying.";
         pack = null;
         model = null;
@@ -159,7 +160,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   }
   if (!pack || !pack.cover_letter) { pack = templatePack(job, master, st.P, { needVisa, homeCountry: st.homeCountry }); ai = false; }
   if (!pack.asks?.length) pack.asks = postAsks(description);
-  const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today });
+  const checked = checkPack(pack, master, { job, prefs: st.profile.preferences, today: st.today, description });
   checked.pack.prepared_for={job_id:job.id,source_cv_id:st.master.id};
   // Persist the exact verified CV used for this first preparation. A later Master CV edit must not rewrite it.
   checked.pack.source_cv_snapshot=structuredClone(master);

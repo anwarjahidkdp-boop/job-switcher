@@ -20,6 +20,7 @@ export function UKWritingPanel(p: { jobId: string; likely: boolean; statement: U
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState("");
+  const [example, setExample] = useState("");
   const [spec, setSpec] = useState(p.spec || "");
 
   async function run(kind: "statement" | "answer") {
@@ -27,7 +28,7 @@ export function UKWritingPanel(p: { jobId: string; likely: boolean; statement: U
     setBusy(kind); setErr(""); setWait("");
     try {
       if (kind === "statement") await patientPost(`/api/applications/${p.jobId}/statement`, { spec }, setWait);
-      else { await patientPost(`/api/applications/${p.jobId}/form-answer`, { question: q, words: limit ? Number(limit) : null }, setWait); setQ(""); setLimit(""); }
+      else { await patientPost(`/api/applications/${p.jobId}/form-answer`, { question: q, words: limit ? Number(limit) : null, example: example.trim() || null }, setWait); setQ(""); setLimit(""); setExample(""); }
       router.refresh();
     } catch (e) { setErr(e instanceof Error ? e.message : "Something went wrong. Try again."); }
     setBusy(""); setWait("");
@@ -62,6 +63,9 @@ export function UKWritingPanel(p: { jobId: string; likely: boolean; statement: U
       <p className={styles.lead}>Paste a question from the employer&apos;s form (for example &quot;Tell us about a time you dealt with a difficult customer&quot;). We answer it in the STAR style UK employers score, using your CV.</p>
       <label className={styles.label} htmlFor={`fq-${p.jobId}`}>Question</label>
       <textarea id={`fq-${p.jobId}`} className={styles.input} rows={3} maxLength={1200} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Paste the question here" />
+      <label className={styles.label} htmlFor={`fx-${p.jobId}`}>Your example, in a few words (recommended)</label>
+      <textarea id={`fx-${p.jobId}`} className={styles.input} rows={2} maxLength={800} value={example} onChange={(e) => setExample(e.target.value)} placeholder="e.g. A resident with dementia was upset at night. I sat with her and played her favourite music. She settled and slept; the nurse thanked me." />
+      <p className="small muted">A real example scores best. Without one, we leave [brackets] for you to fill in.</p>
       <div className={styles.row}>
         <label className={styles.label} htmlFor={`fl-${p.jobId}`}>Word limit (optional)</label>
         <input id={`fl-${p.jobId}`} className={styles.limit} inputMode="numeric" value={limit} onChange={(e) => setLimit(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="e.g. 250" />

@@ -18,7 +18,9 @@ export function templatePack(job: Job, m: MasterCV, P: MatchProfile, opts: { nee
   const bullets = (m.experience[0]?.bullets || []).slice().sort((a, b) => hits(b) - hits(a));
   const allSkills = [...(m.skills_core || []), ...(m.skills_tools || [])];
   const abroad = job.country !== (opts.homeCountry || HOME_COUNTRY) && opts.needVisa;
-  const years = Math.floor(P.years);
+  // The CV's own summary wins: a letter must not say "5 years" under a CV that says "3 years' experience".
+  const stated = (m.summary || "").match(/\b(\d{1,2})\+?\s*years?(?:'|’)?\s+(?:of\s+)?(?:experience|expertise)/i);
+  const years = stated ? Number(stated[1]) : Math.floor(P.years);
   const company = displayCompany(job.company);
   const article = (t: string) => (/^[aeiou]/i.test(t) && !/^(?:uni|eu|one)/i.test(t) ? "an" : "a");
   const current = m.experience.find((e) => !e.end) || null;
