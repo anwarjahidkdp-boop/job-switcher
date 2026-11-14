@@ -14,13 +14,15 @@ export function reminderEmail(p: { name: string; jobTitle: string; company: stri
   return { subject, text, html };
 }
 
-export function paymentEmail(p: { kind: "approved" | "rejected"; name: string; amount: string; trx: string | null; periodEnd: string | null; note: string | null; link: string }) {
+export function paymentEmail(p: { kind: "approved" | "rejected"; name: string; amount: string; trx: string | null; periodEnd: string | null; note: string | null; link: string; method?: "bkash" | "card" }) {
   const first = (p.name || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(" ")[0] || "there";
   const until = p.periodEnd ? fmtDate(p.periodEnd.slice(0, 10)) : "";
-  const ref = p.trx ? ` (TrxID ${p.trx})` : "";
+  // Card payments come through Creem: the receipt names the order, not a bKash TrxID.
+  const card = p.method === "card";
+  const ref = p.trx ? (card ? ` (order ${p.trx})` : ` (TrxID ${p.trx})`) : "";
   const subject = p.kind === "approved" ? "Your JobPao Pro payment is confirmed" : "We could not confirm your bKash payment";
   const body = p.kind === "approved"
-    ? `We received your ${p.amount} bKash payment${ref}. JobPao Pro is active until ${until}.`
+    ? `We received your ${p.amount} ${card ? "card" : "bKash"} payment${ref}. JobPao Pro is active until ${until}.`
     : `We could not find your ${p.amount} bKash payment${ref} in our bKash statement, so Pro was not activated.${p.note ? " Note from our team: " + p.note : ""} If you did pay, reply to this email with a screenshot of the bKash confirmation.`;
   const text = `Hi ${first},\n\n${body}\n\nOpen JobPao: ${p.link}\n`;
   const html = `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#0F1B2D;max-width:520px">
