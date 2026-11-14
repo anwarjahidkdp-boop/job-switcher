@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths: ['scripts/ingest/bd/**']
+  # GitHub stopped this timer silently 2026-11-09; workers/watchdog restarts the run and emails if it stops again.
   schedule:
     - cron: "10 * * * *"   # hourly; each run scans only the markets whose local update is due in 2 hours (src/lib/scan-schedule.ts)
   workflow_dispatch:
