@@ -42,10 +42,14 @@ describe("languagesRequired", () => {
     expect(languagesRequired("Senior accountant, strong Excel skills, London.")).toEqual([]);
   });
 });
-import {salaryText as payText,yearlyPay} from './countries';
+import {salaryText as payText,yearlyPay,payPer} from './countries';
 import {it as itPay,expect as expectPay} from 'vitest';
-itPay('shows an hourly rate as per hour and turns it into a yearly figure for comparisons',()=>{
- expectPay(payText(25058,25058,'GB',{min:12.85,max:12.85})).toBe('£12.85/hr');
- expectPay(payText(23400,27300,'GB',{min:12,max:14})).toBe('£12–£14/hr');
- expectPay(yearlyPay(12.85,'GB')).toBe(25058);expectPay(yearlyPay(30000,'GB')).toBe(30000);expectPay(yearlyPay(150,'BD')).toBe(150);
+itPay('shows hourly and daily rates as such and turns them into yearly figures for comparisons',()=>{
+ expectPay(payText(25058,25058,'GB',{per:'hour',min:12.85,max:12.85})).toBe('£12.85/hr');
+ expectPay(payText(23400,27300,'GB',{per:'hour',min:12,max:14})).toBe('£12–£14/hr');
+ expectPay(payText(23400,28600,'GB',{per:'day',min:90,max:110})).toBe('£90–£110/day');
+ expectPay(payPer(12.85,'GB')).toBe('hour');expectPay(payPer(95,'GB')).toBe('day');expectPay(payPer(28031,'GB')).toBeNull();expectPay(payPer(150,'BD')).toBeNull();
+ expectPay(yearlyPay(12.85,'GB')).toBe(25058);expectPay(yearlyPay(100,'GB')).toBe(26000);expectPay(yearlyPay(30000,'GB')).toBe(30000);expectPay(yearlyPay(150,'BD')).toBe(150);
+ // A "yearly salary" in the millions is a source error (pence read as pounds), not a real offer.
+ expectPay(yearlyPay(2803156,'GB')).toBeNull();
 });

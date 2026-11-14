@@ -1,7 +1,8 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { CountrySelect } from './CountrySelect';
-import { cname, HOURLY_CEILING, HOURS_PER_YEAR, money, rule } from '@/lib/countries';
+import { cname, HOURS_PER_YEAR, money, rule } from '@/lib/countries';
+const HOURLY_INPUT_MAX=200;
 import { draftEnvelope, emptySetup, GuidedSetupSchema, guidedSteps, readSetupDraft, SETUP_DRAFT_KEY, stepError, type GuidedSetup as Values, type SetupDraft } from '@/lib/guided-setup';
 import styles from './GuidedSetup.module.css';
 import {saveSetupCv} from '@/lib/cv/setup-draft';
@@ -20,9 +21,9 @@ export function GuidedSetup({initial,authenticated=false,billingLocked=false,onC
  const number=(k:'salaryMin'|'salaryMax'|'notice',label:string,min=0)=><label className="f">{label}<input type="number" min={min} max={k==='notice'?730:1e9} step="1" value={d[k]??''} onChange={e=>update(k,e.target.value===''?null:Number(e.target.value))}/></label>;
  // Yearly-salary countries (UK etc.): many everyday jobs are paid by the hour, so people may give an hourly rate. It is saved as the
  // yearly equivalent (37.5 h x 52 weeks), the same footing as hourly job adverts (countries.yearlyPay), so matching stays one number.
- const [perHour,setPerHour]=useState(()=>r0(initial).per==='year'&&!!initial?.salaryMin&&initial.salaryMin<HOURLY_CEILING*HOURS_PER_YEAR&&initial.salaryMin%HOURS_PER_YEAR===0);
+ const [perHour,setPerHour]=useState(()=>r0(initial).per==='year'&&!!initial?.salaryMin&&initial.salaryMin<HOURLY_INPUT_MAX*HOURS_PER_YEAR&&initial.salaryMin%HOURS_PER_YEAR===0);
  const hourlyOk=r.per==='year',asHour=hourlyOk&&perHour;
- const pay2=(k:'salaryMin'|'salaryMax',label:string,min=0)=>asHour?<label className="f">{label}<input type="number" min={min} max={HOURLY_CEILING} step="0.01" value={d[k]==null?'':Math.round(d[k]!/HOURS_PER_YEAR*100)/100} onChange={e=>update(k,e.target.value===''?null:Math.round(Number(e.target.value)*HOURS_PER_YEAR))}/></label>:number(k,label,min);
+ const pay2=(k:'salaryMin'|'salaryMax',label:string,min=0)=>asHour?<label className="f">{label}<input type="number" min={min} max={HOURLY_INPUT_MAX} step="0.01" value={d[k]==null?'':Math.round(d[k]!/HOURS_PER_YEAR*100)/100} onChange={e=>update(k,e.target.value===''?null:Math.round(Number(e.target.value)*HOURS_PER_YEAR))}/></label>:number(k,label,min);
  const payLabel=asHour?`${d.country==='GB'?'GBP (£)':r.sym.trim()} per hour`:pay;
  const help=(benefit:string,limit:string)=><aside className={styles.help}><p><b>Why we ask:</b> {benefit}</p><p className="muted"><b>Good to know:</b> {limit}</p></aside>;
  async function next(){const e=stepError(step,d);if(e){setError(e);return;}if(step!=='review'){go(returnToReview?'review':steps[index+1]);setReturnToReview(false);return;}const parsed=GuidedSetupSchema.safeParse(d);if(!parsed.success){setError(stepError('review',d)||'Check your answers.');return;}setBusy(true);try{await onComplete(parsed.data);}catch(e){setError((e as Error).message);setBusy(false);}}

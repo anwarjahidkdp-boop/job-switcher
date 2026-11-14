@@ -182,23 +182,33 @@ export function money(n: number | null | undefined, c: unknown): string {
 }
 const NUM_FMT = new Map<string, Intl.NumberFormat>();
 /** A job's published pay: "৳44,000–৳1,05,900/mo", "৳52,800/mo" for one figure, "From ৳20,000/mo" when only the start is known; "" when none. */
-/** Working hours in a year used to compare an hourly rate with a yearly salary: 37.5 hours x 52 weeks (UK full-time norm). */
+/** Working hours and days in a year used to compare an hourly or daily rate with a yearly salary (UK full-time: 37.5 h x 52 weeks). */
 export const HOURS_PER_YEAR = 1950;
-/** Pay below this in a yearly-salary country is an hourly rate (Reed and others publish care, retail and warehouse pay per hour). */
-export const HOURLY_CEILING = 200;
-export function isHourlyPay(v: number | null | undefined, c: unknown): boolean {
-  return v != null && v > 0 && v < HOURLY_CEILING && rule(c).per === "year";
+export const DAYS_PER_YEAR = 260;
+/** In a yearly-salary country, pay under 60 is an hourly rate (care, retail, warehouse) and pay from 60 to under 1,000 is a daily
+ * rate (supply staff, school support, locums). Reed and others publish both without saying which. */
+export const HOURLY_CEILING = 60;
+export const DAILY_CEILING = 1000;
+/** Above this a "yearly salary" is a source error (e.g. pence read as pounds) and is ignored. */
+export const SALARY_SANITY_MAX = 1_000_000;
+export type PayPer = "hour" | "day";
+export function payPer(v: number | null | undefined, c: unknown): PayPer | null {
+  if (v == null || !(v > 0) || rule(c).per !== "year") return null;
+  return v < HOURLY_CEILING ? "hour" : v < DAILY_CEILING ? "day" : null;
 }
-/** Pay as a yearly figure, so an hourly rate is compared with a yearly expected salary on the same footing. */
-export function yearlyPay(v: number | null | undefined, c: unknown): number | null {
-  return v == null ? null : isHourlyPay(v, c) ? Math.round(v * HOURS_PER_YEAR) : v;
+/** Pay as a yearly figure, so hourly and daily rates are compared with a yearly expected salary on the same footing. */
+export function yearlyPay(v: number | null | undefined, c: unknown, per: PayPer | null = payPer(v, c)): number | null {
+  if (v == null) return null;
+  if (per === "hour") return Math.round(v * HOURS_PER_YEAR);
+  if (per === "day") return Math.round(v * DAYS_PER_YEAR);
+  return rule(c).per === "year" && v > SALARY_SANITY_MAX ? null : v;
 }
-/** Salary for display. Pass the published hourly rate when the advert gave one, so it reads "£12.85/hr", never "£12.85/yr". */
-export function salaryText(min: number | null | undefined, max: number | null | undefined, c: unknown, hourly?: { min: number | null; max: number | null } | null): string {
-  if (hourly && (hourly.min || hourly.max)) {
-    const hr = (v: number) => (rule(c).sym || "") + v.toFixed(2).replace(/\.00$/, "");
-    if (!hourly.max) return `From ${hr(hourly.min!)}/hr`;
-    return (hourly.min && hourly.min !== hourly.max ? `${hr(hourly.min)}–` : "") + hr(hourly.max) + "/hr";
+/** Salary for display. Pass the advert's own rate when it gave one, so it reads "£12.85/hr" or "£95/day", never "£12.85/yr". */
+export function salaryText(min: number | null | undefined, max: number | null | undefined, c: unknown, rate?: { per: PayPer; min: number | null; max: number | null } | null): string {
+  if (rate && (rate.min || rate.max)) {
+    const v = (n: number) => (rule(c).sym || "") + n.toFixed(2).replace(/\.00$/, ""), unit = rate.per === "hour" ? "/hr" : "/day";
+    if (!rate.max) return `From ${v(rate.min!)}${unit}`;
+    return (rate.min && rate.min !== rate.max ? `${v(rate.min)}–` : "") + v(rate.max) + unit;
   }
   if (!max) return min ? `From ${money(min, c)}${perLabel(c)}` : "";
   return (min && min !== max ? `${money(min, c)}–` : "") + money(max, c) + perLabel(c);

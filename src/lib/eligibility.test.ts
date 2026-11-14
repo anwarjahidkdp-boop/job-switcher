@@ -100,13 +100,15 @@ it('does not turn a title-only listing into a perfect match by ignoring missing 
 it('compares UK hourly pay with a yearly expected salary instead of hiding the job',()=>{
  const row={id:'h',owner_id:null,source_kind:'board',source_label:'Reed',country:'GB',title:'Healthcare Assistant',company:'Care Co',industry:null,category:null,location:'B375DP',employment_type:null,salary_min:'12.85',salary_max:'12.85',min_years:null,max_years:null,seniority:null,education:null,required_skills:[],preferred_skills:[],certs:[],visa_sponsorship:null,deadline:null,published_at:null,apply_method:null,apply_target:null,url:null,responsibilities:[]};
  const j=rowToJob(row);
- expect(j.salaryMax).toBe(25058);expect(j.hourly).toEqual({min:12.85,max:12.85});
+ expect(j.salaryMax).toBe(25058);expect(j.rate).toEqual({per:'hour',min:12.85,max:12.85});
  const uk={salaryMin:23000,salaryConfirmed:true,workAuthorization:'yes' as const,sponsorshipRequired:false} as MatchProfile;
  expect(eligibilityCheck(j,uk,today).issues.some(i=>i.blocking&&i.code==='salary')).toBe(false);
- expect(eligibilityCheck({...j,salaryMax:12.85,hourly:null},uk,today).issues.some(i=>i.blocking&&i.code==='salary')).toBe(true);
+ expect(eligibilityCheck({...j,salaryMax:12.85,rate:null},uk,today).issues.some(i=>i.blocking&&i.code==='salary')).toBe(true);
  // Saving the job back keeps the advert's own hourly rate, not the yearly figure.
  expect(jobToRow(j,{owner_id:null,source_kind:'board'})).toMatchObject({salary_min:12.85,salary_max:12.85});
  // Yearly salaries and monthly-pay countries are untouched.
- expect(rowToJob({...row,salary_min:24000,salary_max:26000}).hourly).toBeUndefined();
+ expect(rowToJob({...row,salary_min:24000,salary_max:26000}).rate).toBeUndefined();
+ expect(rowToJob({...row,salary_min:'90',salary_max:'110'})).toMatchObject({salaryMin:23400,salaryMax:28600,rate:{per:'day',min:90,max:110}});
+ expect(rowToJob({...row,salary_min:'14.6',salary_max:'31.4'}).rate?.per).toBe('hour');
  expect(rowToJob({...row,country:'BD',salary_min:'150',salary_max:'150'}).salaryMax).toBe(150);
 });
