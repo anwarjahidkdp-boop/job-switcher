@@ -5,7 +5,7 @@
 //  - remotive / arbeitnow: free public job APIs. adzuna / jooble / reed (UK): job-search APIs with a free key (env), queried with
 //    the roles our users are looking for (`queries`).
 import { extractJobPostings, postingToJob } from "../../src/lib/ingest/jsonld";
-import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseReed, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, reedUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
+import { ADZUNA_COUNTRIES, adzunaUrl, arbeitnowUrl, ashbyUrl, joobleLocation, parseAdzuna, parseArbeitnow, parseAshby, parseJooble, parseRecruitee, parseReed, reedDetailsUrl, reedSnippet, type ReedJob, parseRemotive, parseSmartRecruiters, parseWorkable, recruiteeUrl, reedUrl, remotiveUrl, smartRecruitersUrl, workableUrl } from "../../src/lib/ingest/boards";
 import { greenhouseUrl, leverUrl, parseGreenhouse, parseLever, type IngestedJob } from "../../src/lib/ingest/ats";
 import { BOT_UA, robotsAllows } from "../../src/lib/ingest/robots";
 import {BRAC_API,parseBrac} from "../../src/lib/ingest/brac";
@@ -44,7 +44,7 @@ export function detailLinks(html:string,pageUrl:string,path:string) {
  return [...urls];
 }
 
-export async function fetchSource(src: SourceRow, today: string, fetcher: Fetcher = fetch, opts: { queries?: string[]; maxQueries?: number; env?: Record<string, string | undefined> } = {}): Promise<IngestedJob[]> {
+export async function fetchSource(src: SourceRow, today: string, fetcher: Fetcher = fetch, opts: { queries?: string[]; maxQueries?: number; env?: Record<string, string | undefined>; reedKnown?: ReedKnown } = {}): Promise<IngestedJob[]> {
   const country = cc(src.country);
   const sourceLabel = src.name;
   // "Company@bd" reads a global employer's board for its jobs in one country only (e.g. a multinational's Bangladesh office).
@@ -139,17 +139,34 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
       const key = env.REED_API_KEY;
       if (!key) throw new Error("REED_API_KEY not set");
       const auth = { headers: { authorization: "Basic " + Buffer.from(key + ":").toString("base64"), "user-agent": BOT_UA, accept: "application/json" } };
-      const out: IngestedJob[] = [];
+      const found = new Map<string, ReedJob>();
       for (const q of queries.length ? queries : [""]) {
         for (let skip = 0; skip < (q ? 100 : 300); skip += 100) {
           const res = await fetcher(reedUrl(q, skip), auth);
           if (!res.ok) throw new Error(`reed returned ${res.status}`);
-          const page = parseReed(JSON.parse(await readCapped(res)), ctx);
-          out.push(...page);
+          const page = ((JSON.parse(await readCapped(res)) as { results?: ReedJob[] })?.results || []).filter((j) => j && j.jobTitle);
+          for (const j of page) found.set(String(j.jobId), j);
           if (page.length < 100) break;
         }
       }
-      return dedupe(out);
+      // Search results carry only the first lines of each advert, so requirements went unread and documents were written
+      // from a summary. Reuse full text already stored; fetch the rest one by one, a capped number per run.
+      const results = [...found.values()];
+      const known = opts.reedKnown ? await opts.reedKnown(results.map((j) => "reed:" + j.jobId)) : new Map<string, string>();
+      let fetched = 0;
+      for (const j of results) {
+        const stored = known.get("reed:" + j.jobId);
+        if (stored && !reedSnippet(stored)) { j.jobDescription = stored; continue; }
+        if (!reedSnippet(j.jobDescription) || fetched >= REED_DETAILS_PER_RUN) continue;
+        fetched++;
+        try {
+          const res = await fetcher(reedDetailsUrl(j.jobId), auth);
+          if (!res.ok) { if (res.status === 429) fetched = REED_DETAILS_PER_RUN; continue; }
+          const full = (JSON.parse(await readCapped(res)) as { jobDescription?: string })?.jobDescription;
+          if (full && full.length > (j.jobDescription || "").length) j.jobDescription = full;
+        } catch { /* the summary is still usable */ }
+      }
+      return dedupe(parseReed({ results }, ctx));
     }
     default: throw new Error(`Unknown source kind ${src.kind}`);
   }
@@ -157,6 +174,10 @@ export async function fetchSource(src: SourceRow, today: string, fetcher: Fetche
 }
 
 export const MAX_QUERIES = 12;
+/** Reed adverts read in full per run (one API call each). Hourly runs cover a day's new UK jobs. */
+export const REED_DETAILS_PER_RUN = 150;
+/** Descriptions already stored for these external ids (full ones are reused instead of fetched again). */
+export type ReedKnown = (externalIds: string[]) => Promise<Map<string, string>>;
 const MAX_DETAILS = 60;
 const dedupe = (jobs: IngestedJob[]) => [...new Map(jobs.map((j) => [j.externalId, j])).values()];
 

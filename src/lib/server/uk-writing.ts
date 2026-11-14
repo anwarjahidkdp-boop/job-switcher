@@ -11,6 +11,7 @@ import type { ApplicationPack, FormAnswer, UkStatement } from "../types";
 import { loadJob, loadState } from "./state";
 import { trialAccess } from "./trial-access";
 import type { Ctx } from "./applications";
+import { fullAdvert } from "./full-advert";
 
 async function writingContext(ctx: Ctx, jobId: string) {
   const st = await loadState(ctx.db, ctx.userId);
@@ -38,8 +39,7 @@ async function savePack(ctx: Ctx, appId: string, patch: Partial<ApplicationPack>
 export async function writeUkStatement(ctx: Ctx, jobId: string, rawSpec?: unknown): Promise<UkStatement> {
   const { app, job, cv } = await writingContext(ctx, jobId);
   const spec = rawSpec === undefined ? cleanSpec(app.pack?.uk_spec) : cleanSpec(rawSpec);
-  const { data: d } = await ctx.db.from("jobs").select("description").eq("id", jobId).maybeSingle();
-  const description = String(d?.description || "");
+  const description = String((await fullAdvert(ctx.db, ctx.admin, jobId)) || "");
   // AI errors go up as they are: the API turns them into the right message and status, and the page retries cut-off calls.
   const r = await runAI(ctx.admin, ctx.userId, "uk_statement", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: UK_STATEMENT_PROMPT(cv, job, description, spec), schema: UkStatementSchema, maxTokens: 4000 }));
   const data = r.data as Omit<UkStatement, "ai" | "at">;

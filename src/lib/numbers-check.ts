@@ -2,6 +2,7 @@
 // generated Master CV and application pack. Ported from the prototype numbersCheck(), extended
 // with employer and skill checks so generators cannot introduce facts the user never gave us.
 import { appearsIn, skillGrounded } from "./facts";
+import { roleHead } from "./taxonomy";
 import type { ApplicationPack, MasterCV } from "./types";
 
 const UNIT: Record<string, number> = { k: 1e3, thousand: 1e3, lac: 1e5, lacs: 1e5, lakh: 1e5, lakhs: 1e5, m: 1e6, mn: 1e6, million: 1e6, crore: 1e7, crores: 1e7, cr: 1e7 };
@@ -44,13 +45,18 @@ export function packCriticalIssues(pack: ApplicationPack, master: MasterCV, job:
   const cover = (pack.cover_letter || "").trim();
   const email = (pack.email_body || "").trim();
   const subject = (pack.email_subject || "").trim();
-  const letters = cover.split(/\\s+/).filter(Boolean);
+  const letters = cover.split(/\s+/).filter(Boolean);
   if (!cover || letters.length < 60) bad.push("cover letter is too short to explain the candidate's fit");
-  if (!email || email.split(/\\s+/).filter(Boolean).length < 20) bad.push("application email is incomplete");
-  const mentioned = (text: string, needle: string) => text.toLowerCase().includes(needle.toLowerCase().trim());
-  if (job.title && !mentioned(cover, job.title)) bad.push("cover letter does not identify the target role");
-  if (job.company && !mentioned(cover, job.company)) bad.push("cover letter does not identify the employer");
-  if (job.title && !mentioned(subject, job.title) && !mentioned(email, job.title)) bad.push("email does not identify the target role");
+  if (!email || email.split(/\s+/).filter(Boolean).length < 20) bad.push("application email is incomplete");
+  // A letter names the role and employer as people write them: "Healthcare Assistant" for "Healthcare Assistant - Nights (Bank)",
+  // "SR Career Solutions" for "SR CAREER SOLUTIONS UK LIMITED".
+  const flat = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const mentioned = (text: string, needle: string) => { const n = flat(needle); return !!n && ` ${flat(text)} `.includes(` ${n} `); };
+  const role = roleHead(job.title);
+  const employer = job.company.replace(/\b(?:uk|ltd|limited|plc|llp|inc|group|holdings|services|solutions)\b\.?/gi, " ").trim() || job.company;
+  if (job.title && !mentioned(cover, role)) bad.push("cover letter does not identify the target role");
+  if (job.company && !/^company not named$/i.test(job.company) && !mentioned(cover, employer)) bad.push("cover letter does not identify the employer");
+  if (job.title && !mentioned(subject, role) && !mentioned(email, role)) bad.push("email does not identify the target role");
   if (packNumbersCheck(pack, { master, job, prefs, today }).length) bad.push("generated text contains numbers not verified in the candidate profile");
   return bad;
 }

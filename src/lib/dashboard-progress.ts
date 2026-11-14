@@ -15,7 +15,7 @@ export function currentApplicationNotifications(notes: NotificationRow[], apps: 
     const a = jobId ? apps[jobId] : undefined;
     if (!a || !['match', 'ready', 'reminder'].includes(n.kind)) return n;
     if(!isResolvedApplication(a) && a.pack){
-      const title=n.title.replace(/^New\\s+/i,'');
+      const title=n.title.replace(/^New\s+/i,'');
       return {...n,applicationStatus:'Prepared',title:`Prepared · ${title}`,body:'Your CV and cover letter are saved. Review and download them, then confirm once you apply.',link:`/jobs/${jobId}#application`};
     }
     if(!isResolvedApplication(a))return n;

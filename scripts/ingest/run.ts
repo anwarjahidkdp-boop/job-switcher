@@ -88,7 +88,7 @@ async function main() {
         if (error) throw error;
         batch = await withRetry(() => fetchBangladesh(src.board_token || "", today, { cursor: src.cursor_url, retryUrls: (retry || []).map(r => r.url) }));
       }
-      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: searchQueries(src, demand), maxQueries: MAX_QUERIES + STARTER_QUERIES_PER_RUN }));
+      const jobs = batch ? batch.jobs : await withRetry(() => fetchSource(src, today, fetch, { queries: searchQueries(src, demand), maxQueries: MAX_QUERIES + STARTER_QUERIES_PER_RUN, reedKnown: src.kind === "reed" ? storedDescriptions(db, src.id) : undefined }));
       total += jobs.length;
       console.log(`  ${src.kind} "${src.name}": ${jobs.length} job(s)`);
       if (dry) { for (const j of jobs.slice(0, 5)) console.log(`    - ${j.title} | ${j.company} | ${j.country}`); continue; }
@@ -388,3 +388,16 @@ async function roleDemand(db: ReturnType<typeof scriptAdmin>): Promise<Map<strin
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
+
+/** Descriptions already saved for a source's external ids, so a full advert read once is not cut back to its summary. */
+function storedDescriptions(db: ReturnType<typeof scriptAdmin>, sourceId: string) {
+  return async (ids: string[]) => {
+    const out = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await db.from("jobs").select("external_id, description").eq("source_id", sourceId).in("external_id", ids.slice(i, i + 100));
+      if (error) throw error;
+      for (const r of data || []) if (r.description) out.set(r.external_id as string, r.description as string);
+    }
+    return out;
+  };
+}

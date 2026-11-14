@@ -9,6 +9,7 @@ import { assertSearchCountry } from "../application-country";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, fmtDate } from "../dates";
 import { checkPack, packCriticalIssues } from "../numbers-check";
+import { fullAdvert } from "./full-advert";
 import { PACK_PROMPT, SYSTEM_RULES } from "../prompts";
 import { postAsks } from "../job-asks";
 import { PackLetterSchema, PackTailorSchema } from "../ai/schemas";
@@ -131,8 +132,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
   const master = st.master.content;
   const needVisa = st.profile.needs_visa;
   // The full post: what it asks applicants to send drives the pack and its checklist.
-  const { data: jd } = await ctx.db.from("jobs").select("description").eq("id", jobId).maybeSingle();
-  const description = (jd?.description as string | null) || null;
+  const description = await fullAdvert(ctx.db, ctx.admin, jobId);
   let pack: ApplicationPack | null = null, ai = false, model: string | null = null, notice: string | undefined;
   if (opts.standardOnly) notice = "Standard draft requested. No AI allowance was used.";
   const allowance = opts.standardOnly ? null : currentAllowance;
@@ -146,6 +146,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
       // is incomplete, or asserts unverified numbers. Revert to grounded draft.
       const critical = packCriticalIssues(pack, master, { title: job.title, company: job.company }, st.P, st.today);
       if (critical.length) {
+        console.error("pack quality gate", jobId, critical.join("; "));
         notice = "This AI draft did not pass our document quality checks. A standard draft was prepared instead; please review it before applying.";
         pack = null;
         model = null;

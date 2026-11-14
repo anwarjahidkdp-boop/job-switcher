@@ -109,7 +109,11 @@ export function parseAdzuna(json: unknown, ctx: Ctx): IngestedJob[] {
 
 // --- Reed: https://www.reed.co.uk/developers/jobseeker (free key, basic auth; UK jobs only) --------------------------
 export const reedUrl = (keywords: string, skip: number) => `https://www.reed.co.uk/api/1.0/search?resultsToTake=100&resultsToSkip=${skip}${keywords ? `&keywords=${encodeURIComponent(keywords)}` : ""}`;
-interface ReedJob { jobId: number | string; jobTitle: string; employerName?: string; locationName?: string; minimumSalary?: number | null; maximumSalary?: number | null; date?: string; expirationDate?: string; jobDescription?: string; jobUrl?: string }
+/** One job in full: the search API returns only the first ~450 characters of the description. */
+export const reedDetailsUrl = (jobId: number | string) => `https://www.reed.co.uk/api/1.0/jobs/${encodeURIComponent(String(jobId))}`;
+/** A search-result description is cut short and ends with "..."; a full one is not. */
+export const reedSnippet = (text: string | null | undefined) => !text || /(?:\.\.\.|…)\s*$/.test(text.trim());
+export interface ReedJob { jobId: number | string; jobTitle: string; employerName?: string; locationName?: string; minimumSalary?: number | null; maximumSalary?: number | null; date?: string; expirationDate?: string; jobDescription?: string; jobUrl?: string }
 /** Reed dates are dd/mm/yyyy. */
 const ukDay = (s: unknown) => { const m = typeof s === "string" ? s.match(/^(\d{2})\/(\d{2})\/(\d{4})/) : null; return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
 export function parseReed(json: unknown, ctx: Ctx): IngestedJob[] {
