@@ -126,7 +126,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             </div> : null}
             <div className="row" style={{ marginTop: 12, gap: 8 }}>
               <DeadlineChip deadline={job.deadline} today={st.today} />
-              <span className="pill p-neutral">{salaryText(job.salaryMin, job.salaryMax, job.country, job.hourly) || "Salary not published"}</span>
+              <span className="pill p-neutral">{salaryText(job.salaryMin, job.salaryMax, job.country, job.rate) || "Salary not published"}</span>
               {sponsor ? <span className="pill p-st" title={`${sponsor.name} is on the GOV.UK register of licensed sponsors`}>✓ Licensed UK visa sponsor</span> : null}
               {job.visa === true ? <span className="pill p-st">Visa sponsorship</span> : job.visa === false && job.country !== st.homeCountry ? <span className="pill p-warn">No sponsorship</span> : null}
               {job.country === "BD" && job.eligibility?.payGrade ? <span className="pill p-neutral" title="Bangladesh national pay scale grade">Govt grade {job.eligibility.payGrade}</span> : null}
