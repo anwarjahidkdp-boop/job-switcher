@@ -5,6 +5,7 @@ import { cc, payPer, rule, yearlyPay, type CountryCode } from "./countries";
 import { addDaysTo } from "./dates";
 import { CATEGORIES, INDUSTRY_LIST, isEduLevel, isSeniority, normSkill, roleHead, SKILL_ALIAS, VOCAB, type EduLevel, type Seniority } from "./taxonomy";
 import type { ApplyMethod, Job, JobCert } from "./types";
+import { ukTownFromPostcode } from "./uk-postcode";
 import type { SampleJobRaw } from "./demo";
 import type { PastedJobOut } from "./ai/schemas";
 
@@ -32,7 +33,7 @@ function payFromRow(r: JobRow): Pick<Job, "salaryMin" | "salaryMax" | "rate"> {
 export function rowToJob(r: JobRow): Job {
   const edu = r.education && isEduLevel(r.education.level) ? { level: r.education.level, field: String(r.education.field || "").toLowerCase() } : null;
   return {
-    id: r.id, active: r.active !== false, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
+    id: r.id, active: r.active !== false, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.country === "GB" ? ukTownFromPostcode(r.location) ?? null : r.location,
     eligibility: {...extractEligibility(r.description || ""),...normaliseEligibility(r.eligibility || (r.raw && typeof r.raw === "object" ? (r.raw as Record<string,unknown>).eligibility : null))},
     type: r.employment_type, ...payFromRow(r), minYears: num(r.min_years), maxYears: num(r.max_years),
     seniority: isSeniority(r.seniority) ? r.seniority : null, education: edu,

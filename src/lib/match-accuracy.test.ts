@@ -19,5 +19,7 @@ it("never calls a listing without requirements a Best or Strong fit, but still l
   expect(r).toMatchObject({ scoreCap: 79, eligible: true });
   expect(r.issues.map((i) => i.code)).toEqual(["requirements_thin"]);
   expect(eligibilityCheck({ ...job, minYears: 3 }, { salaryMin: 70000, salaryConfirmed: true } as MatchProfile, "2026-10-27").scoreCap).toBe(100);
-  expect(eligibilityCheck({ ...job, resp: [] }, { salaryMin: 70000, salaryConfirmed: true } as MatchProfile, "2026-10-27")).toMatchObject({ scoreCap: 79, eligible: false });
+  // No listed duties or requirements either: still capped below Best fit, but the person can prepare an application and check
+  // the original post (most UK board adverts arrive like this; blocking them hid the Prepare button on two thirds of UK jobs).
+  expect(eligibilityCheck({ ...job, resp: [] }, { salaryMin: 70000, salaryConfirmed: true } as MatchProfile, "2026-10-27")).toMatchObject({ scoreCap: 79, eligible: true });
 });

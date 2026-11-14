@@ -89,7 +89,9 @@ export function eligibilityCheck(job:Job,P:Pick<MatchProfile,'salaryMin'> & Part
  if(P.skills){const held=new Set(P.skills.map(s=>s.name));const missing=(job.required||[]).filter(s=>!held.has(s)&&!(s==='excel'&&held.has('advanced excel')));if(missing.length)add('required_skills',`Required skills not confirmed: ${missing.slice(0,5).join(', ')}. Add only skills you actually have.`,true,79);}
  if(P.certs)for(const cert of job.certs||[]){if(!cert.required)continue;const held=P.certs.some(c=>c.status==='qualified'&&cert.names.some(n=>c.name.toUpperCase().split(/[^A-Z0-9]+/).includes(n.toUpperCase())));if(!held)add('certification',`Required qualification not confirmed: ${cert.names.join(' or ')}.`,true,69);}
  const noRequirements=job.minYears==null&&!job.education&&!(job.required||[]).length&&!(job.certs||[]).length;
- if(noRequirements&&!(job.resp||[]).filter(l=>!JOB_META_LINE.test(l)).length)add('requirements_unknown','This listing does not establish the role requirements. Verify the full original post before treating it as a suitable opportunity.',true,79);
+ if(noRequirements&&!(job.resp||[]).filter(l=>!JOB_META_LINE.test(l)).length)// A warning, not a gate: most Reed and job-board adverts arrive as a short summary, and blocking them left UK users unable to
+ // prepare an application for two thirds of the jobs. The cap keeps such a match below Best fit.
+ add('requirements_unknown','This advert gives few details about the requirements. Open the original post to check them before you apply.',false,79);
  // Duties alone do not show what the employer asks for: the match rests on the job title, so it is never a Best or Strong fit.
  else if(noRequirements)add('requirements_thin','This post lists no experience, education or skill requirements, so the match is based on the job title only. Check the original post before applying.',false,79);
  // Expected pay is negotiable: a little below it still counts as meeting it (salaryLeeway); only pay well below it is a gate.
