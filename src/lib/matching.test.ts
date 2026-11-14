@@ -267,3 +267,15 @@ describe("undisclosed salary scoring", () => {
     expect(m.score).toBeLessThanOrEqual(69);
   });
 });
+
+describe("UK nearby towns", () => {
+  it("count towns around the preferred city as nearby, by whole words", async () => {
+    const { divOf } = await import("./taxonomy");
+    expect(divOf("West Bromwich")).toBe(divOf("Birmingham"));
+    expect(divOf("Northfield")).toBe(divOf("Birmingham, B37 5DP"));
+    expect(divOf("Whalley Range")).toBe(divOf("Greater Manchester"));
+    expect(divOf("Shrewsbury")).not.toBe(divOf("Manchester"));
+    expect(divOf("Bury St. Edmunds")).not.toBe(divOf("Manchester"));
+    expect(divOf("Dhaka")).toBe("dhaka");
+  });
+});
