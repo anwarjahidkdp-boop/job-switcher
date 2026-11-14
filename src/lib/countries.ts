@@ -182,7 +182,24 @@ export function money(n: number | null | undefined, c: unknown): string {
 }
 const NUM_FMT = new Map<string, Intl.NumberFormat>();
 /** A job's published pay: "৳44,000–৳1,05,900/mo", "৳52,800/mo" for one figure, "From ৳20,000/mo" when only the start is known; "" when none. */
-export function salaryText(min: number | null | undefined, max: number | null | undefined, c: unknown): string {
+/** Working hours in a year used to compare an hourly rate with a yearly salary: 37.5 hours x 52 weeks (UK full-time norm). */
+export const HOURS_PER_YEAR = 1950;
+/** Pay below this in a yearly-salary country is an hourly rate (Reed and others publish care, retail and warehouse pay per hour). */
+export const HOURLY_CEILING = 200;
+export function isHourlyPay(v: number | null | undefined, c: unknown): boolean {
+  return v != null && v > 0 && v < HOURLY_CEILING && rule(c).per === "year";
+}
+/** Pay as a yearly figure, so an hourly rate is compared with a yearly expected salary on the same footing. */
+export function yearlyPay(v: number | null | undefined, c: unknown): number | null {
+  return v == null ? null : isHourlyPay(v, c) ? Math.round(v * HOURS_PER_YEAR) : v;
+}
+/** Salary for display. Pass the published hourly rate when the advert gave one, so it reads "£12.85/hr", never "£12.85/yr". */
+export function salaryText(min: number | null | undefined, max: number | null | undefined, c: unknown, hourly?: { min: number | null; max: number | null } | null): string {
+  if (hourly && (hourly.min || hourly.max)) {
+    const hr = (v: number) => (rule(c).sym || "") + v.toFixed(2).replace(/\.00$/, "");
+    if (!hourly.max) return `From ${hr(hourly.min!)}/hr`;
+    return (hourly.min && hourly.min !== hourly.max ? `${hr(hourly.min)}–` : "") + hr(hourly.max) + "/hr";
+  }
   if (!max) return min ? `From ${money(min, c)}${perLabel(c)}` : "";
   return (min && min !== max ? `${money(min, c)}–` : "") + money(max, c) + perLabel(c);
 }

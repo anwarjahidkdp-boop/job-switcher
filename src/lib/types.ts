@@ -20,6 +20,8 @@ export interface Job {
   eligibility?: import("./eligibility").JobEligibility;
   salaryMin: number | null;
   salaryMax: number | null;
+  /** The advert's own hourly rate, when it gave one. salaryMin/salaryMax then hold the yearly equivalent (countries.yearlyPay). */
+  hourly?: { min: number | null; max: number | null } | null;
   minYears: number | null;
   maxYears: number | null;
   seniority: Seniority | null;

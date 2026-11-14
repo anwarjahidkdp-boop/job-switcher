@@ -11,7 +11,10 @@ export async function POST(req:Request){
  try{
   const parsed=schema.safeParse(JSON.parse(await readLimitedText(req,80000)));if(!parsed.success)return NextResponse.json({error:'Check your answers and choose a readable CV.'},{status:400});
   // Read only public, active, non-demo jobs. Never select private user jobs, applications or CVs.
-  const {data,error}=await createAdminClient().from('jobs').select('id,country,title,company,industry,category,location,employment_type,salary_min,salary_max,min_years,max_years,seniority,education,required_skills,preferred_skills,certs,visa_sponsorship,deadline,published_at,apply_method,apply_target,url,responsibilities,is_sample,owner_id,source_kind,source_label,created_at,eligibility:raw->eligibility').is('owner_id',null).eq('active',true).eq('is_sample',false).eq('country',parsed.data.setup.country).order('created_at',{ascending:false}).limit(1000);
+  const query=createAdminClient().from('jobs').select('id,country,title,company,industry,category,location,employment_type,salary_min,salary_max,min_years,max_years,seniority,education,required_skills,preferred_skills,certs,visa_sponsorship,deadline,published_at,apply_method,apply_target,url,responsibilities,is_sample,owner_id,source_kind,source_label,created_at,eligibility:raw->eligibility').is('owner_id',null).eq('active',true).eq('is_sample',false).eq('country',parsed.data.setup.country);
+  // Look among jobs with the chosen titles first: the 1,000 newest listings of a big market can hold none of an everyday role.
+  const titles=parsed.data.setup.roles.split(',').map(s=>s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu,' ').replace(/\s+/g,' ').trim()).map(s=>s.replace(/\bfinancial\b/g,'financ')).filter(s=>s.length>2).slice(0,8);
+  const {data,error}=await (titles.length?query.or(titles.map(t=>`title.ilike.*${t}*`).join(',')):query).order('created_at',{ascending:false}).limit(1000);
   if(error)throw error;
   const jobs=((data||[]) as unknown as JobRow[]).map(rowToJob);const matches=previewMatches(jobs,parsed.data.text,parsed.data.setup);
   return NextResponse.json({count:matches.length,searched:jobs.length,limited:jobs.length===1000,matches:matches.slice(0,3),checkedAt:new Date().toISOString()},{headers:{'Cache-Control':'no-store'}});
