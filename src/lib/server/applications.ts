@@ -140,7 +140,7 @@ export async function preparePack(ctx: Ctx, jobId: string, opts:{standardOnly?:b
     try {
       const tailor = await runAI(ctx.admin, ctx.userId, "pack", (p) => p.generateJSON({ tier: "fast", system: SYSTEM_RULES, prompt: PACK_PROMPT("tailor", master, job, st.P!, needVisa, st.homeCountry, { description }), schema: PackTailorSchema }));
       const td = tailor.data as { asks?: string[]; instructions?: string | null };
-      const letter = await runAI(ctx.admin, ctx.userId, "pack_letter", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry, { asks: td.asks, instructions: td.instructions }), schema: PackLetterSchema }));
+      const letter = await runAI(ctx.admin, ctx.userId, "pack_letter", (p) => p.generateJSON({ tier: "quality", system: SYSTEM_RULES, prompt: PACK_PROMPT("letter", master, job, st.P!, needVisa, st.homeCountry, { asks: td.asks, instructions: td.instructions, description }), schema: PackLetterSchema }));
       pack = { ...(tailor.data as Omit<ApplicationPack, "cover_letter" | "email_subject" | "email_body">), ...(letter.data as Pick<ApplicationPack, "cover_letter" | "email_subject" | "email_body">) };
       // Deterministic QA gate: do not save an AI letter that omits the job target,
       // is incomplete, or asserts unverified numbers. Revert to grounded draft.
