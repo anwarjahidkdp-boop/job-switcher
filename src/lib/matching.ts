@@ -32,13 +32,16 @@ export const hasSkillSet = (P: MatchProfile) => new Set(P.skills.map((s) => s.na
 
 // Per-profile lookups reused across every job in one scoring pass (scoreAll scores hundreds of jobs per page view).
 interface ProfileIdx { skills: Set<string>; tokens: Set<string>; fams: Set<number>; roles: Set<string> }
+/** Title words, with "carer" read as "care" ("Senior Carer" is a Care Assistant job). */
+const roleWords = (t: string) => titleTokens(t).map((w) => (w === "carer" || w === "carers" ? "care" : w));
 const IDX = new WeakMap<MatchProfile, ProfileIdx>();
 const normTitle = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, "");
 function profileIdx(P: MatchProfile): ProfileIdx {
   let x = IDX.get(P);
   if (!x) {
     const tokens = new Set<string>();
-    [...P.targetRoles, ...P.titles].forEach((t) => titleTokens(t).forEach((w) => tokens.add(w)));
+    // Only the role part of a title counts here too: "Healthcare Support Worker (bank)" must not add "bank".
+    [...P.targetRoles, ...P.titles].forEach((t) => roleWords(roleHead(t)).forEach((w) => tokens.add(w)));
     const fams = new Set([...tokens].map(famOf).filter((f) => f >= 0));
     x = { skills: hasSkillSet(P), tokens, fams, roles: new Set(P.targetRoles.map(normTitle)) };
     IDX.set(P, x);
@@ -46,15 +49,24 @@ function profileIdx(P: MatchProfile): ProfileIdx {
   return x;
 }
 
+/**
+ * Words that name a different profession. Where the taxonomy has no family for a role (care work, for one), a shared
+ * word alone decided the match, so a Care Assistant got "Veterinary Care Assistant", "Social Worker" and
+ * "Healthcare Operations Consultant". When the title carries one of these words and the profile does not, the shared
+ * word does not make it the same job. Family matches ("Tax Consultant" for an accountant) are left alone.
+ */
+const OTHER_PROFESSION = new Set(["social", "veterinary", "vet", "animal", "nurse", "doctor", "physician", "surgeon", "pharmacist", "pharmacy", "dentist", "dental", "physiotherapist", "therapist", "paramedic", "midwife", "psychologist", "counsellor", "solicitor", "lawyer", "barrister", "pilot", "driver", "chef", "cook", "cleaner", "housekeeper", "receptionist", "consultant", "operations", "customer", "teaching", "school", "pastoral", "underwriter", "credit"]);
+
 const ACADEMIC = /\b(?:lecturer|professor|teacher|instructor|tutor|trainer|demonstrator|faculty member)\b/i;
 
 export function roleRel(job: Pick<Job, "title" | "category">, P: MatchProfile): number {
   const { tokens: pt, fams, roles } = profileIdx(P);
   // Only the role part of the title counts: "Software Engineer, Bill Pay" is an engineering job, not finance.
-  const jt = titleTokens(roleHead(job.title));
+  const jt = roleWords(roleHead(job.title));
   let ts = 0;
   if (jt.some((w) => pt.has(w))) ts = 1;
   else if (jt.some((w) => fams.has(famOf(w)))) ts = 0.7;
+  if (ts === 1 && !jt.some((w) => fams.has(famOf(w))) && jt.some((w) => OTHER_PROFESSION.has(w) && !pt.has(w))) ts = 0;
   if (roles.has(normTitle(job.title))) ts = 1;
   // A teaching title names its subject: "Lecturer (Harbor and River Engineering)" is not a fit for a former accounting lecturer.
   if (ts && ACADEMIC.test(roleHead(job.title))) {
@@ -206,6 +218,7 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
   let s = 0, w = 0;
   for (const k of Object.keys(f) as Factor[]) { const v = f[k]; if (v != null) { s += W[k] * v; w += W[k]; } }
   let score = w ? Math.round((100 * s) / w) : 0;
+  const raw = score;
   const capped = score > capAt;
   score = Math.min(score, capAt);
   const dl = daysUntil(job.deadline, opts.today);
@@ -221,10 +234,13 @@ export function scoreJob(job: Job, P: MatchProfile, opts: ScoreOptions): MatchRe
 
   matched.sort((a, b) => b.w - a.w);
   gaps.sort((a, b) => a.o - b.o);
-  return { score, band, f: f as Record<string, number | null>, matched: matched.slice(0, 5).map((m) => m.t), gaps: gaps.slice(0, 3), allGaps: gaps, relevant: capAt>0 && !eligibility.blocked && (f.role ?? 0) >= 0.6, expired, capped, scoreCap: capAt, capReason, reason, reasonDetail };
+  return { score, raw, band, f: f as Record<string, number | null>, matched: matched.slice(0, 5).map((m) => m.t), gaps: gaps.slice(0, 3), allGaps: gaps, relevant: capAt>0 && !eligibility.blocked && (f.role ?? 0) >= 0.6, expired, capped, scoreCap: capAt, capReason, reason, reasonDetail };
 }
 
 export interface Scored { job: Job; m: MatchResult }
+
+/** Best first: the shown score, then the uncapped one, so a nearby, closer-fitting job leads among equal scores. */
+export const byFit = (a: Scored, b: Scored) => b.m.score - a.m.score || (b.m.raw ?? b.m.score) - (a.m.raw ?? a.m.score);
 
 export function scoreAll(jobs: Job[], P: MatchProfile, opts: ScoreOptions): Scored[] {
   return jobs.filter((j) => j.country === P.country).map((job) => ({ job, m: scoreJob(job, P, opts) }));
@@ -233,7 +249,7 @@ export function scoreAll(jobs: Job[], P: MatchProfile, opts: ScoreOptions): Scor
 /** Opportunity inbox list: relevant, open, not dismissed, at least Possible, best first. */
 export function inboxList(scored: Scored[], dismissed: Set<string>): Scored[] {
   // Rank only by profile fit. We deliberately do not guess recruiter behaviour, applicant volume or shortlist probability.
-  return scored.filter((x) => x.m.relevant && !x.m.expired && !dismissed.has(x.job.id) && x.m.score >= 55).sort((a, b) => b.m.score - a.m.score);
+  return scored.filter((x) => x.m.relevant && !x.m.expired && !dismissed.has(x.job.id) && x.m.score >= 55).sort(byFit);
 }
 
 export const HOME_OPPORTUNITY_LIMIT = 3;

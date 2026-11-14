@@ -57,9 +57,19 @@ export function initials(n: string) {
   return String(n || "").replace(/^(md\.?|mohammad|muhammad)\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 }
 
+/** A qualification's name without its year, brackets or punctuation: "Care Certificate (2021)" = "Care Certificate, 2021". */
+const qualKey = (s: string) => String(s || "").toLowerCase().replace(/\((?:19|20)\d{2}\)|,?\s*(?:19|20)\d{2}\s*$/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+/** One qualification is listed once: an Education line that repeats a Professional Qualifications line is dropped. */
+export function withoutRepeatedQualifications(education: string[] = [], certifications: string[] = []): string[] {
+  const held = new Set(certifications.map(qualKey).filter(Boolean));
+  return education.filter((e) => !held.has(qualKey(e)));
+}
+
 function polishMaster(m: MasterCV): MasterCV {
   return {
     ...m,
+    education: withoutRepeatedQualifications(m.education, m.certifications),
     summary: proAmounts(m.summary || ""),
     experience: (m.experience || []).map((e) => ({ ...e, bullets: (e.bullets || []).map(proAmounts) })),
   };

@@ -20,7 +20,7 @@ it('restores answers, enforces validation, preserves Back, and completes without
  await click('Continue →');expect(host.textContent).toContain('Where would');await click('Remote');await click('Continue →');
  await input('input[type=number]','0');await click('Continue →');expect((host.querySelector('input[type=number]') as HTMLInputElement).checkValidity()).toBe(false);expect(onComplete).not.toHaveBeenCalled();
  await input('input[type=number]','48000');await click('Continue →');await click('Continue →');expect(host.textContent).toContain('companies');await click('← Back');expect(host.textContent).toContain('Can you work');await click('Continue →');await click('Continue →');await click('Continue →');
- expect(host.textContent).toContain('Does this look right');expect(host.textContent).toContain('48000');expect(host.textContent).not.toContain('Date of birth');
+ expect(host.textContent).toContain('Does this look right');expect(host.textContent).toContain('£48,000 a year');expect(host.textContent).not.toContain('Date of birth');
  await click('Next: upload my CV');expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({roles:'Financial Accountant',salaryMin:48000,mode:'Remote',home:'GB'}));
 });
 it('reviews authenticated answers first, asks only missing fields, and never overwrites billing country in this form',async()=>{

@@ -83,11 +83,11 @@ async function settle(admin: SupabaseClient, id: string, method: string, from: s
   return data as { changed: boolean; status: string; period_end: string | null };
 }
 
-async function notify(admin: SupabaseClient, userId: string, kind: "approved" | "rejected", info: { periodEnd?: string; trx: string | null; amountMinor: number; currency?: string; note?: string | null }) {
+async function notify(admin: SupabaseClient, userId: string, kind: "approved" | "rejected", info: { periodEnd?: string; trx: string | null; amountMinor: number; currency?: string; note?: string | null; method?: "bkash" | "card" }) {
   if (!emailProvider()) return;
   const { data: prof } = await admin.from("profiles").select("email, full_name").eq("id", userId).maybeSingle();
   if (!prof?.email) return;
-  const m = paymentEmail({ kind, name: prof.full_name || "", amount: info.currency && info.currency !== "BDT" ? formatPrice(info.amountMinor, info.currency) : formatTaka(info.amountMinor), trx: info.trx, periodEnd: info.periodEnd ?? null, note: info.note ?? null, link: `${publicEnv.appUrl}/upgrade` });
+  const m = paymentEmail({ kind, name: prof.full_name || "", amount: info.currency && info.currency !== "BDT" ? formatPrice(info.amountMinor, info.currency) : formatTaka(info.amountMinor), trx: info.trx, periodEnd: info.periodEnd ?? null, note: info.note ?? null, method: info.method ?? "bkash", link: `${publicEnv.appUrl}/upgrade` });
   await sendEmail({ to: prof.email, ...m }).catch((e) => console.error("payment email", e));
 }
 
@@ -253,7 +253,7 @@ export async function handleCreemWebhook(admin: SupabaseClient, rawBody: string,
     return { status: 200, note: "amount mismatch" };
   }
   const result = await settle(admin, p.id, "creem", ["initiated"], { trx_id: ev.orderId, provider_order_id: ev.orderId, reviewed_by: "creem-webhook" });
-  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: ev.orderId, amountMinor: p.amount_minor, currency: "USD" });
+  if (result.changed) await notify(admin, p.user_id, "approved", { periodEnd: result.period_end!, trx: ev.orderId, amountMinor: p.amount_minor, currency: "USD", method: "card" });
   return { status: 200, note: result.changed ? "activated" : "already done" };
 }
 

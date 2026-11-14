@@ -82,6 +82,8 @@ export interface Gap { k: string; skill?: string; o: number; t: string }
 export type Band = "ex" | "st" | "po" | "lo";
 export interface MatchResult {
   score: number;
+  /** The score before any cap: orders jobs that share a capped score (many short UK adverts sit at 79). */
+  raw?: number;
   band: Band;
   f: Record<string, number | null>;
   matched: string[];

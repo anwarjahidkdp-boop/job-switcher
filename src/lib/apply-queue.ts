@@ -1,4 +1,5 @@
 import { applicationSafety } from './career-safety';
+import { byFit } from './matching';
 import type { UserState } from './server/state';
 
 export const AUTO_QUEUE_SIZE = 3;
@@ -10,7 +11,7 @@ function available(st: UserState) {
     return job.country === st.country && job.active !== false && m.relevant && !m.expired && m.score > 0
       && !st.dismissed.has(job.id) && (!job.deadline || job.deadline >= st.today)
       && (!a || ['ready','reminder','waiting'].includes(a.status));
-  }).sort((a,b) => b.m.score-a.m.score || a.job.id.localeCompare(b.job.id));
+  }).sort((a,b) => byFit(a,b) || a.job.id.localeCompare(b.job.id));
 }
 export function queueSafety(st: UserState, job: UserState['scored'][number]['job']) {
   return applicationSafety(job, st.profile.preferences, st.profile.deal_breakers, st.profile.answer_library, st.profile.needs_visa, {P:st.P!,today:st.today});

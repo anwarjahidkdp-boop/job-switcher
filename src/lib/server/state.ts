@@ -199,7 +199,7 @@ export function withAiScores(scored: Scored[], aiCheck: Map<string, AiCheck>): S
     if (!c || c.score == null) return x;
     const ceiling = x.m.scoreCap ?? (x.m.capped ? CAP_SCORE : 100);
     const score = Math.min(c.score, ceiling);
-    return { job: x.job, m: { ...x.m, score, capped: x.m.capped || c.score > ceiling, reason: c.score > ceiling && x.m.capReason ? x.m.capReason : x.m.reason, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
+    return { job: x.job, m: { ...x.m, score, raw: c.score, capped: x.m.capped || c.score > ceiling, reason: c.score > ceiling && x.m.capReason ? x.m.capReason : x.m.reason, band: bandOf(score), relevant: x.m.relevant && c.fit !== "no" } };
   });
 }
 

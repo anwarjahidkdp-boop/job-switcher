@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { proAmounts, renderCvHtml } from "./render";
+import { proAmounts, renderCvHtml, withoutRepeatedQualifications } from "./render";
 import { cvDocHtml, cvPrintHtml, pageCss } from "./doc";
 import { DEMO_MASTER } from "../demo";
 
@@ -163,4 +163,15 @@ it('keeps headline and department in sync in every template, print and Word for 
    expect(html).toContain('<p class="hl">Manager · Accounts</p>');expect(html).not.toContain('<p class="hl">Cost Accountant</p>');
   }
  }
+});
+
+describe("withoutRepeatedQualifications", () => {
+  it("lists a qualification once, under Professional Qualifications", () => {
+    const edu = ["NVQ Level 2 Health and Social Care, 2022", "Care Certificate, 2021", "GCSEs: 5 at grades 4-6 including English and Maths, 2019"];
+    const certs = ["Care Certificate (2021)", "NVQ Level 2 Health and Social Care (2022)", "Enhanced DBS check (2023)"];
+    expect(withoutRepeatedQualifications(edu, certs)).toEqual(["GCSEs: 5 at grades 4-6 including English and Maths, 2019"]);
+  });
+  it("keeps degrees that are not repeated", () => {
+    expect(withoutRepeatedQualifications(["BBA in Accounting, 2015"], ["ACCA (Part-qualified)"])).toEqual(["BBA in Accounting, 2015"]);
+  });
 });

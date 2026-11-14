@@ -95,7 +95,9 @@ it('blocks application preparation when mandatory experience, education, skills 
 
 it('does not turn a title-only listing into a perfect match by ignoring missing requirements',()=>{
  const r=eligibilityCheck({...job,minYears:null,eligibility:{}},P,today);
- expect(r.scoreCap).toBe(79);expect(r.eligible).toBe(false);expect(r.issues.some(i=>i.code==='requirements_unknown')).toBe(true);
+ expect(r.scoreCap).toBe(79);expect(r.issues.some(i=>i.code==='requirements_unknown'&&!i.blocking)).toBe(true);
+ // A short advert is still one the person can prepare an application for.
+ expect(r.eligible).toBe(true);
 });
 it('compares UK hourly pay with a yearly expected salary instead of hiding the job',()=>{
  const row={id:'h',owner_id:null,source_kind:'board',source_label:'Reed',country:'GB',title:'Healthcare Assistant',company:'Care Co',industry:null,category:null,location:'B375DP',employment_type:null,salary_min:'12.85',salary_max:'12.85',min_years:null,max_years:null,seniority:null,education:null,required_skills:[],preferred_skills:[],certs:[],visa_sponsorship:null,deadline:null,published_at:null,apply_method:null,apply_target:null,url:null,responsibilities:[]};
