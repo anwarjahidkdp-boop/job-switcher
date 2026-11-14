@@ -85,8 +85,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
     const qs = st.cvDoc.questions || [];
     const nExp = st.facts.filter((f) => f.kind === "experience").length, nEdu = st.facts.filter((f) => f.kind === "education").length, nSk = st.facts.filter((f) => f.kind === "skill").length;
     const unverified = st.facts.filter((f) => !f.verified && f.kind !== "answer").length;
-    const last = (st.profile.full_name || "").split(" ").slice(-1)[0];
-    head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} roles, ${nEdu} degrees and ${nSk} skills. Only missing or unclear CV details are asked below. Your saved search preferences will not be asked again. Skip anything you are unsure about; we never guess.`} />;
+    // Bangladeshi names are usually addressed by the last part ("Md. Rahim"); elsewhere people go by their first name.
+    const parts = (st.profile.full_name || "").trim().split(/\s+/).filter(Boolean), last = (st.country === "BD" ? parts.slice(-1)[0] : parts[0]) || "";
+    head = <Head cur="questions" back="upload" kicker="Step 3 of 5" title={<>We read your CV{last ? <>, <span>{last}</span></> : ""}.</>} sub={`Found ${nExp} role${nExp === 1 ? "" : "s"}, ${nEdu} qualification${nEdu === 1 ? "" : "s"} and ${nSk} skill${nSk === 1 ? "" : "s"}. Only missing or unclear CV details are asked below. Your saved search preferences will not be asked again. Skip anything you are unsure about; we never guess.`} />;
     body = <div className="ob">
       {unverified ? <p className="note" style={{ marginTop: 10 }}>{unverified} item{unverified === 1 ? "" : "s"} we could not find word-for-word in your CV {unverified === 1 ? "is" : "are"} kept aside until you confirm {unverified === 1 ? "it" : "them"} in your profile. Only confirmed facts go on your CV.</p> : null}
       <QuestionsForm docId={st.cvDoc.id} questions={qs} saved={st.cvDoc.answers || {}} />

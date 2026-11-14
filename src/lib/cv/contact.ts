@@ -27,3 +27,9 @@ export function cvContact(contact: string | null | undefined, account: { email?:
   const rest = parts.filter((p) => !(email && EMAIL_IN.test(p)) && !(phone && PHONE_PART.test(p)));
   return [email, phone, ...rest].filter(Boolean).join(" · ");
 }
+
+/** A sample mobile number in the person's own country format, for the signup hint. */
+export function phoneExample(country: string | null | undefined): string {
+  const c = String(country || "").toUpperCase();
+  return ({ BD: "+880 1711-000000", GB: "+44 7700 900123", IE: "+353 85 123 4567", US: "+1 202 555 0123", CA: "+1 416 555 0123", AU: "+61 412 345 678", NZ: "+64 21 123 4567", IN: "+91 98765 43210", AE: "+971 50 123 4567" } as Record<string, string>)[c] || "+44 7700 900123";
+}

@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { AuthCaptcha } from "@/components/AuthCaptcha";
 import { PasswordInput } from "@/components/PasswordInput";
 import { Spinner } from "@/components/ui";
-import { normalisePhone } from "@/lib/cv/contact";
+import { normalisePhone, phoneExample } from "@/lib/cv/contact";
+import { readSetupDraft, SETUP_DRAFT_KEY } from "@/lib/guided-setup";
 
 type Mode = "login" | "signup" | "code" | "forgot";
 type Sent = null | "code" | "signup" | "forgot";
@@ -18,6 +19,10 @@ const offline = (e: { name?: string; status?: number }) => e.name === "AuthRetry
 export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(initial);
+  // The phone hint follows the country the person said they live in during setup (UK users see a UK number, not a Bangladeshi one).
+  const [home, setHome] = useState("BD");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { try { const d = readSetupDraft(localStorage.getItem(SETUP_DRAFT_KEY)); if (d?.home) setHome(d.home); } catch {} }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
@@ -37,7 +42,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if(siteKey&&!captchaToken){setErr("Complete the security check first.");return;}
-    if(mode==="signup"&&!normalisePhone(phone)){setErr("Enter your mobile number with its country code, for example +880 1711-000000.");return;}
+    if(mode==="signup"&&!normalisePhone(phone)){setErr(`Enter your mobile number with its country code, for example ${phoneExample(home)}.`);return;}
     setBusy(true); setErr("");
     const token=captchaToken;setCaptchaToken("");
     const supabase = createClient();
@@ -111,7 +116,7 @@ export function LoginForm({ next, initial }: { next: string; initial: Mode }) {
         {mode === "forgot" ? <p className="small">Enter your email and we send you a link to set a new password.</p> : null}
         {mode === "code" ? <p className="small">We email you a one-time sign-in code. No password needed, and it confirms your email too.</p> : null}
         <label className="f" htmlFor="email">Email address<input id="email" type="text" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></label>
-        {mode === "signup" ? <label className="f" htmlFor="phone">Mobile number<input id="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={24} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +880 1711-000000" aria-describedby="phone-hint" /></label> : null}
+        {mode === "signup" ? <label className="f" htmlFor="phone">Mobile number<input id="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={24} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={`e.g. ${phoneExample(home)}`} aria-describedby="phone-hint" /></label> : null}
         {mode === "signup" ? <p id="phone-hint" className="small muted" style={{ marginTop: -4 }}>Used on your CV with this email. You can change both later in Profile.</p> : null}
         {needsPw ? <label className="f" htmlFor="password">{mode === "signup" ? "Choose a password" : "Password"}<PasswordInput key={mode} id="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={mode === "signup" ? 8 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : ""} aria-describedby={mode === "signup" ? "pw-hint" : undefined} /></label> : null}
         {needsPw && mode === "signup" ? <p id="pw-hint" className="small" style={{ marginTop: -4, color: password.length >= 8 ? "var(--good)" : "var(--ink-2)" }}>{password.length >= 8 ? "✓ Password is long enough" : `Password must be at least 8 characters (${password.length}/8)`}</p> : null}

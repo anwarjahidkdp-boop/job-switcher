@@ -19,9 +19,13 @@ export function freshnessQuestions(x: { experiences?: Exp[]; education?: Edu[] }
   const exps = x.experiences || [];
   const dates = [...exps.flatMap((e) => [ym(e.start), ym(e.end)]), ...(x.education || []).map((e) => ym(e.year))].filter((n): n is number => n != null && n <= now);
   const latest = dates.length ? Math.max(...dates) : null;
-  const old = latest != null && now - latest >= 12;
-  const out: CvQuestion[] = [];
   const current = exps.filter((e) => !e.end && e.start).sort((a, b) => (ym(b.start) || 0) - (ym(a.start) || 0))[0];
+  // A role marked "present" makes the CV current: people often stay in one job for years. Only a present role that began
+  // five or more years ago, with nothing newer on the CV, is worth a check; asking every current employee reads as a bug.
+  const currentStart = current ? ym(current.start) : null;
+  const staleCurrent = currentStart == null || now - currentStart >= 60;
+  const old = latest != null && now - latest >= 12 && (!current || staleCurrent);
+  const out: CvQuestion[] = [];
   if (current && old) out.push({ id: "fresh_role", question: `Your CV says you still work as ${current.title} at ${current.company}. Is that still true? If you left, when, and where do you work now?`, placeholder: "e.g. Still there, now Senior Accountant / Left in June 2025, now at ABC Ltd", suggestions: ["Yes, I still work there", "Still there, promoted to ", "I left. Now I work at "] });
   if (old) out.push({ id: "fresh_new", question: `The newest date on your CV is ${label(latest!)}. What has changed since then: a new job, promotion, course, exam result or certification?`, placeholder: "e.g. Passed ACCA F7 in 2025; promoted to Team Lead in 2025", suggestions: ["Nothing has changed", "I was promoted to ", "Finished a course: "] });
   return out;
