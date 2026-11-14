@@ -45,3 +45,16 @@ it('suggests titles as you type, adds picks and custom titles, and removes indep
  await act(async()=>{(host.querySelector('[aria-label="Remove Accountant"]') as HTMLButtonElement).click();});
  await click('Continue →');await click('← Back');expect(host.querySelector('[aria-label="Remove Zakat Fund Coordinator"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Financial Accountant"]')).not.toBeNull();expect(host.querySelector('[aria-label="Remove Accountant"]')).toBeNull();
 });
+it('lets UK users give an hourly rate and saves its yearly equivalent',async()=>{
+ const d={...emptySetup('GB'),roles:'Care Assistant',workAuthorization:'yes' as const,sponsorshipRequired:false,willingToRelocate:true};
+ localStorage.setItem(SETUP_DRAFT_KEY,draftEnvelope(d,'salary'));
+ await act(async()=>root.render(<GuidedSetup onComplete={vi.fn()}/>));
+ expect(host.textContent).toContain('What salary');await click('Per hour');expect(host.textContent).toContain('GBP (£) per hour');
+ await input('input[type=number]','12.85');expect(host.textContent).toContain('About £25,058 a year');
+ await click('Per year');expect((host.querySelector('input[type=number]') as HTMLInputElement).value).toBe('25058');
+});
+it('offers no hourly option where salaries are monthly',async()=>{
+ localStorage.setItem(SETUP_DRAFT_KEY,draftEnvelope({...emptySetup('BD'),roles:'Accountant'},'salary'));
+ await act(async()=>root.render(<GuidedSetup onComplete={vi.fn()}/>));
+ expect(host.textContent).toContain('What salary');expect(host.textContent).not.toContain('Per hour');
+});

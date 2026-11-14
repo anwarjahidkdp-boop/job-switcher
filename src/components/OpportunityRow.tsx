@@ -21,7 +21,7 @@ export function OpportunityRow({ x, today, status, ai, hideFit = false }: { x: S
       <Ring score={m.score} band={m.band} />
       <div style={{ minWidth: 0 }}>
         <h4><Link prefetch={false} className="opp-open" href={`/jobs/${job.id}`}>{job.title}</Link></h4>
-        <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{salaryText(job.salaryMin, job.salaryMax, job.country) ? ` · ${salaryText(job.salaryMin, job.salaryMax, job.country)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
+        <div className="meta">{job.company}{job.location ? ` · ${job.location}` : ""}{salaryText(job.salaryMin, job.salaryMax, job.country, job.hourly) ? ` · ${salaryText(job.salaryMin, job.salaryMax, job.country, job.hourly)}` : ""}{job.ownerId ? ` · ${job.source}` : ""}{job.isSample ? " · Sample" : ""}</div>
         <div className="why">{m.matched.slice(0, 3).map((t) => "✓ " + t).join(" · ")}{m.gaps[0] ? <> · <span style={{ color: "var(--warn)" }}>⚠ {m.gaps[0].t.split(";")[0]}</span></> : null}</div>
         {hideFit ? null : <span className={`chip-chance ${tone}`}>{label}</span>}
         {gap ? <Link prefetch={false} className="chip-gap" href={`/insights/job/${job.id}`}>{gap}</Link> : null}

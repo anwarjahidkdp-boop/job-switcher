@@ -1,7 +1,7 @@
 import { digits, extractEligibility, JOB_META_LINE, normaliseEligibility, type JobEligibility } from "./eligibility";
 // Job normalisation: DB row <-> Job, AI output -> Job, and a deterministic text normaliser
 // used by ingestion (no AI cost) and as a fallback when AI is unavailable.
-import { cc, rule, type CountryCode } from "./countries";
+import { cc, isHourlyPay, rule, yearlyPay, type CountryCode } from "./countries";
 import { addDaysTo } from "./dates";
 import { CATEGORIES, INDUSTRY_LIST, isEduLevel, isSeniority, normSkill, roleHead, SKILL_ALIAS, VOCAB, type EduLevel, type Seniority } from "./taxonomy";
 import type { ApplyMethod, Job, JobCert } from "./types";
@@ -21,12 +21,19 @@ export interface JobRow {
 const num = (v: unknown): number | null => (v == null || v === "" || isNaN(Number(v)) ? null : Number(v));
 const applyMethod = (m: unknown): ApplyMethod => (m === "email" || m === "portal" ? m : "unknown");
 
+/** Hourly rates (Reed care, retail and warehouse adverts) become yearly figures for every salary comparison; the rate itself is kept for display. */
+function payFromRow(r: JobRow): Pick<Job, "salaryMin" | "salaryMax" | "hourly"> {
+  const min = num(r.salary_min), max = num(r.salary_max);
+  if (!isHourlyPay(min, r.country) && !isHourlyPay(max, r.country)) return { salaryMin: min, salaryMax: max };
+  return { salaryMin: yearlyPay(min, r.country), salaryMax: yearlyPay(max, r.country), hourly: { min: isHourlyPay(min, r.country) ? min : null, max: isHourlyPay(max, r.country) ? max : null } };
+}
+
 export function rowToJob(r: JobRow): Job {
   const edu = r.education && isEduLevel(r.education.level) ? { level: r.education.level, field: String(r.education.field || "").toLowerCase() } : null;
   return {
     id: r.id, active: r.active !== false, country: cc(r.country), title: r.title, company: r.company, industry: r.industry, category: r.category, location: r.location,
     eligibility: {...extractEligibility(r.description || ""),...normaliseEligibility(r.eligibility || (r.raw && typeof r.raw === "object" ? (r.raw as Record<string,unknown>).eligibility : null))},
-    type: r.employment_type, salaryMin: num(r.salary_min), salaryMax: num(r.salary_max), minYears: num(r.min_years), maxYears: num(r.max_years),
+    type: r.employment_type, ...payFromRow(r), minYears: num(r.min_years), maxYears: num(r.max_years),
     seniority: isSeniority(r.seniority) ? r.seniority : null, education: edu,
     required: (r.required_skills || []).map(normSkill), preferred: (r.preferred_skills || []).map(normSkill),
     certs: (r.certs || []).filter((c) => c && Array.isArray(c.names) && c.names.length),
@@ -43,7 +50,7 @@ export function jobToRow(j: Omit<Job, "id"> & { id?: string }, extra: { owner_id
     ...(j.id ? { id: j.id } : {}),
     owner_id: extra.owner_id, source_id: extra.source_id ?? null, source_kind: extra.source_kind, source_label: j.source, external_id: extra.external_id ?? null,
     country: j.country, title: j.title.slice(0, 300), company: (j.company || "Company not stated").slice(0, 300), industry: j.industry, category: j.category, location: j.location,
-    employment_type: j.type, salary_min: j.salaryMin, salary_max: j.salaryMax, min_years: j.minYears, max_years: j.maxYears, seniority: j.seniority,
+    employment_type: j.type, salary_min: j.hourly?.min ?? j.salaryMin, salary_max: j.hourly?.max ?? j.salaryMax, min_years: j.minYears, max_years: j.maxYears, seniority: j.seniority,
     education: j.education, required_skills: j.required, preferred_skills: j.preferred, certs: j.certs, visa_sponsorship: j.visa,
     deadline: j.deadline, published_at: j.publishedAt, apply_method: j.apply.method, apply_target: j.apply.target, url: j.url,
     responsibilities: j.resp.slice(0, 8), description: extra.description ?? null, is_sample: !!j.isSample, raw: { ...(extra.raw && typeof extra.raw === "object" && !Array.isArray(extra.raw) ? extra.raw as Record<string,unknown> : extra.raw != null ? {sourcePayload:extra.raw} : {}), eligibility: {...extractEligibility(extra.description || ""),...j.eligibility} },
