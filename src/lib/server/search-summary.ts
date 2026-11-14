@@ -1,4 +1,5 @@
 import type { Scored } from "@/lib/matching";
+import { byFit } from "@/lib/matching";
 
 /** The instant local midnight began in `timeZone` (ignores a DST change at midnight itself). */
 export function dayStart(timeZone: string, now: Date = new Date()): Date {
@@ -60,5 +61,5 @@ export function summaryRows(rows: Scored[], since: Date | null, filter: SummaryF
   return rows
     .filter((x) => t == null || foundMs(x) >= t)
     .filter((x) => filter === "found" || (filter === "matched" ? fitCard(x) !== "rest" : fitCard(x) === filter))
-    .sort((a, b) => b.m.score - a.m.score);
+    .sort(byFit);
 }

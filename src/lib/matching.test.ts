@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitLabel, bandOf, CAP_SCORE, roleRel, scoreJob, W, yearsFrom, inboxList, scoreAll, skillImpact } from "./matching";
+import { fitLabel, bandOf, CAP_SCORE, roleRel, scoreJob, byFit, W, yearsFrom, inboxList, scoreAll, skillImpact } from "./matching";
 import { buildMatchProfile, groundExtraction } from "./facts";
 import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_PREFS, SAMPLE_JOBS_RAW } from "./demo";
 import { guessCategory, sampleToJob } from "./jobs";
@@ -150,6 +150,28 @@ describe("role part of the title decides relevance", () => {
     expect(rel("Director, Strategic Finance")).toBe(true);
     expect(rel("Senior Accountant - Tax")).toBe(true);
     expect(rel("Manager (Internal Audit)")).toBe(true);
+  });
+});
+
+describe("care roles without a taxonomy family", () => {
+  const P = { ...demoProfile("GB"), targetRoles: ["Care Assistant", "Healthcare Assistant"], titles: ["Care Assistant", "Healthcare Support Worker (bank)"], categories: ["Healthcare"] };
+  const rel = (title: string) => roleRel({ title, category: "Healthcare" }, P) >= 0.6;
+  it("keeps care jobs, whatever words they add", () => {
+    for (const t of ["Care Assistant", "Healthcare Assistant", "Senior Care Assistant", "Residential Care Worker", "Night Care Assistant - Days", "Support Worker", "Domiciliary Care Worker", "Mental Health Support Worker", "Senior Carer"]) expect(rel(t), t).toBe(true);
+  });
+  it("drops other professions that share one word", () => {
+    for (const t of ["Social Worker", "Principal Social Worker", "Veterinary Care Assistant", "Healthcare Operations Consultant", "Care Home Cook", "Registered Nurse - Care Home"]) expect(rel(t), t).toBe(false);
+  });
+  it("ignores bracketed notes in the profile's own titles", () => {
+    expect(roleRel({ title: "Bank Cashier", category: "Banking" }, P)).toBeLessThan(0.6);
+  });
+});
+
+describe("byFit", () => {
+  it("orders equal capped scores by the uncapped one", () => {
+    const mk = (id: string, score: number, raw?: number) => ({ job: { id } as Job, m: { score, raw } as ReturnType<typeof scoreJob> });
+    const out = [mk("a", 79, 82), mk("b", 79, 95), mk("c", 85, 85), mk("d", 79)].sort(byFit).map((x) => x.job.id);
+    expect(out).toEqual(["c", "b", "a", "d"]);
   });
 });
 
