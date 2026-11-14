@@ -30,8 +30,9 @@ export function numbersFlag(bad: string[]): string[] {
 }
 
 /** Prototype-equivalent pack check: numbers in the pack must come from the master CV or the preferences or today's date. */
-export function packNumbersCheck(pack: Pick<ApplicationPack, "summary" | "top_bullets" | "cover_letter" | "email_body">, src: { master: unknown; job: unknown; prefs: unknown; today: string }): string[] {
-  const sources = JSON.stringify(src.master) + JSON.stringify(src.prefs || {}) + src.today;
+export function packNumbersCheck(pack: Pick<ApplicationPack, "summary" | "top_bullets" | "cover_letter" | "email_body">, src: { master: unknown; job: unknown; prefs: unknown; today: string; description?: string | null }): string[] {
+  // Numbers the advert states (pay, hours, postcode, vacancies) may be repeated; only the candidate's own claims must be verified.
+  const sources = JSON.stringify(src.master) + JSON.stringify(src.prefs || {}) + src.today + JSON.stringify(src.job || {}) + (src.description || "");
   return numbersFlag(unknownNumbers([pack.summary, ...(pack.top_bullets || []), pack.cover_letter, pack.email_body], sources));
 }
 
@@ -40,7 +41,7 @@ export function packNumbersCheck(pack: Pick<ApplicationPack, "summary" | "top_bu
  * These checks intentionally avoid subjective prose grading: the job target and numeric
  * factual claims can be assessed deterministically, whereas style still needs human review.
  */
-export function packCriticalIssues(pack: ApplicationPack, master: MasterCV, job: {title: string; company: string}, prefs?: unknown, today = ""): string[] {
+export function packCriticalIssues(pack: ApplicationPack, master: MasterCV, job: {title: string; company: string}, prefs?: unknown, today = "", description: string | null = null): string[] {
   const bad: string[] = [];
   const cover = (pack.cover_letter || "").trim();
   const email = (pack.email_body || "").trim();
@@ -55,9 +56,12 @@ export function packCriticalIssues(pack: ApplicationPack, master: MasterCV, job:
   const role = roleHead(job.title);
   const employer = job.company.replace(/\b(?:uk|ltd|limited|plc|llp|inc|group|holdings|services|solutions)\b\.?/gi, " ").trim() || job.company;
   if (job.title && !mentioned(cover, role)) bad.push("cover letter does not identify the target role");
-  if (job.company && !/^company not named$/i.test(job.company) && !mentioned(cover, employer)) bad.push("cover letter does not identify the employer");
+  // Advertisers shorten their own names ("SR Careers" for "SR CAREER SOLUTIONS UK LIMITED"): each main word, as a word start, is enough.
+  const words = ` ${flat(cover)}`;
+  const named = (needle: string) => { const t = flat(needle).split(" ").filter((w) => w.length >= 3); return t.length ? t.every((w) => words.includes(` ${w}`)) : mentioned(cover, needle); };
+  if (job.company && !/^company not named$/i.test(job.company) && !named(employer)) bad.push("cover letter does not identify the employer");
   if (job.title && !mentioned(subject, role) && !mentioned(email, role)) bad.push("email does not identify the target role");
-  if (packNumbersCheck(pack, { master, job, prefs, today }).length) bad.push("generated text contains numbers not verified in the candidate profile");
+  if (packNumbersCheck(pack, { master, job, prefs, today, description }).length) bad.push("generated text contains numbers not verified in the candidate profile");
   return bad;
 }
 
@@ -68,7 +72,7 @@ const lc = (s: string) => s.toLowerCase().trim();
  * - skills_order may only contain Master CV skills (anything else is dropped and flagged)
  * - numbers must exist in the sources (flagged for the user before sending)
  */
-export function checkPack(pack: ApplicationPack, master: MasterCV, src: { job: unknown; prefs: unknown; today: string }): { pack: ApplicationPack; flags: string[] } {
+export function checkPack(pack: ApplicationPack, master: MasterCV, src: { job: unknown; prefs: unknown; today: string; description?: string | null }): { pack: ApplicationPack; flags: string[] } {
   const flags: string[] = [];
   const masterSkills = [...(master.skills_core || []), ...(master.skills_tools || [])];
   const known = new Map(masterSkills.map((s) => [lc(s), s]));

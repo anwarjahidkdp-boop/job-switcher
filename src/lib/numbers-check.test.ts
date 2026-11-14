@@ -82,8 +82,13 @@ describe("corporate application quality gate", () => {
   it("accepts the role and employer as people write them", () => {
     const uk = { title: "Healthcare Assistant - Nights (Bank)", company: "SR CAREER SOLUTIONS UK LIMITED" };
     const words = Array.from({ length: 70 }, () => "care").join(" ");
-    const letter = { ...valid, cover_letter: `Dear Hiring Manager, I am applying for the Healthcare Assistant role at SR Career Solutions. ${words}`, email_subject: "Healthcare Assistant application", email_body: `Please find my application for the Healthcare Assistant role attached. ${words}` };
+    const letter = { ...valid, cover_letter: `Dear Hiring Manager, I am applying for the Healthcare Assistant role with SR Careers. ${words}`, email_subject: "Healthcare Assistant application", email_body: `Please find my application for the Healthcare Assistant role attached. ${words}` };
     expect(packCriticalIssues(letter, DEMO_MASTER, uk, DEMO_PREFS, TODAY).filter((x) => /identify/.test(x))).toEqual([]);
+  });
+  it("accepts numbers the advert itself states", () => {
+    const letter = { ...valid, cover_letter: valid.cover_letter + " I note the role pays £12.85 an hour in B37 5DP." };
+    expect(packCriticalIssues(letter, DEMO_MASTER, job, DEMO_PREFS, TODAY).join(" ")).toMatch(/not verified/);
+    expect(packCriticalIssues(letter, DEMO_MASTER, job, DEMO_PREFS, TODAY, "Pay £12.85 per hour. Location B37 5DP.")).toEqual([]);
   });
   it("rejects incomplete or generic employer letters", () => {
     const issues = packCriticalIssues({ ...valid, cover_letter: "Dear Hiring Manager, I am a great candidate.", email_subject: "Application", email_body: "Hello" }, DEMO_MASTER, job, DEMO_PREFS, TODAY);
