@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { FORM_ANSWER_PROMPT, UK_STATEMENT_PROMPT } from "./prompts";
+import { FORM_ANSWER_PROMPT, PACK_PROMPT, UK_STATEMENT_PROMPT } from "./prompts";
+import { buildMatchProfile, groundExtraction } from "./facts";
+import { DEMO_CV_TEXT, DEMO_EXTRACT, DEMO_PREFS } from "./demo";
 import { rule } from "./countries";
 import { DEMO_MASTER, SAMPLE_JOBS_RAW } from "./demo";
 import { sampleToJob } from "./jobs";
@@ -46,5 +48,13 @@ describe("UK writing prompts", () => {
     expect(g).toContain("British English");
     expect(g).toContain("Never add a credential");
     expect(g).toContain("Yours sincerely");
+  });
+  it("UK cover letter: advert-linked, Yours faithfully for Dear Hiring Manager, never describes the CV itself", () => {
+    const facts = groundExtraction(DEMO_EXTRACT, DEMO_CV_TEXT);
+    const P = buildMatchProfile({ name: DEMO_EXTRACT.name, facts, meta: { industries: DEMO_EXTRACT.industries, categories: DEMO_EXTRACT.categories, seniority: DEMO_EXTRACT.seniority, target_roles: DEMO_EXTRACT.target_roles, location: DEMO_EXTRACT.location }, prefs: DEMO_PREFS, country: "GB" });
+    const p = PACK_PROMPT("letter", DEMO_MASTER, job, P, false, "GB", { description: "Duties: month-end close and variance analysis for the board." });
+    expect(p).toContain("Yours faithfully");
+    expect(p).toContain("month-end close and variance analysis");
+    expect(p).toContain("Never describe the CV document itself");
   });
 });
