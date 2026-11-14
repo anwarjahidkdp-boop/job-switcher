@@ -121,3 +121,25 @@ describe("pausedMarkets", () => {
     expect(pausedMarkets(undefined).size).toBe(0);
   });
 });
+
+describe("Reed adverts are read in full", () => {
+  const reed: SourceRow = { id: "r1", kind: "reed", name: "Reed UK", url: null, board_token: "reed-gb", country: "GB", company: null };
+  const search = JSON.stringify({ results: [
+    { jobId: 1, jobTitle: "Care Assistant", employerName: "A Care", locationName: "Leeds", jobDescription: "We need a carer. Key duties: personal care..." },
+    { jobId: 2, jobTitle: "Support Worker", employerName: "B Care", locationName: "York", jobDescription: "Support worker wanted..." },
+    { jobId: 3, jobTitle: "Night Carer", employerName: "C Care", locationName: "Hull", jobDescription: "A complete short advert." },
+  ] });
+  const map: Record<string, [number, string]> = {
+    "https://www.reed.co.uk/api/1.0/search?resultsToTake=100&resultsToSkip=0&keywords=care": [200, search],
+    "https://www.reed.co.uk/api/1.0/jobs/1": [200, JSON.stringify({ jobDescription: "<p>We need a carer.</p><ul><li>Personal care</li></ul><p>Requirements: 1 year of care experience, Care Certificate, Enhanced DBS.</p>" })],
+  };
+  it("fetches full text for cut-short adverts and reuses text already stored", async () => {
+    const { f, seen } = fakeFetch(map);
+    const jobs = await fetchSource(reed, "2026-11-14", f, { queries: ["care"], env: { REED_API_KEY: "k" }, reedKnown: async () => new Map([["reed:2", "Support worker wanted. Full stored advert with every requirement listed."]]) });
+    const byId = Object.fromEntries(jobs.map((j) => [j.externalId, j.description]));
+    expect(byId["reed:1"]).toMatch(/Enhanced DBS/);
+    expect(byId["reed:2"]).toMatch(/Full stored advert/);
+    expect(byId["reed:3"]).toBe("A complete short advert.");
+    expect(seen.filter((s) => s.url.includes("/jobs/")).map((s) => s.url)).toEqual(["https://www.reed.co.uk/api/1.0/jobs/1"]);
+  });
+});

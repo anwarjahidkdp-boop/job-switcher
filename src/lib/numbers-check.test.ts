@@ -76,6 +76,15 @@ describe("corporate application quality gate", () => {
   const valid = {
     ...templatePack(job, DEMO_MASTER, buildMatchProfile({ name: DEMO_MASTER.name, facts: groundExtraction(DEMO_EXTRACT, DEMO_CV_TEXT), meta: { industries: DEMO_EXTRACT.industries, categories: DEMO_EXTRACT.categories, seniority: "senior", target_roles: [], location: "Dhaka" }, prefs: DEMO_PREFS, country: "BD" }), { needVisa: false }),
   };
+  it("passes a complete, grounded letter (a broken word count once failed every AI draft)", () => {
+    expect(packCriticalIssues(valid, DEMO_MASTER, job, DEMO_PREFS, TODAY)).toEqual([]);
+  });
+  it("accepts the role and employer as people write them", () => {
+    const uk = { title: "Healthcare Assistant - Nights (Bank)", company: "SR CAREER SOLUTIONS UK LIMITED" };
+    const words = Array.from({ length: 70 }, () => "care").join(" ");
+    const letter = { ...valid, cover_letter: `Dear Hiring Manager, I am applying for the Healthcare Assistant role at SR Career Solutions. ${words}`, email_subject: "Healthcare Assistant application", email_body: `Please find my application for the Healthcare Assistant role attached. ${words}` };
+    expect(packCriticalIssues(letter, DEMO_MASTER, uk, DEMO_PREFS, TODAY).filter((x) => /identify/.test(x))).toEqual([]);
+  });
   it("rejects incomplete or generic employer letters", () => {
     const issues = packCriticalIssues({ ...valid, cover_letter: "Dear Hiring Manager, I am a great candidate.", email_subject: "Application", email_body: "Hello" }, DEMO_MASTER, job, DEMO_PREFS, TODAY);
     expect(issues.join(" ")).toMatch(/too short/);
