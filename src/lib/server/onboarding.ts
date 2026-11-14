@@ -106,7 +106,8 @@ export async function ingestCv(ctx: Ctx, input: { file?: { name: string; bytes: 
   }
   // An old CV (newest date a year or more ago) first asks whether the current role and dates still hold.
   const fresh = input.demo ? [] : freshnessQuestions(extraction, todayStr(rule(country).timeZone));
-  const questions: (CvQuestion & { demo?: string })[] = [...fresh, ...extraction.questions].slice(0, 6);
+  // At most four short questions in all: each one is a step a new user must read before seeing their CV.
+  const questions: (CvQuestion & { demo?: string })[] = [...fresh, ...extraction.questions].slice(0, 4);
 
   const facts = groundExtraction(extraction, text);
   // The phone given at signup (or saved on Profile) is the CV phone; the CV's own number is only a fallback.

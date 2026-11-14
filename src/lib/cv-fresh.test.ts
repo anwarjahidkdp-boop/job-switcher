@@ -14,4 +14,7 @@ describe("freshnessQuestions", () => {
   it("asks only what changed when no role is current", () => {
     expect(freshnessQuestions({ experiences: [{ title: "A", company: "B", start: "2020-01", end: "2023-05" }] }, "2026-10-21").map((x) => x.id)).toEqual(["fresh_new"]);
   });
+  it("treats a role still marked present, begun under five years ago, as a current CV", () => {
+    expect(freshnessQuestions({ experiences: [{ title: "Care Assistant", company: "Oakwood", start: "2023-03", end: null }, { title: "Support Worker", company: "Sandwell", start: "2021-06", end: "2023-02" }], education: [{ year: "2022" }] }, "2026-11-14")).toEqual([]);
+  });
 });

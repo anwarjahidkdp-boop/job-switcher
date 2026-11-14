@@ -17,3 +17,12 @@ it.each([
 ])('directs existing users to login without claiming an email was sent',async(result)=>{await submit(result);expect(host.textContent).toContain('An account with this email already exists');expect(host.textContent).toContain('Forgot password?');expect((host.querySelector('#email') as HTMLInputElement).value).toBe('existing@example.com');expect((host.querySelector('#password') as HTMLInputElement).value).toBe('');expect(host.textContent).not.toContain('We sent a link');expect(replace).not.toHaveBeenCalled();expect(localStorage.getItem('jp_guided_setup_v1')).toBe('saved answers');});
 it('keeps confirmation guidance for a new signup',async()=>{await submit({data:{user:{identities:[{id:'new'}]},session:null},error:null});expect(host.textContent).toContain('Check your inbox');expect(host.textContent).toContain('Already have an account');expect(host.textContent).not.toContain('An account with this email already exists');});
 it('sends the mobile number with the signup and asks for it when missing',async()=>{await submit({data:{user:{identities:[{id:'new'}]},session:null},error:null});expect(signUp.mock.calls[0][0].options.data).toEqual({phone:'+880 1711-000000'});});
+it('shows a phone example from the country the person lives in',async()=>{
+ const {draftEnvelope,emptySetup}=await import('@/lib/guided-setup');
+ localStorage.setItem('jp_guided_setup_v1',draftEnvelope({...emptySetup('GB'),roles:'Care Assistant'}));
+ await act(async()=>root.render(<LoginForm initial="signup" next="/onboarding?import=1"/>));
+ expect(host.querySelector('#phone')!.getAttribute('placeholder')).toBe('e.g. +44 7700 900123');
+ localStorage.setItem('jp_guided_setup_v1','not json');await act(async()=>root.unmount());root=createRoot(host);
+ await act(async()=>root.render(<LoginForm initial="signup" next="/onboarding?import=1"/>));
+ expect(host.querySelector('#phone')!.getAttribute('placeholder')).toBe('e.g. +880 1711-000000');
+});
